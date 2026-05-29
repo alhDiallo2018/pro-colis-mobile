@@ -1,5 +1,8 @@
+// ignore_for_file: unused_field
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -19,32 +22,77 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _identifierController = TextEditingController();
   bool _isLoading = false;
   bool _usePinLogin = false;
+  bool _hasSavedIdentifier = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSavedIdentifier();
+  }
+
+  Future<void> _checkSavedIdentifier() async {
+    final hasSavedId = await ref.read(authProvider.notifier).hasSavedIdentifier();
+    setState(() {
+      _hasSavedIdentifier = hasSavedId;
+      if (hasSavedId) {
+        _usePinLogin = true;
+      }
+    });
+  }
 
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
     
     setState(() => _isLoading = true);
     
-    final result = await ref.read(authProvider.notifier).sendOtp(
-      identifier: _identifierController.text.trim(),
-    );
+    print('🔄 [LoginScreen] Envoi OTP pour: ${_identifierController.text.trim()}');
     
-    setState(() => _isLoading = false);
-    
-    if (result['success'] == true) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OtpVerificationScreen(
-            userId: result['userId'],
-            identifier: _identifierController.text.trim(),
-            isLogin: true,
-          ),
-        ),
+    try {
+      final result = await ref.read(authProvider.notifier).sendOtp(
+        identifier: _identifierController.text.trim(),
       );
-    } else {
+      
+      print('📦 [LoginScreen] Résultat reçu: $result');
+      
+      setState(() => _isLoading = false);
+      
+      if (result['success'] == true) {
+        print('✅ [LoginScreen] OTP envoyé, userId: ${result['userId']}');
+        
+        if (!mounted) return;
+        
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OtpVerificationScreen(
+              userId: result['userId'].toString(),
+              identifier: _identifierController.text.trim(),
+              isLogin: true,
+            ),
+          ),
+        );
+      } else {
+        print('❌ [LoginScreen] Erreur: ${result['message']}');
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Erreur lors de l\'envoi'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ [LoginScreen] Exception: $e');
+      setState(() => _isLoading = false);
+      
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Une erreur est survenue'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -84,6 +132,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Text('Transport de colis interurbain'),
               ),
               const SizedBox(height: 48),
+              
               // Switch entre OTP et PIN
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +151,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
               ),
               const SizedBox(height: 24),
+              
               if (!_usePinLogin) ...[
+                // Mode OTP - Première connexion ou reconnexion avec email
                 const Text(
                   'Connexion',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -130,8 +181,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   isLoading: _isLoading,
                 ),
               ] else ...[
+                // Mode PIN - Connexion rapide avec PIN uniquement
                 const Text(
-                  'Connexion par PIN',
+                  'Connexion rapide',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
@@ -141,7 +193,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 32),
                 const PinLoginScreen(),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    setState(() => _usePinLogin = false);
+                    _identifierController.clear();
+                  },
+                  child: const Text(
+                    'Connexion avec OTP',
+                    style: TextStyle(color: Color(0xFF0B6E3A)),
+                  ),
+                ),
               ],
+              
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -154,7 +218,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                        MaterialPageRoute(builder: (context) => const RegisterDriverScreen()),
                       );
                     },
                     child: const Text(

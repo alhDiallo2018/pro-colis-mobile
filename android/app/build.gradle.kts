@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.procolis"
+    namespace = "com.example.pro_colis_clean"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

@@ -33,7 +33,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   void initState() {
     super.initState();
     _startTimer();
-    print('🔐 OTP Screen - UserId: ${widget.userId}');
+    debugPrint('🔐 OTP Screen initialisé');
+    debugPrint('   UserId: ${widget.userId}');
+    debugPrint('   Identifier: ${widget.identifier}');
   }
 
   @override
@@ -63,6 +65,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
   Future<void> _verifyOtp() async {
     final code = _codeController.text.trim();
+    
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez entrer le code à 6 chiffres')),
@@ -71,30 +74,68 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     }
     
     setState(() => _isVerifying = true);
-    print('🔐 Verifying OTP: $code for user ${widget.userId}');
+    debugPrint('🔐 Vérification OTP');
+    debugPrint('   Code: $code');
+    debugPrint('   UserId: ${widget.userId}');
     
-    final result = await ref.read(authProvider.notifier).verifyOtp(
-      userId: widget.userId,
-      code: code,
-      type: 'login',
-    );
-    
-    setState(() => _isVerifying = false);
-    print('🔐 Verification result: $result');
-    
-    if (result['success'] == true) {
-      print('✅ Login successful, navigating to dashboard');
-      if (mounted) {
+    try {
+      // ✅ CORRECTION: Ajout du paramètre identifier
+      final result = await ref.read(authProvider.notifier).verifyOtp(
+        userId: widget.userId,
+        code: code,
+        type: 'login',
+        identifier: widget.identifier, // Ajout du paramètre requis
+      );
+      
+      debugPrint('📦 Résultat vérification: $result');
+      
+      setState(() => _isVerifying = false);
+      
+      if (result['success'] == true) {
+        debugPrint('✅ Connexion réussie !');
+        
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connexion réussie !'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+        
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        if (!mounted) return;
+        
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const DashboardScreen()),
           (route) => false,
         );
+      } else {
+        debugPrint('❌ Vérification échouée: ${result['message']}');
+        
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Code invalide'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } else {
-      print('❌ Verification failed: ${result['message']}');
+    } catch (e) {
+      debugPrint('❌ Exception lors de la vérification: $e');
+      setState(() => _isVerifying = false);
+      
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Code invalide'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Une erreur est survenue'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -104,21 +145,50 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     
     setState(() => _isVerifying = true);
     
-    final result = await ref.read(authProvider.notifier).sendOtp(
-      identifier: widget.identifier,
-    );
+    debugPrint('🔄 Renvoi OTP pour: ${widget.identifier}');
     
-    setState(() => _isVerifying = false);
-    
-    if (result['success'] == true) {
-      _startTimer();
-      _codeController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nouveau code envoyé !'), backgroundColor: Colors.green),
+    try {
+      final result = await ref.read(authProvider.notifier).sendOtp(
+        identifier: widget.identifier,
       );
-    } else {
+      
+      debugPrint('📦 Résultat renvoi: $result');
+      
+      setState(() => _isVerifying = false);
+      
+      if (result['success'] == true) {
+        _startTimer();
+        _codeController.clear();
+        
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nouveau code envoyé !'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Erreur lors du renvoi'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Exception lors du renvoi: $e');
+      setState(() => _isVerifying = false);
+      
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Erreur'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Une erreur est survenue'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -129,6 +199,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       appBar: AppBar(
         title: const Text('Vérification OTP'),
         backgroundColor: const Color(0xFF0B6E3A),
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -169,6 +240,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.all(16),
                 ),
+                onSubmitted: (_) => _verifyOtp(),
               ),
             ),
             const SizedBox(height: 32),
@@ -182,13 +254,14 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   onPressed: _verifyOtp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B6E3A),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: const Text(
                     'Vérifier',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
+                    style: TextStyle(fontSize: 16),
                   ),
                 ),
               ),

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../dashboard/dashboard_screen.dart';
+import 'otp_verification_screen.dart';
 
 class PinLoginScreen extends ConsumerStatefulWidget {
   const PinLoginScreen({super.key});
@@ -50,6 +52,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
   Future<void> _verifyPin() async {
     setState(() => _isLoading = true);
     
+    // Connexion avec PIN (l'identifiant est récupéré automatiquement depuis le stockage)
     final result = await ref.read(authProvider.notifier).loginWithPin(_pin);
     
     if (mounted) {
@@ -78,10 +81,42 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
     }
   }
 
-  void _forgotPin() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Réinitialisation du PIN par OTP')),
+  Future<void> _forgotPin() async {
+    // Récupérer l'identifiant sauvegardé
+    final savedIdentifier = await ref.read(authProvider.notifier).getSavedIdentifier();
+    
+    if (savedIdentifier == null || savedIdentifier.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucun compte trouvé. Veuillez vous connecter avec OTP.')),
+      );
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    
+    final result = await ref.read(authProvider.notifier).sendOtp(
+      identifier: savedIdentifier,
     );
+    
+    setState(() => _isLoading = false);
+    
+    if (result['success'] == true && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OtpVerificationScreen(
+            userId: result['userId'],
+            identifier: savedIdentifier,
+            isLogin: true,
+            // isPinReset: true, // Pour indiquer que c'est une réinitialisation de PIN
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Erreur'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -137,7 +172,10 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: _forgotPin,
-                child: const Text('Mot de passe oublié ?'),
+                child: const Text(
+                  'Mot de passe oublié ?',
+                  style: TextStyle(color: Color(0xFF0B6E3A)),
+                ),
               ),
             ],
           ),

@@ -14,40 +14,83 @@ import '../models/parcel.dart';
 import '../models/user.dart';
 
 class ApiService {
+  // Pour Android Emulator
+  // static const String baseUrl = 'http://10.0.2.2:8080';
+  // Pour Chrome/Web (décommentez cette ligne et commentez celle du dessus)
+  // static const String baseUrl = 'http://localhost:8080';
+  // Pour site  (render)
   static const String baseUrl = 'https://procolis-backend.onrender.com';
+  
   final Dio _dio = Dio();
   final _storage = const FlutterSecureStorage();
+
+  // Liste des routes publiques qui ne nécessitent pas de token
+  static const Set<String> _publicRoutes = {
+    '/auth/register',
+    '/auth/send-otp',
+    '/auth/verify-otp',
+    '/auth/login-with-pin',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/verify-email',
+    '/auth/resend-verification',
+    '/public/',
+    '/health',
+  };
 
   ApiService() {
     _dio.options.baseUrl = baseUrl;
     _dio.options.headers['Content-Type'] = 'application/json';
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
+    _dio.options.validateStatus = (status) => status! < 500;
 
-    _dio.interceptors.add(InterceptorsWrapper(
+    _setupInterceptors();
+  }
+
+  void _setupInterceptors() {
+    _dio.interceptors.add(QueuedInterceptorsWrapper(
       onRequest: (options, handler) async {
+        final isPublic = _isPublicRoute(options.path);
+        
+        if (isPublic) {
+          debugPrint('🔓 [PUBLIC] ${options.method} ${options.path}');
+          return handler.next(options);
+        }
+        
         final token = await _storage.read(key: 'token');
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
-          debugPrint('🔐 Token ajouté à la requête: ${options.path}');
+          debugPrint('🔐 [PROTECTED] ${options.method} ${options.path} - Token ajouté');
         } else {
-          debugPrint('⚠️ Aucun token trouvé pour: ${options.path}');
+          debugPrint('⚠️ [NO TOKEN] ${options.method} ${options.path}');
         }
+        
         return handler.next(options);
       },
       onResponse: (response, handler) {
-        debugPrint('✅ Réponse reçue: ${response.statusCode} - ${response.requestOptions.path}');
+        debugPrint('✅ [${response.statusCode}] ${response.requestOptions.method} ${response.requestOptions.path}');
         return handler.next(response);
       },
-      onError: (error, handler) async {
-        debugPrint('❌ Erreur API: ${error.response?.statusCode} - ${error.requestOptions.path}');
-        if (error.response?.statusCode == 401) {
-          debugPrint('🔐 Token expiré, déconnexion...');
+      onError: (DioError error, handler) async {
+        final statusCode = error.response?.statusCode;
+        final path = error.requestOptions.path;
+        
+        debugPrint('❌ [ERROR] $statusCode - $path');
+        debugPrint('   Message: ${error.message}');
+        
+        if (statusCode == 401 && !_isPublicRoute(path)) {
+          debugPrint('🔐 Token invalide/expiré, nettoyage...');
           await clearToken();
         }
+        
         return handler.next(error);
       },
     ));
+  }
+
+  bool _isPublicRoute(String path) {
+    return _publicRoutes.any((route) => path.contains(route));
   }
 
   Future<String?> getToken() async => await _storage.read(key: 'token');
@@ -76,6 +119,8 @@ class ApiService {
     return 'image/jpeg';
   }
 
+  
+
   // ==================== MÉTHODES D'AUTHENTIFICATION ====================
 
   Future<Map<String, dynamic>> register({
@@ -89,33 +134,66 @@ class ApiService {
     String? region,
     String? vehiclePlate,
     String? vehicleModel,
+    String? vehicleColor,
+    int? vehicleYear,
     String? garageId,
   }) async {
     try {
-      final response = await _dio.post('/auth/register', data: {
-        'email': email,
-        'phone': phone,
-        'fullName': fullName,
-        'password': password,
-        'role': role,
-        'address': address,
-        'city': city,
-        'region': region,
-        'vehiclePlate': vehiclePlate,
-        'vehicleModel': vehicleModel,
-        'garageId': garageId,
-      });
-      return _handleResponse(response);
+      print('📤 Envoi requête register: email=$email, phone=$phone');
+      
+      final response = await _dio.post('/auth/register',
+        data: {
+          'email': email,
+          'phone': phone,
+          'fullName': fullName,
+          'password': password,
+          'role': role,
+          'address': address,
+          'city': city,
+          'region': region,
+          'vehiclePlate': vehiclePlate,
+          'vehicleModel': vehicleModel,
+          'vehicleColor': vehicleColor,
+          'vehicleYear': vehicleYear,
+          'garageId': garageId,
+        },
+      );
+      
+      print('✅ Réponse reçue: ${response.statusCode}');
+      print('📦 Type de réponse: ${response.data.runtimeType}');
+      
+      Map<String, dynamic> responseData;
+      
+      if (response.data is String) {
+        responseData = jsonDecode(response.data);
+        print('🔄 Réponse convertie depuis String');
+      } else if (response.data is Map) {
+        responseData = Map<String, dynamic>.from(response.data);
+        print('✅ Réponse déjà en Map');
+      } else {
+        throw Exception('Format de réponse inattendu: ${response.data.runtimeType}');
+      }
+      
+      print('📊 Réponse parsée: $responseData');
+      
+      if (responseData['success'] == true && responseData['userId'] != null) {
+        print('✅ Inscription réussie pour userId: ${responseData['userId']}');
+      }
+      
+      return responseData;
     } catch (e) {
+      print('❌ Erreur register: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
 
   Future<Map<String, dynamic>> sendOtp(String identifier) async {
     try {
+      debugPrint('📤 Envoi OTP pour: $identifier');
       final response = await _dio.post('/auth/send-otp', data: {'identifier': identifier});
       return _handleResponse(response);
     } catch (e) {
+      debugPrint('❌ Erreur sendOtp: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
@@ -141,19 +219,24 @@ class ApiService {
     await clearToken();
   }
 
-  Future<Map<String, dynamic>> loginWithPin(String pin) async {
-    try {
-      final response = await _dio.post('/auth/login-with-pin', data: {'pin': pin});
-      final responseData = _handleResponse(response);
-      if (responseData['success'] == true && responseData['accessToken'] != null) {
-        await setToken(responseData['accessToken']);
-      }
-      return responseData;
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
+  Future<Map<String, dynamic>> loginWithPin(String pin, String identifier) async {
+  try {
+    debugPrint('📤 [loginWithPin] Tentative pour: $identifier');
+    final response = await _dio.post('/auth/login-with-pin', data: {
+      'pin': pin,
+      'identifier': identifier,
+    });
+    final responseData = _handleResponse(response);
+    if (responseData['success'] == true && responseData['accessToken'] != null) {
+      await setToken(responseData['accessToken']);
+      debugPrint('✅ [loginWithPin] Connexion réussie');
     }
+    return responseData;
+  } catch (e) {
+    debugPrint('❌ [loginWithPin] Erreur: $e');
+    return {'success': false, 'message': e.toString()};
   }
-
+}
   // ==================== AUTHENTIFICATION AVANCÉE ====================
 
   Future<Map<String, dynamic>> refreshToken() async {
@@ -447,66 +530,50 @@ class ApiService {
   }
 
   Future<Parcel> createParcelByDriver(Map<String, dynamic> data) async {
-  try {
-    // Gérer correctement paymentMethod
-    String? paymentMethodValue;
-    if (data['paymentMethod'] != null) {
-      if (data['paymentMethod'] is String) {
-        paymentMethodValue = data['paymentMethod'];
-      } else if (data['paymentMethod'].value != null) {
-        paymentMethodValue = data['paymentMethod'].value;
-      } else {
-        paymentMethodValue = data['paymentMethod'].toString();
+    try {
+      String? paymentMethodValue;
+      if (data['paymentMethod'] != null) {
+        if (data['paymentMethod'] is String) {
+          paymentMethodValue = data['paymentMethod'];
+        } else if (data['paymentMethod'].value != null) {
+          paymentMethodValue = data['paymentMethod'].value;
+        } else {
+          paymentMethodValue = data['paymentMethod'].toString();
+        }
       }
-    }
 
-    final cleanedData = <String, dynamic>{
-      // Infos client (expéditeur réel)
-      'senderName': data['senderName'],
-      'senderPhone': data['senderPhone'],
-      'senderEmail': data['senderEmail'],
-      
-      // Infos destinataire
-      'receiverName': data['receiverName'],
-      'receiverPhone': data['receiverPhone'],
-      'receiverEmail': data['receiverEmail'],
-      'receiverAddress': data['receiverAddress'],
-      
-      // Détails colis
-      'description': data['description'],
-      'weight': data['weight'],
-      'type': data['type'] ?? 'package',
-      
-      // Trajet
-      'departureGarageId': data['departureGarageId'],
-      'departureGarageName': data['departureGarageName'],
-      'arrivalGarageId': data['arrivalGarageId'],
-      'arrivalGarageName': data['arrivalGarageName'],
-      
-      // Prix et options
-      'price': data['price'],
-      'isUrgent': data['isUrgent'] ?? false,
-      'isInsured': data['isInsured'] ?? false,
-      
-      // Paiement
-      'paymentMethod': paymentMethodValue,
-      'paymentPhoneNumber': data['paymentPhoneNumber'],
-      
-      // Médias
-      'photoUrls': data['photoUrls'] ?? [],
-      'videoUrls': data['videoUrls'] ?? [],
-      'notes': data['notes'],
-    };
+      final cleanedData = <String, dynamic>{
+        'senderName': data['senderName'],
+        'senderPhone': data['senderPhone'],
+        'senderEmail': data['senderEmail'],
+        'receiverName': data['receiverName'],
+        'receiverPhone': data['receiverPhone'],
+        'receiverEmail': data['receiverEmail'],
+        'receiverAddress': data['receiverAddress'],
+        'description': data['description'],
+        'weight': data['weight'],
+        'type': data['type'] ?? 'package',
+        'departureGarageId': data['departureGarageId'],
+        'departureGarageName': data['departureGarageName'],
+        'arrivalGarageId': data['arrivalGarageId'],
+        'arrivalGarageName': data['arrivalGarageName'],
+        'price': data['price'],
+        'isUrgent': data['isUrgent'] ?? false,
+        'isInsured': data['isInsured'] ?? false,
+        'paymentMethod': paymentMethodValue,
+        'paymentPhoneNumber': data['paymentPhoneNumber'],
+        'photoUrls': data['photoUrls'] ?? [],
+        'videoUrls': data['videoUrls'] ?? [],
+        'notes': data['notes'],
+      };
 
-    // Ajouter senderId SEULEMENT s'il n'est pas vide
-    if (data['senderId'] != null && data['senderId'].toString().isNotEmpty) {
-      cleanedData['senderId'] = data['senderId'];
-    }
+      if (data['senderId'] != null && data['senderId'].toString().isNotEmpty) {
+        cleanedData['senderId'] = data['senderId'];
+      }
 
-    // Supprimer les valeurs null
-    cleanedData.removeWhere((key, value) => value == null);
+      cleanedData.removeWhere((key, value) => value == null);
 
-    debugPrint('📦 Envoi au backend: ${jsonEncode(cleanedData)}');
+      debugPrint('📦 Envoi au backend: ${jsonEncode(cleanedData)}');
       cleanedData.removeWhere((key, value) => value == null || (value is String && value.isEmpty));
       final response = await _dio.post('/driver/parcels/create', data: cleanedData);
       final responseData = _handleResponse(response);
@@ -632,9 +699,9 @@ class ApiService {
   Future<Parcel> updateParcelStatus(String parcelId, String status, {String? location}) async {
     try {
       debugPrint('🔥🔥🔥 updateParcelStatus APPELEE !!! 🔥🔥🔥');
-    debugPrint('   parcelId: $parcelId');
-    debugPrint('   status: $status');
-    debugPrint('   location: $location');
+      debugPrint('   parcelId: $parcelId');
+      debugPrint('   status: $status');
+      debugPrint('   location: $location');
       final currentUser = await getCurrentUser();
       final role = currentUser.role;
       String endpoint;

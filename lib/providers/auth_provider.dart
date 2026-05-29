@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/user.dart';
 import '../services/api_service.dart';
@@ -12,43 +13,66 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(AuthState.initial()) {
-    _loadUser(); // ← CORRECTION: Appel au chargement initial
+    _loadUser();
   }
 
   final ApiService _apiService = ApiService();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
+  // ==================== GESTION DE L'IDENTIFIANT STOCKÉ ====================
+  
+  /// Sauvegarder l'identifiant (email/phone) après la première connexion
+  Future<void> _saveIdentifier(String identifier) async {
+    await _storage.write(key: 'saved_identifier', value: identifier);
+    debugPrint('✅ [AUTH] Identifiant sauvegardé: $identifier');
+  }
+  
+  /// Charger l'identifiant sauvegardé
+  Future<String?> _getSavedIdentifier() async {
+    final identifier = await _storage.read(key: 'saved_identifier');
+    debugPrint('📱 [AUTH] Identifiant chargé: $identifier');
+    return identifier;
+  }
+  
+  /// Vérifier si un identifiant est sauvegardé
+  Future<bool> hasSavedIdentifier() async {
+    final identifier = await _storage.read(key: 'saved_identifier');
+    return identifier != null && identifier.isNotEmpty;
+  }
+  
+  /// Récupérer l'identifiant sauvegardé (public)
+  Future<String?> getSavedIdentifier() async {
+    return await _storage.read(key: 'saved_identifier');
+  }
+  
   // ==================== CHARGEMENT INITIAL ====================
+  
   Future<void> _loadUser() async {
-    print('🔄 [AUTH] _loadUser - Chargement initial');
+    debugPrint('🔄 [AUTH] _loadUser - Chargement initial');
     
     try {
-      // Vérifier si un token existe
       final token = await _apiService.getToken();
       if (token == null || token.isEmpty) {
-        print('⚠️ [AUTH] Aucun token trouvé');
+        debugPrint('⚠️ [AUTH] Aucun token trouvé');
         state = AuthState.unauthenticated();
         return;
       }
       
       final user = await _apiService.getCurrentUser();
       
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      print('✅ [AUTH] Utilisateur chargé avec succès:');
-      print('   ├─ id: ${user.id}');
-      print('   ├─ fullName: ${user.fullName}');
-      print('   ├─ email: ${user.email}');
-      print('   ├─ phone: ${user.phone}');
-      print('   ├─ role: ${user.role.label}');
-      print('   ├─ address: ${user.address}');
-      print('   ├─ city: ${user.city}');
-      print('   ├─ region: ${user.region}');
-      print('   ├─ profilePhoto: ${user.profilePhoto}');
-      print('   └─ garageId: ${user.garageId}');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      debugPrint('✅ [AUTH] Utilisateur chargé avec succès:');
+      debugPrint('   ├─ id: ${user.id}');
+      debugPrint('   ├─ fullName: ${user.fullName}');
+      debugPrint('   ├─ email: ${user.email}');
+      debugPrint('   ├─ phone: ${user.phone}');
+      debugPrint('   ├─ role: ${user.role.label}');
+      debugPrint('   └─ a un PIN: ${user.pin != null ? "Oui" : "Non"}');
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
       state = AuthState.authenticated(user);
     } catch (e) {
-      print('❌ [AUTH] Erreur lors du chargement: $e');
+      debugPrint('❌ [AUTH] Erreur lors du chargement: $e');
       await _apiService.clearToken();
       state = AuthState.unauthenticated();
     }
@@ -76,30 +100,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String userId,
     required String code,
     required String type,
+    required String identifier,
   }) async {
     try {
       final result = await _apiService.verifyOtp(userId, code, type);
-      print('🔐 Résultat verifyOtp: $result');
+      debugPrint('🔐 Résultat verifyOtp: $result');
       
       if (result['success'] == true) {
-        print('✅ OTP vérifié avec succès');
-        print('📦 AccessToken reçu: ${result['accessToken']}');
+        debugPrint('✅ OTP vérifié avec succès');
+        debugPrint('📦 AccessToken reçu: ${result['accessToken']}');
+        
+        // Sauvegarder l'identifiant pour les futures connexions PIN
+        await _saveIdentifier(identifier);
         
         final userData = result['user'];
         if (userData != null) {
           final user = User.fromJson(userData);
           state = AuthState.authenticated(user);
-          print('👤 Utilisateur authentifié: ${user.fullName}');
+          debugPrint('👤 Utilisateur authentifié: ${user.fullName}');
+          debugPrint('📱 Identifiant sauvegardé pour connexion rapide');
         } else {
           state = AuthState.authenticated(null);
         }
       } else {
-        print('❌ Échec vérification OTP: ${result['message']}');
+        debugPrint('❌ Échec vérification OTP: ${result['message']}');
         state = AuthState.error(result['message'] ?? 'Code invalide');
       }
       return result;
     } catch (e) {
-      print('❌ Exception verifyOtp: $e');
+      debugPrint('❌ Exception verifyOtp: $e');
       state = AuthState.error(e.toString());
       return {'success': false, 'message': e.toString()};
     }
@@ -116,6 +145,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? region,
     String? vehiclePlate,
     String? vehicleModel,
+    String? vehicleColor,
+    int? vehicleYear,
     String? garageId,
   }) async {
     state = AuthState.loading();
@@ -131,9 +162,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         region: region,
         vehiclePlate: vehiclePlate,
         vehicleModel: vehicleModel,
+        vehicleColor: vehicleColor,
+        vehicleYear: vehicleYear,
         garageId: garageId,
       );
       if (result['success'] == true) {
+        // Sauvegarder l'identifiant (email) après inscription
+        await _saveIdentifier(email);
         state = AuthState.otpSent(result['userId']);
       } else {
         state = AuthState.error(result['message'] ?? 'Erreur');
@@ -145,28 +180,49 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // Connexion avec PIN uniquement (utilise l'identifiant sauvegardé)
   Future<Map<String, dynamic>> loginWithPin(String pin) async {
     state = AuthState.loading();
     try {
-      final result = await _apiService.loginWithPin(pin);
+      // Récupérer l'identifiant sauvegardé
+      final savedIdentifier = await _getSavedIdentifier();
+      
+      if (savedIdentifier == null || savedIdentifier.isEmpty) {
+        debugPrint('❌ [PIN_LOGIN] Aucun identifiant sauvegardé');
+        state = AuthState.error('Session expirée. Veuillez vous reconnecter avec votre email.');
+        return {
+          'success': false, 
+          'message': 'Session expirée. Veuillez vous reconnecter avec votre email.'
+        };
+      }
+      
+      debugPrint('🔐 [PIN_LOGIN] Tentative pour: $savedIdentifier');
+      
+      final result = await _apiService.loginWithPin(pin, savedIdentifier);
+      
       if (result['success'] == true) {
         final user = User.fromJson(result['user']);
         state = AuthState.authenticated(user);
-        print('👤 Utilisateur connecté: ${user.fullName}');
+        debugPrint('✅ [PIN_LOGIN] Connexion réussie pour: ${user.fullName}');
       } else {
+        debugPrint('❌ [PIN_LOGIN] Échec: ${result['message']}');
         state = AuthState.error(result['message'] ?? 'PIN incorrect');
       }
       return result;
     } catch (e) {
+      debugPrint('❌ [PIN_LOGIN] Erreur: $e');
       state = AuthState.error(e.toString());
       return {'success': false, 'message': e.toString()};
     }
   }
 
+  // ✅ CORRECTION ICI : Ne pas effacer l'identifiant lors de la déconnexion
   Future<void> logout() async {
     await _apiService.logout();
+    // ❌ SUPPRIMÉ : await _clearSavedIdentifier();
+    // L'identifiant reste sauvegardé pour les prochaines connexions PIN
     state = AuthState.unauthenticated();
-    print('👋 Utilisateur déconnecté');
+    debugPrint('👋 Utilisateur déconnecté (identifiant conservé pour PIN)');
   }
 
   // ==================== GESTION DU PROFIL ====================
@@ -180,6 +236,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? region,
     String? vehiclePlate,
     String? vehicleModel,
+    String? vehicleColor,
+    int? vehicleYear,
   }) async {
     try {
       final result = await _apiService.updateProfile(
@@ -191,9 +249,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         region: region,
         vehiclePlate: vehiclePlate,
         vehicleModel: vehicleModel,
+        vehicleColor: vehicleColor,
+        vehicleYear: vehicleYear,
       );
       
       if (result['success'] == true) {
+        // Mettre à jour l'identifiant sauvegardé si l'email a changé
+        await _saveIdentifier(email);
         await refreshUser();
       }
       return result;
@@ -216,12 +278,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> refreshUser() async {
     try {
-      print('🔄 [AUTH] refreshUser - Rafraîchissement');
+      debugPrint('🔄 [AUTH] refreshUser - Rafraîchissement');
       final user = await _apiService.getCurrentUser();
-      print('✅ [AUTH] Utilisateur rafraîchi: ${user.fullName}');
-      print('   address: ${user.address}');
-      print('   city: ${user.city}');
-      print('   region: ${user.region}');
+      debugPrint('✅ [AUTH] Utilisateur rafraîchi: ${user.fullName}');
       state = AuthState.authenticated(user);
     } catch (e) {
       debugPrint('❌ Erreur refresh user: $e');
