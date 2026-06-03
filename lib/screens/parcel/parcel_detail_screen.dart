@@ -44,7 +44,6 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     'videos': false,
     'financial': false,
     'shipping': false,
-    'calls': false,
   };
 
   @override
@@ -293,7 +292,6 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 }
 
-// Ajoutez cette méthode pour naviguer vers le profil
 void _navigateToProfile() {
   Navigator.push(
     context,
@@ -341,9 +339,21 @@ void _navigateToProfile() {
   }
 
   void _showCallOptions() {
+    final authState = ref.read(authProvider);
+    final currentUser = authState.user;
+    final isDriver = currentUser?.isDriver ?? false;
+    final currentDriverId = currentUser?.id;
+    
+    final isCurrentDriver = isDriver && currentDriverId == _parcel.driverId;
+    
     final hasSenderPhone = _parcel.senderPhone.isNotEmpty;
     final hasReceiverPhone = _parcel.receiverPhone.isNotEmpty;
-    final hasDriverPhone = _parcel.driverPhone != null && _parcel.driverPhone!.isNotEmpty;
+    final hasDriverPhone = _parcel.driverPhone != null && _parcel.driverPhone!.isNotEmpty && !isCurrentDriver;
+    
+    if (!hasSenderPhone && !hasReceiverPhone && !hasDriverPhone) {
+      _showSnackbar('Aucun contact disponible', isError: true);
+      return;
+    }
     
     showModalBottomSheet(
       context: context,
@@ -429,76 +439,6 @@ void _navigateToProfile() {
           ],
         ),
       ),
-    );
-  }
-
-  // ==================== SECTION APPELS ====================
-
-  Widget _buildCallsSection() {
-    return _buildCollapsibleSection(
-      key: 'calls',
-      title: 'Contacter',
-      icon: Icons.phone,
-      child: Column(
-        children: [
-          ElevatedButton.icon(
-            onPressed: _showCallOptions,
-            icon: const Icon(Icons.phone, size: 20),
-            label: const Text('Contacter'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0B6E3A),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              minimumSize: const Size(double.infinity, 48),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (_parcel.senderPhone.isNotEmpty)
-                _buildContactChip(
-                  icon: Icons.person,
-                  label: 'Expéditeur',
-                  phone: _parcel.senderPhone,
-                  name: _parcel.senderName,
-                ),
-              if (_parcel.receiverPhone.isNotEmpty)
-                _buildContactChip(
-                  icon: Icons.person_outline,
-                  label: 'Destinataire',
-                  phone: _parcel.receiverPhone,
-                  name: _parcel.receiverName,
-                ),
-              if (_parcel.driverPhone != null && _parcel.driverPhone!.isNotEmpty)
-                _buildContactChip(
-                  icon: Icons.delivery_dining,
-                  label: 'Chauffeur',
-                  phone: _parcel.driverPhone!,
-                  name: _parcel.driverName ?? 'Chauffeur',
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContactChip({
-    required IconData icon,
-    required String label,
-    required String phone,
-    required String name,
-  }) {
-    return ActionChip(
-      avatar: Icon(icon, size: 16, color: const Color(0xFF0B6E3A)),
-      label: Text(label),
-      onPressed: () => _makePhoneCall(phone, name),
-      backgroundColor: Colors.grey.shade100,
     );
   }
 
@@ -644,8 +584,10 @@ void _navigateToProfile() {
         children: [
           _buildMainStatusCard(),
           const SizedBox(height: 16),
+          
           if ((isDriver || isAdmin) && !_parcel.isFinished) _buildQuickActionsRow(),
           const SizedBox(height: 16),
+          
           _buildCollapsibleSection(
             key: 'info',
             title: 'Informations du colis',
@@ -653,13 +595,15 @@ void _navigateToProfile() {
             child: _buildInfoContent(),
           ),
           const SizedBox(height: 12),
+          
           _buildCollapsibleSection(
             key: 'shipping',
-            title: 'Trajet et livraison',
+            title: 'Lieu de départ et livraison',
             icon: Icons.route,
             child: _buildShippingContent(),
           ),
           const SizedBox(height: 12),
+          
           if (_parcel.price != null || _parcel.isUrgent || _parcel.isInsured)
             _buildCollapsibleSection(
               key: 'financial',
@@ -668,6 +612,7 @@ void _navigateToProfile() {
               child: _buildFinancialContent(),
             ),
           const SizedBox(height: 12),
+          
           if (_parcel.photoUrls.isNotEmpty)
             _buildCollapsibleSection(
               key: 'photos',
@@ -676,6 +621,7 @@ void _navigateToProfile() {
               child: _buildPhotosContent(),
             ),
           const SizedBox(height: 12),
+          
           if (_parcel.videoUrls.isNotEmpty)
             _buildCollapsibleSection(
               key: 'videos',
@@ -684,8 +630,7 @@ void _navigateToProfile() {
               child: _buildVideosContent(),
             ),
           const SizedBox(height: 12),
-          _buildCallsSection(),
-          const SizedBox(height: 12),
+          
           _buildCollapsibleSection(
             key: 'timeline',
             title: 'Historique',
@@ -827,7 +772,7 @@ void _navigateToProfile() {
       case ParcelStatus.inTransit:
         return 'Votre colis est en route vers sa destination';
       case ParcelStatus.arrived:
-        return 'Votre colis est arrivé au garage';
+        return 'Votre colis est arrivé au lieu de livraison';
       case ParcelStatus.outForDelivery:
         return 'Votre colis est en cours de livraison';
       case ParcelStatus.delivered:
@@ -888,7 +833,7 @@ void _navigateToProfile() {
         if (_parcel.receiverEmail != null)
           _buildInfoTile(Icons.email, 'Email destinataire', _parcel.receiverEmail!),
         if (_parcel.receiverAddress != null)
-          _buildInfoTile(Icons.location_on, 'Adresse', _parcel.receiverAddress!),
+          _buildInfoTile(Icons.location_on, 'Adresse de livraison', _parcel.receiverAddress!),
         const SizedBox(height: 12),
         _buildInfoTile(Icons.description, 'Description', _parcel.description),
         _buildInfoTile(Icons.fitness_center, 'Poids', '${_parcel.weight} kg'),
@@ -902,9 +847,9 @@ void _navigateToProfile() {
   Widget _buildShippingContent() {
     return Column(
       children: [
-        _buildInfoTile(Icons.departure_board, 'Garage départ', _parcel.departureGarageName),
+        _buildInfoTile(Icons.departure_board, 'Lieu de départ', _parcel.departureGarageName),
         if (_parcel.arrivalGarageName != null)
-          _buildInfoTile(Icons.location_on, 'Garage arrivée', _parcel.arrivalGarageName!),
+          _buildInfoTile(Icons.location_on, 'Lieu de livraison', _parcel.arrivalGarageName!),
         const SizedBox(height: 12),
         _buildInfoTile(Icons.create, 'Création', _formatDate(_parcel.createdAt)),
         if (_parcel.pickupDate != null)
@@ -1069,7 +1014,7 @@ void _navigateToProfile() {
             if (_parcel.status == ParcelStatus.pickedUp)
               _buildActionMenuItem('Démarrer le transport', Icons.directions_car, Colors.blue, () => _updateStatus('in_transit')),
             if (_parcel.status == ParcelStatus.inTransit)
-              _buildActionMenuItem('Arrivé au garage', Icons.location_on, Colors.orange, () => _updateStatus('arrived')),
+              _buildActionMenuItem('Arrivé au lieu de livraison', Icons.location_on, Colors.orange, () => _updateStatus('arrived')),
             if (_parcel.status == ParcelStatus.arrived)
               _buildActionMenuItem('Partir en livraison', Icons.delivery_dining, Colors.purple, () => _updateStatus('out_for_delivery')),
             if (_parcel.status == ParcelStatus.outForDelivery)
@@ -1122,7 +1067,7 @@ void _navigateToProfile() {
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0B6E3A)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 9, 176, 243)),
             child: const Text('Confirmer'),
           ),
         ],

@@ -35,6 +35,9 @@ dependencies:
   http_parser: ^4.1.2
   chewie: ^1.8.1
   flutter_launcher_icons: ^0.13.1
+  video_compress: ^3.1.4
+  shared_preferences: ^2.5.5
+
 
 dev_dependencies:
   flutter_test:

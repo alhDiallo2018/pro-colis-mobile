@@ -1,4 +1,6 @@
 // mobile/lib/services/api_service.dart
+// ignore_for_file: unused_import
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/garage.dart';
 import '../models/parcel.dart';
@@ -510,24 +513,116 @@ class ApiService {
   }
 
   Future<String?> uploadParcelVideo(XFile file, String parcelId) async {
-    try {
-      final bytes = await file.readAsBytes();
-      final base64Video = base64Encode(bytes);
-      final response = await _dio.post('/upload/parcel-video', data: {
+  try {
+    final token = await _storage.read(key: 'token');
+    if (token == null) {
+      debugPrint('❌ Aucun token trouvé');
+      return null;
+    }
+    
+    final bytes = await file.readAsBytes();
+    final base64Video = base64Encode(bytes);
+    
+    final response = await _dio.post(
+      '/upload/parcel-video',
+      data: {
         'file': base64Video,
         'parcelId': parcelId,
         'filename': file.name,
-      });
-      final responseData = _handleResponse(response);
-      if (responseData['success'] == true && responseData['url'] != null) {
-        return responseData['url'];
+      },
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        sendTimeout: const Duration(minutes: 5),
+        receiveTimeout: const Duration(minutes: 5),
+      ),
+    );
+    
+    debugPrint('📹 Statut: ${response.statusCode}');
+    debugPrint('📹 Réponse: ${response.data}');
+    
+    if (response.statusCode == 200 && response.data != null) {
+      // Récupérer les données de manière sécurisée
+      final Map<String, dynamic> responseData;
+      if (response.data is Map) {
+        responseData = response.data as Map<String, dynamic>;
+      } else if (response.data is String) {
+        responseData = jsonDecode(response.data);
+      } else {
+        debugPrint('❌ Format de réponse inattendu: ${response.data.runtimeType}');
+        return null;
       }
-      return null;
-    } catch (e) {
-      debugPrint('❌ Erreur uploadParcelVideo: $e');
-      return null;
+      
+      // Extraire l'URL - CORRECTION: convertir explicitement en String
+      final dynamic urlValue = responseData['url'];
+      if (urlValue != null) {
+        final String videoUrl = urlValue.toString();  // Conversion forcée en String
+        if (videoUrl.isNotEmpty && videoUrl.startsWith('http')) {
+          debugPrint('✅ Vidéo uploadée: $videoUrl');
+          return videoUrl;
+        }
+      }
+      
+      debugPrint('⚠️ Aucune URL valide trouvée dans la réponse');
+    }
+    
+    return null;
+  } catch (e) {
+    debugPrint('❌ Erreur uploadParcelVideo: $e');
+    return null;
+  }
+}
+
+Future<Map<String, dynamic>> updateParcelMedia(String parcelId, Map<String, dynamic> mediaData) async {
+  try {
+    final token = await _storage.read(key: 'token');
+    
+    if (token == null) {
+      debugPrint('❌ Aucun token pour mise à jour média');
+      return {'success': false, 'message': 'Token manquant'};
+    }
+    
+    debugPrint('📝 Mise à jour des médias du colis $parcelId');
+    debugPrint('   Photos: ${mediaData['photoUrls']}');
+    debugPrint('   Vidéos: ${mediaData['videoUrls']}');
+    
+    // Utiliser le bon endpoint PATCH
+    final response = await _dio.patch(
+      '/driver/parcels/$parcelId/media',
+      data: mediaData,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+    
+    debugPrint('✅ Mise à jour média: ${response.statusCode}');
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur updateParcelMedia: $e');
+    
+    // Fallback: Essayer avec POST si PATCH échoue
+    try {
+      debugPrint('⚠️ Tentative avec POST...');
+      final token = await _storage.read(key: 'token');
+      final response = await _dio.post(
+        '/driver/parcels/$parcelId/media',
+        data: mediaData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      return _handleResponse(response);
+    } catch (e2) {
+      debugPrint('❌ Erreur updateParcelMedia (POST): $e2');
+      return {'success': false, 'message': e2.toString()};
     }
   }
+}
 
   Future<Parcel> createParcelByDriver(Map<String, dynamic> data) async {
     try {

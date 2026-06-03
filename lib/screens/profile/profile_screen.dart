@@ -1,5 +1,7 @@
 // mobile/lib/screens/profile/profile_screen.dart
 
+// ignore_for_file: unused_element, avoid_print, use_build_context_synchronously
+
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -60,7 +62,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _initializeData() async {
-    print('📱 [PROFILE] _initializeData - Début');
+    debugPrint('📱 [PROFILE] _initializeData - Début');
     
     await ref.read(authProvider.notifier).refreshUser();
     
@@ -68,8 +70,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (authState.user != null) {
       _user = authState.user!;
       _initControllers();
-      setState(() => _isInitialized = true);
-      print('✅ [PROFILE] Initialisation terminée');
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
+      debugPrint('✅ [PROFILE] Initialisation terminée');
     } else {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) _initializeData();
@@ -78,7 +82,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _initControllers() {
-    print('📝 [PROFILE] _initControllers - Mise à jour des contrôleurs');
+    debugPrint('📝 [PROFILE] _initControllers - Mise à jour des contrôleurs');
     
     _fullNameController.text = _user.fullName;
     _emailController.text = _user.email;
@@ -310,6 +314,99 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  // ==================== FONCTIONS COULEUR ====================
+  
+  Color _getColorFromString(String colorName) {
+    final lowerColor = colorName.toLowerCase();
+    switch (lowerColor) {
+      case 'blanc':
+        return Colors.white;
+      case 'noir':
+        return Colors.black;
+      case 'gris':
+        return Colors.grey;
+      case 'bleu':
+        return Colors.blue;
+      case 'rouge':
+        return Colors.red;
+      case 'vert':
+        return Colors.green;
+      case 'jaune':
+        return Colors.yellow;
+      case 'beige':
+        return Colors.brown.shade50;
+      case 'marron':
+        return Colors.brown;
+      case 'orange':
+        return Colors.orange;
+      case 'violet':
+        return Colors.purple;
+      case 'rose':
+        return Colors.pink;
+      case 'bordeaux':
+        return Colors.deepPurple;
+      case 'kaki':
+        return Colors.lime.shade700;
+      case 'argenté':
+        return Colors.grey.shade400;
+      case 'doré':
+        return Colors.amber.shade700;
+      case 'bleu ciel':
+        return Colors.lightBlue;
+      case 'bleu marine':
+        return Colors.blue.shade900;
+      case 'gris foncé':
+        return Colors.grey.shade800;
+      case 'gris clair':
+        return Colors.grey.shade300;
+      case 'blanc cassé':
+        return Colors.white70;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildColorDisplay(String? colorName) {
+    if (colorName == null || colorName.isEmpty) {
+      return const Text('Non renseigné');
+    }
+    
+    final color = _getColorFromString(colorName);
+    final isLightColor = color == Colors.white || color == Colors.yellow || color == Colors.white70;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              border: Border.all(color: Colors.grey.shade400, width: 1),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            colorName,
+            style: TextStyle(
+              color: isLightColor ? Colors.black : Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ==================== BUILD ====================
   
   @override
@@ -368,7 +465,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   
                   if (_user.role == UserRole.admin) ...[
                     const SizedBox(height: 24),
-                    const _SectionHeader(title: 'Garage', icon: Icons.business),
+                    const _SectionHeader(title: 'Point de service', icon: Icons.business),
                     const SizedBox(height: 12),
                     _buildGarageSection(),
                   ],
@@ -474,10 +571,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     }
     
-    // Photo existante - CORRECTION: utiliser l'URL complète
+    // Photo existante
     if (_user.profilePhoto != null && _user.profilePhoto!.isNotEmpty) {
       final fullImageUrl = _getFullImageUrl(_user.profilePhoto);
-      print('🖼️ Chargement image: $fullImageUrl');
       return ClipOval(
         child: Image.network(
           fullImageUrl,
@@ -485,7 +581,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           height: 120,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            print('❌ Erreur chargement image: $error');
+            debugPrint('❌ Erreur chargement image: $error');
             return _buildInitialsAvatar();
           },
         ),
@@ -569,6 +665,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildVehicleSection() {
     return Column(
       children: [
+        // Plaque
         _EditableField(
           label: 'Plaque',
           value: _user.vehiclePlate ?? 'Non renseigné',
@@ -577,6 +674,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           icon: Icons.local_taxi,
         ),
         const SizedBox(height: 12),
+        
+        // Modèle
         _EditableField(
           label: 'Modèle',
           value: _user.vehicleModel ?? 'Non renseigné',
@@ -585,36 +684,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           icon: Icons.directions_car,
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _EditableField(
-                label: 'Couleur',
-                value: _user.vehicleColor ?? 'Non renseigné',
-                isEditing: _isEditing,
-                controller: _vehicleColorController,
-                icon: Icons.color_lens,
-              ),
+        
+        // Couleur - Mode édition vs visualisation
+        if (_isEditing)
+          CustomTextField(
+            controller: _vehicleColorController,
+            label: 'Couleur',
+            prefixIcon: Icons.color_lens,
+          )
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _EditableField(
-                label: 'Année',
-                value: _user.vehicleYear?.toString() ?? 'Non renseigné',
-                isEditing: _isEditing,
-                controller: _vehicleYearController,
-                icon: Icons.calendar_today,
-                keyboardType: TextInputType.number,
-              ),
+            child: Row(
+              children: [
+                Icon(Icons.color_lens, size: 20, color: Colors.grey.shade600),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Couleur', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      const SizedBox(height: 2),
+                      _buildColorDisplay(_user.vehicleColor),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        const SizedBox(height: 12),
+        
+        // Année
+        _EditableField(
+          label: 'Année',
+          value: _user.vehicleYear?.toString() ?? 'Non renseigné',
+          isEditing: _isEditing,
+          controller: _vehicleYearController,
+          icon: Icons.calendar_today,
+          keyboardType: TextInputType.number,
         ),
       ],
     );
   }
 
   Widget _buildGarageSection() {
-    // Récupérer le nom du garage depuis l'API ou utiliser un message par défaut
     final garageName = _user.garageName ?? 'Chargement...';
     final garageId = _user.garageId ?? 'Non assigné';
     
@@ -644,7 +761,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Garage',
+                        'Point de service',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       const SizedBox(height: 2),
@@ -658,7 +775,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _InfoRow(label: 'ID du garage', value: garageId),
+            _InfoRow(label: 'ID du point de service', value: garageId),
           ],
         ),
       ),
