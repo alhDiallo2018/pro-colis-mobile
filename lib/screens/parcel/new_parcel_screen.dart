@@ -9,7 +9,7 @@ import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:contacts_service/contacts_service.dart';
+import 'package:contacts_service_plus/contacts_service_plus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1300,12 +1300,12 @@ class _NewParcelScreenState extends ConsumerState<NewParcelScreen> {
                   ],
 
                   // Section Options
-                  _buildOptionsSection(),
-                  const SizedBox(height: 16),
+                  // _buildOptionsSection(),
+                  // const SizedBox(height: 16),
 
-                  // Section Paiement
-                  _buildPaymentSection(),
-                  const SizedBox(height: 16),
+                  // // Section Paiement
+                  // _buildPaymentSection(),
+                  // const SizedBox(height: 16),
 
                   // Section Médias
                   _buildMediaSection(),
