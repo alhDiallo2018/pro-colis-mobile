@@ -20,9 +20,9 @@ class ApiService {
   // Pour Android Emulator
   // static const String baseUrl = 'http://10.0.2.2:8080';
   // Pour Chrome/Web (décommentez cette ligne et commentez celle du dessus)
-  // static const String baseUrl = 'http://localhost:8080';
+  static const String baseUrl = 'http://localhost:8080';
   // Pour site  (render)
-  static const String baseUrl = 'https://procolis-backend.onrender.com';
+  // static const String baseUrl = 'https://procolis-backend.onrender.com';
 
   final Dio _dio = Dio();
   final _storage = const FlutterSecureStorage();
