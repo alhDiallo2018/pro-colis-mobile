@@ -13,6 +13,18 @@ class AdminStatsScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
+  // ==================== CONSTANTES DE COULEUR (THÈME BLEU/BLANC) ====================
+  static const Color primaryBlue = Color(0xFF1565C0);
+  static const Color lightBlue = Color(0xFFE3F2FD);
+  static const Color darkBlue = Color(0xFF0D47A1);
+  static const Color backgroundColor = Color(0xFFF5F8FA);
+  static const Color cardColor = Color(0xFFFFFFFF);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF546E7A);
+  static const Color successColor = Color(0xFF2E7D32);
+  static const Color warningColor = Color(0xFFF57C00);
+  static const Color errorColor = Color(0xFFC62828);
+
   final ApiService _apiService = ApiService();
   List<User> _users = [];
   List<Parcel> _parcels = [];
@@ -74,7 +86,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
         'description': 'Inscription de ${user.fullName}',
         'time': user.createdAt,
         'icon': Icons.person_add,
-        'color': Colors.green,
+        'color': primaryBlue,
       });
     }
     
@@ -87,14 +99,14 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
         'description': '${parcel.trackingNumber} - ${parcel.receiverName}',
         'time': parcel.createdAt,
         'icon': parcel.status == ParcelStatus.delivered ? Icons.check_circle : Icons.local_shipping,
-        'color': parcel.status == ParcelStatus.delivered ? Colors.green : Colors.orange,
+        'color': parcel.status == ParcelStatus.delivered ? successColor : warningColor,
       });
     }
     
     // Trier par date décroissante
     activities.sort((a, b) => (b['time'] as DateTime).compareTo(a['time'] as DateTime));
     
-    // Retourner les 10 plus récentes (sans toList() inutile)
+    // Retourner les 10 plus récentes
     return activities.take(10).toList();
   }
 
@@ -118,36 +130,42 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Tableau de bord'),
-        backgroundColor: const Color.fromARGB(255, 5, 243, 243),
+        title: const Text(
+          'Tableau de bord',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: textPrimary,
+          ),
+        ),
+        backgroundColor: cardColor,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: primaryBlue),
             onPressed: _refreshData,
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
+        color: primaryBlue,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+                ),
+              )
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Erreur: $_error'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadData,
-                          child: const Text('Réessayer'),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildErrorState()
                 : SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -159,14 +177,14 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                               title: 'Utilisateurs',
                               value: _totalUsers.toString(),
                               icon: Icons.people,
-                              color: Colors.blue,
+                              color: primaryBlue,
                             ),
                             const SizedBox(width: 12),
                             _StatsCard(
                               title: 'Chauffeurs',
                               value: _totalDrivers.toString(),
                               icon: Icons.delivery_dining,
-                              color: Colors.green,
+                              color: successColor,
                             ),
                           ],
                         ),
@@ -179,14 +197,14 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                               title: 'Colis',
                               value: _totalParcels.toString(),
                               icon: Icons.inventory,
-                              color: Colors.orange,
+                              color: warningColor,
                             ),
                             const SizedBox(width: 12),
                             _StatsCard(
                               title: 'Colis livrés',
                               value: _parcelsDelivered.toString(),
                               icon: Icons.check_circle,
-                              color: Colors.teal,
+                              color: successColor,
                             ),
                           ],
                         ),
@@ -206,14 +224,25 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                               title: 'Revenus',
                               value: '${_totalRevenue.toInt()} FCFA',
                               icon: Icons.attach_money,
-                              color: Colors.green,
+                              color: primaryBlue,
                             ),
                           ],
                         ),
                         const SizedBox(height: 24),
                         
                         // Graphique des revenus (version simplifiée)
-                        Card(
+                        Container(
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -221,7 +250,11 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                               children: [
                                 const Text(
                                   'Aperçu des colis',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: textPrimary,
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 _buildParcelStatusChart(),
@@ -232,7 +265,18 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                         const SizedBox(height: 24),
                         
                         // Dernières activités
-                        Card(
+                        Container(
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -240,14 +284,23 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                               children: [
                                 const Text(
                                   'Dernières activités',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: textPrimary,
+                                  ),
                                 ),
                                 const SizedBox(height: 12),
                                 if (_recentActivities.isEmpty)
-                                  const Padding(
-                                    padding: EdgeInsets.all(32),
+                                  Padding(
+                                    padding: const EdgeInsets.all(32),
                                     child: Center(
-                                      child: Text('Aucune activité récente'),
+                                      child: Text(
+                                        'Aucune activité récente',
+                                        style: TextStyle(
+                                          color: textSecondary,
+                                        ),
+                                      ),
                                     ),
                                   )
                                 else
@@ -257,22 +310,37 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                                         leading: Container(
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
-                                            color: (activity['color'] as Color).withAlpha(25),
+                                            color: (activity['color'] as Color).withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
-                                          child: Icon(activity['icon'] as IconData, color: activity['color'] as Color),
+                                          child: Icon(
+                                            activity['icon'] as IconData,
+                                            color: activity['color'] as Color,
+                                            size: 20,
+                                          ),
                                         ),
-                                        title: Text(activity['title'] as String),
+                                        title: Text(
+                                          activity['title'] as String,
+                                          style: const TextStyle(
+                                            color: textPrimary,
+                                          ),
+                                        ),
                                         subtitle: Text(
                                           activity['description'] as String,
-                                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: textSecondary,
+                                          ),
                                         ),
                                         trailing: Text(
                                           _formatDate(activity['time'] as DateTime),
-                                          style: const TextStyle(fontSize: 12),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: textSecondary,
+                                          ),
                                         ),
                                       ),
-                                      const Divider(),
+                                      const Divider(height: 1),
                                     ],
                                   )),
                               ],
@@ -282,6 +350,73 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                       ],
                     ),
                   ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: errorColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 48,
+                color: errorColor,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Erreur de chargement',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(
+                fontSize: 13,
+                color: textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadData,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -300,18 +435,33 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
 
     final colors = {
       'En attente': Colors.grey,
-      'Confirmés': Colors.blue,
+      'Confirmés': primaryBlue,
       'Ramassés': Colors.teal,
-      'En transit': Colors.orange,
+      'En transit': warningColor,
       'Arrivés': Colors.purple,
       'En livraison': Colors.deepOrange,
-      'Livrés': Colors.green,
-      'Annulés': Colors.red,
+      'Livrés': successColor,
+      'Annulés': errorColor,
     };
 
+    final entries = statusCount.entries.where((e) => e.value > 0).toList();
+    
+    if (entries.isEmpty) {
+      return Center(
+        child: Text(
+          'Aucun colis',
+          style: TextStyle(
+            color: textSecondary,
+          ),
+        ),
+      );
+    }
+
     return Column(
-      children: statusCount.entries.where((e) => e.value > 0).map((entry) {
+      children: entries.map((entry) {
         final percentage = _totalParcels > 0 ? entry.value / _totalParcels : 0.0;
+        final color = colors[entry.key] ?? Colors.grey;
+        
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
@@ -320,10 +470,33 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(entry.key, style: const TextStyle(fontSize: 14)),
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        entry.key,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
                   Text(
                     '${entry.value} colis (${(percentage * 100).toStringAsFixed(1)}%)',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -331,8 +504,9 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
               LinearProgressIndicator(
                 value: percentage,
                 backgroundColor: Colors.grey.shade200,
-                color: colors[entry.key],
+                color: color,
                 minHeight: 8,
+                borderRadius: BorderRadius.circular(4),
               ),
             ],
           ),
@@ -361,9 +535,12 @@ class _StatsCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withAlpha(25),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withAlpha(50)),
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withValues(alpha: 0.15),
+            width: 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,18 +548,32 @@ class _StatsCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withAlpha(50),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: color, size: 24),
+              child: Icon(icon, color: color, size: 22),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               value,
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
-            Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(height: 2),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

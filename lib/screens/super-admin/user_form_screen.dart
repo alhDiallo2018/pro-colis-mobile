@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/user.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart'; // Ajoutez cette ligne
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 
@@ -125,12 +126,32 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
       }
       
       if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.isEditing ? 'Utilisateur modifié avec succès' : 'Utilisateur créé avec succès',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erreur: $e', style: const TextStyle(color: Colors.white)),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         );
       }
     } finally {
@@ -143,10 +164,23 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor, // Changé
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'),
-        backgroundColor: const Color.fromARGB(255, 5, 243, 243),
-        foregroundColor: Colors.white,
+        title: Text(
+          widget.isEditing ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        backgroundColor: AppTheme.cardColor, // Changé
+        foregroundColor: AppTheme.textPrimary,
+        elevation: 0, // Changé
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -154,6 +188,9 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // Section informations personnelles
+              _buildSectionTitle('Informations personnelles'),
+              const SizedBox(height: 12),
               CustomTextField(
                 controller: _fullNameController,
                 label: 'Nom complet',
@@ -176,6 +213,8 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                 keyboardType: TextInputType.phone,
                 validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
               ),
+              const SizedBox(height: 12),
+              _buildSectionTitle('Adresse'),
               const SizedBox(height: 12),
               CustomTextField(
                 controller: _addressController,
@@ -202,14 +241,13 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              _buildSectionTitle('Paramètres du compte'),
               const SizedBox(height: 12),
-              DropdownButtonFormField<UserRole>(
+              _buildDropdownField(
                 value: _selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Rôle',
-                  prefixIcon: Icon(Icons.admin_panel_settings),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                ),
+                label: 'Rôle',
+                icon: Icons.admin_panel_settings,
                 items: UserRole.values.map((role) => DropdownMenuItem(
                   value: role,
                   child: Row(
@@ -223,13 +261,10 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                 onChanged: (value) => setState(() => _selectedRole = value!),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<UserStatus>(
+              _buildDropdownField(
                 value: _selectedStatus,
-                decoration: const InputDecoration(
-                  labelText: 'Statut',
-                  prefixIcon: Icon(Icons.badge),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                ),
+                label: 'Statut',
+                icon: Icons.badge,
                 items: UserStatus.values.map((status) => DropdownMenuItem(
                   value: status,
                   child: Row(
@@ -250,13 +285,10 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                 onChanged: (value) => setState(() => _selectedStatus = value!),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<Gender>(
+              _buildDropdownField(
                 value: _selectedGender,
-                decoration: const InputDecoration(
-                  labelText: 'Genre',
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                ),
+                label: 'Genre',
+                icon: Icons.person_outline,
                 items: Gender.values.map((gender) => DropdownMenuItem(
                   value: gender,
                   child: Row(
@@ -269,7 +301,11 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                 )).toList(),
                 onChanged: (value) => setState(() => _selectedGender = value),
               ),
+              
+              // Section chauffeur
               if (_selectedRole == UserRole.driver) ...[
+                const SizedBox(height: 16),
+                _buildSectionTitle('Informations du véhicule'),
                 const SizedBox(height: 12),
                 CustomTextField(
                   controller: _vehiclePlateController,
@@ -283,13 +319,10 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                   prefixIcon: Icons.directions_car,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<DriverStatus>(
+                _buildDropdownField(
                   value: _selectedDriverStatus,
-                  decoration: const InputDecoration(
-                    labelText: 'Statut chauffeur',
-                    prefixIcon: Icon(Icons.delivery_dining),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                  ),
+                  label: 'Statut chauffeur',
+                  icon: Icons.delivery_dining,
                   items: DriverStatus.values.map((status) => DropdownMenuItem(
                     value: status,
                     child: Row(
@@ -310,15 +343,22 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                   onChanged: (value) => setState(() => _selectedDriverStatus = value),
                 ),
               ],
+              
+              // Section PIN
               if (!widget.isEditing) ...[
+                const SizedBox(height: 16),
+                _buildSectionTitle('Sécurité'),
                 const SizedBox(height: 12),
                 CustomTextField(
                   controller: _pinController,
                   label: 'Code PIN (6 chiffres)',
                   prefixIcon: Icons.pin,
                   keyboardType: TextInputType.number,
+                  obscureText: true,
+                  helperText: 'Laisser vide pour utiliser le PIN par défaut (123456)',
                 ),
               ],
+              
               const SizedBox(height: 24),
               CustomButton(
                 text: widget.isEditing ? 'Modifier' : 'Créer',
@@ -330,6 +370,70 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Widget helper pour les titres de section
+  Widget _buildSectionTitle(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textSecondary,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  // Widget helper pour les dropdowns avec thème cohérent
+  Widget _buildDropdownField<T>({
+    required T? value,
+    required String label,
+    required IconData icon,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+    String? Function(T?)? validator,
+  }) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppTheme.primaryBlue),
+        labelStyle: TextStyle(color: AppTheme.textSecondary),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: AppTheme.primaryBlue,
+            width: 2,
+          ),
+        ),
+        filled: true,
+        fillColor: AppTheme.cardColor,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+      items: items,
+      onChanged: onChanged,
+      validator: validator,
+      dropdownColor: AppTheme.cardColor,
+      style: const TextStyle(color: AppTheme.textPrimary),
+      icon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryBlue),
+      borderRadius: BorderRadius.circular(12),
     );
   }
 }

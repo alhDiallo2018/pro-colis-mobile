@@ -3368,6 +3368,246 @@ Future<Map<String, dynamic>> refundTransaction({
   }
 }
 
+// ==================== ANNONCES (ADVERTISEMENTS) ====================
+
+/// Récupérer toutes les annonces (colis en libre service)
+Future<List<Parcel>> getAdvertisements({String? status}) async {
+  try {
+    debugPrint('📢 Récupération des annonces...');
+    final queryParams = status != null ? {'status': status} : <String, dynamic>{};
+    final response = await _dio.get('/advertisements', queryParameters: queryParams);
+    final responseData = _handleResponse(response);
+    
+    if (responseData['success'] == true) {
+      final List<dynamic> adsData = responseData['advertisements'] ?? [];
+      debugPrint('✅ ${adsData.length} annonces trouvées');
+      return adsData
+          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Erreur getAdvertisements: $e');
+    return [];
+  }
+}
+
+/// Récupérer les annonces de l'utilisateur connecté
+Future<List<Parcel>> getMyAdvertisements() async {
+  try {
+    debugPrint('📢 Récupération de mes annonces...');
+    final response = await _dio.get('/advertisements/my');
+    final responseData = _handleResponse(response);
+    
+    if (responseData['success'] == true) {
+      final List<dynamic> adsData = responseData['advertisements'] ?? [];
+      debugPrint('✅ ${adsData.length} annonces trouvées');
+      return adsData
+          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Erreur getMyAdvertisements: $e');
+    return [];
+  }
+}
+
+/// Récupérer les annonces des chauffeurs
+Future<List<Parcel>> getDriverAdvertisements() async {
+  try {
+    debugPrint('🚚 Récupération des annonces des chauffeurs...');
+    final response = await _dio.get('/advertisements/drivers');
+    final responseData = _handleResponse(response);
+    
+    if (responseData['success'] == true) {
+      final List<dynamic> adsData = responseData['advertisements'] ?? [];
+      debugPrint('✅ ${adsData.length} annonces chauffeurs trouvées');
+      return adsData
+          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Erreur getDriverAdvertisements: $e');
+    return [];
+  }
+}
+
+/// Créer une annonce (mettre un colis en libre service)
+Future<Map<String, dynamic>> createAdvertisement({
+  required String parcelId,
+  required double proposedPrice,
+  String? description,
+  DateTime? expiryDate,
+}) async {
+  try {
+    debugPrint('📢 Création d\'une annonce pour le colis $parcelId');
+    final response = await _dio.post('/advertisements', data: {
+      'parcelId': parcelId,
+      'proposedPrice': proposedPrice,
+      'description': description,
+      'expiryDate': expiryDate?.toIso8601String(),
+    });
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur createAdvertisement: $e');
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+/// Mettre à jour une annonce
+Future<Map<String, dynamic>> updateAdvertisement({
+  required String advertisementId,
+  double? proposedPrice,
+  String? description,
+  DateTime? expiryDate,
+  String? status,
+}) async {
+  try {
+    debugPrint('📢 Mise à jour de l\'annonce $advertisementId');
+    final data = <String, dynamic>{};
+    if (proposedPrice != null) data['proposedPrice'] = proposedPrice;
+    if (description != null) data['description'] = description;
+    if (expiryDate != null) data['expiryDate'] = expiryDate.toIso8601String();
+    if (status != null) data['status'] = status;
+    
+    final response = await _dio.put('/advertisements/$advertisementId', data: data);
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur updateAdvertisement: $e');
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+/// Supprimer une annonce
+Future<Map<String, dynamic>> deleteAdvertisement(String advertisementId) async {
+  try {
+    debugPrint('🗑️ Suppression de l\'annonce $advertisementId');
+    final response = await _dio.delete('/advertisements/$advertisementId');
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur deleteAdvertisement: $e');
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+/// Récupérer les détails d'une annonce
+Future<Parcel?> getAdvertisementById(String advertisementId) async {
+  try {
+    debugPrint('📢 Récupération de l\'annonce $advertisementId');
+    final response = await _dio.get('/advertisements/$advertisementId');
+    final responseData = _handleResponse(response);
+    
+    if (responseData['success'] == true && responseData['advertisement'] != null) {
+      return Parcel.fromJson(responseData['advertisement'] as Map<String, dynamic>);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Erreur getAdvertisementById: $e');
+    return null;
+  }
+}
+
+/// Faire une offre sur une annonce (chauffeur)
+Future<Map<String, dynamic>> makeOffer({
+  required String advertisementId,
+  required double price,
+  String? message,
+  String? audioUrl,
+}) async {
+  try {
+    debugPrint('💰 Envoi d\'une offre pour l\'annonce $advertisementId');
+    final response = await _dio.post('/advertisements/$advertisementId/offers', data: {
+      'price': price,
+      'message': message,
+      'audioUrl': audioUrl,
+    });
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur makeOffer: $e');
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+/// Accepter une offre (client)
+Future<Map<String, dynamic>> acceptOffer({
+  required String advertisementId,
+  required String offerId,
+}) async {
+  try {
+    debugPrint('✅ Acceptation de l\'offre $offerId pour l\'annonce $advertisementId');
+    final response = await _dio.post(
+      '/advertisements/$advertisementId/offers/$offerId/accept'
+    );
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur acceptOffer: $e');
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+/// Refuser une offre (client)
+Future<Map<String, dynamic>> rejectOffer({
+  required String advertisementId,
+  required String offerId,
+  String? reason,
+}) async {
+  try {
+    debugPrint('❌ Refus de l\'offre $offerId pour l\'annonce $advertisementId');
+    final response = await _dio.post(
+      '/advertisements/$advertisementId/offers/$offerId/reject',
+      data: {'reason': reason}
+    );
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur rejectOffer: $e');
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+/// Récupérer les offres d'une annonce
+Future<List<Map<String, dynamic>>> getOffers(String advertisementId) async {
+  try {
+    debugPrint('📊 Récupération des offres pour l\'annonce $advertisementId');
+    final response = await _dio.get('/advertisements/$advertisementId/offers');
+    final responseData = _handleResponse(response);
+    
+    if (responseData['success'] == true) {
+      final List<dynamic> offersData = responseData['offers'] ?? [];
+      return offersData.map((json) => json as Map<String, dynamic>).toList();
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Erreur getOffers: $e');
+    return [];
+  }
+}
+
+/// Mettre fin à une annonce (client)
+Future<Map<String, dynamic>> closeAdvertisement(String advertisementId) async {
+  try {
+    debugPrint('🔒 Fermeture de l\'annonce $advertisementId');
+    final response = await _dio.post('/advertisements/$advertisementId/close');
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur closeAdvertisement: $e');
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+/// Récupérer les statistiques des annonces
+Future<Map<String, dynamic>> getAdvertisementStats() async {
+  try {
+    debugPrint('📊 Récupération des statistiques des annonces...');
+    final response = await _dio.get('/advertisements/stats');
+    return _handleResponse(response);
+  } catch (e) {
+    debugPrint('❌ Erreur getAdvertisementStats: $e');
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
   // ==================== WEBHOOKS ====================
 
   Future<Map<String, dynamic>> registerWebhook(

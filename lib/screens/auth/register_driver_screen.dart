@@ -1,12 +1,12 @@
 // mobile/lib/screens/auth/register_driver_screen.dart
-// ignore_for_file: avoid_print, deprecated_member_use
+// ignore_for_file: avoid_print, deprecated_member_use, unused_field
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
-import '../../widgets/custom_button.dart';
+import '../../widgets/app_logo.dart';
 import '../../widgets/custom_text_field.dart';
 import 'otp_verification_screen.dart';
 
@@ -77,6 +77,13 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
     {'code': '+33', 'flag': '🇫🇷', 'name': 'France'},
     {'code': '+1', 'flag': '🇺🇸', 'name': 'USA/Canada'},
   ];
+
+  // Thème Bleu/Blanc
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color secondaryBlue = Color(0xFF3B82F6);
+  static const Color backgroundColor = Color(0xFFF0F4F8);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF6B7A8F);
 
   // Modèles de véhicules
   final List<DropdownMenuItem<String>> _vehicleModels = const [
@@ -273,7 +280,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
       
       final result = await ref.read(authProvider.notifier).register(
             email: _emailController.text.trim(),
-            phone: fullPhoneNumber, // Utiliser le numéro complet avec code pays
+            phone: fullPhoneNumber,
             fullName: _fullNameController.text.trim(),
             password: _passwordController.text,
             role: 'driver',
@@ -327,13 +334,26 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Inscription Chauffeur', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Row(
+          children: [
+            const AppLogo(size: 24, isWhite: false),
+            const SizedBox(width: 8),
+            const Text(
+              'PRO COLIS',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: textPrimary,
+              ),
+            ),
+          ],
+        ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A2B3C),
-        elevation: 0,
-        centerTitle: true,
+        foregroundColor: textPrimary,
+        elevation: 0.5,
+        shadowColor: Colors.grey.shade200,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.pop(context),
@@ -346,57 +366,63 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // En-tête
+              // En-tête avec logo BLEU
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  gradient: LinearGradient(
+                    colors: [primaryBlue, secondaryBlue],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 2),
+                      color: primaryBlue.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0B6E3A).withAlpha(25),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.local_taxi, size: 40, color: Color(0xFF0B6E3A)),
-                    ),
+                    const AppLogo(size: 50, isWhite: true),
                     const SizedBox(height: 12),
                     const Text(
-                      'Devenez chauffeur partenaire',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A2B3C)),
+                      'DEVENIR CHAUFFEUR',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Créez votre compte et commencez à gagner',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Section Informations personnelles
               _buildSectionCard(
                 title: 'Informations personnelles',
                 icon: Icons.person,
-                color: Colors.blue,
+                color: primaryBlue,
                 child: Column(
                   children: [
                     CustomTextField(
                       controller: _fullNameController,
                       label: 'Nom complet *',
                       prefixIcon: Icons.person,
+                      hint: 'Ex: Jean Dupont',
                       validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
                     ),
                     const SizedBox(height: 12),
@@ -405,35 +431,44 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                       label: 'Email *',
                       prefixIcon: Icons.email,
                       keyboardType: TextInputType.emailAddress,
+                      hint: 'Ex: jean.dupont@email.com',
                       validator: (v) => v == null || !v.contains('@') ? 'Email valide requis' : null,
                     ),
                     const SizedBox(height: 12),
-                    // ✅ Champ téléphone avec sélecteur de code pays
+                    // Téléphone avec code pays
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Téléphone *',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Sélecteur de code pays
                             Container(
-                              width: 100,
                               height: 56,
                               decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
                                 border: Border.all(color: Colors.grey.shade300),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: DropdownButtonHideUnderline(
                                 child: DropdownButton<String>(
                                   value: _selectedCountryCode,
-                                  isExpanded: true,
+                                  isExpanded: false,
                                   icon: const Icon(Icons.arrow_drop_down, size: 20),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  dropdownColor: Colors.white,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: textPrimary,
+                                  ),
                                   items: _countryCodes.map((country) {
                                     return DropdownMenuItem(
                                       value: country['code'],
@@ -458,9 +493,10 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                             Expanded(
                               child: CustomTextField(
                                 controller: _phoneController,
-                                label: 'Numéro de téléphone',
+                                label: 'Numéro',
                                 prefixIcon: Icons.phone,
                                 keyboardType: TextInputType.phone,
+                                hint: '77 123 45 67',
                                 validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
                               ),
                             ),
@@ -474,6 +510,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                       label: 'Adresse détaillée',
                       prefixIcon: Icons.location_on,
                       maxLines: 2,
+                      hint: 'Ex: 123 Rue de la Paix',
                     ),
                   ],
                 ),
@@ -484,11 +521,18 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
               _buildSectionCard(
                 title: 'Localisation',
                 icon: Icons.map,
-                color: Colors.orange,
+                color: primaryBlue,
                 child: Column(
                   children: [
                     if (_isLoadingLocations)
-                      const Center(child: CircularProgressIndicator())
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+                          ),
+                        ),
+                      )
                     else ...[
                       DropdownButtonFormField<String>(
                         isExpanded: true,
@@ -541,13 +585,14 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
               _buildSectionCard(
                 title: 'Véhicule (optionnel)',
                 icon: Icons.directions_car,
-                color: Colors.purple,
+                color: primaryBlue,
                 child: Column(
                   children: [
                     CustomTextField(
                       controller: _vehiclePlateController,
                       label: 'Plaque d\'immatriculation',
                       prefixIcon: Icons.confirmation_number,
+                      hint: 'Ex: AB-123-CD',
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -562,6 +607,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       value: _vehicleColorController.text.isNotEmpty ? _vehicleColorController.text : null,
+                      hint: const Text('Sélectionnez la couleur'),
                       decoration: _inputDecoration('Couleur du véhicule', Icons.color_lens),
                       items: _vehicleColors,
                       onChanged: (value) => setState(() => _vehicleColorController.text = value ?? ''),
@@ -572,6 +618,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                       label: 'Année du véhicule',
                       prefixIcon: Icons.calendar_today,
                       keyboardType: TextInputType.number,
+                      hint: 'Ex: 2020',
                     ),
                   ],
                 ),
@@ -582,7 +629,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
               _buildSectionCard(
                 title: 'Sécurité',
                 icon: Icons.lock,
-                color: Colors.red,
+                color: primaryBlue,
                 child: Column(
                   children: [
                     CustomTextField(
@@ -592,6 +639,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                       suffixIcon: _obscurePassword ? Icons.visibility_off : Icons.visibility,
                       onSuffixPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       obscureText: _obscurePassword,
+                      hint: 'Minimum 6 caractères',
                       validator: (v) => v == null || v.length < 6 ? 'Min 6 caractères' : null,
                     ),
                     const SizedBox(height: 12),
@@ -602,6 +650,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                       suffixIcon: _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
                       onSuffixPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                       obscureText: _obscureConfirmPassword,
+                      hint: 'Confirmez votre mot de passe',
                       validator: (v) => v == null || v.length < 6 ? 'Min 6 caractères' : null,
                     ),
                   ],
@@ -614,7 +663,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.04),
@@ -628,13 +677,32 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                     Checkbox(
                       value: _acceptTerms,
                       onChanged: (value) => setState(() => _acceptTerms = value ?? false),
-                      activeColor: const Color(0xFF0B6E3A),
+                      activeColor: primaryBlue,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                     ),
-                    const Expanded(
-                      child: Text(
-                        "J'accepte les conditions d'utilisation",
-                        style: TextStyle(color: Colors.grey),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                          children: [
+                            const TextSpan(text: "J'accepte les "),
+                            TextSpan(
+                              text: "conditions d'utilisation",
+                              style: TextStyle(
+                                color: primaryBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const TextSpan(text: " et la "),
+                            TextSpan(
+                              text: "politique de confidentialité",
+                              style: TextStyle(
+                                color: primaryBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -642,11 +710,39 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Bouton inscription
-              CustomButton(
-                text: 'Créer mon compte chauffeur',
-                onPressed: _register,
-                isLoading: _isLoading,
+              // Bouton inscription - BLEU
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _register,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBlue,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                    shadowColor: primaryBlue.withValues(alpha: 0.4),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Créer mon compte chauffeur',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -654,9 +750,20 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Déjà un compte ? Se connecter',
-                    style: TextStyle(color: Color(0xFF0B6E3A), fontWeight: FontWeight.w500),
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                      children: [
+                        const TextSpan(text: 'Déjà un compte ? '),
+                        TextSpan(
+                          text: 'Se connecter',
+                          style: TextStyle(
+                            color: primaryBlue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -677,7 +784,7 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -705,14 +812,14 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A2B3C),
+                    color: textPrimary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             child,
           ],
         ),
@@ -723,12 +830,26 @@ class _RegisterDriverScreenState extends ConsumerState<RegisterDriverScreen> {
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      prefixIcon: Icon(icon, color: primaryBlue),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF0B6E3A), width: 1.5),
+        borderSide: const BorderSide(color: primaryBlue, width: 1.5),
       ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      filled: true,
+      fillColor: Colors.grey.shade50,
     );
   }
 }

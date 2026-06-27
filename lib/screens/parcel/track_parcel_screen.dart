@@ -12,6 +12,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
+import 'package:procolis/widgets/app_logo.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -36,6 +37,13 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Parcel? _trackedParcel;
   List<String> _recentSearches = [];
   String? _currentlyPlayingAudioUrl;
+
+  // Thème Bleu/Blanc
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color secondaryBlue = Color(0xFF3B82F6);
+  static const Color backgroundColor = Color(0xFFF0F4F8);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF6B7A8F);
 
   @override
   void initState() {
@@ -257,20 +265,17 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.share,
-                                color: Color(0xFF0B6E3A)),
+                            icon: Icon(Icons.share, color: primaryBlue),
                             onPressed: () => _shareReceipt(context, receiptKey),
                             tooltip: 'Partager',
                           ),
                           IconButton(
-                            icon: const Icon(Icons.download,
-                                color: Color(0xFF0B6E3A)),
+                            icon: Icon(Icons.download, color: primaryBlue),
                             onPressed: () => _downloadReceiptImage(receiptKey),
                             tooltip: 'Télécharger',
                           ),
                           IconButton(
-                            icon: const Icon(Icons.link,
-                                color: Color(0xFF0B6E3A)),
+                            icon: Icon(Icons.link, color: primaryBlue),
                             onPressed: () => _shareTrackingLink(),
                             tooltip: 'Partager le lien',
                           ),
@@ -305,7 +310,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Widget _buildReceiptWidget() {
     final parcel = _trackedParcel!;
     final isDelivered = parcel.status.value == 'delivered';
-    final trackingUrl = 'http://localhost:8080/track/${parcel.trackingNumber}';
+    final trackingUrl = 'https://procolis.sn/track/${parcel.trackingNumber}';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -329,7 +334,11 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B6E3A),
+                  gradient: LinearGradient(
+                    colors: [primaryBlue, secondaryBlue],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -404,20 +413,20 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0B6E3A).withAlpha(15),
+                      color: primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF0B6E3A).withAlpha(30)),
+                      border: Border.all(color: primaryBlue.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.open_in_new, size: 16, color: const Color(0xFF0B6E3A)),
+                        Icon(Icons.open_in_new, size: 16, color: primaryBlue),
                         const SizedBox(width: 8),
                         Text(
                           'Voir en ligne',
                           style: TextStyle(
                             fontSize: 12,
-                            color: const Color(0xFF0B6E3A),
+                            color: primaryBlue,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -504,7 +513,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              color: const Color(0xFF1A2B3C),
+              color: textPrimary,
             ),
           ),
         ),
@@ -682,11 +691,11 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.qr_code_scanner, color: Color(0xFF0B6E3A)),
-            SizedBox(width: 8),
-            Text('Scanner un QR code'),
+            Icon(Icons.qr_code_scanner, color: primaryBlue),
+            const SizedBox(width: 8),
+            const Text('Scanner un QR code'),
           ],
         ),
         content: Column(
@@ -725,7 +734,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
+            child: Text('Fermer', style: TextStyle(color: primaryBlue)),
           ),
         ],
       ),
@@ -749,12 +758,12 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFF0B6E3A)),
+            Icon(icon, color: primaryBlue),
             const SizedBox(width: 12),
             Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF1A2B3C),
+              style: TextStyle(
+                color: textPrimary,
                 fontSize: 14,
               ),
             ),
@@ -790,7 +799,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+            child: Text('Annuler', style: TextStyle(color: primaryBlue)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -800,6 +809,10 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 _handleScannedData(code);
               }
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Suivre'),
           ),
         ],
@@ -876,11 +889,11 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.qr_code_scanner, color: Color(0xFF0B6E3A)),
-            SizedBox(width: 8),
-            Text('Données scannées'),
+            Icon(Icons.qr_code_scanner, color: primaryBlue),
+            const SizedBox(width: 8),
+            const Text('Données scannées'),
           ],
         ),
         content: Column(
@@ -946,7 +959,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
+            child: Text('Fermer', style: TextStyle(color: primaryBlue)),
           ),
           if (trackingNumber != null)
             ElevatedButton(
@@ -956,7 +969,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 _trackParcel();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B6E3A),
+                backgroundColor: primaryBlue,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Suivre'),
@@ -1018,15 +1031,26 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Suivre un colis',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            const AppLogo(size: 24, isWhite: false),
+            const SizedBox(width: 8),
+            const Text(
+              'PRO COLIS',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: textPrimary,
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A2B3C),
-        elevation: 0,
+        foregroundColor: textPrimary,
+        elevation: 0.5,
+        shadowColor: Colors.grey.shade200,
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
@@ -1034,7 +1058,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
+            icon: Icon(Icons.qr_code_scanner, color: primaryBlue),
             onPressed: _showScannerDialog,
             tooltip: 'Scanner un QR code',
           ),
@@ -1083,13 +1107,13 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF0B6E3A).withAlpha(15),
+                color: primaryBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.search_rounded,
                 size: 32,
-                color: Color(0xFF0B6E3A),
+                color: primaryBlue,
               ),
             ),
             const SizedBox(height: 16),
@@ -1098,7 +1122,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1A2B3C),
+                color: textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -1106,7 +1130,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               'Entrez votre numéro de suivi ou scannez le QR code',
               style: TextStyle(
                 fontSize: 13,
-                color: Colors.grey.shade600,
+                color: textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1117,7 +1141,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               focusNode: _focusNode,
               decoration: InputDecoration(
                 hintText: 'Ex: COL-20260526-ADE4B8',
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF0B6E3A)),
+                prefixIcon: Icon(Icons.search, color: primaryBlue),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1127,7 +1151,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                         onPressed: () => _trackingController.clear(),
                       ),
                     IconButton(
-                      icon: const Icon(Icons.qr_code_scanner),
+                      icon: Icon(Icons.qr_code_scanner, color: primaryBlue),
                       onPressed: _showScannerDialog,
                       tooltip: 'Scanner un QR code',
                     ),
@@ -1145,7 +1169,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFF0B6E3A), width: 1.5),
+                  borderSide: BorderSide(color: primaryBlue, width: 1.5),
                 ),
               ),
               style: const TextStyle(
@@ -1187,8 +1211,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                     ..._generateSuggestions(_trackingController.text).map(
                       (suggestion) => ListTile(
                         dense: true,
-                        leading: const Icon(Icons.history,
-                            size: 18, color: Color(0xFF0B6E3A)),
+                        leading: Icon(Icons.history, size: 18, color: primaryBlue),
                         title: Text(
                           suggestion,
                           style: const TextStyle(
@@ -1315,7 +1338,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: parcel.status.color.withAlpha(25),
+                        color: parcel.status.color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1333,7 +1356,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'monospace',
-                        color: Color(0xFF1A2B3C),
+                        color: textPrimary,
                       ),
                     ),
                   ],
@@ -1343,7 +1366,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0B6E3A).withAlpha(15),
+                      color: primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -1352,10 +1375,10 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                             style: TextStyle(fontSize: 10, color: Colors.grey)),
                         Text(
                           parcel.formattedPrice,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0B6E3A),
+                            color: primaryBlue,
                           ),
                         ),
                       ],
@@ -1416,7 +1439,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               const SizedBox(height: 20),
               const Text('Photos',
                   style: TextStyle(
-                      fontWeight: FontWeight.bold, color: Color(0xFF1A2B3C))),
+                      fontWeight: FontWeight.bold, color: textPrimary)),
               const SizedBox(height: 8),
               SizedBox(
                 height: 100,
@@ -1434,7 +1457,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               const SizedBox(height: 20),
               const Text('Messages vocaux',
                   style: TextStyle(
-                      fontWeight: FontWeight.bold, color: Color(0xFF1A2B3C))),
+                      fontWeight: FontWeight.bold, color: textPrimary)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -1456,7 +1479,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                           icon: Icon(
                             isPlaying ? Icons.stop : Icons.play_arrow,
                             size: 18,
-                            color: const Color(0xFF0B6E3A),
+                            color: primaryBlue,
                           ),
                           onPressed: () => _playAudio(audioUrl),
                           padding: EdgeInsets.zero,
@@ -1479,7 +1502,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               child: ElevatedButton(
                 onPressed: _viewFullDetails,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0B6E3A),
+                  backgroundColor: primaryBlue,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1505,11 +1528,11 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: _shareTrackingNumber,
-            icon: const Icon(Icons.share, size: 18),
+            icon: Icon(Icons.share, size: 18, color: primaryBlue),
             label: const Text('Partager'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF0B6E3A),
-              side: const BorderSide(color: Color(0xFF0B6E3A)),
+              foregroundColor: primaryBlue,
+              side: BorderSide(color: primaryBlue),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
@@ -1520,11 +1543,11 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: _showReceiptDialog,
-            icon: const Icon(Icons.receipt_long, size: 18),
+            icon: Icon(Icons.receipt_long, size: 18, color: primaryBlue),
             label: const Text('Reçu'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF0B6E3A),
-              side: const BorderSide(color: Color(0xFF0B6E3A)),
+              foregroundColor: primaryBlue,
+              side: BorderSide(color: primaryBlue),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
@@ -1541,26 +1564,27 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF0B6E3A).withAlpha(15),
+            color: primaryBlue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 16, color: const Color(0xFF0B6E3A)),
+          child: Icon(icon, size: 16, color: primaryBlue),
         ),
         const SizedBox(width: 12),
         SizedBox(
           width: 90,
           child: Text(
             label,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 13, color: textSecondary),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1A2B3C)),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: textPrimary,
+            ),
           ),
         ),
       ],
@@ -1605,7 +1629,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isCompleted
-                        ? const Color(0xFF0B6E3A)
+                        ? primaryBlue
                         : Colors.grey.shade300,
                   ),
                   child: Icon(step['icon'] as IconData,
@@ -1616,7 +1640,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                     width: 2,
                     height: 60,
                     color: isCompleted
-                        ? const Color(0xFF0B6E3A)
+                        ? primaryBlue
                         : Colors.grey.shade300,
                   ),
               ],
@@ -1632,13 +1656,13 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                       step['label'] as String,
                       style: TextStyle(
                         fontWeight: isCompleted ? FontWeight.bold : FontWeight.normal,
-                        color: isCompleted ? const Color(0xFF0B6E3A) : Colors.grey,
+                        color: isCompleted ? primaryBlue : Colors.grey,
                       ),
                     ),
                     if (isCurrent)
                       const Text(
                         'En cours',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF0B6E3A)),
+                        style: TextStyle(fontSize: 12, color: primaryBlue),
                       ),
                     if (step['status'] == 'delivered' && parcel.deliveryDate != null)
                       Text(
@@ -1698,7 +1722,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: isActive ? color.withAlpha(25) : Colors.grey.withAlpha(25),
+        color: isActive ? color.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isActive ? color : Colors.grey.shade300,

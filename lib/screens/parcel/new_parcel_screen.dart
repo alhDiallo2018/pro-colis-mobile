@@ -29,8 +29,10 @@ import '../../models/voice_message.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/phone_contact_picker.dart';
 import 'free_parcels_screen.dart';
 import 'parcel_detail_screen.dart';
 
@@ -47,7 +49,7 @@ extension PaymentMethodExtension on PaymentMethod {
       case PaymentMethod.freeMoney:
         return 'Free Money';
       case PaymentMethod.card:
-       return 'Carte bancaire';
+        return 'Carte bancaire';
     }
   }
 }
@@ -258,8 +260,7 @@ class _NewParcelScreenState extends ConsumerState<NewParcelScreen> {
 
     try {
       final allUsers = await _apiService.getAllClients();
-      final clients =
-          allUsers.where((user) => user.role == UserRole.client).toList();
+      final clients = allUsers.where((user) => user.role == UserRole.client).toList();
       if (mounted) {
         setState(() {
           _availableClients = clients;
@@ -275,323 +276,6 @@ class _NewParcelScreenState extends ConsumerState<NewParcelScreen> {
         });
       }
     }
-  }
-
-  // Charger les contacts du téléphone
-  Future<List<Contact>> _getPhoneContacts() async {
-    if (kIsWeb) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('L\'accès aux contacts n\'est pas disponible sur le Web.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return [];
-    }
-
-    final status = await Permission.contacts.request();
-    if (status != PermissionStatus.granted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Permission des contacts refusée'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return [];
-    }
-
-    final Iterable<Contact> contacts = await ContactsService.getContacts();
-    return contacts.toList();
-  }
-
-  // Afficher le dialogue de sélection depuis les contacts pour le destinataire
-  Future<void> _showContactsPickerForReceiver() async {
-    final contacts = await _getPhoneContacts();
-
-    if (contacts.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Aucun contact trouvé sur votre téléphone'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return;
-    }
-
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.5,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: const Text(
-                    'Sélectionner un contact (Destinataire)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    itemCount: contacts.length,
-                    itemBuilder: (context, index) {
-                      final contact = contacts[index];
-                      final displayName = contact.displayName ?? 'Sans nom';
-                      final phoneNumber = contact.phones?.isNotEmpty == true
-                          ? contact.phones!.first.value ?? ''
-                          : '';
-                      final email = contact.emails?.isNotEmpty == true
-                          ? contact.emails!.first.value ?? ''
-                          : '';
-
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.green.shade100,
-                          child: Text(
-                            displayName.isNotEmpty
-                                ? displayName[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        title: Text(displayName),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (phoneNumber.isNotEmpty) Text('📞 $phoneNumber'),
-                            if (email.isNotEmpty)
-                              Text('✉️ $email',
-                                  style: const TextStyle(fontSize: 12)),
-                          ],
-                        ),
-                        onTap: () {
-                          setState(() {
-                            _receiverNameController.text = displayName;
-                            _receiverPhoneController.text = phoneNumber;
-                            _receiverEmailController.text = email;
-                            _selectedReceiverClientId = null;
-                            _isNewReceiver = true;
-                          });
-                          Navigator.pop(context);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // ==================== GESTION DES MESSAGES VOCAUX ====================
-
-  Future<String?> _getVoiceMessagePath() async {
-    if (kIsWeb) {
-      return '';
-    }
-
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      return '${directory.path}/voice_$timestamp.m4a';
-    } catch (e) {
-      debugPrint('Erreur chemin audio: $e');
-      return null;
-    }
-  }
-
-  Future<void> _startRecording() async {
-    try {
-      final isRecording = await _audioRecorder.isRecording();
-      if (isRecording) return;
-
-      final hasPermission = await _audioRecorder.hasPermission();
-      if (!hasPermission) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Permission microphone refusée'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      final path = await _getVoiceMessagePath();
-      if (path == null) {
-        throw Exception('Impossible de créer le fichier audio');
-      }
-
-      setState(() {
-        _isRecording = true;
-        _recordingDuration = 0;
-      });
-
-      _recordingTimer?.cancel();
-      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (mounted) {
-          setState(() {
-            _recordingDuration++;
-          });
-        }
-      });
-
-      if (kIsWeb) {
-        await _audioRecorder.start(
-          path: '',
-          encoder: AudioEncoder.aacLc,
-          samplingRate: 44100,
-        );
-      } else {
-        await _audioRecorder.start(
-          path: path,
-          encoder: AudioEncoder.aacLc,
-          samplingRate: 44100,
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ Erreur lors de l\'enregistrement: $e');
-      _recordingTimer?.cancel();
-      if (mounted) {
-        setState(() {
-          _isRecording = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de l\'enregistrement : $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _stopRecording() async {
-    try {
-      final isRecording = await _audioRecorder.isRecording();
-      if (isRecording) {
-        _recordingTimer?.cancel();
-        final path = await _audioRecorder.stop();
-
-        if (path != null && mounted) {
-          final voiceMessage = VoiceMessage(
-            path: path,
-            duration: _recordingDuration,
-            createdAt: DateTime.now(),
-          );
-          setState(() {
-            _voiceMessages.add(voiceMessage);
-            _isRecording = false;
-          });
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Message vocal enregistré (${_formatDuration(_recordingDuration)})'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } else {
-          setState(() {
-            _isRecording = false;
-          });
-        }
-      } else {
-        setState(() {
-          _isRecording = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Erreur lors de l\'arrêt: $e');
-      setState(() {
-        _isRecording = false;
-      });
-    }
-  }
-
-  String _formatDuration(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
-  Future<void> _playVoiceMessage(String path) async {
-    try {
-      if (_currentlyPlayingPath == path) {
-        await _audioPlayer.stop();
-        setState(() {
-          _currentlyPlayingPath = null;
-        });
-      } else {
-        await _audioPlayer.stop();
-        await _audioPlayer.play(DeviceFileSource(path));
-        setState(() {
-          _currentlyPlayingPath = path;
-        });
-
-        _audioPlayer.onPlayerComplete.listen((event) {
-          if (mounted) {
-            setState(() {
-              _currentlyPlayingPath = null;
-            });
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint('Erreur lors de la lecture: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de la lecture: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _removeVoiceMessage(int index) {
-    final voiceMessage = _voiceMessages[index];
-    try {
-      final file = File(voiceMessage.path);
-      if (file.existsSync()) {
-        file.deleteSync();
-      }
-    } catch (e) {
-      debugPrint('Erreur suppression fichier audio: $e');
-    }
-
-    setState(() {
-      _voiceMessages.removeAt(index);
-    });
-  }
-
-  String _formatDateTime(DateTime date) {
-    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   List<User> get _filteredDrivers {
@@ -663,6 +347,203 @@ class _NewParcelScreenState extends ConsumerState<NewParcelScreen> {
       _receiverEmailController.clear();
       _receiverAddressController.clear();
     });
+  }
+
+  // ==================== GESTION DES MESSAGES VOCAUX ====================
+
+  Future<String?> _getVoiceMessagePath() async {
+    if (kIsWeb) {
+      return '';
+    }
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      return '${directory.path}/voice_$timestamp.m4a';
+    } catch (e) {
+      debugPrint('Erreur chemin audio: $e');
+      return null;
+    }
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      final isRecording = await _audioRecorder.isRecording();
+      if (isRecording) return;
+
+      final hasPermission = await _audioRecorder.hasPermission();
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Permission microphone refusée'),
+              backgroundColor: AppTheme.warningColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+        return;
+      }
+
+      final path = await _getVoiceMessagePath();
+      if (path == null) {
+        throw Exception('Impossible de créer le fichier audio');
+      }
+
+      setState(() {
+        _isRecording = true;
+        _recordingDuration = 0;
+      });
+
+      _recordingTimer?.cancel();
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted) {
+          setState(() {
+            _recordingDuration++;
+          });
+        }
+      });
+
+      if (kIsWeb) {
+        await _audioRecorder.start(
+          path: '',
+          encoder: AudioEncoder.aacLc,
+          samplingRate: 44100,
+        );
+      } else {
+        await _audioRecorder.start(
+          path: path,
+          encoder: AudioEncoder.aacLc,
+          samplingRate: 44100,
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Erreur lors de l\'enregistrement: $e');
+      _recordingTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'enregistrement : $e'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    try {
+      final isRecording = await _audioRecorder.isRecording();
+      if (isRecording) {
+        _recordingTimer?.cancel();
+        final path = await _audioRecorder.stop();
+
+        if (path != null && mounted) {
+          final voiceMessage = VoiceMessage(
+            path: path,
+            duration: _recordingDuration,
+            createdAt: DateTime.now(),
+          );
+          setState(() {
+            _voiceMessages.add(voiceMessage);
+            _isRecording = false;
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Message vocal enregistré (${_formatDuration(_recordingDuration)})'),
+                backgroundColor: AppTheme.successColor,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          }
+        } else {
+          setState(() {
+            _isRecording = false;
+          });
+        }
+      } else {
+        setState(() {
+          _isRecording = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de l\'arrêt: $e');
+      setState(() {
+        _isRecording = false;
+      });
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _playVoiceMessage(String path) async {
+    try {
+      if (_currentlyPlayingPath == path) {
+        await _audioPlayer.stop();
+        setState(() {
+          _currentlyPlayingPath = null;
+        });
+      } else {
+        await _audioPlayer.stop();
+        await _audioPlayer.play(DeviceFileSource(path));
+        setState(() {
+          _currentlyPlayingPath = path;
+        });
+
+        _audioPlayer.onPlayerComplete.listen((event) {
+          if (mounted) {
+            setState(() {
+              _currentlyPlayingPath = null;
+            });
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de la lecture: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la lecture: $e'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+  }
+
+  void _removeVoiceMessage(int index) {
+    final voiceMessage = _voiceMessages[index];
+    try {
+      final file = File(voiceMessage.path);
+      if (file.existsSync()) {
+        file.deleteSync();
+      }
+    } catch (e) {
+      debugPrint('Erreur suppression fichier audio: $e');
+    }
+
+    setState(() {
+      _voiceMessages.removeAt(index);
+    });
+  }
+
+  String _formatDateTime(DateTime date) {
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   // ==================== GESTION DES MÉDIAS ====================
@@ -788,8 +669,7 @@ class _NewParcelScreenState extends ConsumerState<NewParcelScreen> {
 
     try {
       final originalSize = await video.length();
-      debugPrint(
-          '📹 Compression vidéo - Taille originale: ${(originalSize / 1024 / 1024).toStringAsFixed(2)} MB');
+      debugPrint('📹 Compression vidéo - Taille originale: ${(originalSize / 1024 / 1024).toStringAsFixed(2)} MB');
 
       if (originalSize < 2 * 1024 * 1024) {
         debugPrint('📹 Vidéo déjà petite, pas de compression nécessaire');
@@ -820,8 +700,7 @@ class _NewParcelScreenState extends ConsumerState<NewParcelScreen> {
       if (info != null && info.path != null) {
         final compressedFile = XFile(info.path!);
         final compressedSize = await compressedFile.length();
-        debugPrint(
-            '📹 Vidéo compressée: ${(compressedSize / 1024 / 1024).toStringAsFixed(2)} MB');
+        debugPrint('📹 Vidéo compressée: ${(compressedSize / 1024 / 1024).toStringAsFixed(2)} MB');
 
         if (compressedSize > 15 * 1024 * 1024) {
           debugPrint('⚠️ Vidéo trop volumineuse même après compression');
@@ -875,640 +754,635 @@ class _NewParcelScreenState extends ConsumerState<NewParcelScreen> {
     }
   }
 
-
   // ==================== GESTION DES POINTS ====================
 
-/// Vérifier si l'utilisateur a assez de points pour créer un colis
-bool _hasEnoughPoints() {
-  final scoreState = ref.read(scoreProvider);
-  final score = scoreState.score;
-  
-  if (score == null) {
-    // Si le score n'est pas chargé, on le charge et on retourne false
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authState = ref.read(authProvider);
-      final user = authState.user;
-      if (user != null) {
-        ref.read(scoreProvider.notifier).loadScore(user.id);
-      }
-    });
-    return false;
+  bool _hasEnoughPoints() {
+    final scoreState = ref.read(scoreProvider);
+    final score = scoreState.score;
+    
+    if (score == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final authState = ref.read(authProvider);
+        final user = authState.user;
+        if (user != null) {
+          ref.read(scoreProvider.notifier).loadScore(user.id);
+        }
+      });
+      return false;
+    }
+    
+    return score.points >= 1;
   }
-  
-  return score.points >= 1; // 1 point requis pour créer un colis
-}
 
-/// Afficher le dialogue de points insuffisants
-void _showInsufficientPointsDialog() {
-  final scoreState = ref.read(scoreProvider);
-  final currentPoints = scoreState.score?.points ?? 0;
-  final missingPoints = 1 - currentPoints;
+  void _showInsufficientPointsDialog() {
+    final scoreState = ref.read(scoreProvider);
+    final currentPoints = scoreState.score?.points ?? 0;
+    final missingPoints = 1 - currentPoints;
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Row(
-        children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-          SizedBox(width: 12),
-          Text('Points insuffisants'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Vous n\'avez pas assez de points pour créer un colis.',
-            style: TextStyle(fontSize: 15),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(10),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppTheme.warningColor, size: 28),
+            const SizedBox(width: 12),
+            const Text('Points insuffisants'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Vous n\'avez pas assez de points pour créer un colis.',
+              style: TextStyle(fontSize: 15),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Votre solde :'),
-                Text(
-                  '$currentPoints point${currentPoints > 1 ? 's' : ''}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0B6E3A),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Points requis :'),
-                const Text(
-                  '1 point',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (missingPoints > 0) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.red.shade200),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Points manquants :'),
+                  const Text('Votre solde :'),
                   Text(
-                    '$missingPoints point${missingPoints > 1 ? 's' : ''}',
+                    '$currentPoints point${currentPoints > 1 ? 's' : ''}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.red,
+                      color: AppTheme.primaryBlue,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-          const SizedBox(height: 16),
-          const Text(
-            '💡 Astuce : Vous pouvez acheter des points pour continuer.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () {
-            Navigator.pop(context);
-            _showPurchasePointsDialog();
-          },
-          icon: const Icon(Icons.shopping_cart, size: 18),
-          label: const Text('Acheter des points'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0B6E3A),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-/// Afficher le dialogue d'achat de points
-void _showPurchasePointsDialog() {
-  final TextEditingController amountController = TextEditingController();
-  const pricePerPoint = 100; // Prix en FCFA par point
-
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Row(
-        children: [
-          Icon(Icons.shopping_cart, color: Color(0xFF0B6E3A), size: 28),
-          SizedBox(width: 12),
-          Text('Acheter des points'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.green.shade200),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.info_outline, color: Colors.green, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  '1 point = $pricePerPoint FCFA',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.green,
-                    fontWeight: FontWeight.w500,
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.lightBlue,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Points requis :'),
+                  const Text(
+                    '1 point',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryBlue,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Nombre de points',
-              hintText: 'Ex: 10',
-              prefixIcon: const Icon(Icons.stars),
-              suffixText: 'pts',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF0B6E3A), width: 1.5),
+                ],
               ),
             ),
-            onChanged: (value) {
-              // Mettre à jour le prix total
-            },
-          ),
-          const SizedBox(height: 16),
-          Consumer(
-            builder: (context, ref, child) {
-              final amount = int.tryParse(amountController.text) ?? 0;
-              final totalPrice = amount * pricePerPoint;
-              return Container(
+            if (missingPoints > 0) ...[
+              const SizedBox(height: 8),
+              Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.shade200),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Total :',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
+                    const Text('Points manquants :'),
                     Text(
-                      '${totalPrice.toStringAsFixed(0)} FCFA',
+                      '$missingPoints point${missingPoints > 1 ? 's' : ''}',
                       style: const TextStyle(
-                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0B6E3A),
+                        color: AppTheme.errorColor,
                       ),
                     ),
                   ],
                 ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            const Text(
+              '💡 Astuce : Vous pouvez acheter des points pour continuer.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _showPurchasePointsDialog();
+            },
+            icon: const Icon(Icons.shopping_cart, size: 18),
+            label: const Text('Acheter des points'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryBlue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPurchasePointsDialog() {
+    final TextEditingController amountController = TextEditingController();
+    const pricePerPoint = 100;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.shopping_cart, color: AppTheme.primaryBlue, size: 28),
+            const SizedBox(width: 12),
+            const Text('Acheter des points'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.lightBlue,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.info_outline, color: AppTheme.primaryBlue, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    '1 point = $pricePerPoint FCFA',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.primaryBlue,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Nombre de points',
+                hintText: 'Ex: 10',
+                prefixIcon: const Icon(Icons.stars),
+                suffixText: 'pts',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppTheme.primaryBlue, width: 1.5),
+                ),
+              ),
+              onChanged: (value) {
+                // Mettre à jour le prix total
+              },
+            ),
+            const SizedBox(height: 16),
+            Consumer(
+              builder: (context, ref, child) {
+                final amount = int.tryParse(amountController.text) ?? 0;
+                final totalPrice = amount * pricePerPoint;
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total :',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        '${totalPrice.toStringAsFixed(0)} FCFA',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          Consumer(
+            builder: (context, ref, child) {
+              final amount = int.tryParse(amountController.text) ?? 0;
+              final isValid = amount > 0 && amount <= 1000;
+              
+              return ElevatedButton(
+                onPressed: isValid
+                    ? () {
+                        Navigator.pop(context);
+                        _purchasePoints(amount);
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                ),
+                child: const Text('Acheter'),
               );
             },
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        Consumer(
-          builder: (context, ref, child) {
-            final amount = int.tryParse(amountController.text) ?? 0;
-            final isValid = amount > 0 && amount <= 1000;
-            
-            return ElevatedButton(
-              onPressed: isValid
-                  ? () {
-                      Navigator.pop(context);
-                      _purchasePoints(amount);
-                    }
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B6E3A),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              ),
-              child: const Text('Acheter'),
-            );
-          },
-        ),
-      ],
-    ),
-  );
-}
-
-/// Acheter des points
-Future<void> _purchasePoints(int amount) async {
-  if (!mounted) return;
-  
-  setState(() => _isLoading = true);
-
-  try {
-    final authState = ref.read(authProvider);
-    final user = authState.user;
-
-    if (user == null) {
-      throw Exception('Utilisateur non connecté');
-    }
-
-    final success = await ref.read(scoreProvider.notifier).creditPoints(
-      user.id,
-      amount,
-      'Achat de $amount points',
     );
+  }
 
+  Future<void> _purchasePoints(int amount) async {
     if (!mounted) return;
+    
+    setState(() => _isLoading = true);
 
-    if (success) {
-      // Recharger le score pour mettre à jour l'affichage
-      await ref.read(scoreProvider.notifier).loadScore(user.id);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ $amount points ajoutés avec succès !'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
+    try {
+      final authState = ref.read(authProvider);
+      final user = authState.user;
+
+      if (user == null) {
+        throw Exception('Utilisateur non connecté');
+      }
+
+      final success = await ref.read(scoreProvider.notifier).creditPoints(
+        user.id,
+        amount,
+        'Achat de $amount points',
       );
-    } else {
-      final errorState = ref.read(scoreProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorState.error ?? 'Erreur lors de l\'achat de points'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
+
+      if (!mounted) return;
+
+      if (success) {
+        await ref.read(scoreProvider.notifier).loadScore(user.id);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ $amount points ajoutés avec succès !'),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        final errorState = ref.read(scoreProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorState.error ?? 'Erreur lors de l\'achat de points'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
 
-/// Afficher le solde de points dans un snackbar
-void _showCurrentBalance() {
-  final scoreState = ref.read(scoreProvider);
-  final points = scoreState.score?.points ?? 0;
-  
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Row(
-        children: [
-          const Icon(Icons.stars, color: Colors.amber, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'Solde: $points point${points > 1 ? 's' : ''}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
+  void _showCurrentBalance() {
+    final scoreState = ref.read(scoreProvider);
+    final points = scoreState.score?.points ?? 0;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.stars, color: Colors.amber, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Solde: $points point${points > 1 ? 's' : ''}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        backgroundColor: AppTheme.primaryBlue,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
       ),
-      backgroundColor: const Color(0xFF0B6E3A),
-      duration: const Duration(seconds: 2),
-    ),
-  );
-}
+    );
+  }
 
   // ==================== CRÉATION DU COLIS ====================
 
   Future<void> _createParcel() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  if (_selectedDepartureGarageId == null && mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Veuillez sélectionner un garage de départ'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
-
-  // ✅ VÉRIFICATION DES POINTS
-  final authState = ref.read(authProvider);
-  final currentUser = authState.user;
-  final isClient = currentUser?.role == UserRole.client;
-
-  // Seul le client a besoin de points pour créer un colis
-  if (isClient) {
-    // Charger le score si nécessaire
-    final scoreState = ref.read(scoreProvider);
-    if (scoreState.score == null && currentUser != null) {
-      await ref.read(scoreProvider.notifier).loadScore(currentUser.id);
-    }
-
-    // Vérifier les points
-    if (!_hasEnoughPoints()) {
-      _showInsufficientPointsDialog();
+    if (_selectedDepartureGarageId == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Veuillez sélectionner un garage de départ'),
+          backgroundColor: AppTheme.warningColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
       return;
     }
-  }
 
-  if (!mounted) return;
-  setState(() => _isLoading = true);
+    // VÉRIFICATION DES POINTS
+    final authState = ref.read(authProvider);
+    final currentUser = authState.user;
+    final isClient = currentUser?.role == UserRole.client;
 
-  try {
-    final departureGarage =
-        _garages.firstWhere((g) => g.id == _selectedDepartureGarageId);
-    final arrivalGarage = _selectedArrivalGarageId != null
-        ? _garages.firstWhere((g) => g.id == _selectedArrivalGarageId)
-        : departureGarage;
-
-    // 🔧 LOGIQUE: Si aucun chauffeur sélectionné et que c'est un client,
-    // le colis est automatiquement mis en libre service
-    final shouldBeFreeForBidding = isClient && _selectedDriverId == null;
-    
-    String? driverId;
-    String? driverName;
-    String? driverPhone;
-
-    if (isClient && _selectedDriverId != null) {
-      final selectedDriver =
-          _availableDrivers.firstWhere((d) => d.id == _selectedDriverId);
-      driverId = selectedDriver.id;
-      driverName = selectedDriver.fullName;
-      driverPhone = selectedDriver.phone;
-    } else if (!isClient && currentUser != null) {
-      driverId = currentUser.id;
-      driverName = currentUser.fullName;
-      driverPhone = currentUser.phone;
-    }
-
-    final parcelData = {
-      'senderName': _senderNameController.text.trim(),
-      'senderPhone': _senderPhoneController.text.trim(),
-      'receiverName': _receiverNameController.text.trim(),
-      'receiverPhone': _receiverPhoneController.text.trim(),
-      'description': _descriptionController.text.trim(),
-      'weight': double.parse(_weightController.text),
-      'type': _selectedType.value,
-      'departureGarageId': _selectedDepartureGarageId,
-      'departureGarageName': departureGarage.name,
-      'price': double.tryParse(_priceController.text) ?? 0,
-      'isUrgent': _urgentDelivery,
-      'isInsured': _insurance,
-      'paymentMethod': _selectedPaymentMethod.value,
-      'paymentPhoneNumber': _phoneNumberController.text.trim(),
-      'isFreeForBidding': shouldBeFreeForBidding,
-      'status': shouldBeFreeForBidding ? 'free' : 'pending',
-      'driverId': driverId,
-      'driverName': driverName,
-      'driverPhone': driverPhone,
-    };
-
-    // Ajout des champs optionnels
-    if (_senderEmailController.text.trim().isNotEmpty) {
-      parcelData['senderEmail'] = _senderEmailController.text.trim();
-    }
-    if (_receiverEmailController.text.trim().isNotEmpty) {
-      parcelData['receiverEmail'] = _receiverEmailController.text.trim();
-    }
-    if (_receiverAddressController.text.trim().isNotEmpty) {
-      parcelData['receiverAddress'] = _receiverAddressController.text.trim();
-    }
-    if (_selectedArrivalGarageId != null) {
-      parcelData['arrivalGarageId'] = _selectedArrivalGarageId;
-      parcelData['arrivalGarageName'] = arrivalGarage.name;
-    }
-
-    debugPrint('📦 Création du colis...');
-    debugPrint('📦 Libre service: $shouldBeFreeForBidding');
-    debugPrint('📦 Chauffeur assigné: ${driverName ?? "Aucun"}');
-
-    final result =
-        await ref.read(parcelProvider.notifier).createParcel(parcelData);
-
-    if (result != null && mounted) {
-      final parcelId = result.id;
-      debugPrint('✅ Colis créé avec ID: $parcelId');
-
-      // ✅ DÉBIT DES POINTS POUR LE CLIENT
-      if (isClient && currentUser != null) {
-        final debited = await ref.read(scoreProvider.notifier).debitPoints(
-          currentUser.id,
-          1,
-          parcelId,
-          'Création du colis #${result.trackingNumber}',
-        );
-
-        if (!debited && mounted) {
-          // Si le débit échoue, annuler le colis
-          await _apiService.cancelParcel(parcelId, reason: 'Erreur de débit de points');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Erreur lors du débit des points. Colis annulé.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          setState(() => _isLoading = false);
-          return;
-        }
-        
-        // Recharger le score pour mise à jour
+    if (isClient) {
+      final scoreState = ref.read(scoreProvider);
+      if (scoreState.score == null && currentUser != null) {
         await ref.read(scoreProvider.notifier).loadScore(currentUser.id);
       }
 
-      // Upload des médias...
-      final List<String> uploadedPhotoUrls = [];
-      final List<String> uploadedVideoUrls = [];
-      final List<String> uploadedAudioUrls = [];
+      if (!_hasEnoughPoints()) {
+        _showInsufficientPointsDialog();
+        return;
+      }
+    }
 
-      // Upload des photos
-      if (_photos.isNotEmpty) {
-        debugPrint('📸 Upload de ${_photos.length} photo(s)...');
-        for (int i = 0; i < _photos.length; i++) {
-          final photo = _photos[i];
-          if (mounted) {
-            setState(() {
-              _compressionStatus = 'Upload photo ${i + 1}/${_photos.length}...';
-              _isCompressing = true;
-            });
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final departureGarage = _garages.firstWhere((g) => g.id == _selectedDepartureGarageId);
+      final arrivalGarage = _selectedArrivalGarageId != null
+          ? _garages.firstWhere((g) => g.id == _selectedArrivalGarageId)
+          : departureGarage;
+
+      final shouldBeFreeForBidding = isClient && _selectedDriverId == null;
+      
+      String? driverId;
+      String? driverName;
+      String? driverPhone;
+
+      if (isClient && _selectedDriverId != null) {
+        final selectedDriver = _availableDrivers.firstWhere((d) => d.id == _selectedDriverId);
+        driverId = selectedDriver.id;
+        driverName = selectedDriver.fullName;
+        driverPhone = selectedDriver.phone;
+      } else if (!isClient && currentUser != null) {
+        driverId = currentUser.id;
+        driverName = currentUser.fullName;
+        driverPhone = currentUser.phone;
+      }
+
+      final parcelData = {
+        'senderName': _senderNameController.text.trim(),
+        'senderPhone': _senderPhoneController.text.trim(),
+        'receiverName': _receiverNameController.text.trim(),
+        'receiverPhone': _receiverPhoneController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'weight': double.parse(_weightController.text),
+        'type': _selectedType.value,
+        'departureGarageId': _selectedDepartureGarageId,
+        'departureGarageName': departureGarage.name,
+        'price': double.tryParse(_priceController.text) ?? 0,
+        'isUrgent': _urgentDelivery,
+        'isInsured': _insurance,
+        'paymentMethod': _selectedPaymentMethod.value,
+        'paymentPhoneNumber': _phoneNumberController.text.trim(),
+        'isFreeForBidding': shouldBeFreeForBidding,
+        'status': shouldBeFreeForBidding ? 'free' : 'pending',
+        'driverId': driverId,
+        'driverName': driverName,
+        'driverPhone': driverPhone,
+      };
+
+      if (_senderEmailController.text.trim().isNotEmpty) {
+        parcelData['senderEmail'] = _senderEmailController.text.trim();
+      }
+      if (_receiverEmailController.text.trim().isNotEmpty) {
+        parcelData['receiverEmail'] = _receiverEmailController.text.trim();
+      }
+      if (_receiverAddressController.text.trim().isNotEmpty) {
+        parcelData['receiverAddress'] = _receiverAddressController.text.trim();
+      }
+      if (_selectedArrivalGarageId != null) {
+        parcelData['arrivalGarageId'] = _selectedArrivalGarageId;
+        parcelData['arrivalGarageName'] = arrivalGarage.name;
+      }
+
+      debugPrint('📦 Création du colis...');
+      debugPrint('📦 Libre service: $shouldBeFreeForBidding');
+      debugPrint('📦 Chauffeur assigné: ${driverName ?? "Aucun"}');
+
+      final result = await ref.read(parcelProvider.notifier).createParcel(parcelData);
+
+      if (result != null && mounted) {
+        final parcelId = result.id;
+        debugPrint('✅ Colis créé avec ID: $parcelId');
+
+        if (isClient && currentUser != null) {
+          final debited = await ref.read(scoreProvider.notifier).debitPoints(
+            currentUser.id,
+            1,
+            parcelId,
+            'Création du colis #${result.trackingNumber}',
+          );
+
+          if (!debited && mounted) {
+            await _apiService.cancelParcel(parcelId, reason: 'Erreur de débit de points');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Erreur lors du débit des points. Colis annulé.'),
+                backgroundColor: AppTheme.errorColor,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+            setState(() => _isLoading = false);
+            return;
           }
+          
+          await ref.read(scoreProvider.notifier).loadScore(currentUser.id);
+        }
 
-          try {
-            final url = await _apiService.uploadParcelPhoto(photo, parcelId);
-            if (url != null && mounted) {
-              debugPrint('✅ Photo ${i + 1} uploadée');
-              uploadedPhotoUrls.add(url);
+        // Upload des médias...
+        final List<String> uploadedPhotoUrls = [];
+        final List<String> uploadedVideoUrls = [];
+        final List<String> uploadedAudioUrls = [];
+
+        if (_photos.isNotEmpty) {
+          debugPrint('📸 Upload de ${_photos.length} photo(s)...');
+          for (int i = 0; i < _photos.length; i++) {
+            final photo = _photos[i];
+            if (mounted) {
+              setState(() {
+                _compressionStatus = 'Upload photo ${i + 1}/${_photos.length}...';
+                _isCompressing = true;
+              });
             }
-          } catch (e) {
-            debugPrint('❌ Erreur upload photo ${i + 1}: $e');
-          }
-        }
-      }
 
-      // Upload des vidéos
-      if (_videos.isNotEmpty) {
-        debugPrint('🎬 Upload de ${_videos.length} vidéo(s)...');
-        for (int i = 0; i < _videos.length; i++) {
-          final video = _videos[i];
-          if (mounted) {
-            setState(() {
-              _compressionStatus = 'Upload vidéo ${i + 1}/${_videos.length}...';
-              _isCompressing = true;
-            });
-          }
-
-          try {
-            final url = await _apiService.uploadParcelVideo(video, parcelId);
-            if (url != null && mounted) {
-              debugPrint('✅ Vidéo ${i + 1} uploadée');
-              uploadedVideoUrls.add(url);
+            try {
+              final url = await _apiService.uploadParcelPhoto(photo, parcelId);
+              if (url != null && mounted) {
+                debugPrint('✅ Photo ${i + 1} uploadée');
+                uploadedPhotoUrls.add(url);
+              }
+            } catch (e) {
+              debugPrint('❌ Erreur upload photo ${i + 1}: $e');
             }
-          } catch (e) {
-            debugPrint('❌ Erreur upload vidéo ${i + 1}: $e');
           }
         }
-      }
 
-      // Upload des messages vocaux
-      if (_voiceMessages.isNotEmpty) {
-        debugPrint('🎤 Upload de ${_voiceMessages.length} message(s) vocal(aux)...');
-        for (int i = 0; i < _voiceMessages.length; i++) {
-          final voiceMsg = _voiceMessages[i];
-          if (mounted) {
-            setState(() {
-              _compressionStatus = 'Upload message vocal ${i + 1}/${_voiceMessages.length}...';
-              _isCompressing = true;
-            });
-          }
-
-          try {
-            final audioFile = XFile(voiceMsg.path);
-            final url = await _apiService.uploadAudio(audioFile, parcelId);
-            if (url != null && mounted) {
-              debugPrint('✅ Message vocal ${i + 1} uploadé: $url');
-              uploadedAudioUrls.add(url);
+        if (_videos.isNotEmpty) {
+          debugPrint('🎬 Upload de ${_videos.length} vidéo(s)...');
+          for (int i = 0; i < _videos.length; i++) {
+            final video = _videos[i];
+            if (mounted) {
+              setState(() {
+                _compressionStatus = 'Upload vidéo ${i + 1}/${_videos.length}...';
+                _isCompressing = true;
+              });
             }
+
+            try {
+              final url = await _apiService.uploadParcelVideo(video, parcelId);
+              if (url != null && mounted) {
+                debugPrint('✅ Vidéo ${i + 1} uploadée');
+                uploadedVideoUrls.add(url);
+              }
+            } catch (e) {
+              debugPrint('❌ Erreur upload vidéo ${i + 1}: $e');
+            }
+          }
+        }
+
+        if (_voiceMessages.isNotEmpty) {
+          debugPrint('🎤 Upload de ${_voiceMessages.length} message(s) vocal(aux)...');
+          for (int i = 0; i < _voiceMessages.length; i++) {
+            final voiceMsg = _voiceMessages[i];
+            if (mounted) {
+              setState(() {
+                _compressionStatus = 'Upload message vocal ${i + 1}/${_voiceMessages.length}...';
+                _isCompressing = true;
+              });
+            }
+
+            try {
+              final audioFile = XFile(voiceMsg.path);
+              final url = await _apiService.uploadAudio(audioFile, parcelId);
+              if (url != null && mounted) {
+                debugPrint('✅ Message vocal ${i + 1} uploadé: $url');
+                uploadedAudioUrls.add(url);
+              }
+            } catch (e) {
+              debugPrint('❌ Erreur upload audio ${i + 1}: $e');
+            }
+          }
+        }
+
+        if (uploadedPhotoUrls.isNotEmpty || uploadedVideoUrls.isNotEmpty || uploadedAudioUrls.isNotEmpty) {
+          try {
+            final updateData = <String, dynamic>{};
+            if (uploadedPhotoUrls.isNotEmpty) {
+              updateData['photoUrls'] = uploadedPhotoUrls;
+            }
+            if (uploadedVideoUrls.isNotEmpty) {
+              updateData['videoUrls'] = uploadedVideoUrls;
+            }
+            if (uploadedAudioUrls.isNotEmpty) {
+              updateData['audioUrls'] = uploadedAudioUrls;
+            }
+            await _apiService.updateParcelMedia(parcelId, updateData);
+            debugPrint('✅ Colis mis à jour avec succès');
           } catch (e) {
-            debugPrint('❌ Erreur upload audio ${i + 1}: $e');
+            debugPrint('⚠️ Erreur mise à jour médias: $e');
           }
         }
-      }
 
-      // Mise à jour des médias
-      if (uploadedPhotoUrls.isNotEmpty || uploadedVideoUrls.isNotEmpty || uploadedAudioUrls.isNotEmpty) {
-        try {
-          final updateData = <String, dynamic>{};
-          if (uploadedPhotoUrls.isNotEmpty) {
-            updateData['photoUrls'] = uploadedPhotoUrls;
-          }
-          if (uploadedVideoUrls.isNotEmpty) {
-            updateData['videoUrls'] = uploadedVideoUrls;
-          }
-          if (uploadedAudioUrls.isNotEmpty) {
-            updateData['audioUrls'] = uploadedAudioUrls;
-          }
-          await _apiService.updateParcelMedia(parcelId, updateData);
-          debugPrint('✅ Colis mis à jour avec succès');
-        } catch (e) {
-          debugPrint('⚠️ Erreur mise à jour médias: $e');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _isCompressing = false;
+            _compressionStatus = '';
+          });
+          _showSuccessDialog(result);
         }
+      } else if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isCompressing = false;
+        });
+        final errorState = ref.read(parcelProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorState.error ?? 'Erreur lors de la création'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
       }
-
+    } catch (e) {
+      debugPrint('❌ Erreur création colis: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
           _isCompressing = false;
-          _compressionStatus = '';
         });
-        _showSuccessDialog(result);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
       }
-    } else if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _isCompressing = false;
-      });
-      final errorState = ref.read(parcelProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorState.error ?? 'Erreur lors de la création'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } catch (e) {
-    debugPrint('❌ Erreur création colis: $e');
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _isCompressing = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-      );
     }
   }
-}
 
   void _showSuccessDialog(Parcel parcel) {
     if (!mounted) return;
@@ -1517,11 +1391,11 @@ void _showCurrentBalance() {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
-            SizedBox(width: 12),
-            Text('Colis créé avec succès'),
+            Icon(Icons.check_circle, color: AppTheme.successColor, size: 28),
+            const SizedBox(width: 12),
+            const Text('Colis créé avec succès'),
           ],
         ),
         content: Column(
@@ -1533,12 +1407,12 @@ void _showCurrentBalance() {
             if (parcel.isFreeForBidding) ...[
               const Text(
                 '🔓 Mode: Libre service',
-                style: TextStyle(color: Colors.purple),
+                style: TextStyle(color: AppTheme.primaryBlue),
               ),
               const SizedBox(height: 8),
               const Text(
                 '💡 Les chauffeurs pourront faire des offres',
-                style: TextStyle(color: Colors.purple, fontSize: 12),
+                style: TextStyle(color: AppTheme.primaryBlue, fontSize: 12),
               ),
             ] else ...[
               Text('💰 ${parcel.formattedPrice}'),
@@ -1548,18 +1422,17 @@ void _showCurrentBalance() {
             Text('👤 Destinataire: ${_receiverNameController.text.trim()}'),
             if (_selectedDriverId != null) ...[
               const SizedBox(height: 8),
-              Text(
-                  '👨‍✈️ Chauffeur assigné: ${_availableDrivers.firstWhere((d) => d.id == _selectedDriverId).fullName}'),
+              Text('👨‍✈️ Chauffeur assigné: ${_availableDrivers.firstWhere((d) => d.id == _selectedDriverId).fullName}'),
             ],
             if (_voiceMessages.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.mic, size: 14, color: Colors.purple),
-                  SizedBox(width: 4),
+                  Icon(Icons.mic, size: 14, color: AppTheme.primaryBlue),
+                  const SizedBox(width: 4),
                   Text(
                     'Message(s) vocal(aux) inclus',
-                    style: TextStyle(fontSize: 12, color: Colors.purple),
+                    style: TextStyle(fontSize: 12, color: AppTheme.primaryBlue),
                   ),
                 ],
               ),
@@ -1581,23 +1454,21 @@ void _showCurrentBalance() {
                 if (parcel.isFreeForBidding) {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const FreeParcelsScreen()),
+                    MaterialPageRoute(builder: (context) => const FreeParcelsScreen()),
                   );
                 } else {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            ParcelDetailScreen(parcel: parcel)),
+                    MaterialPageRoute(builder: (context) => ParcelDetailScreen(parcel: parcel)),
                   );
                 }
               }
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 6, 162, 234)),
-            child: Text(
-                parcel.isFreeForBidding ? 'Voir libre service' : 'Voir le colis'),
+              backgroundColor: AppTheme.primaryBlue,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(parcel.isFreeForBidding ? 'Voir libre service' : 'Voir le colis'),
           ),
         ],
       ),
@@ -1665,14 +1536,18 @@ void _showCurrentBalance() {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Nouveau colis',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: AppTheme.textPrimary,
+          ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A2B3C),
+        backgroundColor: AppTheme.cardColor,
+        foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -1689,7 +1564,7 @@ void _showCurrentBalance() {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Section Destinataire
+                  // Section Destinataire avec sélecteur de contacts
                   _buildReceiverSection(),
                   const SizedBox(height: 16),
 
@@ -1701,19 +1576,11 @@ void _showCurrentBalance() {
                   _buildRouteSection(),
                   const SizedBox(height: 16),
 
-                  // ✅ SECTION SÉLECTION DU CHAUFFEUR (RÉINTÉGRÉE)
+                  // SECTION SÉLECTION DU CHAUFFEUR
                   if (isClient && _availableDrivers.isNotEmpty) ...[
                     _buildDriverSelectionSection(),
                     const SizedBox(height: 16),
                   ],
-
-                  // Section Options
-                  // _buildOptionsSection(),
-                  // const SizedBox(height: 16),
-
-                  // // Section Paiement
-                  // _buildPaymentSection(),
-                  // const SizedBox(height: 16),
 
                   // Section Médias
                   _buildMediaSection(),
@@ -1737,18 +1604,27 @@ void _showCurrentBalance() {
               color: Colors.black54,
               child: Center(
                 child: Card(
+                  color: AppTheme.cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(),
+                        const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           _compressionStatus.isNotEmpty
                               ? _compressionStatus
                               : 'Compression en cours...',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                       ],
                     ),
@@ -1761,7 +1637,7 @@ void _showCurrentBalance() {
     );
   }
 
-  // ✅ SECTION SÉLECTION DU CHAUFFEUR (RÉINTÉGRÉE)
+  // SECTION SÉLECTION DU CHAUFFEUR
   Widget _buildDriverSelectionSection() {
     return _buildCard(
       icon: Icons.delivery_dining,
@@ -1774,7 +1650,7 @@ void _showCurrentBalance() {
             controller: _driverSearchController,
             decoration: InputDecoration(
               hintText: 'Rechercher un chauffeur...',
-              prefixIcon: const Icon(Icons.search, size: 18),
+              prefixIcon: const Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
               suffixIcon: _driverSearchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, size: 16),
@@ -1787,8 +1663,7 @@ void _showCurrentBalance() {
                     )
                   : null,
               isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1798,8 +1673,7 @@ void _showCurrentBalance() {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: Color(0xFF0B6E3A), width: 1.5),
+                borderSide: BorderSide(color: AppTheme.primaryBlue, width: 1.5),
               ),
             ),
             onChanged: (value) {
@@ -1816,7 +1690,10 @@ void _showCurrentBalance() {
                 child: SizedBox(
                   height: 40,
                   width: 40,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                  ),
                 ),
               ),
             )
@@ -1860,18 +1737,18 @@ void _showCurrentBalance() {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.green.withAlpha(25),
+                color: AppTheme.successColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.green, width: 0.5),
+                border: Border.all(color: AppTheme.successColor, width: 0.5),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  const Icon(Icons.check_circle, color: AppTheme.successColor, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '${_filteredDrivers.firstWhere((d) => d.id == _selectedDriverId).fullName}',
-                      style: const TextStyle(color: Colors.green, fontSize: 12),
+                      style: const TextStyle(color: AppTheme.successColor, fontSize: 12),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1882,32 +1759,30 @@ void _showCurrentBalance() {
                         _selectedDriverId = null;
                       });
                     },
-                    child:
-                        const Icon(Icons.close, color: Colors.green, size: 16),
+                    child: const Icon(Icons.close, color: AppTheme.successColor, size: 16),
                   ),
                 ],
               ),
             ),
           ],
-          // Message explicatif sur le libre service
           if (_selectedDriverId == null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withAlpha(15),
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.purple.withAlpha(30)),
+                  border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, size: 18, color: Colors.purple[700]),
+                    Icon(Icons.info_outline, size: 18, color: AppTheme.primaryBlue),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         '💡 Aucun chauffeur sélectionné ? Le colis sera automatiquement mis en libre service. Les chauffeurs pourront alors faire des offres.',
-                        style: TextStyle(fontSize: 12, color: Colors.purple[700]),
+                        style: TextStyle(fontSize: 12, color: AppTheme.primaryBlue),
                       ),
                     ),
                   ],
@@ -1930,10 +1805,10 @@ void _showCurrentBalance() {
         width: 130,
         margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.green.shade50 : Colors.white,
+          color: isSelected ? AppTheme.lightBlue : AppTheme.cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? Colors.green : Colors.grey.shade200,
+            color: isSelected ? AppTheme.primaryBlue : Colors.grey.shade200,
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: [
@@ -1953,12 +1828,10 @@ void _showCurrentBalance() {
               CircleAvatar(
                 radius: 20,
                 backgroundColor: Colors.grey.shade200,
-                backgroundImage: driver.profilePhoto != null &&
-                        driver.profilePhoto!.isNotEmpty
+                backgroundImage: driver.profilePhoto != null && driver.profilePhoto!.isNotEmpty
                     ? CachedNetworkImageProvider(driver.profilePhoto!)
                     : null,
-                child: (driver.profilePhoto == null ||
-                        driver.profilePhoto!.isEmpty)
+                child: (driver.profilePhoto == null || driver.profilePhoto!.isEmpty)
                     ? Text(
                         driver.initials,
                         style: TextStyle(
@@ -1976,7 +1849,7 @@ void _showCurrentBalance() {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? Colors.green.shade700 : Colors.black87,
+                    color: isSelected ? AppTheme.primaryBlue : AppTheme.textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1992,8 +1865,7 @@ void _showCurrentBalance() {
                     const SizedBox(width: 1),
                     Text(
                       driver.rating!.toStringAsFixed(1),
-                      style: const TextStyle(
-                          fontSize: 8, fontWeight: FontWeight.w500),
+                      style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -2001,8 +1873,7 @@ void _showCurrentBalance() {
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(4),
@@ -2010,14 +1881,12 @@ void _showCurrentBalance() {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.directions_car,
-                            size: 7, color: Colors.grey.shade500),
+                        Icon(Icons.directions_car, size: 7, color: Colors.grey.shade500),
                         const SizedBox(width: 1),
                         Flexible(
                           child: Text(
                             driver.vehiclePlate!,
-                            style: TextStyle(
-                                fontSize: 7, color: Colors.grey.shade600),
+                            style: TextStyle(fontSize: 7, color: Colors.grey.shade600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2033,46 +1902,64 @@ void _showCurrentBalance() {
     );
   }
 
-  // SECTION DESTINATAIRE
+  // SECTION DESTINATAIRE - CORRIGÉE
   Widget _buildReceiverSection() {
     return _buildCard(
       icon: Icons.person,
       title: 'Destinataire',
-      color: Colors.blue,
+      color: AppTheme.primaryBlue,
       child: Column(
         children: [
+          // Boutons de sélection
           LayoutBuilder(
             builder: (context, constraints) {
               if (constraints.maxWidth < 500) {
                 return Column(
                   children: [
-                    _buildReceiverButton(
-                      text: '👥 Client existant',
-                      isSelected: !_isNewReceiver,
-                      onTap: () {
-                        setState(() {
-                          _isNewReceiver = false;
-                          _clearReceiverForm();
-                        });
-                      },
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: _buildReceiverButton(
+                            text: '👥 Client',
+                            isSelected: !_isNewReceiver,
+                            onTap: () {
+                              setState(() {
+                                _isNewReceiver = false;
+                                _clearReceiverForm();
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 1,
+                          child: _buildReceiverButton(
+                            text: '✏️ Nouveau',
+                            isSelected: _isNewReceiver,
+                            onTap: () {
+                              setState(() {
+                                _isNewReceiver = true;
+                                _clearReceiverForm();
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
-                    _buildReceiverButton(
-                      text: '✏️ Nouveau',
-                      isSelected: _isNewReceiver,
-                      onTap: () {
-                        setState(() {
-                          _isNewReceiver = true;
-                          _clearReceiverForm();
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    _buildReceiverButton(
-                      text: '📱 Contacts',
-                      isSelected: false,
-                      onTap: _showContactsPickerForReceiver,
-                      isContactButton: true,
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: _buildReceiverButton(
+                            text: '📱 Contacts',
+                            isSelected: false,
+                            onTap: _showPhoneContactPicker,
+                            isContactButton: true,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 );
@@ -2080,8 +1967,9 @@ void _showCurrentBalance() {
                 return Row(
                   children: [
                     Expanded(
+                      flex: 1,
                       child: _buildReceiverButton(
-                        text: '👥 Client existant',
+                        text: '👥 Client',
                         isSelected: !_isNewReceiver,
                         onTap: () {
                           setState(() {
@@ -2093,6 +1981,7 @@ void _showCurrentBalance() {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
+                      flex: 1,
                       child: _buildReceiverButton(
                         text: '✏️ Nouveau',
                         isSelected: _isNewReceiver,
@@ -2106,10 +1995,11 @@ void _showCurrentBalance() {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
+                      flex: 1,
                       child: _buildReceiverButton(
                         text: '📱 Contacts',
                         isSelected: false,
-                        onTap: _showContactsPickerForReceiver,
+                        onTap: _showPhoneContactPicker,
                         isContactButton: true,
                       ),
                     ),
@@ -2132,31 +2022,112 @@ void _showCurrentBalance() {
     required VoidCallback onTap,
     bool isContactButton = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isContactButton
-              ? Colors.green.withAlpha(30)
-              : isSelected
-                  ? const Color(0xFF0B6E3A)
-                  : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: isContactButton
-                  ? const Color(0xFF0B6E3A)
-                  : isSelected
-                      ? Colors.white
-                      : Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
+    return Expanded(
+      flex: 1,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isContactButton
+                ? AppTheme.lightBlue
+                : isSelected
+                    ? AppTheme.primaryBlue
+                    : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: isContactButton
+                    ? AppTheme.primaryBlue
+                    : isSelected
+                        ? Colors.white
+                        : AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // Afficher le sélecteur de contacts
+  void _showPhoneContactPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: AppTheme.backgroundColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Sélectionner un contact',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: AppTheme.textSecondary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Picker
+            Expanded(
+              child: PhoneContactPicker(
+                onContactSelected: (phone, name) {
+                  setState(() {
+                    _receiverNameController.text = name;
+                    _receiverPhoneController.text = phone;
+                    _isNewReceiver = true;
+                    _selectedReceiverClientId = null;
+                  });
+                  Navigator.pop(context);
+                },
+                selectedPhone: _receiverPhoneController.text,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -2204,7 +2175,7 @@ void _showCurrentBalance() {
           controller: _clientSearchController,
           decoration: InputDecoration(
             hintText: 'Rechercher un client...',
-            prefixIcon: const Icon(Icons.search, size: 18),
+            prefixIcon: const Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
             suffixIcon: _clientSearchQuery.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear, size: 16),
@@ -2217,8 +2188,7 @@ void _showCurrentBalance() {
                   )
                 : null,
             isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -2228,8 +2198,7 @@ void _showCurrentBalance() {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: Color(0xFF0B6E3A), width: 1.5),
+              borderSide: BorderSide(color: AppTheme.primaryBlue, width: 1.5),
             ),
           ),
           onChanged: (value) {
@@ -2242,7 +2211,11 @@ void _showCurrentBalance() {
         if (_isLoadingClients)
           const Padding(
             padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+              ),
+            ),
           )
         else if (_filteredClients.isEmpty && _clientSearchQuery.isNotEmpty)
           Padding(
@@ -2284,13 +2257,13 @@ void _showCurrentBalance() {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.green.withAlpha(25),
+              color: AppTheme.successColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.green, width: 0.5),
+              border: Border.all(color: AppTheme.successColor, width: 0.5),
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                const Icon(Icons.check_circle, color: AppTheme.successColor, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -2299,15 +2272,14 @@ void _showCurrentBalance() {
                       const Text(
                         'Client sélectionné',
                         style: TextStyle(
-                          color: Colors.green,
+                          color: AppTheme.successColor,
                           fontWeight: FontWeight.w500,
                           fontSize: 12,
                         ),
                       ),
                       Text(
                         '${_receiverNameController.text} - ${_receiverPhoneController.text}',
-                        style:
-                            const TextStyle(color: Colors.green, fontSize: 11),
+                        style: const TextStyle(color: AppTheme.successColor, fontSize: 11),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -2316,7 +2288,7 @@ void _showCurrentBalance() {
                 ),
                 GestureDetector(
                   onTap: _clearReceiverForm,
-                  child: const Icon(Icons.close, color: Colors.green, size: 18),
+                  child: const Icon(Icons.close, color: AppTheme.successColor, size: 18),
                 ),
               ],
             ),
@@ -2335,10 +2307,10 @@ void _showCurrentBalance() {
         width: 140,
         margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.green.shade50 : Colors.white,
+          color: isSelected ? AppTheme.lightBlue : AppTheme.cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? Colors.green : Colors.grey.shade200,
+            color: isSelected ? AppTheme.primaryBlue : Colors.grey.shade200,
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: [
@@ -2357,14 +2329,13 @@ void _showCurrentBalance() {
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor:
-                    isSelected ? Colors.green : Colors.blue.shade100,
+                backgroundColor: isSelected ? AppTheme.primaryBlue : AppTheme.lightBlue,
                 child: Text(
                   client.initials,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: isSelected ? Colors.white : Colors.blue.shade700,
+                    color: isSelected ? Colors.white : AppTheme.primaryBlue,
                   ),
                 ),
               ),
@@ -2375,7 +2346,7 @@ void _showCurrentBalance() {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? Colors.green.shade700 : Colors.black87,
+                    color: isSelected ? AppTheme.primaryBlue : AppTheme.textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2391,8 +2362,7 @@ void _showCurrentBalance() {
                   Flexible(
                     child: Text(
                       client.phone,
-                      style:
-                          TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -2411,7 +2381,7 @@ void _showCurrentBalance() {
     return _buildCard(
       icon: Icons.inventory,
       title: 'Informations colis',
-      color: Colors.green,
+      color: AppTheme.primaryBlue,
       child: Column(
         children: [
           _buildDescriptionWithVoice(),
@@ -2448,6 +2418,10 @@ void _showCurrentBalance() {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppTheme.primaryBlue, width: 1.5),
+              ),
             ),
             items: ParcelType.values.map((type) => DropdownMenuItem(
                   value: type,
@@ -2475,7 +2449,7 @@ void _showCurrentBalance() {
     return _buildCard(
       icon: Icons.route,
       title: 'Trajet',
-      color: Colors.orange,
+      color: AppTheme.primaryBlue,
       child: Column(
         children: [
           DropdownButtonFormField<String>(
@@ -2487,6 +2461,10 @@ void _showCurrentBalance() {
               prefixIcon: const Icon(Icons.departure_board),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppTheme.primaryBlue, width: 1.5),
               ),
             ),
             items: _garages.map((garage) => DropdownMenuItem(
@@ -2509,6 +2487,10 @@ void _showCurrentBalance() {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppTheme.primaryBlue, width: 1.5),
+              ),
             ),
             items: [
               const DropdownMenuItem(
@@ -2528,86 +2510,12 @@ void _showCurrentBalance() {
     );
   }
 
-  // SECTION OPTIONS
-  Widget _buildOptionsSection() {
-    return _buildCard(
-      icon: Icons.tune,
-      title: 'Options',
-      color: Colors.purple,
-      child: Column(
-        children: [
-          SwitchListTile(
-            title: const Text('Livraison urgente'),
-            subtitle: const Text('Frais supplémentaires appliqués'),
-            value: _urgentDelivery,
-            onChanged: (value) {
-              setState(() => _urgentDelivery = value);
-            },
-            activeColor: Colors.red,
-            contentPadding: EdgeInsets.zero,
-          ),
-          SwitchListTile(
-            title: const Text('Assurance colis'),
-            subtitle: const Text('Protection contre la perte ou les dommages'),
-            value: _insurance,
-            onChanged: (value) {
-              setState(() => _insurance = value);
-            },
-            activeColor: Colors.orange,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // SECTION PAIEMENT
-  Widget _buildPaymentSection() {
-    return _buildCard(
-      icon: Icons.payment,
-      title: 'Paiement',
-      color: Colors.teal,
-      child: Column(
-        children: [
-          DropdownButtonFormField<PaymentMethod>(
-            value: _selectedPaymentMethod,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Mode de paiement',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            items: PaymentMethod.values.map((method) => DropdownMenuItem(
-                  value: method,
-                  child: Text(method.label),
-                )).toList(),
-            onChanged: (value) {
-              if (value != null && mounted) {
-                setState(() => _selectedPaymentMethod = value);
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-          if (_selectedPaymentMethod != PaymentMethod.cash)
-            CustomTextField(
-              controller: _phoneNumberController,
-              label: 'Numéro de téléphone',
-              prefixIcon: Icons.phone,
-              keyboardType: TextInputType.phone,
-              validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
-            ),
-        ],
-      ),
-    );
-  }
-
   // SECTION MÉDIAS
   Widget _buildMediaSection() {
     return _buildCard(
       icon: Icons.photo_library,
       title: 'Photos et vidéos',
-      color: Colors.teal,
+      color: AppTheme.primaryBlue,
       child: Column(
         children: [
           Row(
@@ -2617,7 +2525,7 @@ void _showCurrentBalance() {
                   icon: Icons.photo_library,
                   label: 'Galerie',
                   onTap: _pickPhoto,
-                  color: Colors.blue,
+                  color: AppTheme.primaryBlue,
                 ),
               ),
               const SizedBox(width: 12),
@@ -2626,7 +2534,7 @@ void _showCurrentBalance() {
                   icon: Icons.camera_alt,
                   label: 'Appareil',
                   onTap: _takePhoto,
-                  color: Colors.green,
+                  color: AppTheme.primaryBlue,
                 ),
               ),
             ],
@@ -2639,7 +2547,7 @@ void _showCurrentBalance() {
                   icon: Icons.video_library,
                   label: 'Vidéo',
                   onTap: _pickVideo,
-                  color: Colors.orange,
+                  color: AppTheme.primaryBlue,
                 ),
               ),
               const SizedBox(width: 12),
@@ -2648,7 +2556,7 @@ void _showCurrentBalance() {
                   icon: Icons.videocam,
                   label: 'Enregistrer',
                   onTap: _recordVideo,
-                  color: Colors.red,
+                  color: AppTheme.primaryBlue,
                 ),
               ),
             ],
@@ -2709,7 +2617,7 @@ void _showCurrentBalance() {
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    Icon(Icons.mic, color: Colors.red.shade400),
+                    Icon(Icons.mic, color: AppTheme.primaryBlue),
                     const SizedBox(width: 8),
                     const Text(
                       'Message vocal (optionnel)',
@@ -2776,7 +2684,7 @@ void _showCurrentBalance() {
                               icon: const Icon(Icons.mic, size: 20),
                               label: const Text('Enregistrer un message vocal'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.shade400,
+                                backgroundColor: AppTheme.primaryBlue,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -2822,7 +2730,7 @@ void _showCurrentBalance() {
           IconButton(
             icon: Icon(
               isPlaying ? Icons.stop : Icons.play_arrow,
-              color: Colors.blue.shade600,
+              color: AppTheme.primaryBlue,
             ),
             onPressed: () => _playVoiceMessage(message.path),
             iconSize: 20,
@@ -2860,7 +2768,7 @@ void _showCurrentBalance() {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -2880,7 +2788,7 @@ void _showCurrentBalance() {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withAlpha(25),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: color, size: 20),
@@ -2891,7 +2799,7 @@ void _showCurrentBalance() {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A2B3C),
+                    color: AppTheme.textPrimary,
                   ),
                 ),
               ],
@@ -2944,7 +2852,7 @@ void _showCurrentBalance() {
             onTap: () => _removePhoto(index),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withAlpha(150),
+                color: Colors.black.withValues(alpha: 0.7),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, size: 20, color: Colors.white),
@@ -2982,7 +2890,7 @@ void _showCurrentBalance() {
             onTap: () => _removeVideo(index),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withAlpha(150),
+                color: Colors.black.withValues(alpha: 0.7),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, size: 20, color: Colors.white),
@@ -3013,16 +2921,3 @@ void _showCurrentBalance() {
     return FileImage(File(path));
   }
 }
-
-// // Modèle pour les messages vocaux
-// class VoiceMessage {
-//   final String path;
-//   final int duration;
-//   final DateTime createdAt;
-
-//   VoiceMessage({
-//     required this.path,
-//     required this.duration,
-//     required this.createdAt,
-//   });
-// }

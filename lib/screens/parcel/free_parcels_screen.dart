@@ -21,6 +21,7 @@ import '../../models/voice_message.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
+import '../../widgets/app_logo.dart';
 import 'new_parcel_screen.dart';
 import 'parcel_detail_screen.dart';
 
@@ -35,6 +36,13 @@ class FreeParcelsScreen extends ConsumerStatefulWidget {
 class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
   String _filter = 'all';
   String _sortBy = 'price_desc';
+
+  // Thème Bleu/Blanc
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color secondaryBlue = Color(0xFF3B82F6);
+  static const Color backgroundColor = Color(0xFFF0F4F8);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF6B7A8F);
 
   @override
   void initState() {
@@ -92,19 +100,29 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
     final filteredParcels = _getFilteredAndSortedParcels(freeParcels);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Libre Service',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            const AppLogo(size: 24, isWhite: false),
+            const SizedBox(width: 8),
+            const Text(
+              'PRO COLIS',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: textPrimary,
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A2B3C),
-        elevation: 0,
-        centerTitle: true,
+        foregroundColor: textPrimary,
+        elevation: 0.5,
+        shadowColor: Colors.grey.shade200,
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon: Icon(Icons.info_outline, color: primaryBlue),
             onPressed: _showInfoDialog,
           ),
         ],
@@ -127,8 +145,8 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
                       child: DropdownButton<String>(
                         value: _filter,
                         isExpanded: true,
-                        icon: Icon(Icons.filter_list, size: 18, color: Colors.grey.shade600),
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                        icon: Icon(Icons.filter_list, size: 18, color: textSecondary),
+                        style: TextStyle(fontSize: 13, color: textSecondary),
                         items: const [
                           DropdownMenuItem(value: 'all', child: Text('📦 Tous')),
                           DropdownMenuItem(value: 'pending', child: Text('⏳ Sans offres')),
@@ -154,8 +172,8 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
                       child: DropdownButton<String>(
                         value: _sortBy,
                         isExpanded: true,
-                        icon: Icon(Icons.sort, size: 18, color: Colors.grey.shade600),
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                        icon: Icon(Icons.sort, size: 18, color: textSecondary),
+                        style: TextStyle(fontSize: 13, color: textSecondary),
                         items: const [
                           DropdownMenuItem(value: 'price_desc', child: Text('💰 Prix décroissant')),
                           DropdownMenuItem(value: 'price_asc', child: Text('💰 Prix croissant')),
@@ -175,10 +193,14 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async => _loadFreeParcels(),
-              color: const Color(0xFF0B6E3A),
+              color: primaryBlue,
               backgroundColor: Colors.white,
               child: parcelState.isLoadingFreeParcels
-                  ? const Center(child: CircularProgressIndicator())
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+                      ),
+                    )
                   : filteredParcels.isEmpty
                       ? _buildEmptyState()
                       : ListView.builder(
@@ -222,13 +244,13 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF0B6E3A).withAlpha(15),
+                color: primaryBlue.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 _filter != 'all' ? Icons.filter_alt : Icons.inbox,
                 size: 48,
-                color: const Color(0xFF0B6E3A),
+                color: primaryBlue,
               ),
             ),
             const SizedBox(height: 20),
@@ -237,7 +259,7 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+                color: textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -247,7 +269,7 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
                   : 'Les colis mis en libre service apparaîtront ici',
               style: TextStyle(
                 fontSize: 13,
-                color: Colors.grey.shade500,
+                color: textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -261,15 +283,21 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Comment ça marche ?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.info, color: primaryBlue),
+            const SizedBox(width: 8),
+            const Text('Comment ça marche ?'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'Le libre service permet aux chauffeurs de :',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, color: textPrimary),
             ),
             const SizedBox(height: 8),
             _buildInfoRow('1. Voir votre colis et son itinéraire'),
@@ -279,7 +307,7 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
             const SizedBox(height: 12),
             const Text(
               'Vous pourrez :',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, color: textPrimary),
             ),
             const SizedBox(height: 8),
             _buildInfoRow('• Comparer les offres des chauffeurs'),
@@ -291,7 +319,7 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
               'C\'est comme une enchère pour votre colis !',
               style: TextStyle(
                 fontStyle: FontStyle.italic,
-                color: const Color(0xFF0B6E3A),
+                color: primaryBlue,
               ),
             ),
           ],
@@ -299,7 +327,7 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text('OK', style: TextStyle(color: primaryBlue)),
           ),
         ],
       ),
@@ -309,7 +337,7 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
   Widget _buildInfoRow(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Text(text),
+      child: Text(text, style: TextStyle(color: textSecondary)),
     );
   }
 }
@@ -319,6 +347,11 @@ class _FreeParcelCard extends StatelessWidget {
   final Parcel parcel;
   final bool isDriver;
   final String? currentDriverId;
+
+  // Thème Bleu/Blanc
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF6B7A8F);
 
   const _FreeParcelCard({
     required this.parcel,
@@ -529,7 +562,7 @@ class _FreeParcelCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: Colors.purple.withAlpha(25),
+                              color: Colors.purple.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -553,7 +586,7 @@ class _FreeParcelCard extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.green.withAlpha(25),
+                                color: Colors.green.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -574,9 +607,9 @@ class _FreeParcelCard extends StatelessWidget {
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.orange.withAlpha(15),
+                            color: Colors.orange.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.orange.withAlpha(30)),
+                            border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
                           ),
                           child: Row(
                             children: [
@@ -602,7 +635,7 @@ class _FreeParcelCard extends StatelessWidget {
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'monospace',
-                          color: Color(0xFF1A2B3C),
+                          color: textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -614,7 +647,7 @@ class _FreeParcelCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               parcel.departureGarageName,
-                              style: const TextStyle(fontSize: 13),
+                              style: TextStyle(fontSize: 13, color: textSecondary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -638,7 +671,7 @@ class _FreeParcelCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               parcel.arrivalGarageName ?? "Non spécifié",
-                              style: const TextStyle(fontSize: 13),
+                              style: TextStyle(fontSize: 13, color: textSecondary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -654,7 +687,7 @@ class _FreeParcelCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               parcel.description,
-                              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                              style: TextStyle(fontSize: 13, color: textSecondary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -664,7 +697,7 @@ class _FreeParcelCard extends StatelessWidget {
                           const SizedBox(width: 6),
                           Text(
                             parcel.formattedWeight,
-                            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                            style: TextStyle(fontSize: 13, color: textSecondary),
                           ),
                         ],
                       ),
@@ -674,7 +707,7 @@ class _FreeParcelCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withAlpha(20),
+                            color: Colors.amber.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -715,7 +748,7 @@ class _FreeParcelCard extends StatelessWidget {
                         ),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: Colors.orange[300]!),
-                          backgroundColor: Colors.orange.withAlpha(20),
+                          backgroundColor: Colors.orange.withValues(alpha: 0.1),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -725,7 +758,8 @@ class _FreeParcelCard extends StatelessWidget {
                         icon: const Icon(Icons.attach_money, size: 18),
                         label: const Text('Faire une offre'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 5, 243, 243),
+                          backgroundColor: primaryBlue,
+                          foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -767,6 +801,10 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
   int _recordingDuration = 0;
   String? _currentlyPlayingPath;
   bool _isProcessing = false;
+
+  // Thème Bleu/Blanc
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color textPrimary = Color(0xFF1A2332);
 
   @override
   void initState() {
@@ -982,9 +1020,14 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('Faire une offre',
-          style: TextStyle(fontWeight: FontWeight.bold)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'Faire une offre',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -992,18 +1035,22 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
           children: [
             TextFormField(
               controller: widget.priceController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: '💰 Prix proposé (FCFA)',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: widget.messageController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: '✏️ Message (optionnel)',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               maxLines: 2,
             ),
@@ -1022,9 +1069,12 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
                       children: [
                         Icon(Icons.mic, color: Colors.red.shade400),
                         const SizedBox(width: 8),
-                        const Text(
+                        Text(
                           'Message vocal (optionnel)',
-                          style: TextStyle(fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: textPrimary,
+                          ),
                         ),
                         const Spacer(),
                         if (_voiceMessages.isNotEmpty)
@@ -1130,7 +1180,7 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
             }
             Navigator.pop(context);
           },
-          child: const Text('Annuler'),
+          child: Text('Annuler', style: TextStyle(color: primaryBlue)),
         ),
         Consumer(
           builder: (context, ref, child) {
@@ -1164,20 +1214,10 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
                         'driverPhone': driverPhone,
                       };
 
-                      // ✅ AJOUT: Log pour déboguer
-                      debugPrint('🎤 Vérification audio avant upload:');
-                      debugPrint('   - voiceMessages: ${_voiceMessages.length}');
-                      if (_voiceMessages.isNotEmpty) {
-                        debugPrint('   - path: ${_voiceMessages.last.path}');
-                        debugPrint('   - duration: ${_voiceMessages.last.duration}');
-                      }
-
                       if (_voiceMessages.isNotEmpty && !kIsWeb) {
                         try {
                           final voiceMessage = _voiceMessages.last;
                           final audioFile = XFile(voiceMessage.path);
-                          
-                          debugPrint('🎤 Upload du fichier audio: ${audioFile.path}');
                           
                           final audioUrl = await _apiService.uploadAudio(audioFile, widget.parcelId);
                           
@@ -1185,16 +1225,11 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
                             bidData['audioUrl'] = audioUrl;
                             bidData['audioDuration'] = voiceMessage.duration;
                             debugPrint('✅ Audio uploadé avec succès: $audioUrl');
-                          } else {
-                            debugPrint('⚠️ Audio uploadé mais URL vide');
                           }
                         } catch (e) {
                           debugPrint('❌ Erreur upload audio: $e');
-                          // Continuer sans audio
                         }
                       }
-
-                      debugPrint('📤 bidData final avant envoi: $bidData');
 
                       final result = await ref
                           .read(parcelProvider.notifier)
@@ -1232,7 +1267,8 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 5, 243, 243),
+                backgroundColor: primaryBlue,
+                foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -1271,7 +1307,7 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
           IconButton(
             icon: Icon(
               isPlaying ? Icons.stop : Icons.play_arrow,
-              color: Colors.blue.shade600,
+              color: primaryBlue,
             ),
             onPressed: () => _playVoiceMessage(message.path),
             iconSize: 20,
@@ -1282,7 +1318,7 @@ class _MakeBidWithAudioDialogState extends State<_MakeBidWithAudioDialog> {
               children: [
                 Text(
                   'Message vocal ${_formatDuration(message.duration)}',
-                  style: const TextStyle(fontSize: 12),
+                  style: TextStyle(fontSize: 12, color: textPrimary),
                 ),
                 Text(
                   '${_formatDateTime(message.createdAt)}',
@@ -1321,6 +1357,11 @@ class _FreeParcelDetailsScreenState
   final Map<String, VideoPlayerController> _videoControllers = {};
   final Map<String, bool> _videoInitialized = {};
   final Map<String, bool> _audioPlaying = {};
+
+  // Thème Bleu/Blanc
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF6B7A8F);
 
   @override
   void initState() {
@@ -1414,6 +1455,8 @@ class _FreeParcelDetailsScreenState
           content: Text('✅ Offre de ${bid.driverName} acceptée'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       await ref.read(parcelProvider.notifier).loadFreeParcels();
@@ -1441,6 +1484,8 @@ class _FreeParcelDetailsScreenState
         SnackBar(
           content: Text('❌ Offre de ${bid.driverName} refusée'),
           backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       await ref.read(parcelProvider.notifier).loadFreeParcels();
@@ -1455,23 +1500,42 @@ class _FreeParcelDetailsScreenState
     final isDriver = authState.user?.role == UserRole.driver;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: Text(
-          parcel.trackingNumber,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'monospace'),
+        title: Row(
+          children: [
+            const AppLogo(size: 24, isWhite: false),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                parcel.trackingNumber,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  fontFamily: 'monospace',
+                  color: textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A2B3C),
-        elevation: 0,
-        centerTitle: true,
+        foregroundColor: textPrimary,
+        elevation: 0.5,
+        shadowColor: Colors.grey.shade200,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: _isProcessing
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+              ),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -1497,6 +1561,9 @@ class _FreeParcelDetailsScreenState
             ),
     );
   }
+
+  // ... Le reste du code reste identique mais avec les couleurs bleues
+  // Je continue avec les widgets principaux modifiés
 
   Widget _buildMediaSection(Parcel parcel) {
     final hasPhotos = parcel.photoUrls.isNotEmpty;
@@ -1542,13 +1609,13 @@ class _FreeParcelDetailsScreenState
         children: [
           const Text(
             '📎 Médias',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
           ),
           const SizedBox(height: 12),
           if (hasPhotos) ...[
             const Text(
               '📸 Photos',
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: textSecondary),
             ),
             const SizedBox(height: 8),
             SizedBox(
@@ -1576,7 +1643,7 @@ class _FreeParcelDetailsScreenState
           if (hasVideos) ...[
             const Text(
               '🎬 Vidéos',
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: textSecondary),
             ),
             const SizedBox(height: 8),
             SizedBox(
@@ -1640,7 +1707,7 @@ class _FreeParcelDetailsScreenState
           if (hasAudio) ...[
             const Text(
               '🎤 Messages audio',
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: textSecondary),
             ),
             const SizedBox(height: 8),
             ...parcel.audioUrls.asMap().entries.map((entry) {
@@ -1676,6 +1743,7 @@ class _FreeParcelDetailsScreenState
                             style: TextStyle(
                               fontWeight: isPlaying ? FontWeight.bold : FontWeight.w500,
                               fontSize: 12,
+                              color: textPrimary,
                             ),
                           ),
                           if (isPlaying)
@@ -1711,14 +1779,14 @@ class _FreeParcelDetailsScreenState
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [parcel.status.color, parcel.status.color.withAlpha(200)],
+          colors: [parcel.status.color, parcel.status.color.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: parcel.status.color.withAlpha(50),
+            color: parcel.status.color.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1731,7 +1799,7 @@ class _FreeParcelDetailsScreenState
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(30),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Text(parcel.statusIcon, style: const TextStyle(fontSize: 32)),
@@ -1748,7 +1816,7 @@ class _FreeParcelDetailsScreenState
                   const SizedBox(height: 4),
                   Text(
                     _getStatusDescription(parcel.status),
-                    style: TextStyle(fontSize: 13, color: Colors.white.withAlpha(200)),
+                    style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.9)),
                   ),
                 ],
               ),
@@ -1934,7 +2002,8 @@ class _FreeParcelDetailsScreenState
                 icon: const Icon(Icons.attach_money),
                 label: const Text('Faire une offre'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 5, 243, 243),
+                  backgroundColor: primaryBlue,
+                  foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -1952,12 +2021,12 @@ class _FreeParcelDetailsScreenState
                   const SizedBox(height: 12),
                   Text(
                     isDriver ? 'Vous n\'avez pas encore fait d\'offre' : 'Aucune offre pour le moment',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     isDriver ? 'Faites une offre pour être mis en relation' : 'Soyez patient, des offres arrivent',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(color: textSecondary),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -2003,15 +2072,19 @@ class _FreeParcelDetailsScreenState
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0B6E3A).withAlpha(15),
+                    color: primaryBlue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, size: 22, color: const Color(0xFF0B6E3A)),
+                  child: Icon(icon, size: 22, color: primaryBlue),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A2B3C)),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
                 ),
               ],
             ),
@@ -2031,15 +2104,15 @@ class _FreeParcelDetailsScreenState
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF0B6E3A).withAlpha(15),
+            color: primaryBlue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 16, color: const Color(0xFF0B6E3A)),
+          child: Icon(icon, size: 16, color: primaryBlue),
         ),
         const SizedBox(width: 12),
         SizedBox(
           width: 100,
-          child: Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          child: Text(label, style: TextStyle(fontSize: 13, color: textSecondary)),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -2048,7 +2121,7 @@ class _FreeParcelDetailsScreenState
             style: TextStyle(
               fontSize: 13,
               fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
-              color: isHighlighted ? const Color(0xFF0B6E3A) : const Color(0xFF1A2B3C),
+              color: isHighlighted ? primaryBlue : textPrimary,
             ),
           ),
         ),
@@ -2066,6 +2139,10 @@ class _BidCard extends StatelessWidget {
   final bool isDriverBid;
   final VoidCallback? onPlayAudio;
   final bool isAudioPlaying;
+
+  // Thème Bleu/Blanc
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color textPrimary = Color(0xFF1A2332);
 
   const _BidCard({
     required this.bid,
@@ -2093,12 +2170,12 @@ class _BidCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDriverBid
-            ? Colors.green.withAlpha(20)
+            ? Colors.green.withValues(alpha: 0.1)
             : isAccepted
-                ? Colors.green.withAlpha(15)
+                ? Colors.green.withValues(alpha: 0.1)
                 : isRejected
-                    ? Colors.red.withAlpha(15)
-                    : Colors.grey.withAlpha(10),
+                    ? Colors.red.withValues(alpha: 0.1)
+                    : Colors.grey.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: isDriverBid
             ? Border.all(color: Colors.green, width: 2)
@@ -2115,7 +2192,7 @@ class _BidCard extends StatelessWidget {
                 radius: 24,
                 backgroundColor: isDriverBid
                     ? Colors.green
-                    : (isAccepted ? Colors.green : Colors.blue),
+                    : (isAccepted ? Colors.green : primaryBlue),
                 child: Icon(
                   isDriverBid ? Icons.star : (isAccepted ? Icons.check : Icons.person),
                   size: 24,
@@ -2134,7 +2211,7 @@ class _BidCard extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: isDriverBid ? Colors.green[700] : null,
+                            color: isDriverBid ? Colors.green[700] : textPrimary,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -2161,7 +2238,7 @@ class _BidCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B6E3A),
+                  color: primaryBlue,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -2176,13 +2253,12 @@ class _BidCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.withAlpha(10),
+                color: Colors.grey.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(bid.message!, style: TextStyle(color: Colors.grey[700])),
             ),
           ],
-          // ==================== SECTION AUDIO DE L'OFFRE ====================
           if (hasAudio && onPlayAudio != null) ...[
             const SizedBox(height: 8),
             Container(
@@ -2239,7 +2315,6 @@ class _BidCard extends StatelessWidget {
               ),
             ),
           ],
-          // ==================== FIN SECTION AUDIO ====================
           if (!isAccepted && !isRejected && !isProcessing && !isDriverBid) ...[
             const SizedBox(height: 12),
             Row(
@@ -2263,7 +2338,8 @@ class _BidCard extends StatelessWidget {
                     icon: const Icon(Icons.check, size: 16),
                     label: const Text('Accepter'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 5, 243, 243),
+                      backgroundColor: primaryBlue,
+                      foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
@@ -2277,7 +2353,7 @@ class _BidCard extends StatelessWidget {
               margin: const EdgeInsets.only(top: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.orange.withAlpha(15),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -2298,7 +2374,7 @@ class _BidCard extends StatelessWidget {
               margin: const EdgeInsets.only(top: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.green.withAlpha(15),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -2319,7 +2395,7 @@ class _BidCard extends StatelessWidget {
               margin: const EdgeInsets.only(top: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.red.withAlpha(15),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(

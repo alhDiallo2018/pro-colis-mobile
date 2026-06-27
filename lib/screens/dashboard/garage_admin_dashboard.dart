@@ -1,10 +1,11 @@
 // mobile/lib/screens/dashboard/garage_admin_dashboard.dart
-// ignore_for_file: prefer_const_constructors, avoid_print
+// ignore_for_file: prefer_const_constructors, avoid_print, unused_element
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
 import 'package:procolis/screens/profile/profile_screen.dart';
+import 'package:procolis/widgets/app_logo.dart';
 
 import '../../models/parcel.dart';
 import '../../models/user.dart';
@@ -31,6 +32,13 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
   int _inProgressCount = 0;
   int _completedCount = 0;
   int _availableDriversCount = 0;
+
+  // Thème Bleu/Blanc
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color secondaryBlue = Color(0xFF3B82F6);
+  static const Color backgroundColor = Color(0xFFF0F4F8);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF6B7A8F);
 
   @override
   void initState() {
@@ -103,17 +111,37 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Dashboard Garage'),
-        backgroundColor: const Color.fromARGB(255, 5, 243, 243),
-        foregroundColor: Colors.white,
+        title: Row(
+          children: [
+            const AppLogo(size: 24, isWhite: false),
+            const SizedBox(width: 8),
+            const Text(
+              'PRO COLIS',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: textPrimary,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: textPrimary,
+        elevation: 0.5,
+        shadowColor: Colors.grey.shade200,
         actions: [
           IconButton(
-            icon: const Icon(Icons.person),
+            icon: Icon(Icons.person, color: primaryBlue),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())),
             tooltip: 'Mon profil',
           ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData, tooltip: 'Actualiser'),
+          IconButton(
+            icon: Icon(Icons.refresh, color: primaryBlue),
+            onPressed: _loadData,
+            tooltip: 'Actualiser',
+          ),
         ],
       ),
       body: _buildBody(),
@@ -122,7 +150,11 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return Center(
+      child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+      ),
+    );
     if (_error != null) return _buildErrorView();
 
     return Column(
@@ -159,7 +191,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
             icon: const Icon(Icons.refresh),
             label: const Text('Réessayer'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 5, 243, 243),
+              backgroundColor: primaryBlue,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -173,7 +205,11 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
   Widget _buildHeader() {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: const [Color(0xFF0B6E3A), Color(0xFF0A5A2E)]),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [primaryBlue, secondaryBlue],
+        ),
       ),
       child: SafeArea(
         bottom: false,
@@ -186,7 +222,10 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.white.withAlpha(25), borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: const Icon(Icons.business, color: Colors.white, size: 28),
                   ),
                   const SizedBox(width: 12),
@@ -194,33 +233,64 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Bonjour, ${_currentAdmin?.fullName.split(' ').first ?? "Admin"}',
-                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Bonjour, ${_currentAdmin?.fullName.split(' ').first ?? "Admin"}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                         const SizedBox(height: 2),
-                        Text('Gérez votre garage et vos livraisons',
-                          style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 13)),
+                        Text(
+                          'Gérez votre garage et vos livraisons',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ],
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.white.withAlpha(25), borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     child: Row(
                       children: [
-                        Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.green[400], shape: BoxShape.circle)),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.green[400],
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                         const SizedBox(width: 6),
-                        Text('$_availableDriversCount dispo', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        Text(
+                          '$_availableDriversCount dispo',
+                          style: const TextStyle(color: Colors.white, fontSize: 11),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(Icons.store, size: 16),
+                  const Icon(Icons.store, size: 14, color: Colors.white70),
                   const SizedBox(width: 6),
-                  Text('${_parcels.length} colis | ${_drivers.length} chauffeurs', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(
+                    '${_parcels.length} colis | ${_drivers.length} chauffeurs',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
                 ],
               ),
             ],
@@ -235,11 +305,29 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          _StatCard(title: 'En attente', value: _pendingCount, icon: Icons.pending_actions, color: Colors.orange, onTap: () => _tabController.animateTo(0)),
+          _StatCard(
+            title: 'En attente',
+            value: _pendingCount,
+            icon: Icons.pending_actions,
+            color: Colors.orange,
+            onTap: () => _tabController.animateTo(0),
+          ),
           const SizedBox(width: 12),
-          _StatCard(title: 'En cours', value: _inProgressCount, icon: Icons.local_shipping, color: Colors.blue, onTap: () => _tabController.animateTo(2)),
+          _StatCard(
+            title: 'En cours',
+            value: _inProgressCount,
+            icon: Icons.local_shipping,
+            color: Colors.blue,
+            onTap: () => _tabController.animateTo(2),
+          ),
           const SizedBox(width: 12),
-          _StatCard(title: 'Livrés', value: _completedCount, icon: Icons.check_circle, color: Colors.green, onTap: () => _tabController.animateTo(3)),
+          _StatCard(
+            title: 'Livrés',
+            value: _completedCount,
+            icon: Icons.check_circle,
+            color: Colors.green,
+            onTap: () => _tabController.animateTo(3),
+          ),
         ],
       ),
     );
@@ -250,12 +338,12 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
       color: Colors.white,
       child: TabBar(
         controller: _tabController,
-        indicatorColor: const Color(0xFF0B6E3A),
+        indicatorColor: primaryBlue,
         indicatorWeight: 3,
-        labelColor: const Color(0xFF0B6E3A),
+        labelColor: textPrimary,
         unselectedLabelColor: Colors.grey[600],
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.normal),
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
         tabs: const [
           Tab(text: '📦 En attente'),
           Tab(text: '👨‍✈️ Chauffeurs'),
@@ -268,22 +356,49 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
 
   Widget _buildBottomNavBar() {
     return Container(
-      decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 10, offset: const Offset(0, -2))]),
-      child: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _tabController.index,
-        onTap: (index) => _tabController.animateTo(index),
-        selectedItemColor: const Color(0xFF0B6E3A),
-        unselectedItemColor: Colors.grey[500],
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        elevation: 0,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.pending), label: 'En attente'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Chauffeurs'),
-          BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: 'En cours'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historique'),
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          currentIndex: _tabController.index,
+          onTap: (index) => _tabController.animateTo(index),
+          selectedItemColor: primaryBlue,
+          unselectedItemColor: Colors.grey[500],
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.pending),
+              label: 'En attente',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people),
+              label: 'Chauffeurs',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.local_shipping),
+              label: 'En cours',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history),
+              label: 'Historique',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -303,19 +418,43 @@ class _StatCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withAlpha(25), color.withAlpha(10)]),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.05)],
+              ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: color.withAlpha(50)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Column(
               children: [
-                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withAlpha(25), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: color, size: 24)),
-                const SizedBox(height: 8),
-                Text(value.toString(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  value.toString(),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(title, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[600],
+                  ),
+                ),
               ],
             ),
           ),
@@ -340,6 +479,9 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
   final ApiService _apiService = ApiService();
   String? _processingParcelId;
 
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color backgroundColor = Color(0xFFF0F4F8);
+
   List<Parcel> get _pendingParcels => widget.parcels.where((p) => 
     p.status == ParcelStatus.pending || p.status == ParcelStatus.confirmed
   ).toList();
@@ -359,7 +501,6 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
     );
     return driver.fullName;
   }
-
 
   Future<void> _confirmParcel(Parcel parcel) async {
     setState(() => _processingParcelId = parcel.id);
@@ -397,11 +538,19 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Annuler le colis'),
         content: Text('Annuler ${parcel.trackingNumber} ?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Non')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Oui')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Oui'),
+          ),
         ],
       ),
     );
@@ -423,24 +572,48 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
 
   void _showSnackBar(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color, behavior: SnackBarBehavior.floating)
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      )
     );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_pendingParcels.isEmpty) {
-      return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.inbox, size: 64, color: Colors.grey),
-        SizedBox(height: 16),
-        Text('Aucun colis en attente'),
-        SizedBox(height: 8),
-        Text('Les nouveaux colis apparaîtront ici', style: TextStyle(fontSize: 12, color: Colors.grey)),
-      ]));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox, size: 64, color: Colors.grey.withValues(alpha: 0.3)),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun colis en attente',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1A2332),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Les nouveaux colis apparaîtront ici',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
+      color: primaryBlue,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _pendingParcels.length,
@@ -448,25 +621,17 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
           final parcel = _pendingParcels[index];
           final isProcessing = _processingParcelId == parcel.id;
           final isConfirmed = parcel.status == ParcelStatus.confirmed;
-          // CORRECTION: Vérifier si un chauffeur est assigné
           final hasDriver = parcel.driverId != null && parcel.driverId!.isNotEmpty;
           final driverName = _getDriverName(parcel.driverId);
-          // Vérifier si le chauffeur assigné existe dans la liste
           final driverExists = driverName != null && driverName != 'Chauffeur inconnu';
-          
-          // DEBUG: Afficher dans la console pour vérifier
-          print('📦 Colis: ${parcel.trackingNumber}');
-          print('   driverId: ${parcel.driverId}');
-          print('   hasDriver: $hasDriver');
-          print('   driverName: $driverName');
-          print('   driverExists: $driverExists');
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey.withAlpha(50))
+              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
             ),
+            elevation: 2,
             child: InkWell(
               onTap: () => Navigator.push(
                 context, 
@@ -484,105 +649,161 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0B6E3A).withAlpha(25),
-                            borderRadius: BorderRadius.circular(10)
+                            color: primaryBlue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.inventory, size: 20, color: Color(0xFF0B6E3A)),
+                          child: Icon(Icons.inventory, size: 18, color: primaryBlue),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(parcel.trackingNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'monospace')),
-                              Text(parcel.receiverName, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                              Text(
+                                parcel.trackingNumber,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  fontFamily: 'monospace',
+                                  color: Color(0xFF1A2332),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                parcel.receiverName,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ],
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: (isConfirmed ? Colors.blue : Colors.orange).withAlpha(25),
-                            borderRadius: BorderRadius.circular(20)
+                            color: (isConfirmed ? Colors.blue : Colors.orange).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             isConfirmed ? 'Confirmé' : 'En attente',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isConfirmed ? Colors.blue : Colors.orange)
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: isConfirmed ? Colors.blue : Colors.orange,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     
                     // Infos colis
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
                         _InfoChip(icon: Icons.fitness_center, label: '${parcel.weight} kg'),
-                        if (parcel.price != null) _InfoChip(icon: Icons.money, label: '${parcel.price!.toInt()} FCFA'),
+                        if (parcel.price != null)
+                          _InfoChip(icon: Icons.money, label: '${parcel.price!.toInt()} FCFA'),
                         _InfoChip(icon: Icons.category, label: parcel.type.label),
                       ],
                     ),
                     
-                    // AFFICHAGE DIRECT DU CHAUFFEUR ASSIGNÉ (si existant)
+                    // Chauffeur assigné
                     if (hasDriver && driverExists) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(color: Colors.green.withAlpha(25), borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         child: Row(
                           children: [
-                            const Icon(Icons.delivery_dining, size: 18, color: Colors.green),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text('Chauffeur: $driverName', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-                            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                            Icon(Icons.delivery_dining, size: 16, color: Colors.green[700]),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Chauffeur: $driverName',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.green[700],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ],
                     
-                    const Divider(height: 24),
+                    const Divider(height: 20),
                     
                     // Boutons d'action
                     Row(
                       children: [
-                        // Bouton Annuler
+                        // Annuler
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: isProcessing ? null : () => _cancelParcel(parcel),
-                            icon: const Icon(Icons.cancel, size: 18),
-                            label: const Text('Annuler'),
+                            icon: Icon(Icons.cancel, size: 16),
+                            label: Text('Annuler', style: TextStyle(fontSize: 12)),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.red,
                               side: const BorderSide(color: Colors.red),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         
-                        // Bouton Confirmer (si non confirmé)
+                        // Confirmer
                         if (!isConfirmed)
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: isProcessing ? null : () => _confirmParcel(parcel),
-                              icon: const Icon(Icons.check_circle, size: 18),
-                              label: const Text('Confirmer'),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                              icon: Icon(Icons.check_circle, size: 16),
+                              label: Text('Confirmer', style: TextStyle(fontSize: 12)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
                             ),
                           ),
                         
-                        // Bouton Assigner chauffeur (si confirmé ET sans chauffeur)
-                        // CORRECTION: Utiliser !hasDriver pour les colis sans chauffeur
+                        // Assigner chauffeur
                         if (!hasDriver && isConfirmed)
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               isExpanded: true,
-                              hint: const Text('Assigner'),
+                              hint: Text('Assigner', style: TextStyle(fontSize: 12)),
                               decoration: InputDecoration(
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                prefixIcon: const Icon(Icons.delivery_dining, size: 18),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                prefixIcon: Icon(Icons.delivery_dining, size: 16),
                               ),
                               items: widget.drivers
                                   .where((d) => d.driverStatus == DriverStatus.available)
@@ -590,11 +811,23 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                                     value: d.id,
                                     child: Row(
                                       children: [
-                                        Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-                                        const SizedBox(width: 8),
-                                        Expanded(child: Text(d.fullName)),
-                                        const SizedBox(width: 8),
-                                        Text(d.phone, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: BoxDecoration(
+                                            color: Colors.green,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            d.fullName,
+                                            style: TextStyle(fontSize: 12),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   )).toList(),
@@ -612,7 +845,6 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
       ),
     );
   }
-
 }
 
 class _InfoChip extends StatelessWidget {
@@ -620,33 +852,96 @@ class _InfoChip extends StatelessWidget {
   const _InfoChip({required this.icon, required this.label});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(color: Colors.grey.withAlpha(25), borderRadius: BorderRadius.circular(8)),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 14, color: Colors.grey[600]), const SizedBox(width: 4), Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600]))]),
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    decoration: BoxDecoration(
+      color: Colors.grey.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+        ),
+      ],
+    ),
   );
 }
 
-// ==================== ONGLET CHAUFFEURS AVEC CRUD ====================
+// ==================== ONGLET CHAUFFEURS ====================
 class _DriversTab extends StatelessWidget {
   final List<User> drivers;
   final Future<void> Function() onRefresh;
   const _DriversTab({required this.drivers, required this.onRefresh});
 
+  static const Color primaryBlue = Color(0xFF2563EB);
+
   void _showDriverDetails(BuildContext context, User driver) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(driver.fullName),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          ListTile(leading: const Icon(Icons.phone), title: const Text('Téléphone'), subtitle: Text(driver.phone)),
-          ListTile(leading: const Icon(Icons.email), title: const Text('Email'), subtitle: Text(driver.email)),
-          ListTile(leading: const Icon(Icons.badge), title: const Text('Statut'), subtitle: Text(driver.driverStatus?.label ?? 'Disponible')),
-          if (driver.vehiclePlate != null) ListTile(leading: const Icon(Icons.directions_car), title: const Text('Plaque'), subtitle: Text(driver.vehiclePlate!)),
-          if (driver.vehicleModel != null) ListTile(leading: const Icon(Icons.car_repair), title: const Text('Modèle'), subtitle: Text(driver.vehicleModel!)),
-        ]),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          driver.fullName,
+          style: TextStyle(color: Color(0xFF1A2332)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              leading: Icon(Icons.phone, color: primaryBlue),
+              title: const Text('Téléphone'),
+              subtitle: Text(driver.phone),
+              dense: true,
+            ),
+            ListTile(
+              leading: Icon(Icons.email, color: primaryBlue),
+              title: const Text('Email'),
+              subtitle: Text(driver.email),
+              dense: true,
+            ),
+            ListTile(
+              leading: Icon(Icons.badge, color: primaryBlue),
+              title: const Text('Statut'),
+              subtitle: Text(driver.driverStatus?.label ?? 'Disponible'),
+              dense: true,
+            ),
+            if (driver.vehiclePlate != null)
+              ListTile(
+                leading: Icon(Icons.directions_car, color: primaryBlue),
+                title: const Text('Plaque'),
+                subtitle: Text(driver.vehiclePlate!),
+                dense: true,
+              ),
+            if (driver.vehicleModel != null)
+              ListTile(
+                leading: Icon(Icons.car_repair, color: primaryBlue),
+                title: const Text('Modèle'),
+                subtitle: Text(driver.vehicleModel!),
+                dense: true,
+              ),
+          ],
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
-          ElevatedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())), child: const Text('Modifier')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Fermer', style: TextStyle(color: primaryBlue)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen())
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Modifier'),
+          ),
         ],
       ),
     );
@@ -655,15 +950,36 @@ class _DriversTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (drivers.isEmpty) {
-      return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.people_outline, size: 64, color: Colors.grey), SizedBox(height: 16),
-        Text('Aucun chauffeur'), SizedBox(height: 8),
-        Text('Ajoutez des chauffeurs depuis le profil', style: TextStyle(fontSize: 12, color: Colors.grey)),
-      ]));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Colors.grey.withValues(alpha: 0.3)),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun chauffeur',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1A2332),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ajoutez des chauffeurs depuis le profil',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return RefreshIndicator(
       onRefresh: onRefresh,
+      color: primaryBlue,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: drivers.length,
@@ -672,23 +988,78 @@ class _DriversTab extends StatelessWidget {
           final isAvailable = driver.driverStatus == DriverStatus.available;
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.withAlpha(50))),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            elevation: 2,
             child: ListTile(
               contentPadding: const EdgeInsets.all(12),
-              leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: (isAvailable ? Colors.green : Colors.grey).withAlpha(25), borderRadius: BorderRadius.circular(12)),
-                child: Icon(Icons.person, color: isAvailable ? Colors.green : Colors.grey)),
-              title: Text(driver.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const SizedBox(height: 4),
-                Text(driver.phone, style: const TextStyle(fontSize: 12)),
-                Text(driver.email, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-              ]),
-              trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: (isAvailable ? Colors.green : Colors.orange).withAlpha(25), borderRadius: BorderRadius.circular(20)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(width: 6, height: 6, decoration: BoxDecoration(color: isAvailable ? Colors.green : Colors.orange, shape: BoxShape.circle)),
-                  const SizedBox(width: 6),
-                  Text(driver.driverStatus?.label ?? 'Disponible', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isAvailable ? Colors.green : Colors.orange)),
-                ]),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: (isAvailable ? Colors.green : Colors.grey).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.person,
+                  color: isAvailable ? Colors.green : Colors.grey,
+                ),
+              ),
+              title: Text(
+                driver.fullName,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF1A2332),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    driver.phone,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  Text(
+                    driver.email,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (isAvailable ? Colors.green : Colors.orange).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: isAvailable ? Colors.green : Colors.orange,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      driver.driverStatus?.label ?? 'Disponible',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: isAvailable ? Colors.green : Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               onTap: () => _showDriverDetails(context, driver),
             ),
@@ -703,17 +1074,41 @@ class _DriversTab extends StatelessWidget {
 class _InProgressTab extends StatelessWidget {
   final List<Parcel> parcels; final Future<void> Function() onRefresh;
   const _InProgressTab({required this.parcels, required this.onRefresh});
-  List<Parcel> get _inProgressParcels => parcels.where((p) => p.status == ParcelStatus.pickedUp || p.status == ParcelStatus.inTransit || p.status == ParcelStatus.arrived || p.status == ParcelStatus.outForDelivery).toList();
+
+  static const Color primaryBlue = Color(0xFF2563EB);
+
+  List<Parcel> get _inProgressParcels => parcels.where((p) => 
+    p.status == ParcelStatus.pickedUp ||
+    p.status == ParcelStatus.inTransit ||
+    p.status == ParcelStatus.arrived ||
+    p.status == ParcelStatus.outForDelivery
+  ).toList();
 
   @override
   Widget build(BuildContext context) {
     if (_inProgressParcels.isEmpty) {
-      return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.local_shipping, size: 64, color: Colors.grey), SizedBox(height: 16), Text('Aucun colis en cours'),
-      ]));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.local_shipping, size: 64, color: Colors.grey.withValues(alpha: 0.3)),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun colis en cours',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1A2332),
+              ),
+            ),
+          ],
+        ),
+      );
     }
+
     return RefreshIndicator(
       onRefresh: onRefresh,
+      color: primaryBlue,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _inProgressParcels.length,
@@ -721,16 +1116,64 @@ class _InProgressTab extends StatelessWidget {
           final parcel = _inProgressParcels[index];
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.withAlpha(50))),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            elevation: 2,
             child: ListTile(
-              leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: parcel.status.color.withAlpha(25), borderRadius: BorderRadius.circular(12)), child: Icon(Icons.local_shipping, color: parcel.status.color)),
-              title: Text(parcel.trackingNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-              subtitle: Text('${parcel.receiverName} - ${parcel.status.label}'),
-              trailing: Column(mainAxisSize: MainAxisSize.min, children: [
-                if (parcel.driverName != null) Text(parcel.driverName!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: parcel.status.color.withAlpha(25), borderRadius: BorderRadius.circular(12)), child: Text(parcel.status.label, style: TextStyle(fontSize: 10, color: parcel.status.color))),
-              ]),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ParcelDetailScreen(parcel: parcel))).then((_) => onRefresh()),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: parcel.status.color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.local_shipping, color: parcel.status.color),
+              ),
+              title: Text(
+                parcel.trackingNumber,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  color: Color(0xFF1A2332),
+                ),
+              ),
+              subtitle: Text(
+                '${parcel.receiverName} - ${parcel.status.label}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              trailing: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (parcel.driverName != null)
+                    Text(
+                      parcel.driverName!,
+                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: parcel.status.color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      parcel.status.label,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: parcel.status.color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ParcelDetailScreen(parcel: parcel))
+              ).then((_) => onRefresh()),
             ),
           );
         },
@@ -743,17 +1186,33 @@ class _InProgressTab extends StatelessWidget {
 class _HistoryTab extends StatelessWidget {
   final List<Parcel> parcels; final Future<void> Function() onRefresh;
   const _HistoryTab({required this.parcels, required this.onRefresh});
-  List<Parcel> get _historyParcels => parcels.where((p) => p.status == ParcelStatus.delivered || p.status == ParcelStatus.cancelled).toList();
+
+  static const Color primaryBlue = Color(0xFF2563EB);
+
+  List<Parcel> get _historyParcels => parcels.where((p) => 
+    p.status == ParcelStatus.delivered || p.status == ParcelStatus.cancelled
+  ).toList();
 
   Future<void> _deleteParcel(BuildContext context, Parcel parcel) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Supprimer le colis'),
         content: Text('Supprimer ${parcel.trackingNumber} ?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Non')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Oui')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Non'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Oui'),
+          ),
         ],
       ),
     );
@@ -769,12 +1228,26 @@ class _HistoryTab extends StatelessWidget {
           throw Exception('Droits insuffisants');
         }
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Colis supprimé'), backgroundColor: Colors.green));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Colis supprimé'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            )
+          );
           await onRefresh();
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            )
+          );
         }
       }
     }
@@ -783,30 +1256,91 @@ class _HistoryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_historyParcels.isEmpty) {
-      return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.history, size: 64, color: Colors.grey), SizedBox(height: 16), Text('Aucun historique'),
-      ]));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history, size: 64, color: Colors.grey.withValues(alpha: 0.3)),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun historique',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1A2332),
+              ),
+            ),
+          ],
+        ),
+      );
     }
+
     return RefreshIndicator(
       onRefresh: onRefresh,
+      color: primaryBlue,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _historyParcels.length,
         itemBuilder: (context, index) {
           final parcel = _historyParcels[index];
+          final isDelivered = parcel.status == ParcelStatus.delivered;
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.withAlpha(50))),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            elevation: 2,
             child: ListTile(
-              leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: (parcel.status == ParcelStatus.delivered ? Colors.green : Colors.red).withAlpha(25), borderRadius: BorderRadius.circular(10)),
-                child: Icon(parcel.status == ParcelStatus.delivered ? Icons.check_circle : Icons.cancel, color: parcel.status == ParcelStatus.delivered ? Colors.green : Colors.red)),
-              title: Text(parcel.trackingNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-              subtitle: Text('${parcel.receiverName} - ${_formatDate(parcel.createdAt)}'),
-              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: parcel.status.color.withAlpha(25), borderRadius: BorderRadius.circular(20)),
-                  child: Text(parcel.status.label, style: TextStyle(fontSize: 11, color: parcel.status.color))),
-                IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _deleteParcel(context, parcel)),
-              ]),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isDelivered ? Colors.green : Colors.red).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isDelivered ? Icons.check_circle : Icons.cancel,
+                  color: isDelivered ? Colors.green : Colors.red,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                parcel.trackingNumber,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  color: Color(0xFF1A2332),
+                ),
+              ),
+              subtitle: Text(
+                '${parcel.receiverName} - ${_formatDate(parcel.createdAt)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: parcel.status.color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      parcel.status.label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: parcel.status.color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    onPressed: () => _deleteParcel(context, parcel),
+                  ),
+                ],
+              ),
             ),
           );
         },

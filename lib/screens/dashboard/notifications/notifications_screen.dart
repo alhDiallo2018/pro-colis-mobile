@@ -1,6 +1,6 @@
 // lib/screens/dashboard/notifications/notifications_screen.dart
 
-// ignore_for_file: unused_local_variable, prefer_const_constructors, todo
+// ignore_for_file: unused_local_variable, prefer_const_constructors
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +21,15 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
+  List<Map<String, dynamic>> _notifications = [];
+
+  // Couleurs du thème bleu/blanc
+  static const Color primaryBlue = Color(0xFF1565C0);
+  static const Color lightBlue = Color(0xFFE3F2FD);
+  static const Color backgroundColor = Color(0xFFF5F8FA);
+  static const Color cardColor = Color(0xFFFFFFFF);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF546E7A);
 
   @override
   void initState() {
@@ -72,7 +81,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           'isRead': false,
           'createdAt': DateTime.now().subtract(Duration(minutes: 5)).toIso8601String(),
           'icon': Icons.notifications,
-          'color': Colors.blue,
+          'color': primaryBlue,
           'data': {},
           'parcelId': null,
           'bidId': null,
@@ -88,6 +97,19 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           'color': Colors.green,
           'data': {},
           'parcelId': 'parcel123',
+          'bidId': null,
+        },
+        {
+          'id': '3',
+          'title': '📦 Nouveau colis disponible',
+          'body': 'Un nouveau colis est disponible dans votre secteur',
+          'type': 'parcel_created',
+          'isRead': true,
+          'createdAt': DateTime.now().subtract(Duration(hours: 2)).toIso8601String(),
+          'icon': Icons.inventory,
+          'color': primaryBlue,
+          'data': {},
+          'parcelId': 'parcel456',
           'bidId': null,
         },
       ];
@@ -123,43 +145,45 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Color _getNotificationColor(String type) {
     switch (type) {
       case 'bid_created':
-        return Colors.purple;
+        return primaryBlue;
       case 'bid_accepted':
         return Colors.green;
       case 'bid_rejected':
         return Colors.red;
       case 'parcel_status':
-        return Colors.blue;
+        return primaryBlue;
       case 'parcel_created':
-        return Colors.teal;
+        return primaryBlue;
       case 'driver_assigned':
         return Colors.orange;
       case 'delivery_confirmed':
         return Colors.green;
       case 'message':
-        return Colors.indigo;
+        return primaryBlue;
       case 'system':
         return Colors.grey;
       default:
-        return Colors.grey;
+        return primaryBlue;
     }
   }
-
-  List<Map<String, dynamic>> _notifications = [];
 
   @override
   Widget build(BuildContext context) {
     final unreadCount = _notifications.where((n) => n['isRead'] == false).length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Notifications',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: textPrimary,
+          ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A2B3C),
+        backgroundColor: cardColor,
+        foregroundColor: textPrimary,
         elevation: 0,
         centerTitle: true,
         actions: [
@@ -169,19 +193,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               child: Text(
                 'Tout marquer comme lu',
                 style: TextStyle(
-                  color: Color(0xFF0B6E3A),
+                  color: primaryBlue,
                   fontWeight: FontWeight.w500,
+                  fontSize: 13,
                 ),
               ),
             ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+              ),
+            )
           : _notifications.isEmpty
               ? _buildEmptyState()
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   itemCount: _notifications.length,
                   itemBuilder: (context, index) {
                     final notification = _notifications[index];
@@ -200,7 +229,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         margin: const EdgeInsets.all(32),
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
@@ -216,13 +245,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF0B6E3A).withValues(alpha: 0.1),
+                color: lightBlue,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.notifications_off_rounded,
                 size: 48,
-                color: Color(0xFF0B6E3A),
+                color: primaryBlue,
               ),
             ),
             const SizedBox(height: 20),
@@ -231,7 +260,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1A2B3C),
+                color: textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -239,7 +268,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               'Vous serez notifié des mises à jour de vos colis',
               style: TextStyle(
                 fontSize: 13,
-                color: Colors.grey.shade500,
+                color: textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -262,9 +291,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Toutes les notifications ont été marquées comme lues'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Toutes les notifications ont été marquées comme lues'),
+            backgroundColor: primaryBlue,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -281,7 +314,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
-  // ✅ CORRECTION: La fonction prend maintenant un BuildContext en paramètre
   void _onNotificationTap(BuildContext context, Map<String, dynamic> notification) {
     // Marquer comme lu localement
     if (notification['isRead'] == false) {
@@ -289,6 +321,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         notification['isRead'] = true;
       });
       _markAsRead(notification['id']);
+      
+      if (widget.onNotificationsRead != null) {
+        widget.onNotificationsRead!();
+      }
     }
 
     final type = notification['type']?.toString() ?? '';
@@ -327,7 +363,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
-  // ✅ Navigation vers le détail d'un colis
   void _navigateToParcelDetail(BuildContext context, String parcelId) async {
     try {
       final parcel = await _apiService.getParcelById(parcelId);
@@ -341,9 +376,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         );
       } else if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Colis non trouvé'),
+          SnackBar(
+            content: const Text('Colis non trouvé'),
             backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -353,13 +392,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           SnackBar(
             content: Text('Erreur lors du chargement du colis: $e'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
     }
   }
 
-  // ✅ Navigation vers les offres d'un colis
   void _navigateToParcelBids(BuildContext context, String parcelId) async {
     try {
       final parcel = await _apiService.getParcelById(parcelId);
@@ -380,13 +422,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           SnackBar(
             content: Text('Erreur: $e'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
     }
   }
 
-  // ✅ Navigation vers l'écran des colis en libre service
   void _navigateToFreeParcels(BuildContext context) {
     Navigator.push(
       context,
@@ -396,19 +441,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     );
   }
 
-  // ✅ Navigation vers l'écran des messages
   void _navigateToMessages(BuildContext context) {
-    // TODO: Implémenter la navigation vers l'écran des messages
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Messages - Fonctionnalité à venir'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: const Text('Messages - Fonctionnalité à venir'),
+        duration: const Duration(seconds: 2),
+        backgroundColor: primaryBlue,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
 }
 
-// ✅ CORRECTION: La signature du callback est maintenant void Function(BuildContext)
 class _NotificationCard extends StatelessWidget {
   final Map<String, dynamic> notification;
   final void Function(BuildContext, Map<String, dynamic>) onTap;
@@ -417,6 +464,13 @@ class _NotificationCard extends StatelessWidget {
     required this.notification,
     required this.onTap,
   });
+
+  // Couleurs du thème bleu/blanc
+  static const Color primaryBlue = Color(0xFF1565C0);
+  static const Color lightBlue = Color(0xFFE3F2FD);
+  static const Color cardColor = Color(0xFFFFFFFF);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF546E7A);
 
   @override
   Widget build(BuildContext context) {
@@ -430,10 +484,10 @@ class _NotificationCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isRead ? Colors.white : Colors.blue.shade50,
+          color: isRead ? cardColor : lightBlue,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isRead ? Colors.grey.shade100 : Colors.blue.shade100,
+            color: isRead ? Colors.grey.shade200 : primaryBlue.withValues(alpha: 0.2),
             width: 1,
           ),
           boxShadow: [
@@ -446,6 +500,7 @@ class _NotificationCard extends StatelessWidget {
         ),
         child: Row(
           children: [
+            // Icône
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -459,6 +514,8 @@ class _NotificationCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
+            
+            // Contenu
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,8 +528,10 @@ class _NotificationCard extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
                             fontSize: 14,
-                            color: const Color(0xFF1A2B3C),
+                            color: textPrimary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (!isRead) ...[
@@ -481,7 +540,7 @@ class _NotificationCard extends StatelessWidget {
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: Colors.blue,
+                            color: primaryBlue,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -493,7 +552,7 @@ class _NotificationCard extends StatelessWidget {
                     notification['body'],
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade600,
+                      color: textSecondary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -512,6 +571,7 @@ class _NotificationCard extends StatelessWidget {
             Icon(
               Icons.chevron_right_rounded,
               color: Colors.grey.shade400,
+              size: 20,
             ),
           ],
         ),

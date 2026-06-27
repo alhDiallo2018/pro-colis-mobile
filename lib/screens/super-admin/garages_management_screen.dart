@@ -15,6 +15,18 @@ class GaragesManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScreen> {
+  // ==================== CONSTANTES DE COULEUR (THÈME BLEU/BLANC) ====================
+  static const Color primaryBlue = Color(0xFF1565C0);
+  static const Color lightBlue = Color(0xFFE3F2FD);
+  static const Color darkBlue = Color(0xFF0D47A1);
+  static const Color backgroundColor = Color(0xFFF5F8FA);
+  static const Color cardColor = Color(0xFFFFFFFF);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF546E7A);
+  static const Color successColor = Color(0xFF2E7D32);
+  static const Color warningColor = Color(0xFFF57C00);
+  static const Color errorColor = Color(0xFFC62828);
+
   final ApiService _apiService = ApiService();
   List<Garage> _garages = [];
   bool _isLoading = true;
@@ -65,7 +77,14 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
       await _loadGarages();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Garage ajouté avec succès'), backgroundColor: Colors.green),
+          SnackBar(
+            content: const Text('Garage ajouté avec succès'),
+            backgroundColor: successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         );
       }
     }
@@ -83,27 +102,46 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
       await _loadGarages();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Garage modifié avec succès'), backgroundColor: Colors.green),
+          SnackBar(
+            content: const Text('Garage modifié avec succès'),
+            backgroundColor: successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         );
       }
     }
   }
 
   Future<void> _viewDrivers(Garage garage) async {
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => GarageDriversScreen(garage: garage),
-    ),
-  );
-}
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GarageDriversScreen(garage: garage),
+      ),
+    );
+  }
 
   Future<void> _deleteGarage(Garage garage) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Supprimer le garage'),
-        content: Text('Voulez-vous vraiment supprimer le garage "${garage.name}" ?'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: errorColor, size: 28),
+            const SizedBox(width: 12),
+            const Text('Supprimer le garage'),
+          ],
+        ),
+        content: Text(
+          'Voulez-vous vraiment supprimer le garage "${garage.name}" ?',
+          style: const TextStyle(color: textPrimary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -111,7 +149,13 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: errorColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text('Supprimer'),
           ),
         ],
@@ -126,20 +170,41 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
           await _loadGarages();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Garage supprimé avec succès'), backgroundColor: Colors.green),
+              SnackBar(
+                content: const Text('Garage supprimé avec succès'),
+                backgroundColor: successColor,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             );
           }
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(result['message'] ?? 'Erreur lors de la suppression'), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(result['message'] ?? 'Erreur lors de la suppression'),
+                backgroundColor: errorColor,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             );
           }
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('Erreur: $e'),
+              backgroundColor: errorColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           );
         }
       } finally {
@@ -153,18 +218,32 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Gestion des garages'),
-        backgroundColor: const Color.fromARGB(255, 5, 243, 243),
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Gestion des garages',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: textPrimary,
+          ),
+        ),
+        backgroundColor: cardColor,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: Icon(Icons.add, color: primaryBlue),
             onPressed: _addGarage,
             tooltip: 'Ajouter un garage',
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: primaryBlue),
             onPressed: _loadGarages,
             tooltip: 'Rafraîchir',
           ),
@@ -172,165 +251,306 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
+        color: primaryBlue,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+                ),
+              )
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Erreur: $_error'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadGarages,
-                          child: const Text('Réessayer'),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildErrorState()
                 : _garages.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.business, size: 64, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text('Aucun garage enregistré'),
-                            SizedBox(height: 8),
-                            Text('Appuyez sur le bouton + pour ajouter un garage'),
-                          ],
-                        ),
-                      )
+                    ? _buildEmptyState()
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _garages.length,
                         itemBuilder: (context, index) {
                           final garage = _garages[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ExpansionTile(
-                              leading: Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0B6E3A).withAlpha(25),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.business, color: Color(0xFF0B6E3A), size: 28),
-                              ),
-                              title: Text(
-                                garage.name,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(garage.city, style: const TextStyle(fontSize: 12)),
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.withAlpha(25),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      '${garage.driversCount} chauffeurs',
-                                      style: const TextStyle(fontSize: 10, color: Colors.green),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              trailing: Chip(
-                                label: Text('${garage.parcelsCount} colis'),
-                                backgroundColor: Colors.orange.withAlpha(25),
-                                labelStyle: const TextStyle(fontSize: 12, color: Colors.orange),
-                              ),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    children: [
-                                      _InfoRow(label: 'Région', value: garage.region),
-                                      if (garage.address != null && garage.address!.isNotEmpty)
-                                        _InfoRow(label: 'Adresse', value: garage.address!),
-                                      if (garage.phone != null && garage.phone!.isNotEmpty)
-                                        _InfoRow(label: 'Téléphone', value: garage.phone!),
-                                      if (garage.latitude != null && garage.longitude != null)
-                                        _InfoRow(
-                                          label: 'Coordonnées',
-                                          value: '${garage.latitude!.toStringAsFixed(4)}, ${garage.longitude!.toStringAsFixed(4)}',
-                                        ),
-                                      const Divider(height: 24),
-                                      _InfoRow(
-                                        label: 'Chauffeurs',
-                                        value: garage.driversCount.toString(),
-                                        valueColor: Colors.green,
-                                      ),
-                                      _InfoRow(
-                                        label: 'Colis traités',
-                                        value: garage.parcelsCount.toString(),
-                                        valueColor: Colors.orange,
-                                      ),
-                                      _InfoRow(
-                                        label: 'Chiffre d\'affaires',
-                                        value: '${garage.revenue.toInt()} FCFA',
-                                        valueColor: Colors.blue,
-                                        isBold: true,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () => _editGarage(garage),
-                                              icon: const Icon(Icons.edit, size: 18),
-                                              label: const Text('Modifier'),
-                                              style: OutlinedButton.styleFrom(
-                                                foregroundColor: Colors.blue,
-                                                side: const BorderSide(color: Colors.blue),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () => _viewDrivers(garage),
-                                              icon: const Icon(Icons.people, size: 18),
-                                              label: const Text('Chauffeurs'),
-                                              style: OutlinedButton.styleFrom(
-                                                foregroundColor: Colors.green,
-                                                side: const BorderSide(color: Colors.green),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      OutlinedButton.icon(
-                                        onPressed: _isProcessing ? null : () => _deleteGarage(garage),
-                                        icon: _isProcessing 
-                                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                            : const Icon(Icons.delete, size: 18),
-                                        label: const Text('Supprimer'),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                          side: const BorderSide(color: Colors.red),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
+                          return _buildGarageCard(garage);
                         },
                       ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: errorColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 48,
+                color: errorColor,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Erreur de chargement',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(
+                fontSize: 13,
+                color: textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadGarages,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: lightBlue,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.business,
+                size: 48,
+                color: primaryBlue,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Aucun garage enregistré',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Appuyez sur le bouton + pour ajouter un garage',
+              style: TextStyle(
+                fontSize: 13,
+                color: textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGarageCard(Garage garage) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ExpansionTile(
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: lightBlue,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(Icons.business, color: primaryBlue, size: 28),
+        ),
+        title: Text(
+          garage.name,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: textPrimary,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              garage.city,
+              style: const TextStyle(fontSize: 12, color: textSecondary),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: successColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${garage.driversCount} chauffeurs',
+                style: const TextStyle(fontSize: 10, color: successColor),
+              ),
+            ),
+          ],
+        ),
+        trailing: Chip(
+          label: Text(
+            '${garage.parcelsCount} colis',
+            style: const TextStyle(fontSize: 12, color: warningColor),
+          ),
+          backgroundColor: warningColor.withValues(alpha: 0.1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _InfoRow(label: 'Région', value: garage.region),
+                if (garage.address != null && garage.address!.isNotEmpty)
+                  _InfoRow(label: 'Adresse', value: garage.address!),
+                if (garage.phone != null && garage.phone!.isNotEmpty)
+                  _InfoRow(label: 'Téléphone', value: garage.phone!),
+                if (garage.latitude != null && garage.longitude != null)
+                  _InfoRow(
+                    label: 'Coordonnées',
+                    value: '${garage.latitude!.toStringAsFixed(4)}, ${garage.longitude!.toStringAsFixed(4)}',
+                  ),
+                const Divider(height: 24),
+                _InfoRow(
+                  label: 'Chauffeurs',
+                  value: garage.driversCount.toString(),
+                  valueColor: successColor,
+                ),
+                _InfoRow(
+                  label: 'Colis traités',
+                  value: garage.parcelsCount.toString(),
+                  valueColor: warningColor,
+                ),
+                _InfoRow(
+                  label: 'Chiffre d\'affaires',
+                  value: '${garage.revenue.toInt()} FCFA',
+                  valueColor: primaryBlue,
+                  isBold: true,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _editGarage(garage),
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: const Text('Modifier'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primaryBlue,
+                          side: BorderSide(color: primaryBlue),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _viewDrivers(garage),
+                        icon: const Icon(Icons.people, size: 18),
+                        label: const Text('Chauffeurs'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: successColor,
+                          side: BorderSide(color: successColor),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _isProcessing ? null : () => _deleteGarage(garage),
+                  icon: _isProcessing 
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(errorColor),
+                          ),
+                        )
+                      : const Icon(Icons.delete, size: 18),
+                  label: const Text('Supprimer'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: errorColor,
+                    side: BorderSide(color: errorColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -360,7 +580,11 @@ class _InfoRow extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500, fontSize: 13),
+              style: const TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
             ),
           ),
           Expanded(
@@ -369,7 +593,7 @@ class _InfoRow extends StatelessWidget {
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
                 fontSize: 13,
-                color: valueColor,
+                color: valueColor ?? const Color(0xFF1A2B3C),
               ),
             ),
           ),
@@ -394,6 +618,12 @@ class _GarageFormScreen extends StatefulWidget {
 }
 
 class _GarageFormScreenState extends State<_GarageFormScreen> {
+  // ==================== CONSTANTES DE COULEUR (THÈME BLEU/BLANC) ====================
+  static const Color primaryBlue = Color(0xFF1565C0);
+  static const Color backgroundColor = Color(0xFFF5F8FA);
+  static const Color cardColor = Color(0xFFFFFFFF);
+  static const Color textPrimary = Color(0xFF1A2332);
+
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -467,12 +697,26 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
         
         if (result['success'] == true && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Garage modifié avec succès'), backgroundColor: Colors.green),
+            SnackBar(
+              content: const Text('Garage modifié avec succès'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           );
           Navigator.pop(context, true);
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message'] ?? 'Erreur lors de la modification'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(result['message'] ?? 'Erreur lors de la modification'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           );
         }
       } else {
@@ -488,19 +732,40 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
         
         if (result['success'] == true && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Garage créé avec succès'), backgroundColor: Colors.green),
+            SnackBar(
+              content: const Text('Garage créé avec succès'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           );
           Navigator.pop(context, true);
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message'] ?? 'Erreur lors de la création'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(result['message'] ?? 'Erreur lors de la création'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         );
       }
     } finally {
@@ -513,10 +778,24 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Modifier le garage' : 'Nouveau garage'),
-        backgroundColor: const Color.fromARGB(255, 5, 243, 243),
-        foregroundColor: Colors.white,
+        title: Text(
+          widget.isEditing ? 'Modifier le garage' : 'Nouveau garage',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: textPrimary,
+          ),
+        ),
+        backgroundColor: cardColor,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Form(
         key: _formKey,

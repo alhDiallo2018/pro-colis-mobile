@@ -14,8 +14,11 @@ import 'package:procolis/widgets/score_display_widget.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_logo.dart';
 import '../../widgets/parcel_card.dart';
-import '../parcel/free_parcels_screen.dart';
+// IMPORTANT: Importer le nouvel écran d'annonces
+import '../parcel/ads/advertisements_screen.dart'; // <-- NOUVEAU CHEMIN
 import '../parcel/new_parcel_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
 import '../parcel/track_parcel_screen.dart';
@@ -40,7 +43,6 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
     _loadData();
     _loadNotificationsCount();
     
-    // Rafraîchir le compteur toutes les 30 secondes
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (mounted) {
         _loadNotificationsCount();
@@ -87,7 +89,64 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
     final parcelState = ref.watch(parcelProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const AppLogo(size: 28),
+            const SizedBox(width: 10),
+            const Text(
+              'PRO COLIS',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppTheme.cardColor,
+        foregroundColor: AppTheme.textPrimary,
+        elevation: 0,
+        centerTitle: false,
+        actions: [
+          // Badge de notifications dans l'AppBar
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: _onNotificationsTap,
+                color: AppTheme.textPrimary,
+              ),
+              if (_unreadNotificationsCount > 0)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorColor,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '${_unreadNotificationsCount > 99 ? '99+' : _unreadNotificationsCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
       body: _getScreen(_selectedIndex, user, parcelState),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -113,13 +172,12 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
                 _loadData();
               }
               if (index == 4) {
-                // Rafraîchir le compteur quand on va sur les notifications
                 _loadNotificationsCount();
               }
             },
-            selectedItemColor: const Color(0xFF0B6E3A),
-            unselectedItemColor: Colors.grey.shade400,
-            backgroundColor: Colors.white,
+            selectedItemColor: AppTheme.primaryBlue,
+            unselectedItemColor: AppTheme.textSecondary,
+            backgroundColor: AppTheme.cardColor,
             elevation: 0,
             selectedFontSize: 12,
             unselectedFontSize: 12,
@@ -138,40 +196,11 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
                 label: 'Suivi',
               ),
               const BottomNavigationBarItem(
-                icon: Icon(Icons.track_changes),
-                label: 'Libre service',
+                icon: Icon(Icons.storefront_rounded), // Changé l'icône
+                label: 'Annonces', // Changé le label
               ),
-              BottomNavigationBarItem(
-                icon: Stack(
-                  children: [
-                    const Icon(Icons.notifications_rounded),
-                    if (_unreadNotificationsCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 18,
-                            minHeight: 18,
-                          ),
-                          child: Text(
-                            '${_unreadNotificationsCount > 99 ? '99+' : _unreadNotificationsCount}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.notifications_rounded),
                 label: 'Notifications',
               ),
               const BottomNavigationBarItem(
@@ -200,11 +229,11 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
       case 2:
         return const TrackParcelScreen();
       case 3:
-        return const FreeParcelsScreen();
+        // REPLACER FreeParcelsScreen par AdvertisementsScreen
+        return const AdvertisementsScreen(); // <-- NOUVEAU
       case 4:
         return NotificationsScreen(
           onNotificationsRead: () {
-            // ✅ Recharger le compteur quand les notifications sont lues
             _loadNotificationsCount();
           },
         );
@@ -230,7 +259,6 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
       MaterialPageRoute(
         builder: (context) => NotificationsScreen(
           onNotificationsRead: () {
-            // ✅ Recharger le compteur quand les notifications sont lues
             _loadNotificationsCount();
           },
         ),
@@ -238,6 +266,8 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
     );
   }
 }
+
+// ==================== LE RESTE DU CODE (HomeScreen, _StatCard, etc.) RESTE INCHANGÉ ====================
 
 class HomeScreen extends StatefulWidget {
   final User? user;
@@ -370,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (widget.user == null) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0B6E3A)),
+          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
         ),
       );
     }
@@ -388,8 +418,8 @@ class _HomeScreenState extends State<HomeScreen>
 
     return RefreshIndicator(
       onRefresh: () async => widget.onRefresh(),
-      color: const Color(0xFF0B6E3A),
-      backgroundColor: Colors.white,
+      color: AppTheme.primaryBlue,
+      backgroundColor: AppTheme.cardColor,
       strokeWidth: 2.5,
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -427,16 +457,25 @@ class _HomeScreenState extends State<HomeScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.2),
+                ),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _selectedFilter,
                   isExpanded: true,
-                  icon: Icon(Icons.filter_list, size: 18, color: Colors.grey.shade600),
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  icon: Icon(
+                    Icons.filter_list,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textPrimary,
+                  ),
                   items: [
                     const DropdownMenuItem(value: 'all', child: Text('📦 Tous les colis')),
                     const DropdownMenuItem(value: 'pending', child: Text('⏳ En attente')),
@@ -459,16 +498,25 @@ class _HomeScreenState extends State<HomeScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.2),
+                ),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _sortBy,
                   isExpanded: true,
-                  icon: Icon(Icons.sort, size: 18, color: Colors.grey.shade600),
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  icon: Icon(
+                    Icons.sort,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textPrimary,
+                  ),
                   items: [
                     const DropdownMenuItem(value: 'date_desc', child: Text('📅 Plus récent')),
                     const DropdownMenuItem(value: 'date_asc', child: Text('📅 Plus ancien')),
@@ -491,14 +539,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildHeader(User user, int freeWithBidsCount) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -508,42 +556,12 @@ class _HomeScreenState extends State<HomeScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0B6E3A), Color(0xFF0D8C46)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.local_shipping_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Pro-Colis',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A2B3C),
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Bonjour 👋',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey.shade600,
+                      color: AppTheme.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -551,9 +569,9 @@ class _HomeScreenState extends State<HomeScreen>
                   Text(
                     user.fullName,
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2B3C),
+                      color: AppTheme.textPrimary,
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -561,57 +579,9 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               Row(
                 children: [
-                  // Widget d'affichage des points
                   const ScoreDisplayWidget(),
                   const SizedBox(width: 12),
-                  // Icône de notification dans le header
-                  GestureDetector(
-                    onTap: widget.onNotificationsTap,
-                    child: Stack(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: const Icon(
-                            Icons.notifications_rounded,
-                            color: Color(0xFF1A2B3C),
-                            size: 24,
-                          ),
-                        ),
-                        if (widget.unreadNotificationsCount > 0)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              constraints: const BoxConstraints(
-                                minWidth: 18,
-                                minHeight: 18,
-                              ),
-                              child: Text(
-                                '${widget.unreadNotificationsCount > 99 ? '99+' : widget.unreadNotificationsCount}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
                   if (freeWithBidsCount > 0) ...[
-                    const SizedBox(width: 12),
                     TweenAnimationBuilder(
                       tween: Tween<double>(begin: 0, end: 1),
                       duration: const Duration(milliseconds: 500),
@@ -625,7 +595,7 @@ class _HomeScreenState extends State<HomeScreen>
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const FreeParcelsScreen(),
+                            builder: (context) => const AdvertisementsScreen(),
                           ),
                         ),
                         child: Container(
@@ -690,7 +660,7 @@ class _HomeScreenState extends State<HomeScreen>
               icon: Icons.schedule_rounded,
               label: 'En attente',
               value: pending,
-              color: Colors.orange,
+              color: AppTheme.warningColor,
               gradientColors: [const Color(0xFFFFE0B2), const Color(0xFFFFCC80)],
             ),
           ),
@@ -700,7 +670,7 @@ class _HomeScreenState extends State<HomeScreen>
               icon: Icons.directions_car_rounded,
               label: 'En cours',
               value: inProgress,
-              color: Colors.blue,
+              color: AppTheme.primaryBlue,
               gradientColors: [const Color(0xFFB3E5FC), const Color(0xFF81D4FA)],
             ),
           ),
@@ -710,7 +680,7 @@ class _HomeScreenState extends State<HomeScreen>
               icon: Icons.check_circle_rounded,
               label: 'Livrés',
               value: delivered,
-              color: Colors.green,
+              color: AppTheme.successColor,
               gradientColors: [const Color(0xFFC8E6C9), const Color(0xFFA5D6A7)],
             ),
           ),
@@ -723,14 +693,14 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.backgroundColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: Colors.white,
+          color: AppTheme.cardColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -740,8 +710,8 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
         dividerColor: Colors.transparent,
-        labelColor: const Color(0xFF0B6E3A),
-        unselectedLabelColor: Colors.grey.shade500,
+        labelColor: AppTheme.primaryBlue,
+        unselectedLabelColor: AppTheme.textSecondary,
         labelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 14,
@@ -765,7 +735,7 @@ class _HomeScreenState extends State<HomeScreen>
       return const SliverFillRemaining(
         child: Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0B6E3A)),
+            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
           ),
         ),
       );
@@ -773,86 +743,68 @@ class _HomeScreenState extends State<HomeScreen>
 
     if (parcels.isEmpty) {
       return SliverFillRemaining(
+        hasScrollBody: false,
         child: Center(
-          child: Container(
-            margin: const EdgeInsets.all(32),
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0B6E3A).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.inbox_rounded,
-                    size: 48,
-                    color: const Color(0xFF0B6E3A),
+                child: Icon(
+                  Icons.inbox_rounded,
+                  size: 64,
+                  color: AppTheme.primaryBlue,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Aucun colis trouvé',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Commencez par créer votre premier envoi',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NewParcelScreen(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  'Aucun colis trouvé',
+                child: const Text(
+                  'Créer un envoi',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Commencez par créer votre premier envoi',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const NewParcelScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0B6E3A),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Créer un envoi',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );
@@ -900,31 +852,6 @@ class _HomeScreenState extends State<HomeScreen>
       }
     } catch (e) {
       debugPrint('Erreur lecture audio: $e');
-    }
-  }
-
-  Color _getStatusColor(ParcelStatus status) => status.color;
-
-  IconData _getStatusIcon(ParcelStatus status) {
-    switch (status) {
-      case ParcelStatus.pending:
-        return Icons.hourglass_empty_rounded;
-      case ParcelStatus.free:
-        return Icons.gavel_rounded;
-      case ParcelStatus.confirmed:
-        return Icons.check_circle_outline_rounded;
-      case ParcelStatus.pickedUp:
-        return Icons.inventory_2_rounded;
-      case ParcelStatus.inTransit:
-        return Icons.local_shipping_rounded;
-      case ParcelStatus.arrived:
-        return Icons.fmd_good_rounded;
-      case ParcelStatus.outForDelivery:
-        return Icons.delivery_dining_rounded;
-      case ParcelStatus.delivered:
-        return Icons.task_alt_rounded;
-      case ParcelStatus.cancelled:
-        return Icons.cancel_rounded;
     }
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/user.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/custom_text_field.dart';
 
 class UsersManagementScreen extends ConsumerStatefulWidget {
@@ -69,7 +70,12 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erreur: $e', style: const TextStyle(color: Colors.white)),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     } finally {
@@ -142,13 +148,25 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
       barrierDismissible: !_isProcessing,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(isEditing ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'),
+          title: Text(
+            isEditing ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          backgroundColor: AppTheme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           content: SingleChildScrollView(
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  _buildDialogSectionTitle('Informations personnelles'),
+                  const SizedBox(height: 12),
                   CustomTextField(
                     controller: _fullNameController,
                     label: 'Nom complet',
@@ -171,6 +189,8 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                     keyboardType: TextInputType.phone,
                     validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
                   ),
+                  const SizedBox(height: 12),
+                  _buildDialogSectionTitle('Adresse'),
                   const SizedBox(height: 12),
                   CustomTextField(
                     controller: _addressController,
@@ -197,14 +217,13 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  _buildDialogSectionTitle('Paramètres du compte'),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<UserRole>(
+                  _buildDialogDropdown(
                     value: _selectedRoleForm,
-                    decoration: const InputDecoration(
-                      labelText: 'Rôle',
-                      prefixIcon: Icon(Icons.admin_panel_settings),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                    ),
+                    label: 'Rôle',
+                    icon: Icons.admin_panel_settings,
                     items: UserRole.values.map((role) => DropdownMenuItem(
                       value: role,
                       child: Row(
@@ -218,13 +237,10 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                     onChanged: (value) => setDialogState(() => _selectedRoleForm = value!),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<UserStatus>(
+                  _buildDialogDropdown(
                     value: _selectedStatusForm,
-                    decoration: const InputDecoration(
-                      labelText: 'Statut',
-                      prefixIcon: Icon(Icons.badge),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                    ),
+                    label: 'Statut',
+                    icon: Icons.badge,
                     items: UserStatus.values.map((status) => DropdownMenuItem(
                       value: status,
                       child: Row(
@@ -245,13 +261,10 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                     onChanged: (value) => setDialogState(() => _selectedStatusForm = value!),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<Gender>(
+                  _buildDialogDropdown(
                     value: _selectedGender,
-                    decoration: const InputDecoration(
-                      labelText: 'Genre',
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                    ),
+                    label: 'Genre',
+                    icon: Icons.person_outline,
                     items: Gender.values.map((gender) => DropdownMenuItem(
                       value: gender,
                       child: Row(
@@ -265,6 +278,8 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                     onChanged: (value) => setDialogState(() => _selectedGender = value),
                   ),
                   if (_selectedRoleForm == UserRole.driver) ...[
+                    const SizedBox(height: 16),
+                    _buildDialogSectionTitle('Informations du véhicule'),
                     const SizedBox(height: 12),
                     CustomTextField(
                       controller: _vehiclePlateController,
@@ -278,13 +293,10 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                       prefixIcon: Icons.directions_car,
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<DriverStatus>(
+                    _buildDialogDropdown(
                       value: _selectedDriverStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Statut chauffeur',
-                        prefixIcon: Icon(Icons.delivery_dining),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                      ),
+                      label: 'Statut chauffeur',
+                      icon: Icons.delivery_dining,
                       items: DriverStatus.values.map((status) => DropdownMenuItem(
                         value: status,
                         child: Row(
@@ -306,12 +318,16 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                     ),
                   ],
                   if (!isEditing) ...[
+                    const SizedBox(height: 16),
+                    _buildDialogSectionTitle('Sécurité'),
                     const SizedBox(height: 12),
                     CustomTextField(
                       controller: _pinController,
                       label: 'Code PIN (6 chiffres)',
                       prefixIcon: Icons.pin,
                       keyboardType: TextInputType.number,
+                      obscureText: true,
+                      helperText: 'Laisser vide pour utiliser le PIN par défaut (123456)',
                     ),
                   ],
                 ],
@@ -321,6 +337,9 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
           actions: [
             TextButton(
               onPressed: _isProcessing ? null : () => Navigator.pop(dialogContext),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.textSecondary,
+              ),
               child: const Text('Annuler'),
             ),
             ElevatedButton(
@@ -338,12 +357,80 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                   }
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0B6E3A)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               child: Text(isEditing ? 'Modifier' : 'Créer'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // Widget helper pour les titres de section dans le dialog
+  Widget _buildDialogSectionTitle(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textSecondary,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  // Widget helper pour les dropdowns dans le dialog
+  Widget _buildDialogDropdown<T>({
+    required T? value,
+    required String label,
+    required IconData icon,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppTheme.primaryBlue),
+        labelStyle: TextStyle(color: AppTheme.textSecondary),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: AppTheme.primaryBlue,
+            width: 2,
+          ),
+        ),
+        filled: true,
+        fillColor: AppTheme.cardColor,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+      items: items,
+      onChanged: onChanged,
+      dropdownColor: AppTheme.cardColor,
+      style: const TextStyle(color: AppTheme.textPrimary),
+      icon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryBlue),
+      borderRadius: BorderRadius.circular(12),
     );
   }
 
@@ -369,12 +456,22 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
       await _loadUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Utilisateur créé avec succès'), backgroundColor: Colors.green),
+          SnackBar(
+            content: const Text('Utilisateur créé avec succès', style: TextStyle(color: Colors.white)),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Erreur lors de la création'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(result['message'] ?? 'Erreur lors de la création', style: const TextStyle(color: Colors.white)),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
     }
   }
@@ -401,12 +498,22 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
       await _loadUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Utilisateur modifié avec succès'), backgroundColor: Colors.green),
+          SnackBar(
+            content: const Text('Utilisateur modifié avec succès', style: TextStyle(color: Colors.white)),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Erreur lors de la modification'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(result['message'] ?? 'Erreur lors de la modification', style: const TextStyle(color: Colors.white)),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
     }
   }
@@ -419,12 +526,22 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
       await _loadUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Utilisateur ${newStatus.label}'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('Utilisateur ${newStatus.label}', style: const TextStyle(color: Colors.white)),
+            backgroundColor: newStatus == UserStatus.active ? AppTheme.successColor : AppTheme.warningColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Erreur'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(result['message'] ?? 'Erreur', style: const TextStyle(color: Colors.white)),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
     }
   }
@@ -433,54 +550,87 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirmation'),
-        content: Text('Voulez-vous vraiment supprimer ${user.fullName} ?'),
+        title: const Text(
+          'Confirmation',
+          style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Voulez-vous vraiment supprimer ${user.fullName} ?',
+          style: const TextStyle(color: AppTheme.textPrimary),
+        ),
+        backgroundColor: AppTheme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false), 
+            onPressed: () => Navigator.pop(dialogContext, false),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Annuler'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text('Supprimer'),
           ),
         ],
       ),
     );
     
-    if (confirm == true) {
-      // Vérifier que le contexte est toujours valide
-      if (!mounted) return;
-      
+    if (confirm == true && mounted) {
       final result = await _apiService.deleteUserSuperAdmin(user.id);
       if (result['success'] == true && mounted) {
         await _loadUsers();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Utilisateur supprimé'), backgroundColor: Colors.green),
+            SnackBar(
+              content: const Text('Utilisateur supprimé', style: TextStyle(color: Colors.white)),
+              backgroundColor: AppTheme.successColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           );
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'] ?? 'Erreur lors de la suppression'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(result['message'] ?? 'Erreur lors de la suppression', style: const TextStyle(color: Colors.white)),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
   }
 
   Future<void> _resetUserPin(User user) async {
-    // Utiliser resetUserPinAdmin au lieu de resetUserPin
     final result = await _apiService.resetUserPinAdmin(user.id);
     if (result['success'] == true && mounted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN réinitialisé à 123456'), backgroundColor: Colors.green),
+          SnackBar(
+            content: const Text('PIN réinitialisé à 123456', style: TextStyle(color: Colors.white)),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Erreur lors de la réinitialisation'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(result['message'] ?? 'Erreur lors de la réinitialisation', style: const TextStyle(color: Colors.white)),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
     }
   }
@@ -488,17 +638,26 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Gestion des utilisateurs'),
-        backgroundColor: const Color.fromARGB(255, 5, 243, 243),
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Gestion des utilisateurs',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        backgroundColor: AppTheme.cardColor,
+        foregroundColor: AppTheme.textPrimary,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: Icon(Icons.add, color: AppTheme.primaryBlue),
             onPressed: _openCreateDialog,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: AppTheme.primaryBlue),
             onPressed: _loadUsers,
           ),
         ],
@@ -507,17 +666,39 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
         children: [
           // Barre de recherche et filtres
           Container(
+            color: AppTheme.cardColor,
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 TextField(
                   decoration: InputDecoration(
-                    hintText: 'Rechercher...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintText: 'Rechercher un utilisateur...',
+                    hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
+                    prefixIcon: Icon(Icons.search, color: AppTheme.primaryBlue),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryBlue,
+                        width: 2,
+                      ),
+                    ),
                     filled: true,
-                    fillColor: Colors.grey.shade50,
+                    fillColor: AppTheme.backgroundColor,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
+                  style: const TextStyle(color: AppTheme.textPrimary),
                   onChanged: (value) {
                     _searchQuery = value;
                     _applyFilters();
@@ -575,26 +756,78 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
           // Liste des utilisateurs
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                    ),
+                  )
                 : _filteredUsers.isEmpty
-                    ? const Center(child: Text('Aucun utilisateur trouvé'))
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              size: 64,
+                              color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Aucun utilisateur trouvé',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: _openCreateDialog,
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppTheme.primaryBlue,
+                              ),
+                              child: const Text('Ajouter un utilisateur'),
+                            ),
+                          ],
+                        ),
+                      )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: _filteredUsers.length,
                         itemBuilder: (context, index) {
                           final user = _filteredUsers[index];
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
+                            color: AppTheme.cardColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                                width: 1,
+                              ),
+                            ),
+                            elevation: 2,
                             child: ExpansionTile(
                               leading: CircleAvatar(
-                                backgroundColor: user.role.color.withAlpha(25),
-                                child: Icon(user.role.icon, color: user.role.color),
+                                backgroundColor: user.role.color.withValues(alpha: 0.15),
+                                child: Icon(user.role.icon, color: user.role.color, size: 20),
                               ),
-                              title: Text(user.fullName),
+                              title: Text(
+                                user.fullName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(user.email, style: const TextStyle(fontSize: 12)),
+                                  Text(
+                                    user.email,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
@@ -607,9 +840,30 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(user.status.label, style: TextStyle(fontSize: 10, color: user.status.color)),
+                                      Text(
+                                        user.status.label,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: user.status.color,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
                                       const SizedBox(width: 8),
-                                      Text(user.role.label, style: TextStyle(fontSize: 10, color: user.role.color)),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: user.role.color.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          user.role.label,
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: user.role.color,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -618,17 +872,31 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue),
+                                    icon: Icon(
+                                      Icons.edit,
+                                      color: AppTheme.primaryBlue,
+                                      size: 20,
+                                    ),
                                     onPressed: () => _openEditDialog(user),
+                                    splashRadius: 20,
                                   ),
                                   IconButton(
-                                    icon: Icon(user.status == UserStatus.active ? Icons.block : Icons.check_circle, 
-                                        color: user.status == UserStatus.active ? Colors.orange : Colors.green),
+                                    icon: Icon(
+                                      user.status == UserStatus.active ? Icons.block : Icons.check_circle,
+                                      color: user.status == UserStatus.active ? AppTheme.warningColor : AppTheme.successColor,
+                                      size: 20,
+                                    ),
                                     onPressed: () => _toggleUserStatus(user),
+                                    splashRadius: 20,
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: AppTheme.errorColor,
+                                      size: 20,
+                                    ),
                                     onPressed: () => _deleteUser(user),
+                                    splashRadius: 20,
                                   ),
                                 ],
                               ),
@@ -657,22 +925,40 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                                       _InfoRow(label: 'Inscription', value: _formatDate(user.createdAt)),
                                       if (user.lastLogin != null) 
                                         _InfoRow(label: 'Dernière connexion', value: _formatDate(user.lastLogin!)),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 16),
                                       Row(
                                         children: [
                                           Expanded(
                                             child: OutlinedButton.icon(
                                               onPressed: () => _resetUserPin(user),
-                                              icon: const Icon(Icons.refresh, size: 18),
-                                              label: const Text('Réinitialiser PIN'),
+                                              icon: Icon(Icons.refresh, size: 18, color: AppTheme.primaryBlue),
+                                              label: Text(
+                                                'Réinitialiser PIN',
+                                                style: TextStyle(color: AppTheme.primaryBlue),
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                side: BorderSide(color: AppTheme.primaryBlue),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
                                             child: OutlinedButton.icon(
                                               onPressed: () {},
-                                              icon: const Icon(Icons.history, size: 18),
-                                              label: const Text('Historique'),
+                                              icon: Icon(Icons.history, size: 18, color: AppTheme.textSecondary),
+                                              label: Text(
+                                                'Historique',
+                                                style: TextStyle(color: AppTheme.textSecondary),
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                side: BorderSide(color: AppTheme.textSecondary.withValues(alpha: 0.3)),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -712,12 +998,27 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FilterChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: selected ? Colors.white : AppTheme.textSecondary,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
       selected: selected,
       onSelected: (_) => onSelected(),
-      backgroundColor: Colors.grey.shade100,
-      selectedColor: (color ?? const Color(0xFF0B6E3A)).withAlpha(51),
-      checkmarkColor: color ?? const Color(0xFF0B6E3A),
+      backgroundColor: AppTheme.cardColor,
+      selectedColor: color ?? AppTheme.primaryBlue,
+      checkmarkColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: selected 
+              ? (color ?? AppTheme.primaryBlue) 
+              : AppTheme.textSecondary.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
     );
   }
 }
@@ -735,8 +1036,25 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 120, child: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12))),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 12))),
+          SizedBox(
+            width: 120, 
+            child: Text(
+              label,
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
         ],
       ),
     );

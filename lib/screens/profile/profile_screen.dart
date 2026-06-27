@@ -22,6 +22,18 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  // ==================== CONSTANTES DE COULEUR (THÈME BLEU/BLANC) ====================
+  static const Color primaryBlue = Color(0xFF1565C0);
+  static const Color lightBlue = Color(0xFFE3F2FD);
+  static const Color darkBlue = Color(0xFF0D47A1);
+  static const Color backgroundColor = Color(0xFFF5F8FA);
+  static const Color cardColor = Color(0xFFFFFFFF);
+  static const Color textPrimary = Color(0xFF1A2332);
+  static const Color textSecondary = Color(0xFF546E7A);
+  static const Color successColor = Color(0xFF2E7D32);
+  static const Color warningColor = Color(0xFFF57C00);
+  static const Color errorColor = Color(0xFFC62828);
+
   late User _user;
   bool _isEditing = false;
   bool _isLoading = false;
@@ -133,7 +145,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         await _uploadProfilePhoto();
       }
     } catch (e) {
-      if (mounted) _showSnackBar('Erreur: $e', Colors.red);
+      if (mounted) _showSnackBar('Erreur: $e', errorColor);
     }
   }
 
@@ -148,7 +160,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         await _uploadProfilePhoto();
       }
     } catch (e) {
-      if (mounted) _showSnackBar('Erreur: $e', Colors.red);
+      if (mounted) _showSnackBar('Erreur: $e', errorColor);
     }
   }
 
@@ -162,14 +174,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final response = await apiService.uploadAndUpdateProfilePhoto(_profileImage!);
       
       if (mounted && response['success'] == true) {
-        _showSnackBar('Photo de profil mise à jour', Colors.green);
+        _showSnackBar('Photo de profil mise à jour', successColor);
         await ref.read(authProvider.notifier).refreshUser();
         await _initializeData();
       } else if (mounted) {
-        _showSnackBar(response['message'] ?? 'Erreur', Colors.red);
+        _showSnackBar(response['message'] ?? 'Erreur', errorColor);
       }
     } catch (e) {
-      if (mounted) _showSnackBar('Erreur: $e', Colors.red);
+      if (mounted) _showSnackBar('Erreur: $e', errorColor);
     } finally {
       if (mounted) setState(() => _isUploadingPhoto = false);
     }
@@ -178,8 +190,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: cardColor,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -188,17 +202,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: EdgeInsets.all(16),
               child: Text(
                 'Changer la photo',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: textPrimary,
+                ),
               ),
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF0B6E3A)),
+              leading: Icon(Icons.photo_library, color: primaryBlue),
               title: const Text('Choisir dans la galerie'),
               onTap: () { Navigator.pop(context); _pickImage(); },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF0B6E3A)),
+              leading: Icon(Icons.camera_alt, color: primaryBlue),
               title: const Text('Prendre une photo'),
               onTap: () { Navigator.pop(context); _takePhoto(); },
             ),
@@ -213,15 +231,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   
   Future<void> _updateProfile() async {
     if (_fullNameController.text.trim().isEmpty) {
-      _showSnackBar('Le nom complet est requis', Colors.red);
+      _showSnackBar('Le nom complet est requis', errorColor);
       return;
     }
     if (_emailController.text.trim().isEmpty) {
-      _showSnackBar('L\'email est requis', Colors.red);
+      _showSnackBar('L\'email est requis', errorColor);
       return;
     }
     if (_phoneController.text.trim().isEmpty) {
-      _showSnackBar('Le téléphone est requis', Colors.red);
+      _showSnackBar('Le téléphone est requis', errorColor);
       return;
     }
     
@@ -271,28 +289,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         
         if (response['success'] == true) {
           setState(() => _isEditing = false);
-          _showSnackBar('Profil mis à jour', Colors.green);
+          _showSnackBar('Profil mis à jour', successColor);
           await ref.read(authProvider.notifier).refreshUser();
           await _initializeData();
         } else {
-          _showSnackBar(response['message'] ?? 'Erreur', Colors.red);
+          _showSnackBar(response['message'] ?? 'Erreur', errorColor);
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showSnackBar('Erreur: $e', Colors.red);
+        _showSnackBar('Erreur: $e', errorColor);
       }
     }
   }
 
   Future<void> _updatePin() async {
     if (_newPinController.text != _confirmPinController.text) {
-      _showSnackBar('Les PIN ne correspondent pas', Colors.red);
+      _showSnackBar('Les PIN ne correspondent pas', errorColor);
       return;
     }
     if (_newPinController.text.length != 6) {
-      _showSnackBar('Le PIN doit contenir 6 chiffres', Colors.red);
+      _showSnackBar('Le PIN doit contenir 6 chiffres', errorColor);
       return;
     }
     
@@ -311,16 +329,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _currentPinController.clear();
         _newPinController.clear();
         _confirmPinController.clear();
-        _showSnackBar('PIN mis à jour', Colors.green);
+        _showSnackBar('PIN mis à jour', successColor);
       } else {
-        _showSnackBar(result['message'], Colors.red);
+        _showSnackBar(result['message'], errorColor);
       }
     }
   }
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color, behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     );
   }
 
@@ -336,7 +361,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       case 'gris':
         return Colors.grey;
       case 'bleu':
-        return Colors.blue;
+        return primaryBlue;
       case 'rouge':
         return Colors.red;
       case 'vert':
@@ -364,7 +389,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       case 'bleu ciel':
         return Colors.lightBlue;
       case 'bleu marine':
-        return Colors.blue.shade900;
+        return darkBlue;
       case 'gris foncé':
         return Colors.grey.shade800;
       case 'gris clair':
@@ -424,23 +449,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final authState = ref.watch(authProvider);
     
     if (!_isInitialized || authState.user == null) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF8F9FA),
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        body: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+          ),
+        ),
       );
     }
     
     _user = authState.user!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: Text(
           _isEditing ? 'Modifier le profil' : 'Mon profil',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: textPrimary,
+          ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A2B3C),
+        backgroundColor: cardColor,
+        foregroundColor: textPrimary,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -450,18 +483,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           if (!_isEditing)
             IconButton(
-              icon: const Icon(Icons.edit, color: Color(0xFF0B6E3A)),
+              icon: Icon(Icons.edit, color: primaryBlue),
               onPressed: () => setState(() => _isEditing = true),
             ),
           if (_isEditing)
             TextButton(
               onPressed: _isLoading ? null : _updateProfile,
-              child: const Text('Enregistrer', style: TextStyle(color: Color(0xFF0B6E3A), fontWeight: FontWeight.bold)),
+              child: Text(
+                'Enregistrer',
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
         ],
       ),
       body: _isLoading || _isUploadingPhoto
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+              ),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -473,7 +516,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _buildSectionCard(
                     title: 'Informations personnelles',
                     icon: Icons.person,
-                    color: Colors.blue,
+                    color: primaryBlue,
                     child: _buildPersonalInfoSection(),
                   ),
                   const SizedBox(height: 16),
@@ -481,7 +524,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _buildSectionCard(
                     title: 'Sécurité',
                     icon: Icons.lock,
-                    color: Colors.orange,
+                    color: warningColor,
                     child: _buildPinSection(),
                   ),
                   
@@ -509,7 +552,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _buildSectionCard(
                     title: 'Statistiques',
                     icon: Icons.analytics,
-                    color: Colors.green,
+                    color: successColor,
                     child: _buildStatsSection(),
                   ),
                   
@@ -523,12 +566,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           Navigator.pushReplacementNamed(context, '/login');
                         }
                       },
-                      icon: const Icon(Icons.logout, color: Colors.red, size: 18),
-                      label: const Text('Se déconnecter', style: TextStyle(color: Colors.red)),
+                      icon: const Icon(Icons.logout, color: errorColor, size: 18),
+                      label: const Text('Se déconnecter', style: TextStyle(color: errorColor)),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.red),
+                        side: BorderSide(color: errorColor),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -547,7 +592,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -567,7 +612,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: color.withAlpha(25),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, size: 22, color: color),
@@ -578,7 +623,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A2B3C),
+                    color: textPrimary,
                   ),
                 ),
               ],
@@ -610,7 +655,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 child: CircleAvatar(
                   radius: 65,
-                  backgroundColor: const Color(0xFF0B6E3A).withAlpha(25),
+                  backgroundColor: lightBlue,
                   child: _getProfileImageWidget(),
                 ),
               ),
@@ -620,9 +665,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   right: 0,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0B6E3A),
+                      color: primaryBlue,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
+                      border: Border.all(color: cardColor, width: 3),
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
@@ -639,8 +684,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.only(top: 12),
               child: TextButton.icon(
                 onPressed: _showImageSourceDialog,
-                icon: const Icon(Icons.camera_alt, size: 16, color: Color(0xFF0B6E3A)),
-                label: const Text('Changer la photo', style: TextStyle(color: Color(0xFF0B6E3A))),
+                icon: Icon(Icons.camera_alt, size: 16, color: primaryBlue),
+                label: Text(
+                  'Changer la photo',
+                  style: TextStyle(color: primaryBlue),
+                ),
               ),
             ),
         ],
@@ -695,7 +743,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildInitialsAvatar() {
     return Text(
       _user.initials,
-      style: const TextStyle(fontSize: 45, fontWeight: FontWeight.w500, color: Color(0xFF0B6E3A)),
+      style: TextStyle(
+        fontSize: 45,
+        fontWeight: FontWeight.w500,
+        color: primaryBlue,
+      ),
     );
   }
 
@@ -790,21 +842,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF0B6E3A).withAlpha(15),
+              color: primaryBlue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 18, color: const Color(0xFF0B6E3A)),
+            child: Icon(icon, size: 18, color: primaryBlue),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 11, color: textSecondary),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF1A2B3C)),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: textPrimary,
+                  ),
                 ),
               ],
             ),
@@ -851,17 +910,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0B6E3A).withAlpha(15),
+                    color: primaryBlue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.color_lens, size: 18, color: Color(0xFF0B6E3A)),
+                  child: const Icon(Icons.color_lens, size: 18, color: primaryBlue),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Couleur', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      const Text(
+                        'Couleur',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
                       const SizedBox(height: 2),
                       _buildColorDisplay(_user.vehicleColor),
                     ],
@@ -900,26 +962,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B6E3A).withAlpha(15),
+                  color: primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.business, size: 22, color: Color(0xFF0B6E3A)),
+                child: const Icon(Icons.business, size: 22, color: primaryBlue),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Point de service', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text(
+                      'Point de service',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       garageName,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1A2B3C)),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'ID: $garageId',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      style: TextStyle(fontSize: 11, color: textSecondary),
                     ),
                   ],
                 ),
@@ -945,27 +1014,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B6E3A).withAlpha(15),
+                  color: primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.pin, size: 22, color: Color(0xFF0B6E3A)),
+                child: const Icon(Icons.pin, size: 22, color: primaryBlue),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Code PIN', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text(
+                      'Code PIN',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       _showPinChangeForm ? 'Modification en cours...' : '●●●●●●',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF1A2B3C)),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: textPrimary,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
-                icon: Icon(_showPinChangeForm ? Icons.close : Icons.edit, color: const Color(0xFF0B6E3A)),
+                icon: Icon(
+                  _showPinChangeForm ? Icons.close : Icons.edit,
+                  color: primaryBlue,
+                ),
                 onPressed: () => setState(() => _showPinChangeForm = !_showPinChangeForm),
               ),
             ],
@@ -1000,9 +1079,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ElevatedButton(
             onPressed: _isLoading ? null : _updatePin,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 5, 243, 243),
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               minimumSize: const Size(double.infinity, 44),
             ),
             child: const Text('Mettre à jour le PIN'),
@@ -1037,12 +1119,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           SizedBox(
             width: 130,
-            child: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1A2B3C)),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: textPrimary,
+              ),
             ),
           ),
         ],

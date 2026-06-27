@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -21,6 +23,7 @@ class CustomTextField extends StatelessWidget {
   final bool autoFocus;
   final TextAlign textAlign;
   final TextStyle? style;
+  final String? helperText; // Ajout du paramètre helperText
 
   const CustomTextField({
     super.key,
@@ -42,6 +45,7 @@ class CustomTextField extends StatelessWidget {
     this.autoFocus = false,
     this.textAlign = TextAlign.start,
     this.style,
+    this.helperText,
   });
 
   @override
@@ -58,22 +62,29 @@ class CustomTextField extends StatelessWidget {
       onChanged: onChanged,
       autofocus: autoFocus,
       textAlign: textAlign,
-      style: style ?? const TextStyle(fontSize: 16),
+      style: style ?? const TextStyle(fontSize: 16, color: AppTheme.textPrimary),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
+        helperText: helperText, // Utilisation du helperText
         labelStyle: TextStyle(
-          color: Colors.grey.shade600,
+          color: AppTheme.textSecondary,
           fontSize: 14,
         ),
         hintStyle: TextStyle(
-          color: Colors.grey.shade400,
+          color: AppTheme.textSecondary.withValues(alpha: 0.5),
           fontSize: 14,
         ),
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20, color: Colors.grey.shade600) : null,
+        helperStyle: TextStyle(
+          color: AppTheme.textSecondary.withValues(alpha: 0.7),
+          fontSize: 12,
+        ),
+        prefixIcon: prefixIcon != null 
+            ? Icon(prefixIcon, size: 20, color: AppTheme.primaryBlue) 
+            : null,
         suffixIcon: suffixIcon != null
             ? IconButton(
-                icon: Icon(suffixIcon, size: 20, color: Colors.grey.shade600),
+                icon: Icon(suffixIcon, size: 20, color: AppTheme.textSecondary),
                 onPressed: onSuffixPressed,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -81,26 +92,39 @@ class CustomTextField extends StatelessWidget {
             : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF0B6E3A), width: 1.5),
+          borderSide: const BorderSide(
+            color: AppTheme.primaryBlue,
+            width: 2,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
+          borderSide: const BorderSide(
+            color: AppTheme.errorColor,
+            width: 1,
+          ),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppTheme.errorColor,
+            width: 2,
+          ),
         ),
         filled: true,
-        fillColor: readOnly ? Colors.grey.shade100 : Colors.grey.shade50,
+        fillColor: readOnly ? Colors.grey.shade100 : AppTheme.backgroundColor,
         counterText: maxLength != null ? null : '',
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
