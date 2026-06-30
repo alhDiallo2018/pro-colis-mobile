@@ -1,0 +1,10 @@
+/* ============================================================
+   PROCOLIS — FONTS
+   Display/UI: Plus Jakarta Sans (geometric, friendly, modern)
+   Body:       Manrope (humanist, legible at small sizes)
+   Mono:       JetBrains Mono (tracking numbers, codes, prices)
+   NOTE: served from Google Fonts CDN (no self-hosted binaries
+   shipped). Substitute self-hosted woff2 for production if the
+   brand requires offline guarantees.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');

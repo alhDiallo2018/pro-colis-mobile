@@ -1,0 +1,133 @@
+/* ============================================================
+   PROCOLIS — COLOR TOKENS
+   Sampled from the brand mark: green→teal→deep-blue parcel cube,
+   amber "C", red express chevrons.
+   ============================================================ */
+:root {
+  /* ---- Brand scales -------------------------------------- */
+  /* Green (vitality, "go", in-transit) */
+  --green-50:  #E7F7EE;
+  --green-100: #C5ECD6;
+  --green-200: #8FDCAF;
+  --green-300: #4FC684;
+  --green-400: #1FB066;
+  --green-500: #0FA958;   /* brand green */
+  --green-600: #079A4B;
+  --green-700: #07803E;
+  --green-800: #0A6334;
+
+  /* Teal (primary brand / trust) */
+  --teal-50:   #E4F4F2;
+  --teal-100:  #BFE6E2;
+  --teal-200:  #84CFC8;
+  --teal-300:  #46B3AC;
+  --teal-400:  #199A92;
+  --teal-500:  #018982;   /* PRIMARY brand color */
+  --teal-600:  #066E68;
+  --teal-700:  #0B5650;
+  --teal-800:  #0C453F;
+
+  /* Deep blue-teal (the cube's shadowed face / footers) */
+  --deep-500:  #0C6E7D;
+  --deep-600:  #0A5C6A;
+  --deep-700:  #0B4853;
+  --deep-800:  #0A3A43;
+
+  /* Amber (the "C", points/score, highlight) */
+  --amber-50:  #FFF6E2;
+  --amber-100: #FDE9B8;
+  --amber-200: #FBD477;
+  --amber-300: #FBC23E;
+  --amber-400: #FCA202;   /* brand amber */
+  --amber-500: #E98C00;
+  --amber-600: #C77600;
+  --amber-700: #9A5B00;
+
+  /* Red (express chevrons / urgent / destructive) */
+  --red-50:   #FDEAE6;
+  --red-100:  #FACABF;
+  --red-200:  #F6967F;
+  --red-300:  #F0603F;
+  --red-400:  #E5240F;   /* brand express red */
+  --red-500:  #C81C08;
+  --red-600:  #A11505;
+
+  /* ---- Neutral slate (cool, tuned toward teal) ----------- */
+  --slate-0:   #FFFFFF;
+  --slate-50:  #F6F8F8;
+  --slate-100: #EDF1F1;
+  --slate-200: #DDE4E4;
+  --slate-300: #C4CFCF;
+  --slate-400: #94A3A3;
+  --slate-500: #677474;
+  --slate-600: #4A5656;
+  --slate-700: #333D3D;
+  --slate-800: #1F2727;
+  --slate-900: #111717;
+
+  /* ---- Signature gradient -------------------------------- */
+  --gradient-brand: linear-gradient(135deg, var(--green-500) 0%, var(--teal-500) 55%, var(--deep-500) 100%);
+  --gradient-brand-soft: linear-gradient(135deg, #0FA95812 0%, #01898212 55%, #0C6E7D12 100%); /* @kind color */
+  --gradient-amber: linear-gradient(135deg, var(--amber-400) 0%, var(--amber-500) 100%);
+
+  /* ============================================================
+     SEMANTIC ALIASES — use these in product UI, not raw scales
+     ============================================================ */
+  --color-primary:        var(--teal-500);
+  --color-primary-hover:  var(--teal-600);
+  --color-primary-active: var(--teal-700);
+  --color-primary-soft:   var(--teal-50);
+
+  --color-accent:         var(--amber-400);
+  --color-accent-hover:   var(--amber-500);
+  --color-accent-soft:    var(--amber-50);
+
+  --color-express:        var(--red-400);   /* urgency badge, "urgent" option */
+  --color-express-soft:   var(--red-50);
+
+  /* Text */
+  --text-strong:  var(--slate-900);
+  --text-body:    var(--slate-700);
+  --text-muted:   var(--slate-500);
+  --text-faint:   var(--slate-400);
+  --text-inverse: var(--slate-0);
+  --text-link:    var(--teal-600);
+
+  /* Surfaces */
+  --surface-page:    var(--slate-50);
+  --surface-card:    var(--slate-0);
+  --surface-sunken:  var(--slate-100);
+  --surface-inverse: var(--slate-900);
+  --surface-brand:   var(--teal-500);
+
+  /* Borders */
+  --border-subtle: var(--slate-200);
+  --border-default: var(--slate-300);
+  --border-strong: var(--slate-400);
+  --border-focus:  var(--teal-500);
+
+  /* Feedback */
+  --color-success:      var(--green-600);
+  --color-success-soft: var(--green-50);
+  --color-warning:      var(--amber-500);
+  --color-warning-soft: var(--amber-50);
+  --color-danger:       var(--red-400);
+  --color-danger-soft:  var(--red-50);
+  --color-info:         var(--deep-500);
+  --color-info-soft:    #E4F1F4;
+
+  /* ============================================================
+     PARCEL STATUS PALETTE — the colis lifecycle
+     (en attente → libre service → confirmé → ramassé → en transit
+      → arrivé → en livraison → livré / annulé)
+     ============================================================ */
+  --status-pending-fg:    #9A5B00;  --status-pending-bg:    var(--amber-50);   --status-pending-dot:    var(--amber-400);
+  --status-free-fg:       #1D4FB8;  --status-free-bg:       #E7EEFC;           --status-free-dot:       #2563EB;
+  --status-confirmed-fg:  var(--teal-600); --status-confirmed-bg: var(--teal-50); --status-confirmed-dot: var(--teal-500);
+  --status-pickup-fg:     #5B27B0;  --status-pickup-bg:     #EFE7FB;           --status-pickup-dot:     #7C3AED;
+  --status-transit-fg:    var(--green-700); --status-transit-bg: var(--green-50); --status-transit-dot:  var(--green-500);
+  --status-arrived-fg:    #0A6072;  --status-arrived-bg:    #E2F1F4;           --status-arrived-dot:    var(--deep-500);
+  --status-delivering-fg: #B34A00;  --status-delivering-bg: #FCEEE2;           --status-delivering-dot: #EA580C;
+  --status-delivered-fg:  var(--green-800); --status-delivered-bg: var(--green-100); --status-delivered-dot: var(--green-600);
+  --status-cancelled-fg:  var(--red-500);   --status-cancelled-bg: var(--red-50);    --status-cancelled-dot:  var(--red-400);
+}

@@ -1,0 +1,20 @@
+.dart_tool/
+.git/
+.gradle/
+.idea/
+.vscode/
+build/
+coverage/
+android/.gradle/
+ios/Pods/
+linux/flutter/ephemeral/
+macos/Flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Local environment files may contain secrets and are not required for the Flutter web build.
+.env
+.env.*
+
+*.iml
+*.log
+*.tmp

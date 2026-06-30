@@ -1,0 +1,26 @@
+<!-- @dsCard group="Brand" viewport="700x200" name="Logo" subtitle="The parcel-cube mark on light and brand surfaces" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:0;background:var(--surface-card);font-family:var(--font-display);display:flex;height:200px}
+  .panel{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+  .panel.dark{background:var(--gradient-brand)}
+  .panel.soft{background:var(--surface-page)}
+  img{width:84px;height:84px;object-fit:contain}
+  .lock{display:flex;align-items:center;gap:12px}
+  .word{font-family:var(--font-display);font-weight:800;font-size:26px;letter-spacing:-.02em}
+  .pro{color:var(--teal-600)} .colis{color:var(--amber-500)}
+  .pro-i{color:#fff} .colis-i{color:var(--amber-300)}
+  .cap{font-family:var(--font-mono);font-size:10px;color:var(--text-faint)}
+  .cap-i{color:rgba(255,255,255,.7)}
+</style></head>
+<body>
+  <div class="panel soft">
+    <div class="lock"><img src="../assets/logo-procolis.png" alt="Procolis"><span class="word"><span class="pro">PRO</span><span class="colis">COLIS</span></span></div>
+    <span class="cap">on slate-50</span>
+  </div>
+  <div class="panel dark">
+    <div class="lock"><img src="../assets/logo-procolis.png" alt="Procolis"><span class="word"><span class="pro-i">PRO</span><span class="colis-i">COLIS</span></span></div>
+    <span class="cap cap-i">on brand gradient</span>
+  </div>
+</body></html>

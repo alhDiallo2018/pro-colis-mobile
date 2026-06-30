@@ -1,0 +1,66 @@
+<!-- @dsCard group="Components" viewport="700x460" name="Data display" subtitle="ParcelCard, StatusBadge, Stepper, StatBox, ListRow, Badge, Tag, Avatar" -->
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;padding:22px;background:var(--surface-page)}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start;max-width:760px}
+  .col{display:flex;flex-direction:column;gap:14px}
+  .lbl{font-family:var(--font-display);font-weight:700;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint)}
+  .group{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .panel{background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:14px}
+</style></head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+const NS = window.ProcolisDesignSystem_1720b4;
+const { ParcelCard, StatusBadge, Stepper, StatBox, ListRow, Badge, Tag, Avatar } = NS;
+function Demo(){
+  return (
+    <div className="grid">
+      <div className="col">
+        <span className="lbl">Parcel card</span>
+        <ParcelCard parcel={{tracking:'PC-7F3K-2291',from:'Abidjan',to:'Bouaké',status:'transit',price:'12 500 FCFA',weight:'8 kg',type:'Standard',eta:'~4 h',express:true}} onClick={()=>{}} />
+        <span className="lbl">Statuts</span>
+        <div className="group">
+          <StatusBadge status="pending" size="sm"/><StatusBadge status="free" size="sm"/>
+          <StatusBadge status="confirmed" size="sm"/><StatusBadge status="transit" size="sm"/>
+          <StatusBadge status="delivered" size="sm"/><StatusBadge status="cancelled" size="sm"/>
+        </div>
+      </div>
+      <div className="col">
+        <span className="lbl">KPIs</span>
+        <div className="stats">
+          <StatBox icon="package_2" tone="primary" value="34" label="Colis en cours" delta={12}/>
+          <StatBox icon="local_shipping" tone="green" value="8" label="Chauffeurs dispo"/>
+        </div>
+        <span className="lbl">Suivi (timeline)</span>
+        <div className="panel">
+          <Stepper steps={[
+            {label:'Colis confirmé',time:'08:12',status:'done',icon:'check'},
+            {label:'Ramassé · Garage Cocody',time:'09:40',status:'done',icon:'package_2'},
+            {label:'En transit',time:'10:05',status:'current',icon:'local_shipping',note:'Chauffeur : Koffi A.'},
+            {label:'Livraison',status:'todo'},
+          ]}/>
+        </div>
+        <span className="lbl">Badges · tags · list</span>
+        <div className="group">
+          <Badge tone="primary">3 offres</Badge><Badge tone="green" variant="solid" icon="check">Vérifié</Badge>
+          <Tag icon="category">Document</Tag><Tag express/>
+        </div>
+        <div className="panel" style={{padding:'4px'}}>
+          <ListRow leading={<Avatar name="Koffi Aka" status="online"/>} title="Koffi Aka" subtitle="Garage de Cocody · 4,9 ★" trailing={<Badge tone="green">Dispo</Badge>} chevron/>
+        </div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script>
+</body></html>

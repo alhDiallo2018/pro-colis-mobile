@@ -1,0 +1,23 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Parcel status palette" subtitle="The colis lifecycle — every state has fg / bg / dot tokens" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:18px;background:var(--surface-card);font-family:var(--font-display)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .chip{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-pill)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .t{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+</style></head>
+<body>
+  <div class="grid">
+    <div class="chip" style="background:var(--status-pending-bg)"><span class="dot" style="background:var(--status-pending-dot)"></span><span class="t" style="color:var(--status-pending-fg)">En attente</span></div>
+    <div class="chip" style="background:var(--status-free-bg)"><span class="dot" style="background:var(--status-free-dot)"></span><span class="t" style="color:var(--status-free-fg)">Libre service</span></div>
+    <div class="chip" style="background:var(--status-confirmed-bg)"><span class="dot" style="background:var(--status-confirmed-dot)"></span><span class="t" style="color:var(--status-confirmed-fg)">Confirmé</span></div>
+    <div class="chip" style="background:var(--status-pickup-bg)"><span class="dot" style="background:var(--status-pickup-dot)"></span><span class="t" style="color:var(--status-pickup-fg)">Ramassé</span></div>
+    <div class="chip" style="background:var(--status-transit-bg)"><span class="dot" style="background:var(--status-transit-dot)"></span><span class="t" style="color:var(--status-transit-fg)">En transit</span></div>
+    <div class="chip" style="background:var(--status-arrived-bg)"><span class="dot" style="background:var(--status-arrived-dot)"></span><span class="t" style="color:var(--status-arrived-fg)">Arrivé</span></div>
+    <div class="chip" style="background:var(--status-delivering-bg)"><span class="dot" style="background:var(--status-delivering-dot)"></span><span class="t" style="color:var(--status-delivering-fg)">En livraison</span></div>
+    <div class="chip" style="background:var(--status-delivered-bg)"><span class="dot" style="background:var(--status-delivered-dot)"></span><span class="t" style="color:var(--status-delivered-fg)">Livré</span></div>
+    <div class="chip" style="background:var(--status-cancelled-bg)"><span class="dot" style="background:var(--status-cancelled-dot)"></span><span class="t" style="color:var(--status-cancelled-fg)">Annulé</span></div>
+  </div>
+</body></html>

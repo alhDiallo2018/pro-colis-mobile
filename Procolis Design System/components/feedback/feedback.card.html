@@ -1,0 +1,60 @@
+<!-- @dsCard group="Components" viewport="700x340" name="Feedback" subtitle="Dialog, Toast, EmptyState" -->
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;padding:22px;background:var(--surface-page)}
+  .grid{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start;max-width:720px}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .lbl{font-family:var(--font-display);font-weight:700;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint)}
+  .panel{background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-md)}
+  .dialogbox{position:relative;background:rgba(10,58,67,.06);border-radius:var(--radius-md);padding:16px}
+</style></head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+const { Toast, EmptyState, Button, Dialog } = window.ProcolisDesignSystem_1720b4;
+// Inline dialog preview (no overlay) so it sits in the card
+function DialogPreview(){
+  return (
+    <div style={{width:300,background:'var(--surface-card)',borderRadius:'var(--radius-lg)',boxShadow:'var(--shadow-lg)',padding:24,textAlign:'center'}}>
+      <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:56,height:56,borderRadius:'50%',background:'var(--color-danger-soft)',color:'var(--color-danger)',marginBottom:14}}>
+        <span className="material-symbols-rounded" style={{fontSize:30,fontVariationSettings:"'FILL' 1"}}>cancel</span>
+      </span>
+      <h3 style={{margin:'0 0 8px',fontFamily:'var(--font-display)',fontWeight:700,fontSize:19,color:'var(--text-strong)'}}>Annuler ce colis ?</h3>
+      <div style={{fontSize:14.5,color:'var(--text-muted)',lineHeight:1.5}}>Cette action est définitive. Le chauffeur sera notifié.</div>
+      <div style={{display:'flex',gap:10,marginTop:22}}>
+        <Button variant="secondary" block>Retour</Button>
+        <Button variant="danger" block>Confirmer</Button>
+      </div>
+    </div>
+  );
+}
+function Demo(){
+  return (
+    <div className="grid">
+      <div className="col">
+        <span className="lbl">Toasts</span>
+        <Toast tone="success" title="Colis créé" message="Suivi : PC-7F3K-2291" onClose={()=>{}}/>
+        <Toast tone="error" title="Échec du paiement" message="Réessayez dans un instant." onClose={()=>{}}/>
+        <Toast tone="info" title="Nouvelle offre reçue" message="Koffi A. propose 11 000 FCFA." onClose={()=>{}}/>
+        <span className="lbl">Empty state</span>
+        <div className="panel">
+          <EmptyState icon="sell" title="Aucun colis en libre service" message="Publiez un colis pour recevoir des offres de chauffeurs." action={<Button icon="add">Nouveau colis</Button>}/>
+        </div>
+      </div>
+      <div className="col">
+        <span className="lbl">Dialog</span>
+        <div className="dialogbox"><DialogPreview/></div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script>
+</body></html>

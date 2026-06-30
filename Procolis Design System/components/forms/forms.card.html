@@ -1,0 +1,70 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Forms" subtitle="Button, IconButton, Input, Select, Switch, Checkbox, Segmented" -->
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;padding:22px;background:var(--surface-page)}
+  .wrap{display:flex;flex-direction:column;gap:18px;max-width:640px}
+  .group{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .lbl{font-family:var(--font-display);font-weight:700;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+</style></head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+const { Button, IconButton, Input, Select, Switch, Checkbox, SegmentedControl } = window.ProcolisDesignSystem_1720b4;
+function Demo(){
+  const [seg,setSeg]=React.useState('client');
+  const [sw,setSw]=React.useState(true);
+  const [ck,setCk]=React.useState(true);
+  return (
+    <div className="wrap">
+      <div className="col">
+        <span className="lbl">Buttons</span>
+        <div className="group">
+          <Button variant="primary" icon="add">Nouveau colis</Button>
+          <Button variant="secondary">Annuler</Button>
+          <Button variant="ghost" iconTrailing="chevron_right">Voir tout</Button>
+          <Button variant="amber" icon="account_balance_wallet">Recharger</Button>
+          <Button variant="danger" icon="cancel">Annuler le colis</Button>
+        </div>
+        <div className="group">
+          <Button size="sm">Petit</Button>
+          <Button size="md">Moyen</Button>
+          <Button size="lg" icon="local_shipping">Grand</Button>
+          <Button loading>Envoi…</Button>
+          <Button disabled>Désactivé</Button>
+          <IconButton icon="more_vert" variant="ghost" />
+          <IconButton icon="notifications" variant="soft" />
+          <IconButton icon="delete" variant="danger" />
+        </div>
+      </div>
+      <div className="col">
+        <span className="lbl">Inputs</span>
+        <div className="two">
+          <Input label="Ville de départ" icon="pin_drop" placeholder="Abidjan" />
+          <Input label="Poids" suffix="kg" placeholder="8" mono />
+          <Select label="Type de colis" icon="category" placeholder="Choisir…" options={['Colis standard','Document','Fragile','Volumineux']} />
+          <Input label="N° de suivi" mono value="PC-7F3K-2291" icon="qr_code_2" />
+        </div>
+      </div>
+      <div className="col">
+        <span className="lbl">Toggles</span>
+        <div className="group" style={{gap:'24px'}}>
+          <Switch checked={sw} onChange={setSw} label="Assurance" description="Couvre jusqu'à 200 000 FCFA" />
+          <Checkbox checked={ck} onChange={setCk} label="Colis urgent" />
+        </div>
+        <SegmentedControl value={seg} onChange={setSeg} options={[{value:'client',label:'Client',icon:'person'},{value:'driver',label:'Chauffeur',icon:'local_shipping'}]} />
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script>
+</body></html>

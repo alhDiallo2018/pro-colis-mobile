@@ -1,0 +1,9 @@
+services:
+  procolis-web:
+    build:
+      context: .
+      args:
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
+    ports:
+      - "${APP_PORT:-8081}:80"
+    restart: unless-stopped

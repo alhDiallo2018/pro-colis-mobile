@@ -1,0 +1,47 @@
+/* ============================================================
+   PROCOLIS — TYPOGRAPHY TOKENS
+   ============================================================ */
+:root {
+  /* Families */
+  --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body:    'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Weights */
+  --fw-regular:  400; /* @kind font */
+  --fw-medium:   500; /* @kind font */
+  --fw-semibold: 600; /* @kind font */
+  --fw-bold:     700; /* @kind font */
+  --fw-extra:    800; /* @kind font */
+
+  /* Type scale (mobile-first product UI) */
+  --fs-display: 34px;   --lh-display: 40px;   /* hero numbers, landing */
+  --fs-h1: 28px;        --lh-h1: 34px;
+  --fs-h2: 22px;        --lh-h2: 28px;
+  --fs-h3: 18px;        --lh-h3: 24px;
+  --fs-title: 16px;     --lh-title: 22px;     /* card titles, list rows */
+  --fs-body: 15px;      --lh-body: 22px;      /* default body */
+  --fs-sm: 13px;        --lh-sm: 18px;        /* secondary / captions */
+  --fs-xs: 11px;        --lh-xs: 15px;        /* labels, status chips, overline */
+
+  /* Letter spacing */
+  --ls-tight:   -0.02em;   /* @kind font */
+  --ls-snug:    -0.01em;   /* @kind font */
+  --ls-normal:  0;         /* @kind font */
+  --ls-wide:    0.04em;    /* @kind font */
+  --ls-wider:   0.08em;    /* @kind font */
+
+  /* Semantic roles */
+  --text-overline-transform: uppercase;
+}
+
+/* Optional utility classes consumers may use directly */
+.pc-display { font-family: var(--font-display); font-weight: var(--fw-extra); font-size: var(--fs-display); line-height: var(--lh-display); letter-spacing: var(--ls-tight); color: var(--text-strong); }
+.pc-h1 { font-family: var(--font-display); font-weight: var(--fw-bold); font-size: var(--fs-h1); line-height: var(--lh-h1); letter-spacing: var(--ls-snug); color: var(--text-strong); }
+.pc-h2 { font-family: var(--font-display); font-weight: var(--fw-bold); font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: var(--ls-snug); color: var(--text-strong); }
+.pc-h3 { font-family: var(--font-display); font-weight: var(--fw-semibold); font-size: var(--fs-h3); line-height: var(--lh-h3); color: var(--text-strong); }
+.pc-title { font-family: var(--font-display); font-weight: var(--fw-semibold); font-size: var(--fs-title); line-height: var(--lh-title); color: var(--text-strong); }
+.pc-body { font-family: var(--font-body); font-weight: var(--fw-regular); font-size: var(--fs-body); line-height: var(--lh-body); color: var(--text-body); }
+.pc-sm { font-family: var(--font-body); font-weight: var(--fw-medium); font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--text-muted); }
+.pc-overline { font-family: var(--font-display); font-weight: var(--fw-bold); font-size: var(--fs-xs); line-height: var(--lh-xs); letter-spacing: var(--ls-wider); text-transform: uppercase; color: var(--text-muted); }
+.pc-mono { font-family: var(--font-mono); font-weight: var(--fw-medium); letter-spacing: var(--ls-snug); }

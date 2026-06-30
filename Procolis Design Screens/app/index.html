@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRO COLIS — Application mobile</title>
+<link rel="stylesheet" href="../_ds/procolis-design-system-1720b415-2c92-4c1a-8e75-dc0a6cdaa9b8/tokens/fonts.css">
+<link rel="stylesheet" href="../_ds/procolis-design-system-1720b415-2c92-4c1a-8e75-dc0a6cdaa9b8/tokens/colors.css">
+<link rel="stylesheet" href="../_ds/procolis-design-system-1720b415-2c92-4c1a-8e75-dc0a6cdaa9b8/tokens/typography.css">
+<link rel="stylesheet" href="../_ds/procolis-design-system-1720b415-2c92-4c1a-8e75-dc0a6cdaa9b8/tokens/spacing.css">
+<link rel="stylesheet" href="../_ds/procolis-design-system-1720b415-2c92-4c1a-8e75-dc0a6cdaa9b8/tokens/base.css">
+<link rel="stylesheet" href="../_ds/procolis-design-system-1720b415-2c92-4c1a-8e75-dc0a6cdaa9b8/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%}
+  body{background:#0a3a43;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;font-family:var(--font-body);box-sizing:border-box}
+  *{box-sizing:border-box}
+  .stage{display:flex;gap:40px;align-items:center;max-width:100%}
+  .phone{position:relative;width:390px;height:800px;max-height:calc(100vh - 48px);background:var(--surface-page);border-radius:46px;box-shadow:0 0 0 12px #11181b, 0 0 0 14px #2a3338, 0 30px 70px rgba(0,0,0,.5);overflow:hidden;display:flex;flex-direction:column;flex:none}
+  .statusbar{height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 28px 0 30px;background:transparent;position:absolute;top:0;left:0;right:0;z-index:30;color:var(--text-strong)}
+  .statusbar.onbrand{color:#fff}
+  .topspacer{height:46px;flex:none;background:var(--surface-card)}
+  .statusbar .time{font-family:var(--font-display);font-weight:700;font-size:14px}
+  .statusbar .icons{display:flex;align-items:center;gap:6px}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:30px;background:#11181b;border-radius:16px;z-index:31}
+  .appwrap{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+  .screen{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .fab{position:absolute;right:18px;bottom:84px;z-index:20}
+  .tabbarwrap{flex:none}
+
+  /* off-phone index panel */
+  .nav{width:248px;max-height:calc(100vh - 48px);overflow-y:auto;color:#cfe;font-family:var(--font-body)}
+  .nav h1{font-family:var(--font-display);color:#fff;font-size:20px;margin:0 0 4px;letter-spacing:-.01em}
+  .nav .tag{font-size:12px;color:#7fb8b2;margin:0 0 18px}
+  .nav .roleseg{display:flex;gap:6px;background:rgba(255,255,255,.08);padding:4px;border-radius:12px;margin-bottom:18px}
+  .nav .roleseg button{flex:1;border:none;background:transparent;color:#9fd; font-family:var(--font-display);font-weight:700;font-size:12.5px;padding:8px 0;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+  .nav .roleseg button.on{background:var(--gradient-brand);color:#fff}
+  .nav .grp{font-family:var(--font-display);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#6fa8a2;margin:16px 0 7px}
+  .nav a.item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:9px;font-size:13px;color:#dff;cursor:pointer;text-decoration:none;transition:background .12s}
+  .nav a.item:hover{background:rgba(255,255,255,.07)}
+  .nav a.item.on{background:rgba(255,255,255,.13);color:#fff;font-weight:600}
+  .nav a.item .material-symbols-rounded{font-size:18px;color:#8fd3cc}
+  .nav a.item.on .material-symbols-rounded{color:#fff}
+  @media (max-width:920px){ .nav{display:none} }
+
+  /* Entrance animations animate TRANSFORM only (never opacity) so essential content is
+     always readable even if the animation clock is frozen at 0 in static capture. */
+  @keyframes pcSplashIn{from{transform:translateY(10px) scale(.96)}to{transform:none}}
+  @keyframes pcSpin{to{transform:rotate(360deg)}}
+  .pc-spin{animation:pcSpin 1s linear infinite}
+  @keyframes pcFadeIn{from{transform:translateY(8px)}to{transform:none}}
+  @keyframes pcPop{0%{transform:scale(.85)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+  @keyframes pcPulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .pc-pulse{animation:pcPulse 1s ease-in-out infinite}
+  .pc-splash-in,.pc-fade-in,.pc-pop{opacity:1}
+  @media (prefers-reduced-motion:no-preference){
+    .pc-splash-in{animation:pcSplashIn .6s var(--ease-out) both}
+    .pc-fade-in{animation:pcFadeIn .35s var(--ease-out) both}
+    .pc-pop{animation:pcPop .42s var(--ease-emphasized) both}
+  }
+</style></head>
+<body>
+<div id="root"></div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" rx="20" fill="#018982"/>
+    <rect x="34" y="22" width="32" height="56" rx="7" fill="#fff"/>
+    <rect x="40" y="30" width="20" height="3" rx="1.5" fill="#0FA958"/>
+    <circle cx="50" cy="68" r="3" fill="#FCA202"/>
+  </svg>
+</template>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../_ds/procolis-design-system-1720b415-2c92-4c1a-8e75-dc0a6cdaa9b8/_ds_bundle.js"></script>
+<script src="mock.js"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="screens-onboarding.jsx"></script>
+<script type="text/babel" src="screens-auth.jsx"></script>
+<script type="text/babel" src="screens-client-main.jsx"></script>
+<script type="text/babel" src="screens-client-detail.jsx"></script>
+<script type="text/babel" src="screens-driver.jsx"></script>
+<script type="text/babel" data-presets="react">
+const NS = window.ProcolisDesignSystem_1720b4;
+const { TabBar, Fab } = NS;
+const S = window.PCScreens;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "homeVariant": "hero",
+  "accent": [
+    "#0C6E7D",
+    "#E4F1F4",
+    "#0A5C6A"
+  ]
+}/*EDITMODE-END*/;
+
+// ---- status bar ----
+function StatusBar({ brand }) {
+  return (
+    <div className={'statusbar' + (brand ? ' onbrand' : '')}>
+      <span className="time">9:41</span>
+      <span className="icons">
+        <span className="material-symbols-rounded" style={{fontSize:17}}>signal_cellular_alt</span>
+        <span className="material-symbols-rounded" style={{fontSize:17}}>wifi</span>
+        <span className="material-symbols-rounded" style={{fontSize:19}}>battery_full</span>
+      </span>
+    </div>
+  );
+}
+
+const CLIENT_TABS = [
+  { key:'home', label:'Accueil', icon:'home' },
+  { key:'colis', label:'Mes colis', icon:'package_2', badge:3 },
+  { key:'libre', label:'Libre service', icon:'sell' },
+  { key:'profile', label:'Profil', icon:'person' },
+];
+const DRIVER_TABS = [
+  { key:'dhome', label:'Tableau', icon:'dashboard' },
+  { key:'dpool', label:'À prendre', icon:'sell', badge:4 },
+  { key:'dmissions', label:'Missions', icon:'local_shipping', badge:2 },
+  { key:'dprofile', label:'Profil', icon:'person' },
+];
+const CLIENT_TABBED = ['home','colis','libre','profile'];
+const DRIVER_TABBED = ['dhome','dpool','dmissions','dprofile'];
+
+// chrome: 'brand' = white statusbar, no spacer; 'bare' = dark statusbar, no spacer; 'spacer' = white topspacer
+const CHROME = {
+  splash:'brand', login:'brand', register:'brand', dhome:'brand',
+  welcome:'bare', permissions:'bare', otp:'bare', 'otp-reg':'bare', 'otp-forgot':'bare',
+  'pin-set':'bare', 'pin-entry':'bare', forgot:'bare',
+};
+
+// which screens belong to the driver app (drives tab bar + role)
+const DRIVER_SCREENS = new Set(['dhome','dpool','dmissions','dprofile','offer','mission','confirm-driver']);
+
+const SCREEN_INDEX = [
+  { grp:'Onboarding', items:[
+    ['splash','Splash','rocket_launch'], ['welcome','Carrousel d’accueil','view_carousel'], ['permissions','Autorisations','verified_user'],
+  ]},
+  { grp:'Authentification', items:[
+    ['login','Connexion','login'], ['register','Inscription','person_add'], ['otp','Vérification OTP','sms'],
+    ['pin-set','Définir le code PIN','lock'], ['pin-entry','Saisie du code PIN','pin'], ['forgot','Code PIN oublié','lock_reset'],
+  ]},
+  { grp:'Client', items:[
+    ['home','Accueil','home'], ['colis','Mes colis','package_2'], ['new','Nouveau colis','add_box'],
+    ['detail','Détail du colis','qr_code_2'], ['libre','Libre service · offres','sell'], ['chat','Messagerie','chat'],
+    ['confirm','Confirmer livraison (PIN)','lock_open'], ['proof','Preuve de livraison','verified'],
+    ['wallet','Portefeuille points','account_balance_wallet'], ['topup','Recharger','add_card'],
+    ['notifications','Notifications','notifications'], ['profile','Profil','person'],
+    ['settings','Paramètres','settings'], ['help','Aide & support','help'],
+  ]},
+  { grp:'Chauffeur', items:[
+    ['dhome','Tableau de bord','dashboard'], ['dpool','Colis à prendre','sell'], ['offer','Faire une offre','gavel'],
+    ['dmissions','Mes missions','local_shipping'], ['mission','Détail mission','route'],
+    ['confirm-driver','Confirmer livraison','task_alt'], ['dprofile','Profil chauffeur','badge'],
+  ]},
+];
+
+function App() {
+  const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+  const [screen, setScreen] = React.useState('splash');
+  const isDriver = DRIVER_SCREENS.has(screen);
+  const nav = (s) => { document.querySelector('.screen')?.scrollTo?.(0,0); setScreen(s); };
+  const home = () => nav(isDriver ? 'dhome' : 'home');
+
+  // jump from the index: also flips role context for shared screens
+  const jump = (s) => setScreen(s);
+
+  const chrome = screen === 'home' ? (t.homeVariant === 'hero' ? 'brand' : 'bare') : (CHROME[screen] || 'spacer');
+  const tabbed = CLIENT_TABBED.includes(screen) || DRIVER_TABBED.includes(screen);
+  const tabs = isDriver ? DRIVER_TABS : CLIENT_TABS;
+
+  const props = { nav, home, setRole: () => {}, unread: 2, variant: t.homeVariant };
+
+  let content;
+  switch (screen) {
+    // onboarding
+    case 'splash': content = <S.SplashScreen {...props} />; break;
+    case 'welcome': content = <S.WelcomeScreen {...props} />; break;
+    case 'permissions': content = <S.PermissionsScreen {...props} />; break;
+    // auth
+    case 'login': content = <S.LoginScreen {...props} />; break;
+    case 'register': content = <S.RegisterScreen {...props} />; break;
+    case 'otp': content = <S.OtpScreen {...props} next="home" onBack={() => nav('login')} />; break;
+    case 'otp-reg': content = <S.OtpScreen {...props} next="pin-set" onBack={() => nav('register')} />; break;
+    case 'otp-forgot': content = <S.OtpScreen {...props} next="pin-set" onBack={() => nav('forgot')} />; break;
+    case 'pin-set': content = <S.PinSetScreen {...props} />; break;
+    case 'pin-entry': content = <S.PinEntryScreen {...props} />; break;
+    case 'forgot': content = <S.ForgotScreen {...props} />; break;
+    // client
+    case 'home': content = <S.HomeScreen {...props} />; break;
+    case 'colis': content = <S.MesColisScreen {...props} />; break;
+    case 'new': content = <S.NewParcelScreen {...props} />; break;
+    case 'detail': content = <S.DetailScreen {...props} home="home" />; break;
+    case 'libre': content = <S.LibreServiceScreen {...props} />; break;
+    case 'chat': content = <S.ChatScreen {...props} />; break;
+    case 'confirm': content = <S.ConfirmDeliveryScreen {...props} home="home" />; break;
+    case 'proof': content = <S.ProofScreen {...props} home="home" />; break;
+    case 'wallet': content = <S.WalletScreen {...props} />; break;
+    case 'topup': content = <S.TopUpScreen {...props} />; break;
+    case 'notifications': content = <S.NotificationsScreen {...props} />; break;
+    case 'profile': content = <S.ProfileScreen {...props} />; break;
+    case 'settings': content = <S.SettingsScreen {...props} />; break;
+    case 'help': content = <S.HelpScreen {...props} />; break;
+    // driver
+    case 'dhome': content = <S.DriverHomeScreen {...props} />; break;
+    case 'dpool': content = <S.DriverPoolScreen {...props} />; break;
+    case 'offer': content = <S.MakeOfferScreen {...props} />; break;
+    case 'dmissions': content = <S.DriverMissionsScreen {...props} />; break;
+    case 'mission': content = <S.MissionDetailScreen {...props} />; break;
+    case 'confirm-driver': content = <S.ConfirmDeliveryScreen {...props} home="dmissions" />; break;
+    case 'dprofile': content = <S.DriverProfileScreen {...props} />; break;
+    default: content = <S.SplashScreen {...props} />;
+  }
+
+  const showFab = screen === 'home' || screen === 'colis';
+  const accent = Array.isArray(t.accent) ? t.accent : ['#018982','#E4F4F2','#066E68'];
+  const phoneStyle = { '--color-primary': accent[0], '--color-primary-soft': accent[1], '--color-primary-hover': accent[2], '--color-primary-active': accent[2], '--text-link': accent[2], '--border-focus': accent[0], '--teal-50': accent[1], '--teal-500': accent[0], '--teal-600': accent[2], '--teal-700': accent[2] };
+
+  return (
+    <div className="stage">
+      <div className="nav">
+        <h1>PRO COLIS</h1>
+        <div className="tag">Application mobile · maquette interactive</div>
+        <div className="roleseg">
+          <button className={!isDriver ? 'on' : ''} onClick={() => jump('home')}><span className="material-symbols-rounded" style={{fontSize:16}}>package_2</span>Client</button>
+          <button className={isDriver ? 'on' : ''} onClick={() => jump('dhome')}><span className="material-symbols-rounded" style={{fontSize:16}}>local_shipping</span>Chauffeur</button>
+        </div>
+        {SCREEN_INDEX.map((g) => (
+          <div key={g.grp}>
+            <div className="grp">{g.grp}</div>
+            {g.items.map(([key,label,icon]) => (
+              <a key={key} className={'item' + (screen === key ? ' on' : '')} onClick={() => jump(key)}>
+                <span className="material-symbols-rounded">{icon}</span>{label}
+              </a>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <div className="phone" style={phoneStyle}>
+        <div className="notch"></div>
+        <StatusBar brand={chrome === 'brand'} />
+        <div className="appwrap">
+          {chrome === 'spacer' && <div className="topspacer"></div>}
+          <div className="screen">{content}</div>
+          {showFab && <div className="fab"><Fab icon="add" onClick={() => nav('new')} /></div>}
+          {tabbed && <div className="tabbarwrap"><TabBar items={tabs} value={screen} onChange={nav} /></div>}
+        </div>
+      </div>
+
+      <window.TweaksPanel title="Tweaks">
+        <window.TweakSection label="Écran d’accueil" />
+        <window.TweakRadio label="Disposition" value={t.homeVariant}
+          options={[{value:'hero',label:'Hero'},{value:'compact',label:'Compact'},{value:'focus',label:'Focus'}]}
+          onChange={(v) => { setTweak('homeVariant', v); if (!DRIVER_SCREENS.has(screen)) setScreen('home'); }} />
+        <window.TweakSection label="Marque" />
+        <window.TweakColor label="Couleur primaire" value={t.accent}
+          options={[['#018982','#E4F4F2','#066E68'],['#0FA958','#E7F7EE','#079A4B'],['#0C6E7D','#E4F1F4','#0A5C6A']]}
+          onChange={(v) => setTweak('accent', v)} />
+      </window.TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body></html>

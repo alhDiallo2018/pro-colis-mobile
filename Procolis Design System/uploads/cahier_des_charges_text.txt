@@ -1,0 +1,230 @@
+
+Cahier des charges fonctionnel et technique
+Application PRO COLIS - analyse de l'existant Flutter
+Projet
+PRO COLIS - Gestion de colis interurbains
+Support analyse
+Code Flutter du repertoire courant, services API, modeles, providers, dashboards et README
+Version document
+1.0
+Date
+27/06/2026
+Perimetre
+Application mobile/web Flutter existante et API attendue par l'application
+1. Synthese
+PRO COLIS est une application Flutter de gestion de colis interurbains. L'existant couvre l'inscription et la connexion par OTP/PIN, la creation et le suivi des colis, la gestion de parcours differencies par role, le libre service avec offres de chauffeurs, les notifications, les medias de preuve, le profil utilisateur, ainsi que des modules d'administration garage et super administration.
+Le present cahier des charges decrit le produit tel qu'il ressort du code existant. Les exigences ci-dessous ne constituent pas une refonte cible: elles documentent les capacites deja prevues ou partiellement implementees.
+2. Objectifs produit
+Permettre a un client de declarer un colis, choisir les informations de trajet, suivre l'etat d'acheminement et gerer les offres de chauffeurs.
+Permettre a un chauffeur de consulter ses colis, traiter les etapes de livraison, envoyer ou accepter des missions, et faire des offres sur des colis en libre service.
+Permettre a un administrateur garage de suivre les colis de son garage, ses chauffeurs, les assignations et les historiques.
+Permettre a un super administrateur de piloter les utilisateurs, garages, colis, statistiques, rapports et parametres systeme.
+Centraliser les notifications, paiements, medias, preuves et scores de points autour du cycle de vie du colis.
+3. Acteurs et roles
+Role
+Responsabilites principales
+Ecrans existants
+Client
+Creer un colis, suivre ses colis, publier en libre service, accepter/refuser des offres, consulter notifications et profil.
+ClientDashboard, NewParcelScreen, TrackParcelScreen, FreeParcelsScreen, ProfileScreen
+Chauffeur
+Consulter les colis assignes, faire des offres, gerer les etapes de livraison, envoyer des colis, consulter profil et notifications.
+DriverDashboard, FreeParcelsForDriversScreen, ParcelDetailScreen, NewParcelScreen
+Admin Garage
+Voir les colis du garage, assigner des chauffeurs, suivre les colis en cours et l'historique, consulter les chauffeurs.
+GarageAdminDashboard, GarageAdminDriversScreen, GarageAdminParcelDetailScreen
+Super Admin
+Administrer utilisateurs, chauffeurs, garages, colis, statistiques, rapports, sante systeme et configuration.
+SuperAdminDashboard, UsersManagementScreen, GaragesManagementScreen, StatsScreen, AdminDashboardFull
+4. Parcours fonctionnels
+4.1 Authentification et profil
+Inscription client et chauffeur avec email, telephone, nom complet, mot de passe et donnees de profil.
+Verification OTP apres inscription ou demande de connexion.
+Connexion rapide par PIN avec identifiant sauvegarde dans FlutterSecureStorage.
+Chargement automatique de l'utilisateur courant via token au demarrage.
+Mise a jour du profil, photo de profil, donnees chauffeur, adresse, ville, region et PIN.
+Deconnexion avec conservation de l'identifiant pour permettre une future connexion par PIN.
+4.2 Cycle de vie colis
+Creation de colis par client ou chauffeur avec expediteur, destinataire, type, poids, trajet, prix, options assurance/urgence et medias.
+Statuts geres: en attente, libre service, confirme, ramasse, en transit, arrive, en livraison, livre, annule.
+Suivi public par numero de tracking et consultation des evenements de colis.
+Mise a jour de statut par chauffeur avec localisation optionnelle.
+Ajout de notes, recuperation de timeline, preuve de livraison et medias associes.
+Annulation de colis avec motif.
+4.3 Libre service et offres
+Mise en libre service d'un colis avec prix propose.
+Consultation des colis libres par les chauffeurs.
+Soumission d'offres par les chauffeurs avec prix, message et audio optionnel.
+Acceptation, refus et negociation d'offres par le client.
+Historique des offres recues cote client et envoyees cote chauffeur.
+4.4 Administration garage
+Consultation des colis du garage avec filtres de statut.
+Consultation des chauffeurs du garage et de leur disponibilite.
+Assignation d'un chauffeur a un colis et assignation en masse.
+Tableau de bord avec compteurs colis en attente, en cours, termines et chauffeurs disponibles.
+Rapports journaliers, mensuels et export pour le garage.
+4.5 Super administration
+Gestion globale des utilisateurs, chauffeurs, clients et admins garage.
+Creation, modification, changement de role/statut, suppression et reinitialisation PIN selon les endpoints prevus.
+Gestion des garages: creation, modification, suppression et rattachement d'administrateurs/chauffeurs.
+Gestion globale des colis et statistiques avancees.
+Sante systeme, logs d'audit, configuration, sauvegarde/restauration, exports et rapports.
+4.6 Notifications, paiements, score et services transverses
+Notifications locales et backend: liste paginee, compteur non lu, marquer comme lu, suppression.
+Paiements: initiation, confirmation et historique.
+Score/points: solde, historique, achat, debit, credit, statistiques et remboursement transactionnel.
+Uploads: photo colis, video colis, audio colis, audio d'offre, photo profil, fichiers multiples.
+Services complementaires prevus: localisation, notes, support, identite, coupons, favoris, adresses, recherche globale et messagerie.
+5. Exigences fonctionnelles detaillees
+ID
+Module
+Exigence existante
+Priorite
+AUTH-01
+Authentification
+L'application doit authentifier un utilisateur par OTP apres envoi a son identifiant email/telephone.
+Haute
+AUTH-02
+Authentification
+L'application doit permettre une connexion par PIN avec identifiant sauvegarde localement.
+Haute
+AUTH-03
+Profil
+L'utilisateur doit pouvoir modifier son profil, sa photo et son PIN.
+Haute
+COL-01
+Colis
+Un client ou chauffeur doit pouvoir creer un colis avec informations expediteur, destinataire, trajet, prix, type et medias.
+Haute
+COL-02
+Colis
+Un utilisateur doit pouvoir suivre un colis par numero de tracking public.
+Haute
+COL-03
+Colis
+Un chauffeur doit pouvoir mettre a jour les statuts operationnels de livraison.
+Haute
+BID-01
+Libre service
+Un client doit pouvoir ouvrir un colis aux offres chauffeurs.
+Haute
+BID-02
+Libre service
+Un chauffeur doit pouvoir envoyer une offre avec prix, message et audio optionnel.
+Haute
+BID-03
+Libre service
+Un client doit pouvoir accepter, refuser ou negocier une offre.
+Haute
+ADM-01
+Garage
+Un admin garage doit voir les colis de son garage, les chauffeurs et assigner les missions.
+Haute
+ADM-02
+Super admin
+Un super admin doit administrer utilisateurs, garages, colis, statistiques, rapports et configuration.
+Haute
+NOT-01
+Notifications
+L'application doit afficher les notifications et leur compteur non lu.
+Moyenne
+PAY-01
+Paiement
+L'application doit initier, confirmer et historiser les paiements.
+Moyenne
+SCO-01
+Score
+L'application doit consulter et modifier un solde de points lie a l'utilisateur.
+Moyenne
+MED-01
+Media
+L'application doit uploader et rattacher photos, videos, audios et signature aux colis/profils.
+Moyenne
+6. Donnees et modeles metier
+Modele
+Champs ou concepts principaux
+User
+Identite, role, statut, PIN, profil, garage, vehicule, statut chauffeur, statistiques, verification email/telephone.
+Parcel
+Tracking, expediteur, destinataire, description, poids/dimensions, type, statut, garages, chauffeur, prix, options, medias, evenements.
+Bid
+Colis, chauffeur, prix, message, statut, date, reponse, audio.
+Garage
+Identite et informations de garage, rattachement administratif.
+Vehicle
+Vehicule, garage, conducteur, disponibilite/statut.
+Payment
+Methode, statut, montant et historique paiement.
+Notification
+Type, priorite, lecture, contenu et date.
+Score
+Points, transactions, debit, credit, achat, remboursement.
+VoiceMessage
+Audio rattache aux colis ou offres.
+7. Architecture technique existante
+Framework: Flutter avec Dart SDK >= 3.0.0.
+Gestion d'etat: flutter_riverpod avec StateNotifier pour auth, colis, notifications et score.
+Navigation principale: MaterialApp avec routes /login et /dashboard; un GoRouter existe mais n'est pas branche dans main.dart.
+Client HTTP: Dio avec baseUrl configurable par --dart-define API_BASE_URL, valeur par defaut http://localhost:8080.
+Stockage local securise: FlutterSecureStorage pour token et identifiant sauvegarde.
+Notifications locales: flutter_local_notifications; dependances Firebase Messaging presentes.
+Cartographie/localisation: google_maps_flutter, geolocator, geocoding.
+Medias: image_picker, video_player, chewie, video_compress, record, audioplayers.
+Packaging web Docker: build Flutter web servi par Nginx; README indique app web sur 8081 et API attendue sur 8080.
+8. Interfaces API attendues
+Les endpoints suivants sont appeles par l'application Flutter existante via ApiService.
+Domaine
+Exemples d'endpoints
+Auth
+/auth/register, /auth/send-otp, /auth/verify-otp, /auth/login-with-pin, /auth/me, /auth/refresh
+Profil
+/users/profile, /users/pin, /users/account, /users/stats
+Colis client/chauffeur
+/client/parcels/my-parcels, /driver/parcels, /driver/parcels/{id}/pickup, /driver/parcels/{id}/deliver
+Colis public
+/public/parcels/track/{trackingNumber}, /public/parcels/{id}/events, /public/parcels/free
+Offres
+/driver/bids, /client/parcels/{parcelId}/bids/{bidId}/accept, /client/bids/received, /driver/bids/sent
+Garage admin
+/garage-admin/parcels, /garage-admin/drivers, /garage-admin/reports/*
+Super admin
+/super-admin/stats, /super-admin/users, /super-admin/garages, /super-admin/parcels, /super-admin/audit-logs
+Notifications
+/notifications, /notifications/unread-count, /notifications/read-all
+Paiements
+/payments/initiate, /payments/{id}/confirm, /payments/history
+Score
+/score, /score/balance, /score/history, /score/purchase, /score/debit, /score/credit, /score/stats
+Uploads
+/upload, /upload/base64, /upload/parcel-photo, /upload/parcel-video, /upload/parcel-audio, /upload/bid-audio
+9. Exigences non fonctionnelles
+Securite: les routes protegees doivent porter le token Bearer; les tokens invalides doivent provoquer un nettoyage local.
+Robustesse: les appels critiques doivent gerer proprement les erreurs reseau, les statuts HTTP non attendus et les reponses non JSON.
+Performance: les listes de notifications sont paginees; les tableaux de bord doivent eviter les rechargements inutiles.
+Compatibilite: application cible mobile iOS/Android et web Flutter servi par Nginx.
+Observabilite: les erreurs et transitions critiques sont journalisees via debugPrint; le backend doit fournir des logs exploitables.
+UX: l'application doit eviter les boucles de chargement, afficher des etats vide/erreur/chargement et conserver les actions principales accessibles par role.
+10. Etat constate et points d'attention
+Le conteneur Docker fourni sert l'application Flutter web via Nginx; il ne contient pas le backend API.
+L'endpoint /score retourne actuellement une page HTML 404 dans l'environnement teste, alors que l'application attend du JSON.
+La navigation GoRouter existe mais n'est pas utilisee par main.dart, qui utilise MaterialApp et des routes simples.
+Certains compteurs de notifications chauffeur et super admin sont simules dans le code.
+Plusieurs fichiers alternatifs ou anciens existent pour la creation de colis et l'inscription, ce qui indique un historique de variantes a clarifier.
+Un overflow visuel est signale sur login_screen.dart autour d'un Row de menu pays/telephone.
+Les modules score, paiement, support, identite, coupons, messagerie et favoris sont exposes par ApiService mais doivent etre valides backend par backend.
+11. Criteres d'acceptation
+Un utilisateur non authentifie arrive sur l'ecran de connexion et peut s'inscrire ou se connecter par OTP/PIN.
+Un utilisateur authentifie est redirige vers le dashboard correspondant a son role.
+Un client peut creer, consulter, suivre, annuler et mettre en libre service un colis.
+Un chauffeur peut consulter les colis libres, faire une offre, suivre ses colis et mettre a jour les statuts de livraison.
+Un admin garage peut charger les colis et chauffeurs de son garage, assigner les colis et consulter les rapports.
+Un super admin peut charger les utilisateurs, garages, colis et statistiques, puis effectuer les operations CRUD prevues.
+Les erreurs API non JSON ou 404 sont affichees sans provoquer de clignotement ou de boucle de requetes.
+Les notifications, paiements, medias et points fonctionnent avec des endpoints backend conformes au contrat attendu.
+12. Annexes - fichiers sources consultes
+lib/main.dart, lib/routes/app_router.dart
+lib/providers/auth_provider.dart, parcel_provider.dart, notification_provider.dart, score_provider.dart
+lib/services/api_service.dart, notification_service.dart, location_service.dart, mock_data.dart
+lib/models/user.dart, parcel.dart, garage.dart, vehicle.dart, payment.dart, notification.dart, score.dart, voice_message.dart
+lib/screens/auth, lib/screens/dashboard, lib/screens/parcel, lib/screens/profile, lib/screens/garage_admin, lib/screens/super-admin
+README.md, Dockerfile, docker-compose.yml

@@ -1,0 +1,26 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Radius & shadows" subtitle="Friendly corners · soft cool-tinted elevation" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:22px;background:var(--surface-page);font-family:var(--font-display);display:flex;gap:26px;align-items:center}
+  .group{display:flex;gap:14px;align-items:flex-end}
+  .box{width:64px;height:64px;background:#fff;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;border:1px solid var(--border-subtle)}
+  .l{font-family:var(--font-mono);font-size:9px;color:var(--text-muted)}
+  .sb{width:64px;height:64px;background:#fff;border-radius:var(--radius-md);display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px}
+  .div{width:1px;align-self:stretch;background:var(--border-subtle)}
+</style></head>
+<body>
+  <div class="group">
+    <div class="box" style="border-radius:var(--radius-sm)"><span class="l">sm 10</span></div>
+    <div class="box" style="border-radius:var(--radius-md)"><span class="l">md 14</span></div>
+    <div class="box" style="border-radius:var(--radius-lg)"><span class="l">lg 20</span></div>
+    <div class="box" style="border-radius:var(--radius-pill)"><span class="l">pill</span></div>
+  </div>
+  <div class="div"></div>
+  <div class="group">
+    <div class="sb" style="box-shadow:var(--shadow-sm)"><span class="l">sm</span></div>
+    <div class="sb" style="box-shadow:var(--shadow-md)"><span class="l">md</span></div>
+    <div class="sb" style="box-shadow:var(--shadow-lg)"><span class="l">lg</span></div>
+    <div class="sb" style="box-shadow:var(--shadow-brand);background:var(--teal-500)"><span class="l" style="color:#fff">brand</span></div>
+  </div>
+</body></html>
