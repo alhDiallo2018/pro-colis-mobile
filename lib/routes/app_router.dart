@@ -11,24 +11,30 @@ import '../screens/auth/pin_login_screen.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/dashboard/notifications/notifications_screen.dart';
+import '../screens/driver/garage_screen.dart';
 import '../screens/driver/mes_annonces_screen.dart';
 import '../screens/driver/parametres_screen.dart';
+import '../screens/driver/points_screen.dart';
+import '../screens/driver/itinerary_map_screen.dart';
 import '../screens/driver/publish_trip_screen.dart';
 import '../screens/driver/revenus_screen.dart';
 import '../screens/garage_admin/garage_admin_drivers_screen.dart';
 import '../screens/garage_admin/garage_admin_parcel_detail.dart';
 import '../screens/garage_admin/garage_assignations_screen.dart';
+import '../screens/garage_admin/garage_rapports_screen.dart';
 import '../screens/help/help_screen.dart';
 import '../screens/parcel/ads/advertisement_detail_screen.dart';
 import '../screens/parcel/ads/advertisements_screen.dart';
 import '../screens/parcel/confirm_delivery_screen.dart';
 import '../screens/parcel/free_parcels_screen.dart';
 import '../screens/parcel/new_parcel_screen.dart';
+import '../screens/parcel/new_parcel_wizard_screen.dart';
 import '../screens/parcel/parcel_detail_screen.dart';
 import '../screens/parcel/track_parcel_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/shared/messages_screen.dart';
+import '../screens/super-admin/admin_parametres_screen.dart';
 import '../screens/super-admin/garage_drivers_screen.dart';
 import '../screens/super-admin/garage_form_screen.dart';
 import '../screens/super-admin/garages_management_screen.dart';
@@ -125,6 +131,12 @@ class AppRouter {
         ),
 
         GoRoute(
+          path: '/new-parcel-wizard',
+          name: 'new-parcel-wizard',
+          builder: (context, state) => const NewParcelWizardScreen(),
+        ),
+
+        GoRoute(
           path: '/free-parcels',
           name: 'free-parcels',
           builder: (context, state) => const FreeParcelsScreen(),
@@ -141,7 +153,16 @@ class AppRouter {
           name: 'advertisement-detail',
           builder: (context, state) {
             final extra = state.extra;
-            if (extra is Parcel) return AdvertisementDetailScreen(parcel: extra);
+            final adId = state.pathParameters['adId'];
+            if (extra is Parcel) {
+              return AdvertisementDetailScreen(
+                parcel: extra,
+                adId: adId ?? extra.id,
+              );
+            }
+            if (adId != null && adId.isNotEmpty) {
+              return AdvertisementDetailScreen(adId: adId);
+            }
             return const AdvertisementsScreen();
           },
         ),
@@ -172,9 +193,34 @@ class AppRouter {
           builder: (context, state) => const DriverRevenusScreen(),
         ),
         GoRoute(
+          path: '/driver/points',
+          name: 'driver-points',
+          builder: (context, state) => const DriverPointsScreen(),
+        ),
+        GoRoute(
           path: '/driver/settings',
           name: 'driver-settings',
           builder: (context, state) => const DriverParametresScreen(),
+        ),
+        GoRoute(
+          path: '/driver/itinerary',
+          name: 'driver-itinerary',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            return ItineraryMapScreen(
+              departureLat: extra?['departureLat'] as double?,
+              departureLng: extra?['departureLng'] as double?,
+              arrivalLat: extra?['arrivalLat'] as double?,
+              arrivalLng: extra?['arrivalLng'] as double?,
+              departureName: extra?['departureName']?.toString() ?? '',
+              arrivalName: extra?['arrivalName']?.toString() ?? '',
+            );
+          },
+        ),
+        GoRoute(
+          path: '/driver/garage',
+          name: 'driver-garage',
+          builder: (context, state) => const DriverGarageScreen(),
         ),
 
         GoRoute(
@@ -227,6 +273,11 @@ class AppRouter {
           name: 'garage-drivers',
           builder: (context, state) => const GarageAdminDriversScreen(),
         ),
+        GoRoute(
+          path: '/garage/rapports',
+          name: 'garage-rapports',
+          builder: (context, state) => const GarageRapportsScreen(),
+        ),
 
         GoRoute(
           path: '/admin/users',
@@ -242,6 +293,11 @@ class AppRouter {
           path: '/admin/stats',
           name: 'admin-stats',
           builder: (context, state) => const AdminStatsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/parametres',
+          name: 'admin-parametres',
+          builder: (context, state) => const AdminParametresScreen(),
         ),
         GoRoute(
           path: '/admin/garage/drivers',

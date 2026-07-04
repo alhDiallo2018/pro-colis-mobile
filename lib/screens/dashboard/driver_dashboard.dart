@@ -701,7 +701,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -712,7 +712,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: primaryBlue.withValues(alpha: 0.1),
+              color: primaryBlue.withOpacity( 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -757,7 +757,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -814,7 +814,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
+                        color: Colors.black.withOpacity( 0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -877,7 +877,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
+                        color: Colors.black.withOpacity( 0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -981,7 +981,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1125,7 +1125,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1312,7 +1312,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1363,9 +1363,9 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: primaryBlue.withValues(alpha: 0.05),
+        color: primaryBlue.withOpacity( 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryBlue.withValues(alpha: 0.2)),
+        border: Border.all(color: primaryBlue.withOpacity( 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1636,10 +1636,31 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
                 MaterialPageRoute(builder: (_) => const MessagesScreen())),
           ),
           IconButton(
-            icon: Badge(
-              label: Text('$_unreadNotificationsCount', style: const TextStyle(fontSize: 10)),
-              isLabelVisible: _unreadNotificationsCount > 0,
-              child: const Icon(Icons.notifications_outlined),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_outlined),
+                if (_unreadNotificationsCount > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppTheme.red400,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _unreadNotificationsCount > 9 ? '9+' : '$_unreadNotificationsCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             onPressed: _onNotificationsTap,
           ),
@@ -1934,12 +1955,32 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                   IconButton(
                     onPressed: widget.onNotificationsTap,
                     color: Colors.white,
-                    icon: Badge(
-                      isLabelVisible: widget.unreadNotificationsCount > 0,
-                      label: Text('${widget.unreadNotificationsCount}'),
-                      backgroundColor: AppTheme.amber400,
-                      textColor: const Color(0xFF3A2600),
-                      child: const Icon(Icons.notifications_rounded, size: 28),
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.notifications_rounded, size: 28),
+                        if (widget.unreadNotificationsCount > 0)
+                          Positioned(
+                            right: -2,
+                            top: -2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppTheme.amber400,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: AppTheme.teal600, width: 2),
+                              ),
+                              child: Text(
+                                widget.unreadNotificationsCount > 99 ? '99+' : '${widget.unreadNotificationsCount}',
+                                style: const TextStyle(
+                                  color: Color(0xFF3A2600),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -1948,7 +1989,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.20),
+                  color: Colors.white.withOpacity( 0.20),
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 ),
                 child: Row(
@@ -1957,7 +1998,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
+                        color: Colors.white.withOpacity( 0.18),
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       child: Icon(
@@ -2097,7 +2138,7 @@ class _PublishTripShortcut extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: Colors.white.withOpacity( 0.18),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
                 child: const Icon(
@@ -2738,11 +2779,11 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
         ),
         if (mission.status == ParcelStatus.outForDelivery) ...[
           const SizedBox(height: 10),
-          FilledButton.icon(
+          ElevatedButton.icon(
             onPressed: () => _openConfirmDelivery(mission),
             icon: const Icon(Icons.lock_open_rounded, size: 18),
             label: const Text('Confirmer la livraison'),
-            style: FilledButton.styleFrom(
+            style: ElevatedButton.styleFrom(
               minimumSize: const Size(0, 44),
               backgroundColor: AppTheme.successColor,
               foregroundColor: Colors.white,
@@ -3676,7 +3717,7 @@ class _DriverAdvertisementsScreenState
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withOpacity( 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -3723,7 +3764,7 @@ class _DriverAdvertisementsScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.purple.withValues(alpha: 0.15),
+                    color: Colors.purple.withOpacity( 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -3748,7 +3789,7 @@ class _DriverAdvertisementsScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.15),
+                      color: Colors.green.withOpacity( 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -3765,7 +3806,7 @@ class _DriverAdvertisementsScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withValues(alpha: 0.15),
+                      color: Colors.purple.withOpacity( 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -4090,7 +4131,7 @@ class _DriverAdvertisementsScreenState
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: primaryBlue.withValues(alpha: 0.1),
+                color: primaryBlue.withOpacity( 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -4375,7 +4416,7 @@ class _BidsBottomSheetState extends State<_BidsBottomSheet> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isSelected
-            ? Colors.green.withValues(alpha: 0.08)
+            ? Colors.green.withOpacity( 0.08)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: isSelected
@@ -4386,7 +4427,7 @@ class _BidsBottomSheetState extends State<_BidsBottomSheet> {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: primaryBlue.withValues(alpha: 0.1),
+            backgroundColor: primaryBlue.withOpacity( 0.1),
             child: Text(
               bid.driverName.isNotEmpty ? bid.driverName[0].toUpperCase() : '?',
               style: const TextStyle(
@@ -4483,10 +4524,10 @@ class _BidsBottomSheetState extends State<_BidsBottomSheet> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: bid.status.color.withValues(alpha: 0.1),
+              color: bid.status.color.withOpacity( 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: bid.status.color.withValues(alpha: 0.3),
+                color: bid.status.color.withOpacity( 0.3),
               ),
             ),
             child: Text(
@@ -4656,7 +4697,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                           border: Border.all(color: Colors.white, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
+                              color: Colors.black.withOpacity( 0.2),
                               blurRadius: 4,
                               offset: Offset(0, 2),
                             ),
@@ -4672,7 +4713,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                                   errorBuilder: (context, error, stackTrace) {
                                     return Container(
                                       color:
-                                          Colors.white.withValues(alpha: 0.3),
+                                          Colors.white.withOpacity( 0.3),
                                       child: Icon(
                                         Icons.person,
                                         color: Colors.white,
@@ -4682,7 +4723,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                                   },
                                 )
                               : Container(
-                                  color: Colors.white.withValues(alpha: 0.3),
+                                  color: Colors.white.withOpacity( 0.3),
                                   child: Icon(
                                     Icons.person,
                                     color: Colors.white,
@@ -4814,7 +4855,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
       width: 80,
       padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white.withOpacity( 0.15),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -4833,7 +4874,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
+              color: Colors.white.withOpacity( 0.8),
               fontSize: 9,
             ),
             textAlign: TextAlign.center,
@@ -4862,13 +4903,13 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
             Icon(
               Icons.inbox,
               size: 64,
-              color: Colors.grey.withValues(alpha: 0.3),
+              color: Colors.grey.withOpacity( 0.3),
             ),
             SizedBox(height: 16),
             Text(
               'Aucun colis',
               style: TextStyle(
-                color: Colors.grey.withValues(alpha: 0.6),
+                color: Colors.grey.withOpacity( 0.6),
                 fontSize: 16,
               ),
             ),
@@ -4876,7 +4917,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
             Text(
               'Les colis apparaîtront ici',
               style: TextStyle(
-                color: Colors.grey.withValues(alpha: 0.5),
+                color: Colors.grey.withOpacity( 0.5),
                 fontSize: 13,
               ),
             ),
@@ -5143,7 +5184,7 @@ class _ParcelCardState extends State<_ParcelCard> {
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: _getStatusColor(parcel.status)
-                          .withValues(alpha: 0.15),
+                          .withOpacity( 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -5191,14 +5232,14 @@ class _ParcelCardState extends State<_ParcelCard> {
                 ],
               ),
               SizedBox(height: 10),
-              Divider(color: Colors.grey.withValues(alpha: 0.2)),
+              Divider(color: Colors.grey.withOpacity( 0.2)),
               SizedBox(height: 8),
               Row(
                 children: [
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: primaryBlue.withValues(alpha: 0.1),
+                      color: primaryBlue.withOpacity( 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -5215,7 +5256,7 @@ class _ParcelCardState extends State<_ParcelCard> {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
+                        color: Colors.red.withOpacity( 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(

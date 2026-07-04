@@ -496,7 +496,7 @@ class _EditAdvertisementScreenState
             const SizedBox(height: 20),
             _buildVoiceSection(),
             const SizedBox(height: 22),
-            FilledButton.icon(
+            ElevatedButton.icon(
               onPressed: _isSubmitting ? null : () => _submit(),
               icon: _isSubmitting
                   ? const SizedBox(
@@ -511,7 +511,7 @@ class _EditAdvertisementScreenState
               label: Text(
                 _isSubmitting ? 'Enregistrement...' : 'Enregistrer les modifications',
               ),
-              style: FilledButton.styleFrom(
+              style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(54),
               ),
             ),
@@ -535,7 +535,7 @@ class _EditAdvertisementScreenState
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+              color: Colors.white.withOpacity( 0.18),
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
@@ -959,7 +959,7 @@ class _Waveform extends StatelessWidget {
                 height: h,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.55),
+                  color: AppTheme.primary.withOpacity( 0.55),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ))

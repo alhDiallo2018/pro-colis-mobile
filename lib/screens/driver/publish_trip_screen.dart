@@ -662,7 +662,7 @@ class _PublishTripHero extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+              color: Colors.white.withOpacity( 0.18),
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: const Icon(
@@ -1025,7 +1025,7 @@ class _Waveform extends StatelessWidget {
               height: height,
               margin: const EdgeInsets.symmetric(horizontal: 2),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.55),
+                color: AppTheme.primary.withOpacity( 0.55),
                 borderRadius: BorderRadius.circular(999),
               ),
             ),

@@ -135,7 +135,7 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 80, color: Colors.grey.withValues(alpha: 0.3)),
+          Icon(Icons.people_outline, size: 80, color: Colors.grey.withOpacity( 0.3)),
           const SizedBox(height: 16),
           Text(
             'Aucun chauffeur',
@@ -158,7 +158,7 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
             'Contactez le super administrateur',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey.withValues(alpha: 0.6),
+              color: Colors.grey.withOpacity( 0.6),
             ),
           ),
           const SizedBox(height: 24),
@@ -239,13 +239,13 @@ class _DriverCard extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+        side: BorderSide(color: Colors.grey.withOpacity( 0.15)),
       ),
       child: ExpansionTile(
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: statusColor.withValues(alpha: 0.15),
+            color: statusColor.withOpacity( 0.15),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
@@ -274,7 +274,7 @@ class _DriverCard extends StatelessWidget {
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: statusColor.withValues(alpha: 0.15),
+            color: statusColor.withOpacity( 0.15),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -295,7 +295,7 @@ class _DriverCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: primaryBlue.withValues(alpha: 0.05),
+                    color: primaryBlue.withOpacity( 0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -367,9 +367,9 @@ class _DriverCard extends StatelessWidget {
                     margin: const EdgeInsets.only(top: 12),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.05),
+                      color: Colors.amber.withOpacity( 0.05),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+                      border: Border.all(color: Colors.amber.withOpacity( 0.2)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,

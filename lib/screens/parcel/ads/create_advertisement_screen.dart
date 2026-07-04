@@ -365,7 +365,7 @@ class _CreateAdvertisementScreenState
                   const SizedBox(height: 20),
                   _buildVoiceSection(),
                   const SizedBox(height: 22),
-                  FilledButton.icon(
+                  ElevatedButton.icon(
                     onPressed: _isSubmitting ? null : () => _submit(),
                     icon: _isSubmitting
                         ? const SizedBox(
@@ -380,7 +380,7 @@ class _CreateAdvertisementScreenState
                     label: Text(
                       _isSubmitting ? 'Publication...' : 'Publier l\'annonce',
                     ),
-                    style: FilledButton.styleFrom(
+                    style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(54),
                     ),
                   ),
@@ -404,7 +404,7 @@ class _CreateAdvertisementScreenState
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+              color: Colors.white.withOpacity( 0.18),
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: const Icon(Icons.campaign_rounded,
@@ -816,7 +816,7 @@ class _Waveform extends StatelessWidget {
                 height: h,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.55),
+                  color: AppTheme.primary.withOpacity( 0.55),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ))

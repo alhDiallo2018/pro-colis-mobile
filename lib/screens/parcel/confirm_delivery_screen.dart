@@ -354,7 +354,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
                 ),
               ),
               const SizedBox(height: 28),
-              FilledButton.icon(
+              ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
@@ -504,7 +504,7 @@ class _DeliveryProofScreenState extends State<DeliveryProofScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          FilledButton.icon(
+          ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
             icon: const Icon(Icons.check_rounded),
             label: const Text('Valider la preuve'),
@@ -577,9 +577,9 @@ class _Keypad extends StatelessWidget {
         final key = keys[index];
         if (key.isEmpty) return const SizedBox.shrink();
 
-        return FilledButton.tonal(
+        return ElevatedButton.tonal(
           onPressed: () => onKey(key),
-          style: FilledButton.styleFrom(
+          style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.cardColor,
             foregroundColor: AppTheme.textPrimary,
             shape: RoundedRectangleBorder(

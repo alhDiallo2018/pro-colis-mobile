@@ -50,6 +50,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
 
   bool _showPriceInput = false;
   final _priceController = TextEditingController();
+  String? _pendingNegotiateBidId;
 
   String? _currentlyPlayingAudioUrl;
   bool _isPlayingAudio = false;
@@ -58,7 +59,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   void initState() {
     super.initState();
     _loadConversations();
-    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (_activePeerId != null) _loadMessages();
       _loadConversations();
     });
@@ -142,6 +143,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       _activeParcel = null;
       _isLoading = true;
       _showPriceInput = false;
+      _pendingNegotiateBidId = null;
       _priceController.clear();
     });
     if (parcelId != null) {
@@ -187,6 +189,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         : '__PRIX__:${amount.toInt()}';
 
     setState(() => _isSending = true);
+
+    if (_pendingNegotiateBidId != null) {
+      await _apiService.negotiateBid(_pendingNegotiateBidId!, {
+        'price': amount.toInt(),
+        if (messageText.isNotEmpty) 'message': messageText,
+      });
+    }
+
     final data = <String, dynamic>{
       'receiverId': _activePeerId,
       'body': body,
@@ -198,6 +208,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     setState(() {
       _isSending = false;
       _showPriceInput = false;
+      _pendingNegotiateBidId = null;
     });
     await _loadMessages();
   }
@@ -271,13 +282,19 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     }
   }
 
-  Future<void> _acceptPrice(String bidId) async {
-    if (_activeParcelId == null) return;
+  Future<void> _acceptPrice(String bidId, double amount) async {
+    if (_activeParcelId == null || _activePeerId == null) return;
+    final nf = NumberFormat.decimalPattern('fr_FR');
     setState(() => _isLoading = true);
     try {
       final result = await _apiService.acceptBid(_activeParcelId!, bidId);
       if (result['success'] == true) {
         _showSnackBar('Prix accepté avec succès');
+        await _apiService.sendMessage({
+          'receiverId': _activePeerId,
+          'body': 'J\'accepte le prix de ${nf.format(amount)} FCFA.',
+          if (_activeParcelId != null) 'parcelId': _activeParcelId,
+        });
         await _loadMessages();
         await _loadParcelDetail();
       } else {
@@ -289,89 +306,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     setState(() => _isLoading = false);
   }
 
-  Future<void> _showCounterOfferDialog(String bidId, double currentAmount) async {
-    final counterPriceController = TextEditingController(text: currentAmount.toInt().toString());
-    final counterMessageController = TextEditingController();
-
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Contre-proposition',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: counterPriceController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Nouveau prix (FCFA)',
-                hintText: 'Ex: 5000',
-                filled: true,
-                fillColor: AppTheme.slate50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: counterMessageController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Message (optionnel)',
-                hintText: 'Votre message...',
-                filled: true,
-                fillColor: AppTheme.slate50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx, {
-                'price': counterPriceController.text.trim(),
-                'message': counterMessageController.text.trim(),
-              });
-            },
-            child: const Text('Envoyer'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && result['price'] != null) {
-      final newPrice = double.tryParse(result['price']);
-      if (newPrice != null && newPrice > 0) {
-        setState(() => _isLoading = true);
-        try {
-          final response = await _apiService.negotiateBid(bidId, {
-            'price': newPrice.toInt(),
-            if (result['message'] != null && (result['message'] as String).isNotEmpty)
-              'message': result['message'],
-          });
-          if (response['success'] == true) {
-            _showSnackBar('Contre-proposition envoyée');
-            await _loadMessages();
-          } else {
-            _showSnackBar(response['message']?.toString() ?? 'Erreur lors de la contre-proposition');
-          }
-        } catch (_) {
-          _showSnackBar('Erreur lors de la contre-proposition');
-        }
-        setState(() => _isLoading = false);
-      }
-    }
+  void _showCounterOfferInline(String bidId, double currentAmount) {
+    final nf = NumberFormat.decimalPattern('fr_FR');
+    setState(() {
+      _showPriceInput = true;
+      _priceController.clear();
+      _messageController.text = 'Contre-proposition à ${nf.format(currentAmount)} FCFA : ';
+      _pendingNegotiateBidId = bidId;
+    });
   }
 
   void _showParcelDetailSheet() {
@@ -869,6 +811,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     _messages = [];
                     _isRecording = false;
                     _showPriceInput = false;
+                    _pendingNegotiateBidId = null;
                     _currentlyPlayingAudioUrl = null;
                     _isPlayingAudio = false;
                   });
@@ -1002,37 +945,56 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
 
   Widget _buildParcelHeader() {
     final parcel = _activeParcel!;
+    final colors = AppTheme.statusColors(parcel.status);
     return GestureDetector(
       onTap: _showParcelDetailSheet,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: AppTheme.teal50,
-          border: const Border(bottom: BorderSide(color: AppTheme.teal100)),
+          color: AppTheme.slate50,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(color: AppTheme.slate200),
         ),
+        margin: const EdgeInsets.all(8),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.teal100,
+                color: colors.background,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.inventory_2,
-                  size: 18, color: AppTheme.primary),
+              child: Icon(Icons.inventory_2,
+                  size: 18, color: colors.foreground),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('#${parcel.trackingNumber}',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primary)),
-                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text('#${parcel.trackingNumber}',
+                          style: AppTheme.mono(
+                              fontSize: 12, color: AppTheme.teal600)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: colors.background,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(parcel.status.label,
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: colors.foreground)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     '${parcel.departureGarageName} → ${parcel.arrivalGarageName ?? "—"}',
                     style: TextStyle(
@@ -1196,10 +1158,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     final priceMessage =
         parts.length > 1 ? parts.sublist(1).join(':') : '';
     final amount = double.tryParse(amountStr);
-    final formatter = NumberFormat.currency(
-        locale: 'fr_FR', symbol: 'FCFA', decimalDigits: 0);
-    final formattedAmount =
-        amount != null ? formatter.format(amount) : amountStr;
+    final nf = NumberFormat.decimalPattern('fr_FR');
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -1209,63 +1168,60 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.82),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppTheme.amber50, AppTheme.green50],
+          color: AppTheme.amber50,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(14),
+            topRight: const Radius.circular(14),
+            bottomLeft: isMe ? const Radius.circular(14) : const Radius.circular(4),
+            bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(14),
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: AppTheme.green500.withAlpha(50), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.amber400.withAlpha(25),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: AppTheme.amber400.withAlpha(70)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.green100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.local_offer,
-                          size: 13, color: AppTheme.green700),
-                      const SizedBox(width: 4),
-                      const Text('Proposition de prix',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.green700)),
-                    ],
+                const Icon(Icons.payments, size: 18, color: AppTheme.amber700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isMe ? 'PRIX PROPOSÉ' : 'PROPOSITION DE PRIX',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.amber700,
+                        letterSpacing: 0.5),
                   ),
                 ),
-                const Spacer(),
                 if (msg['createdAt'] != null)
                   Text(
                     _formatTime(msg['createdAt'].toString()),
-                    style: TextStyle(
-                        fontSize: 11, color: AppTheme.slate400),
+                    style: TextStyle(fontSize: 10, color: AppTheme.amber500),
                   ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(formattedAmount,
-                style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.green700)),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  amount != null ? nf.format(amount) : amountStr,
+                  style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.amber700,
+                      letterSpacing: -0.5),
+                ),
+                const SizedBox(width: 4),
+                const Text('FCFA',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.amber700)),
+              ],
+            ),
             if (priceMessage.isNotEmpty) ...[
               const SizedBox(height: 8),
               Container(
@@ -1279,7 +1235,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                         fontSize: 13, color: AppTheme.textSecondary)),
               ),
             ],
-            // Action buttons for received price proposals
             if (!isMe && bidId != null && bidId.isNotEmpty) ...[
               const SizedBox(height: 12),
               Row(
@@ -1287,8 +1242,29 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                   Expanded(
                     child: SizedBox(
                       height: 38,
+                      child: OutlinedButton(
+                        onPressed: () =>
+                            _showCounterOfferInline(bidId, amount ?? 0),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.amber700,
+                          side: const BorderSide(
+                              color: AppTheme.amber400, width: 1.5),
+                          padding: EdgeInsets.zero,
+                          textStyle: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text('Contre-proposer'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 38,
                       child: ElevatedButton(
-                        onPressed: () => _acceptPrice(bidId),
+                        onPressed: () => _acceptPrice(bidId, amount ?? 0),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.green500,
                           foregroundColor: Colors.white,
@@ -1300,27 +1276,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                               borderRadius: BorderRadius.circular(10)),
                         ),
                         child: const Text('Accepter'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SizedBox(
-                      height: 38,
-                      child: OutlinedButton(
-                        onPressed: () =>
-                            _showCounterOfferDialog(bidId, amount ?? 0),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.amber700,
-                          side: const BorderSide(
-                              color: AppTheme.amber400, width: 1.5),
-                          padding: EdgeInsets.zero,
-                          textStyle: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w700),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: const Text('Contre-proposition'),
                       ),
                     ),
                   ),

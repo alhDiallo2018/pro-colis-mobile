@@ -229,7 +229,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: _NegotiateSheet(
             bid: bid,
@@ -345,7 +345,7 @@ class _LibreServiceHeader extends StatelessWidget {
               ),
             ),
           ),
-          IconButton.filledTonal(
+          IconButton(
             onPressed: onRefresh,
             icon: const Icon(Icons.tune_rounded),
             tooltip: 'Actualiser',
@@ -494,6 +494,18 @@ class _OfferCard extends StatelessWidget {
     required this.onAccept,
   });
 
+  Color get _cardBackground {
+    if (bid.isAccepted) return AppTheme.green50;
+    if (bid.isRejected) return AppTheme.red50;
+    return AppTheme.cardColor;
+  }
+
+  Color get _cardBorder {
+    if (bid.isAccepted) return AppTheme.green500;
+    if (bid.isRejected) return AppTheme.red400;
+    return selected ? AppTheme.primary : AppTheme.slate200;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPlaying = bid.audioUrl != null && playingAudioUrl == bid.audioUrl;
@@ -502,11 +514,11 @@ class _OfferCard extends StatelessWidget {
       duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: _cardBackground,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
-          color: selected ? AppTheme.primary : AppTheme.slate200,
-          width: selected ? 2 : 1,
+          color: _cardBorder,
+          width: selected || bid.isAccepted || bid.isRejected ? 2 : 1,
         ),
         boxShadow: AppTheme.softShadow(alpha: 0.045),
       ),
@@ -535,7 +547,7 @@ class _OfferCard extends StatelessWidget {
                     ),
                     Text(
                       '${_formatMoney(bid.price)} FCFA',
-                      style: GoogleFonts.robotoMono(
+                      style: AppTheme.mono(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.teal600,
@@ -571,12 +583,19 @@ class _OfferCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (selected)
+                    if (bid.isAccepted)
                       const _StatusPill(
                         text: 'Acceptée',
                         icon: Icons.check_rounded,
                         foreground: AppTheme.green700,
                         background: AppTheme.green50,
+                      )
+                    else if (bid.isRejected)
+                      const _StatusPill(
+                        text: 'Rejetée',
+                        icon: Icons.close_rounded,
+                        foreground: AppTheme.red500,
+                        background: AppTheme.red50,
                       )
                     else ...[
                       OutlinedButton(
@@ -594,11 +613,11 @@ class _OfferCard extends StatelessWidget {
                         child: const Text('Négocier'),
                       ),
                       const SizedBox(width: 8),
-                      FilledButton.icon(
+                      ElevatedButton.icon(
                         onPressed: isSubmitting ? null : onAccept,
                         icon: const Icon(Icons.check_rounded, size: 17),
                         label: const Text('Accepter'),
-                        style: FilledButton.styleFrom(
+                        style: ElevatedButton.styleFrom(
                           minimumSize: const Size(0, 36),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           backgroundColor: AppTheme.primary,
@@ -635,31 +654,47 @@ class _OfferMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final audioUrl = bid.audioUrl;
+    final hasMessage = bid.message?.trim().isNotEmpty == true;
+
     if (audioUrl != null && audioUrl.isNotEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        margin: const EdgeInsets.only(top: 4),
         decoration: BoxDecoration(
           color: AppTheme.slate100,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(AppTheme.radiusSm),
+            topRight: Radius.circular(AppTheme.radiusSm),
+            bottomRight: Radius.circular(AppTheme.radiusSm),
+            bottomLeft: Radius.circular(4),
+          ),
         ),
         child: Row(
           children: [
             GestureDetector(
               onTap: () => onPlayAudio(audioUrl),
-              child: Icon(
-                isPlaying
-                    ? Icons.pause_circle_filled_rounded
-                    : Icons.play_circle_fill_rounded,
-                size: 28,
-                color: AppTheme.primary,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(width: 8),
             const Expanded(child: _Waveform()),
             const SizedBox(width: 8),
             Text(
-              isPlaying ? '...' : '0:11',
-              style: GoogleFonts.robotoMono(
+              isPlaying ? 'En cours' : 'Message vocal',
+              style: const TextStyle(
                 fontSize: 11,
                 color: AppTheme.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -670,24 +705,30 @@ class _OfferMessage extends StatelessWidget {
       );
     }
 
+    if (!hasMessage) return const SizedBox.shrink();
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.only(top: 4),
+      decoration: const BoxDecoration(
         color: AppTheme.slate100,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(AppTheme.radiusSm),
+          topRight: Radius.circular(AppTheme.radiusSm),
+          bottomRight: Radius.circular(AppTheme.radiusSm),
+          bottomLeft: Radius.circular(4),
+        ),
       ),
       child: Text(
-        bid.message?.trim().isNotEmpty == true
-            ? '"${bid.message!.trim()}"'
-            : '"Disponible sur ce trajet, livraison possible rapidement."',
-        maxLines: 2,
+        bid.message!.trim(),
+        maxLines: 4,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 13,
-          height: 1.35,
+          height: 1.4,
           color: AppTheme.slate700,
-          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -760,7 +801,7 @@ class _NegotiateSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            FilledButton.icon(
+            ElevatedButton.icon(
               onPressed: onSubmit,
               icon: const Icon(Icons.send_rounded),
               label: const Text('Envoyer la contre-offre'),
@@ -826,7 +867,7 @@ class _EmptyLibreServiceState extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 22),
-              FilledButton.icon(
+              ElevatedButton.icon(
                 onPressed: onCreate,
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Ajouter un colis'),
@@ -1072,7 +1113,7 @@ class _Waveform extends StatelessWidget {
                 height: height,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.38),
+                  color: AppTheme.primary.withOpacity( 0.38),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),

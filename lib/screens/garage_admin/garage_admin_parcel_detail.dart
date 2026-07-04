@@ -138,7 +138,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+        side: BorderSide(color: Colors.grey.withOpacity( 0.15)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -150,7 +150,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: primaryBlue.withValues(alpha: 0.1),
+                    color: primaryBlue.withOpacity( 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(Icons.info, color: primaryBlue, size: 20),
@@ -197,9 +197,9 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
+                  color: Colors.red.withOpacity( 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                  border: Border.all(color: Colors.red.withOpacity( 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -233,7 +233,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+        side: BorderSide(color: Colors.grey.withOpacity( 0.15)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -245,7 +245,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
+                    color: statusColor.withOpacity( 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -273,19 +273,19 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    statusColor.withValues(alpha: 0.1),
-                    statusColor.withValues(alpha: 0.05),
+                    statusColor.withOpacity( 0.1),
+                    statusColor.withOpacity( 0.05),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                border: Border.all(color: statusColor.withOpacity( 0.2)),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.15),
+                      color: statusColor.withOpacity( 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -348,7 +348,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+        side: BorderSide(color: Colors.grey.withOpacity( 0.15)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -360,7 +360,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
+                    color: Colors.blue.withOpacity( 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(Icons.settings, color: Colors.blue, size: 20),
@@ -440,7 +440,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.green.withValues(alpha: 0.2)),
+        side: BorderSide(color: Colors.green.withOpacity( 0.2)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -452,7 +452,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
+                    color: Colors.green.withOpacity( 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(Icons.verified, color: Colors.green, size: 20),
@@ -481,7 +481,7 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.05),
+                  color: Colors.green.withOpacity( 0.05),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(

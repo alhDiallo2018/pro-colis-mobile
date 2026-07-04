@@ -220,7 +220,7 @@ class _GarageFormScreenState extends ConsumerState<GarageFormScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: primaryBlue.withValues(alpha: 0.3),
+                      color: primaryBlue.withOpacity( 0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 4),
                     ),
@@ -245,7 +245,7 @@ class _GarageFormScreenState extends ConsumerState<GarageFormScreen> {
                           ? 'Mettez à jour les informations du garage' 
                           : 'Ajoutez un nouveau garage à la plateforme',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: Colors.white.withOpacity( 0.8),
                         fontSize: 12,
                       ),
                       textAlign: TextAlign.center,
@@ -389,7 +389,7 @@ class _GarageFormScreenState extends ConsumerState<GarageFormScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -405,7 +405,7 @@ class _GarageFormScreenState extends ConsumerState<GarageFormScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity( 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, size: 20, color: color),

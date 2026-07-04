@@ -47,7 +47,7 @@ class CustomButton extends StatelessWidget {
             backgroundColor: effectiveBackground,
             foregroundColor: effectiveText,
             elevation: 0,
-            shadowColor: effectiveBackground.withValues(alpha: 0.24),
+            shadowColor: effectiveBackground.withOpacity( 0.24),
             disabledBackgroundColor: AppTheme.slate200,
             disabledForegroundColor: AppTheme.slate400,
             textStyle: Theme.of(context).textTheme.labelLarge,

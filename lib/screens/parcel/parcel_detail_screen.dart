@@ -30,6 +30,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   List<ParcelEvent> _events = [];
   bool _isLoading = true;
   bool _isUpdating = false;
+  String? _otpCode;
+  bool _isLoadingOtp = false;
 
   @override
   void initState() {
@@ -80,6 +82,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         _parcel = updatedParcel ?? _parcel;
         _events = results[1] as List<ParcelEvent>;
       });
+      _fetchOtp();
     } catch (error) {
       debugPrint('Erreur chargement détail colis: $error');
       if (mounted) {
@@ -89,6 +92,22 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _fetchOtp() async {
+    if (!_parcel.status.isInProgress) return;
+    setState(() => _isLoadingOtp = true);
+    try {
+      final code = await _apiService.getDeliveryCode(_parcel.id);
+      if (mounted) {
+        setState(() {
+          _otpCode = code.isNotEmpty ? code : null;
+          _isLoadingOtp = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingOtp = false);
     }
   }
 
@@ -295,13 +314,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               eta: _eta,
               price: _price,
             ),
-            if (_parcel.isUrgent) ...[
-              const SizedBox(height: 12),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: _ExpressTag(),
-              ),
-            ],
+            const SizedBox(height: 12),
+            _TagsRow(parcel: _parcel),
             const SizedBox(height: 16),
             _DriverCard(
               name: _driverName,
@@ -347,6 +361,10 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 ],
               ),
             ),
+            if (_parcel.status.isInProgress && _otpCode != null) ...[
+              const SizedBox(height: 18),
+              _DeliveryCodeCard(otp: _otpCode!, isLoading: _isLoadingOtp),
+            ],
             const SizedBox(height: 18),
             const ProcolisSectionHeader(title: 'Suivi'),
             ProcolisCard(
@@ -407,11 +425,11 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               const SizedBox(height: 12),
             ],
             if (_canConfirmDelivery) ...[
-              FilledButton.icon(
+              ElevatedButton.icon(
                 onPressed: _openConfirmDelivery,
                 icon: const Icon(Icons.lock_open_rounded),
                 label: const Text('Confirmer la livraison'),
-                style: FilledButton.styleFrom(
+                style: ElevatedButton.styleFrom(
                   minimumSize: const Size(0, 52),
                 ),
               ),
@@ -616,7 +634,7 @@ class _RouteLine extends StatelessWidget {
         children: [
           Container(
             height: 2,
-            color: Colors.white.withValues(alpha: 0.42),
+            color: Colors.white.withOpacity( 0.42),
           ),
           Positioned(
             left: 34,
@@ -677,7 +695,7 @@ class _HeroStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: Colors.white.withOpacity( 0.92),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -946,22 +964,22 @@ class _DesignTimeline extends StatelessWidget {
     // Fallback visuel calé sur le Stepper de la maquette quand l'API ne
     // renvoie pas encore d'événements de suivi pour le colis.
     final all = [
-      (ParcelStatus.pending, 'Colis créé', parcel.createdAt),
-      (ParcelStatus.confirmed, 'Chauffeur assigné', parcel.pickupDate),
-      (ParcelStatus.inTransit, 'En route vers la destination', null),
-      (ParcelStatus.delivered, 'Remis au destinataire', parcel.deliveryDate),
+      _StepInfo(ParcelStatus.pending, 'Colis créé', parcel.createdAt),
+      _StepInfo(ParcelStatus.confirmed, 'Chauffeur assigné', parcel.pickupDate),
+      _StepInfo(ParcelStatus.inTransit, 'En route vers la destination', null),
+      _StepInfo(ParcelStatus.delivered, 'Remis au destinataire', parcel.deliveryDate),
     ];
-    final currentIndex = all.indexWhere((item) => item.$1 == parcel.status);
+    final currentIndex = all.indexWhere((item) => item.status == parcel.status);
     final resolvedIndex = currentIndex < 0 ? 0 : currentIndex;
 
     return [
       for (var i = 0; i < all.length; i++)
         _TimelineStep(
-          title: all[i].$1.label,
-          subtitle: all[i].$2,
-          date: all[i].$3 == null ? '' : _formatEventDate(all[i].$3!),
+          title: all[i].status.label,
+          subtitle: all[i].label,
+          date: all[i].date == null ? '' : _formatEventDate(all[i].date!),
           done: i <= resolvedIndex,
-          color: all[i].$1.color,
+          color: all[i].status.color,
         ),
     ];
   }
@@ -1035,7 +1053,7 @@ class _TimelineTile extends StatelessWidget {
                 Container(
                   width: 2,
                   height: 48,
-                  color: color.withValues(alpha: 0.32),
+                  color: color.withOpacity( 0.32),
                 ),
             ],
           ),
@@ -1440,7 +1458,7 @@ class _ChatBubble extends StatelessWidget {
             Text(
               message.time,
               style: AppTheme.mono(
-                color: textColor.withValues(alpha: 0.62),
+                color: textColor.withOpacity( 0.62),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -1471,7 +1489,7 @@ class _AudioMessage extends StatelessWidget {
         Text(
           audioLen,
           style: AppTheme.mono(
-            color: color.withValues(alpha: 0.82),
+            color: color.withOpacity( 0.82),
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -1497,7 +1515,7 @@ class _MiniWaveform extends StatelessWidget {
               height: height,
               margin: const EdgeInsets.symmetric(horizontal: 1.5),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.72),
+                color: color.withOpacity( 0.72),
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -1654,4 +1672,170 @@ class _ComposerIconButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TagsRow extends StatelessWidget {
+  final Parcel parcel;
+
+  const _TagsRow({required this.parcel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        if (parcel.isUrgent)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.red50,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.flash_on_rounded, color: AppTheme.red500, size: 14),
+                SizedBox(width: 4),
+                Text(
+                  'Express >>',
+                  style: TextStyle(
+                    color: AppTheme.red500,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (parcel.isInsured)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.green50,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.shield_rounded, color: AppTheme.green700, size: 14),
+                SizedBox(width: 4),
+                Text(
+                  'Assuré',
+                  style: TextStyle(
+                    color: AppTheme.green700,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppTheme.teal50,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(parcel.type.icon, color: AppTheme.teal600, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                parcel.type.label,
+                style: const TextStyle(
+                  color: AppTheme.teal700,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeliveryCodeCard extends StatelessWidget {
+  final String otp;
+  final bool isLoading;
+
+  const _DeliveryCodeCard({
+    required this.otp,
+    required this.isLoading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ProcolisCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryLight,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+            child: const Icon(
+              Icons.vpn_key_rounded,
+              color: AppTheme.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Code de livraison',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        otp,
+                        style: AppTheme.mono(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Communiquez ce code au livreur pour confirmer la réception',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepInfo {
+  final ParcelStatus status;
+  final String label;
+  final DateTime? date;
+  const _StepInfo(this.status, this.label, this.date);
 }

@@ -74,11 +74,11 @@ class CustomTextField extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
         hintStyle: TextStyle(
-          color: AppTheme.textSecondary.withValues(alpha: 0.5),
+          color: AppTheme.textSecondary.withOpacity( 0.5),
           fontSize: 14,
         ),
         helperStyle: TextStyle(
-          color: AppTheme.textSecondary.withValues(alpha: 0.7),
+          color: AppTheme.textSecondary.withOpacity( 0.7),
           fontSize: 12,
         ),
         prefixIcon: prefixIcon != null

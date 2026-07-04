@@ -79,7 +79,7 @@ class AppTheme {
 
   static List<BoxShadow> softShadow({double alpha = 0.08}) => [
         BoxShadow(
-          color: const Color(0xFF0B464F).withValues(alpha: alpha),
+          color: const Color(0xFF0B464F).withOpacity( alpha),
           blurRadius: 16,
           offset: const Offset(0, 6),
         ),
@@ -87,7 +87,7 @@ class AppTheme {
 
   static List<BoxShadow> brandShadow() => [
         BoxShadow(
-          color: primary.withValues(alpha: 0.28),
+          color: primary.withOpacity( 0.28),
           blurRadius: 22,
           offset: const Offset(0, 8),
         ),

@@ -60,7 +60,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0B6E3A).withValues(alpha: 0.3),
+              color: const Color(0xFF0B6E3A).withOpacity( 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

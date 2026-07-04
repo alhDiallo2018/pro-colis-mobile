@@ -284,7 +284,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withOpacity( 0.04),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -296,7 +296,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: errorColor.withValues(alpha: 0.1),
+                color: errorColor.withOpacity( 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -351,7 +351,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withOpacity( 0.04),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -404,7 +404,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -439,7 +439,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: successColor.withValues(alpha: 0.1),
+                color: successColor.withOpacity( 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -454,7 +454,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
             '${garage.parcelsCount} colis',
             style: const TextStyle(fontSize: 12, color: warningColor),
           ),
-          backgroundColor: warningColor.withValues(alpha: 0.1),
+          backgroundColor: warningColor.withOpacity( 0.1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),

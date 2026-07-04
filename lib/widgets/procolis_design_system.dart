@@ -222,7 +222,7 @@ class ProcolisTabBar extends StatelessWidget {
           border: const Border(top: BorderSide(color: AppTheme.slate200)),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0B464F).withValues(alpha: 0.05),
+              color: const Color(0xFF0B464F).withOpacity( 0.05),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),

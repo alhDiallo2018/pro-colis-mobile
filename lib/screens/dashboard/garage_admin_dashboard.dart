@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
 import 'package:procolis/screens/profile/profile_screen.dart';
 import 'package:procolis/widgets/app_logo.dart';
@@ -232,7 +233,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withOpacity( 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.business, color: Colors.white, size: 28),
@@ -256,7 +257,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                         Text(
                           'Gérez votre garage et vos livraisons',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Colors.white.withOpacity( 0.8),
                             fontSize: 12,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -268,7 +269,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withOpacity( 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -312,30 +313,74 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
   Widget _buildStatsGrid() {
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Row(
+      child: Column(
         children: [
-          _StatCard(
-            title: 'En attente',
-            value: _pendingCount,
-            icon: Icons.pending_actions,
-            color: Colors.orange,
-            onTap: () => _tabController.animateTo(0),
+          Row(
+            children: [
+              _StatCard(
+                title: 'Colis en attente',
+                value: _pendingCount,
+                icon: Icons.pending_actions,
+                color: Colors.orange,
+                onTap: () => _tabController.animateTo(0),
+              ),
+              const SizedBox(width: 12),
+              _StatCard(
+                title: 'Colis en transit',
+                value: _inProgressCount,
+                icon: Icons.local_shipping,
+                color: const Color(0xFF018982),
+                onTap: () => _tabController.animateTo(2),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          _StatCard(
-            title: 'En cours',
-            value: _inProgressCount,
-            icon: Icons.local_shipping,
-            color: Colors.blue,
-            onTap: () => _tabController.animateTo(2),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _StatCard(
+                title: 'Colis livrés',
+                value: _completedCount,
+                icon: Icons.check_circle,
+                color: Colors.green,
+                onTap: () => _tabController.animateTo(3),
+              ),
+              const SizedBox(width: 12),
+              _StatCard(
+                title: 'Chauffeurs dispo.',
+                value: _availableDriversCount,
+                icon: Icons.person,
+                color: primaryBlue,
+                onTap: () => _tabController.animateTo(1),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          _StatCard(
-            title: 'Livrés',
-            value: _completedCount,
-            icon: Icons.check_circle,
-            color: Colors.green,
-            onTap: () => _tabController.animateTo(3),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.assignment,
+                  label: 'Assignations',
+                  color: primaryBlue,
+                  badge: _pendingCount > 0 ? _pendingCount.toString() : null,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const GarageAssignationsScreen(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.bar_chart,
+                  label: 'Voir les rapports',
+                  color: const Color(0xFF018982),
+                  onTap: () => context.push('/garage/rapports'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -368,7 +413,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity( 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -432,17 +477,17 @@ class _StatCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.05)],
+                colors: [color.withOpacity( 0.15), color.withOpacity( 0.05)],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: color.withValues(alpha: 0.3)),
+              border: Border.all(color: color.withOpacity( 0.3)),
             ),
             child: Column(
               children: [
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.2),
+                    color: color.withOpacity( 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: color, size: 20),
@@ -466,6 +511,82 @@ class _StatCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== QUICK ACTION CARD ====================
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final String? badge;
+  final VoidCallback onTap;
+  const _QuickActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.badge,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity( 0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity( 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A2332),
+                  ),
+                ),
+              ),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    badge!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                )
+              else
+                Icon(Icons.chevron_right, color: color, size: 20),
+            ],
           ),
         ),
       ),
@@ -597,7 +718,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox, size: 64, color: Colors.grey.withValues(alpha: 0.3)),
+            Icon(Icons.inbox, size: 64, color: Colors.grey.withOpacity( 0.3)),
             const SizedBox(height: 16),
             Text(
               'Aucun colis en attente',
@@ -612,7 +733,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
               'Les nouveaux colis apparaîtront ici',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.withValues(alpha: 0.6),
+                color: Colors.grey.withOpacity( 0.6),
               ),
             ),
           ],
@@ -638,7 +759,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
             margin: const EdgeInsets.only(bottom: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+              side: BorderSide(color: Colors.grey.withOpacity( 0.2)),
             ),
             elevation: 2,
             child: InkWell(
@@ -658,7 +779,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: primaryBlue.withValues(alpha: 0.1),
+                            color: primaryBlue.withOpacity( 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(Icons.inventory, size: 18, color: primaryBlue),
@@ -694,7 +815,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: (isConfirmed ? Colors.blue : Colors.orange).withValues(alpha: 0.15),
+                            color: (isConfirmed ? Colors.blue : Colors.orange).withOpacity( 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -728,7 +849,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.1),
+                          color: Colors.green.withOpacity( 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
@@ -863,7 +984,7 @@ class _InfoChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
     decoration: BoxDecoration(
-      color: Colors.grey.withValues(alpha: 0.1),
+      color: Colors.grey.withOpacity( 0.1),
       borderRadius: BorderRadius.circular(8),
     ),
     child: Row(
@@ -893,10 +1014,7 @@ class _DriversTab extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          driver.fullName,
-          style: TextStyle(color: Color(0xFF1A2332)),
-        ),
+        title: Text(driver.fullName, style: TextStyle(color: Color(0xFF1A2332))),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -943,7 +1061,7 @@ class _DriversTab extends StatelessWidget {
           ElevatedButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const ProfileScreen())
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryBlue,
@@ -956,6 +1074,32 @@ class _DriversTab extends StatelessWidget {
     );
   }
 
+  Color _statusColor(DriverStatus? status) {
+    switch (status) {
+      case DriverStatus.available:
+        return Colors.green;
+      case DriverStatus.busy:
+        return Colors.orange;
+      case DriverStatus.offline:
+        return Colors.grey;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _statusLabel(DriverStatus? status) {
+    switch (status) {
+      case DriverStatus.available:
+        return 'Disponible';
+      case DriverStatus.busy:
+        return 'Occupé';
+      case DriverStatus.offline:
+        return 'Hors ligne';
+      default:
+        return 'Inconnu';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (drivers.isEmpty) {
@@ -963,23 +1107,16 @@ class _DriversTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey.withValues(alpha: 0.3)),
+            Icon(Icons.people_outline, size: 64, color: Colors.grey.withOpacity( 0.3)),
             const SizedBox(height: 16),
             Text(
               'Aucun chauffeur',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1A2332),
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF1A2332)),
             ),
             const SizedBox(height: 8),
             Text(
               'Ajoutez des chauffeurs depuis le profil',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.withValues(alpha: 0.6),
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey.withOpacity( 0.6)),
             ),
           ],
         ),
@@ -994,83 +1131,147 @@ class _DriversTab extends StatelessWidget {
         itemCount: drivers.length,
         itemBuilder: (context, index) {
           final driver = drivers[index];
-          final isAvailable = driver.driverStatus == DriverStatus.available;
+          final statusColor = _statusColor(driver.driverStatus);
+          final statusLabel = _statusLabel(driver.driverStatus);
+          final initials = driver.fullName
+              .split(' ')
+              .take(2)
+              .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
+              .join();
+
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+              side: BorderSide(color: Colors.grey.withOpacity( 0.2)),
             ),
             elevation: 2,
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(12),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: (isAvailable ? Colors.green : Colors.grey).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.person,
-                  color: isAvailable ? Colors.green : Colors.grey,
-                ),
-              ),
-              title: Text(
-                driver.fullName,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: Color(0xFF1A2332),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(
-                    driver.phone,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                  Text(
-                    driver.email,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: (isAvailable ? Colors.green : Colors.orange).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
+            child: InkWell(
+              onTap: () => _showDriverDetails(context, driver),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: statusColor.withOpacity( 0.15),
+                          child: Text(
+                            initials,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            driver.fullName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Color(0xFF1A2332),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            driver.phone,
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              ...List.generate(5, (i) {
+                                final stars = driver.rating ?? 0;
+                                return Icon(
+                                  i < stars.floor() ? Icons.star : Icons.star_border,
+                                  size: 14,
+                                  color: Colors.amber,
+                                );
+                              }),
+                              const SizedBox(width: 4),
+                              Text(
+                                driver.formattedRating,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(Icons.local_shipping, size: 12, color: Colors.grey[500]),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${driver.completedDeliveries ?? 0}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                     Container(
-                      width: 6,
-                      height: 6,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isAvailable ? Colors.green : Colors.orange,
-                        shape: BoxShape.circle,
+                        color: statusColor.withOpacity( 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            statusLabel,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      driver.driverStatus?.label ?? 'Disponible',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: isAvailable ? Colors.green : Colors.orange,
-                      ),
-                    ),
+                    Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
                   ],
                 ),
               ),
-              onTap: () => _showDriverDetails(context, driver),
             ),
           );
         },
@@ -1100,7 +1301,7 @@ class _InProgressTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_shipping, size: 64, color: Colors.grey.withValues(alpha: 0.3)),
+            Icon(Icons.local_shipping, size: 64, color: Colors.grey.withOpacity( 0.3)),
             const SizedBox(height: 16),
             Text(
               'Aucun colis en cours',
@@ -1127,14 +1328,14 @@ class _InProgressTab extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+              side: BorderSide(color: Colors.grey.withOpacity( 0.2)),
             ),
             elevation: 2,
             child: ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: parcel.status.color.withValues(alpha: 0.15),
+                  color: parcel.status.color.withOpacity( 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(Icons.local_shipping, color: parcel.status.color),
@@ -1165,7 +1366,7 @@ class _InProgressTab extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: parcel.status.color.withValues(alpha: 0.15),
+                      color: parcel.status.color.withOpacity( 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -1269,7 +1470,7 @@ class _HistoryTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.history, size: 64, color: Colors.grey.withValues(alpha: 0.3)),
+            Icon(Icons.history, size: 64, color: Colors.grey.withOpacity( 0.3)),
             const SizedBox(height: 16),
             Text(
               'Aucun historique',
@@ -1297,14 +1498,14 @@ class _HistoryTab extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+              side: BorderSide(color: Colors.grey.withOpacity( 0.2)),
             ),
             elevation: 2,
             child: ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (isDelivered ? Colors.green : Colors.red).withValues(alpha: 0.15),
+                  color: (isDelivered ? Colors.green : Colors.red).withOpacity( 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -1332,7 +1533,7 @@ class _HistoryTab extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: parcel.status.color.withValues(alpha: 0.15),
+                      color: parcel.status.color.withOpacity( 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(

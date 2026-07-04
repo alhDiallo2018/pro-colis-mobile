@@ -121,7 +121,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withOpacity( 0.04),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -174,7 +174,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -274,10 +274,10 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(driver.status).withValues(alpha: 0.1),
+                    color: _getStatusColor(driver.status).withOpacity( 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: _getStatusColor(driver.status).withValues(alpha: 0.2),
+                      color: _getStatusColor(driver.status).withOpacity( 0.2),
                     ),
                   ),
                   child: Text(
@@ -379,10 +379,10 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _getStatusColor(driver.status).withValues(alpha: 0.1),
+                              color: _getStatusColor(driver.status).withOpacity( 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _getStatusColor(driver.status).withValues(alpha: 0.2),
+                                color: _getStatusColor(driver.status).withOpacity( 0.2),
                               ),
                             ),
                             child: Text(
@@ -490,7 +490,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: primaryBlue.withValues(alpha: 0.1),
+              color: primaryBlue.withOpacity( 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(

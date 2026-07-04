@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/segmented_control.dart';
 
 class DriverParametresScreen extends ConsumerStatefulWidget {
   const DriverParametresScreen({super.key});
@@ -20,6 +21,8 @@ class _DriverParametresScreenState
     extends ConsumerState<DriverParametresScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
+  int _availabilityIndex = 0;
+  bool _isUpdatingAvailability = false;
 
   // Vehicle fields
   final _plateController = TextEditingController();
@@ -100,6 +103,21 @@ class _DriverParametresScreenState
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _updateAvailability(int index) async {
+    setState(() {
+      _availabilityIndex = index;
+      _isUpdatingAvailability = true;
+    });
+    try {
+      final statuses = ['available', 'busy', 'offline'];
+      await _apiService.updateDriverStatus(statuses[index]);
+    } catch (e) {
+      debugPrint('Erreur mise à jour disponibilité: $e');
+    } finally {
+      if (mounted) setState(() => _isUpdatingAvailability = false);
     }
   }
 
@@ -197,6 +215,37 @@ class _DriverParametresScreenState
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Availability section
+                _sectionHeader('Disponibilité', Icons.toggle_on),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: _cardDecoration(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SegmentedControl(
+                        options: const [
+                          'Disponible',
+                          'Occupé',
+                          'Hors ligne'
+                        ],
+                        selectedIndex: _availabilityIndex,
+                        onChanged: (index) {
+                          if (!_isUpdatingAvailability) {
+                            _updateAvailability(index);
+                          }
+                        },
+                      ),
+                      if (_isUpdatingAvailability) ...[
+                        const SizedBox(height: 12),
+                        const LinearProgressIndicator(minHeight: 2),
+                      ],
                     ],
                   ),
                 ),

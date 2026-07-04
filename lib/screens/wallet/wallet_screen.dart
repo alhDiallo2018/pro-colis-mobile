@@ -30,7 +30,7 @@ class WalletScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.amber500.withValues(alpha: 0.24),
+                  color: AppTheme.amber500.withOpacity( 0.24),
                   blurRadius: 22,
                   offset: const Offset(0, 8),
                 ),
@@ -92,14 +92,14 @@ class WalletScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
+                child: ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const TopUpScreen()),
                   ),
                   icon: const Icon(Icons.add_card_rounded),
                   label: const Text('Recharger'),
-                  style: FilledButton.styleFrom(
+                  style: ElevatedButton.styleFrom(
                     minimumSize: const Size(0, 52),
                   ),
                 ),
@@ -273,11 +273,11 @@ class _TopUpScreenState extends State<TopUpScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          FilledButton.icon(
+          ElevatedButton.icon(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.lock_rounded),
             label: const Text('Payer maintenant'),
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+            style: ElevatedButton.styleFrom(minimumSize: const Size(0, 52)),
           ),
         ],
       ),

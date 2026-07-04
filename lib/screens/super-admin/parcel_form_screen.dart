@@ -467,7 +467,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
             child: Container(
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Colors.black.withOpacity( 0.7),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, size: 16, color: Colors.white),
@@ -501,7 +501,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
             child: Container(
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Colors.black.withOpacity( 0.7),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, size: 16, color: Colors.white),
@@ -534,7 +534,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
+                          color: Colors.black.withOpacity( 0.6),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -565,7 +565,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
             child: Container(
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Colors.black.withOpacity( 0.7),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, size: 16, color: Colors.white),
@@ -590,7 +590,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -606,7 +606,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity( 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, size: 20, color: color),
@@ -926,7 +926,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
+                              color: Colors.black.withOpacity( 0.04),
                               blurRadius: 12,
                               offset: const Offset(0, 2),
                             ),
@@ -942,7 +942,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: primaryBlue.withValues(alpha: 0.1),
+                                      color: primaryBlue.withOpacity( 0.1),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Icon(Icons.numbers, size: 20, color: primaryBlue),

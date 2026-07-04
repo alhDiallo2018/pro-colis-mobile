@@ -231,19 +231,19 @@ class _PhoneContactPickerState extends State<PhoneContactPicker> {
               decoration: InputDecoration(
                 hintText: 'Rechercher un contact...',
                 hintStyle: TextStyle(
-                  color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                  color: AppTheme.textSecondary.withOpacity( 0.7),
                 ),
                 prefixIcon: Icon(Icons.search, color: AppTheme.primaryBlue),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                    color: AppTheme.primaryBlue.withOpacity( 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                    color: AppTheme.primaryBlue.withOpacity( 0.2),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -281,7 +281,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker> {
               color: AppTheme.cardColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.textSecondary.withValues(alpha: 0.1),
+                color: AppTheme.textSecondary.withOpacity( 0.1),
               ),
             ),
             child: Column(
@@ -306,7 +306,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker> {
                 Text(
                   'Cela peut prendre quelques secondes',
                   style: TextStyle(
-                    color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                    color: AppTheme.textSecondary.withOpacity( 0.7),
                     fontSize: 12,
                   ),
                 ),
@@ -321,7 +321,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker> {
               color: AppTheme.cardColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.textSecondary.withValues(alpha: 0.1),
+                color: AppTheme.textSecondary.withOpacity( 0.1),
               ),
             ),
             constraints: BoxConstraints(
@@ -338,7 +338,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker> {
                           Icon(
                             Icons.contacts_outlined,
                             size: 48,
-                            color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                            color: AppTheme.textSecondary.withOpacity( 0.3),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -387,7 +387,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker> {
                         leading: CircleAvatar(
                           backgroundColor: isSelected
                               ? AppTheme.primaryBlue
-                              : AppTheme.primaryBlue.withValues(alpha: 0.1),
+                              : AppTheme.primaryBlue.withOpacity( 0.1),
                           child: Text(
                             initials,
                             style: TextStyle(
@@ -442,7 +442,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker> {
                                 }
                               },
                         tileColor: isSelected
-                            ? AppTheme.primaryBlue.withValues(alpha: 0.05)
+                            ? AppTheme.primaryBlue.withOpacity( 0.05)
                             : null,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -461,7 +461,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker> {
               color: AppTheme.cardColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.warningColor.withValues(alpha: 0.3),
+                color: AppTheme.warningColor.withOpacity( 0.3),
               ),
             ),
             child: Column(

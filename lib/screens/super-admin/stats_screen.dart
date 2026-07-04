@@ -237,7 +237,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
+                                color: Colors.black.withOpacity( 0.04),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -271,7 +271,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
+                                color: Colors.black.withOpacity( 0.04),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -310,7 +310,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                                         leading: Container(
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
-                                            color: (activity['color'] as Color).withValues(alpha: 0.1),
+                                            color: (activity['color'] as Color).withOpacity( 0.1),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: Icon(
@@ -364,7 +364,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withOpacity( 0.04),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -376,7 +376,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: errorColor.withValues(alpha: 0.1),
+                color: errorColor.withOpacity( 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -535,10 +535,10 @@ class _StatsCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
+          color: color.withOpacity( 0.08),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: color.withValues(alpha: 0.15),
+            color: color.withOpacity( 0.15),
             width: 1,
           ),
         ),
@@ -548,7 +548,7 @@ class _StatsCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
+                color: color.withOpacity( 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 22),

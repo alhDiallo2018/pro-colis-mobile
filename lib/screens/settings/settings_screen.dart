@@ -127,7 +127,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Annuler'),
           ),
-          FilledButton(
+          ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
 

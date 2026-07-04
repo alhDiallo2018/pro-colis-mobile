@@ -405,13 +405,13 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+            color: AppTheme.primaryBlue.withOpacity( 0.3),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+            color: AppTheme.primaryBlue.withOpacity( 0.2),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -673,18 +673,18 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                 TextField(
                   decoration: InputDecoration(
                     hintText: 'Rechercher un utilisateur...',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
+                    hintStyle: TextStyle(color: AppTheme.textSecondary.withOpacity( 0.7)),
                     prefixIcon: Icon(Icons.search, color: AppTheme.primaryBlue),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                        color: AppTheme.primaryBlue.withOpacity( 0.3),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                        color: AppTheme.primaryBlue.withOpacity( 0.2),
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
@@ -769,7 +769,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                             Icon(
                               Icons.people_outline,
                               size: 64,
-                              color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                              color: AppTheme.textSecondary.withOpacity( 0.3),
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -801,14 +801,14 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                               side: BorderSide(
-                                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                                color: AppTheme.primaryBlue.withOpacity( 0.1),
                                 width: 1,
                               ),
                             ),
                             elevation: 2,
                             child: ExpansionTile(
                               leading: CircleAvatar(
-                                backgroundColor: user.role.color.withValues(alpha: 0.15),
+                                backgroundColor: user.role.color.withOpacity( 0.15),
                                 child: Icon(user.role.icon, color: user.role.color, size: 20),
                               ),
                               title: Text(
@@ -852,7 +852,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: user.role.color.withValues(alpha: 0.1),
+                                          color: user.role.color.withOpacity( 0.1),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
@@ -954,7 +954,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                                                 style: TextStyle(color: AppTheme.textSecondary),
                                               ),
                                               style: OutlinedButton.styleFrom(
-                                                side: BorderSide(color: AppTheme.textSecondary.withValues(alpha: 0.3)),
+                                                side: BorderSide(color: AppTheme.textSecondary.withOpacity( 0.3)),
                                                 shape: RoundedRectangleBorder(
                                                   borderRadius: BorderRadius.circular(12),
                                                 ),
@@ -1015,7 +1015,7 @@ class _FilterChip extends StatelessWidget {
         side: BorderSide(
           color: selected 
               ? (color ?? AppTheme.primaryBlue) 
-              : AppTheme.textSecondary.withValues(alpha: 0.2),
+              : AppTheme.textSecondary.withOpacity( 0.2),
           width: 1,
         ),
       ),

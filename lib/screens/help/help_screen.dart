@@ -129,7 +129,7 @@ class _HelpScreenState extends State<HelpScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: AppTheme.cardColor.withValues(alpha: 0.78),
+                    color: AppTheme.cardColor.withOpacity( 0.78),
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   ),
                   child: const Icon(
@@ -163,11 +163,11 @@ class _HelpScreenState extends State<HelpScreen> {
                     ],
                   ),
                 ),
-                FilledButton.icon(
+                ElevatedButton.icon(
                   onPressed: () => _showContactSheet(context),
                   icon: const Icon(Icons.chat_rounded, size: 17),
                   label: const Text('Contacter'),
-                  style: FilledButton.styleFrom(
+                  style: ElevatedButton.styleFrom(
                     minimumSize: const Size(0, 38),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),

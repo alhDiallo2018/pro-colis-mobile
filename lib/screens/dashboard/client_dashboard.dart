@@ -107,10 +107,31 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
                 MaterialPageRoute(builder: (_) => const MessagesScreen())),
           ),
           IconButton(
-            icon: Badge(
-              label: Text('$_unreadNotificationsCount', style: const TextStyle(fontSize: 10)),
-              isLabelVisible: _unreadNotificationsCount > 0,
-              child: const Icon(Icons.notifications_outlined),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_outlined),
+                if (_unreadNotificationsCount > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppTheme.red400,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _unreadNotificationsCount > 9 ? '9+' : '$_unreadNotificationsCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             onPressed: _onNotificationsTap,
           ),
@@ -290,6 +311,56 @@ class _MesColisTab extends StatefulWidget {
 
 class _MesColisTabState extends State<_MesColisTab> {
   String _tab = 'cours';
+  String _searchQuery = '';
+  String _selectedSort = 'recent';
+  String _selectedTypeFilter = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  static const Map<String, String> _sortLabels = {
+    'recent': 'Plus récents',
+    'old': 'Plus anciens',
+    'price_desc': 'Prix décroissant',
+    'price_asc': 'Prix croissant',
+  };
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Parcel> _applyFilters(List<Parcel> parcels) {
+    final query = _searchQuery.trim().toLowerCase();
+
+    var filtered = _selectedTypeFilter.isEmpty
+        ? parcels
+        : parcels.where((p) => p.type.value == _selectedTypeFilter).toList();
+
+    if (query.isNotEmpty) {
+      filtered = filtered.where((p) {
+        return p.trackingNumber.toLowerCase().contains(query) ||
+            (p.arrivalGarageName?.toLowerCase().contains(query) ?? false) ||
+            p.departureGarageName.toLowerCase().contains(query) ||
+            p.receiverName.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    switch (_selectedSort) {
+      case 'old':
+        filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case 'price_desc':
+        filtered.sort((a, b) => ((b.price ?? 0)).compareTo(a.price ?? 0));
+        break;
+      case 'price_asc':
+        filtered.sort((a, b) => ((a.price ?? 0)).compareTo(b.price ?? 0));
+        break;
+      default:
+        filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+
+    return filtered;
+  }
 
   List<Parcel> get _inProgressParcels => widget.parcelState.parcels
       .where(
@@ -313,14 +384,113 @@ class _MesColisTabState extends State<_MesColisTab> {
       .toList();
 
   List<Parcel> get _visibleParcels {
-    switch (_tab) {
-      case 'livres':
-        return _deliveredParcels;
-      case 'annules':
-        return _cancelledParcels;
-      default:
-        return _inProgressParcels;
-    }
+    final base = switch (_tab) {
+      'livres' => _deliveredParcels,
+      'annules' => _cancelledParcels,
+      _ => _inProgressParcels,
+    };
+    return _applyFilters(base);
+  }
+
+  Widget _buildTypeChip(String value, String label) {
+    final selected = _selectedTypeFilter == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTypeFilter = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.primary : AppTheme.slate100,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : AppTheme.slate500,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortSelector() {
+    return GestureDetector(
+      onTap: _showSortSheet,
+      child: Row(
+        children: [
+          const Text(
+            'Trier par',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _sortLabels[_selectedSort]!,
+            style: const TextStyle(
+              color: AppTheme.primary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const Spacer(),
+          const Icon(Icons.unfold_more_rounded, size: 16, color: AppTheme.slate400),
+        ],
+      ),
+    );
+  }
+
+  void _showSortSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.slate300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Trier par',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ..._sortLabels.entries.map((entry) {
+                  final selected = _selectedSort == entry.key;
+                  return ListTile(
+                    title: Text(entry.value),
+                    trailing: selected
+                        ? const Icon(Icons.check_rounded, color: AppTheme.primary)
+                        : null,
+                    onTap: () {
+                      setState(() => _selectedSort = entry.key);
+                      Navigator.pop(context);
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -378,7 +548,83 @@ class _MesColisTabState extends State<_MesColisTab> {
             },
             onChanged: (value) => setState(() => _tab = value),
           ),
-        ),
+          ),
+        if (widget.parcelState.parcels.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            decoration: const BoxDecoration(
+              color: AppTheme.cardColor,
+              border: Border(bottom: BorderSide(color: AppTheme.slate200)),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildTypeChip('', 'Tous'),
+                  const SizedBox(width: 8),
+                  _buildTypeChip('document', 'Documents'),
+                  const SizedBox(width: 8),
+                  _buildTypeChip('package', 'Colis standard'),
+                  const SizedBox(width: 8),
+                  _buildTypeChip('fragile', 'Fragiles'),
+                  const SizedBox(width: 8),
+                  _buildTypeChip('perishable', 'Périssables'),
+                  const SizedBox(width: 8),
+                  _buildTypeChip('valuable', 'Précieux'),
+                ],
+              ),
+            ),
+          ),
+        if (widget.parcelState.parcels.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            decoration: const BoxDecoration(
+              color: AppTheme.cardColor,
+              border: Border(bottom: BorderSide(color: AppTheme.slate200)),
+            ),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher un colis...',
+                    hintStyle: const TextStyle(fontSize: 14, color: AppTheme.slate400),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: AppTheme.slate50,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                    ),
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 10),
+                _buildSortSelector(),
+              ],
+            ),
+          ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async => widget.onRefresh(),
@@ -440,9 +686,9 @@ class _MesColisSegmentedTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('cours', 'En cours'),
-      ('livres', 'Livrés'),
-      ('annules', 'Annulés'),
+      const _StatusTab('cours', 'En cours'),
+      const _StatusTab('livres', 'Livrés'),
+      const _StatusTab('annules', 'Annulés'),
     ];
 
     return Container(
@@ -454,7 +700,7 @@ class _MesColisSegmentedTabs extends StatelessWidget {
       ),
       child: Row(
         children: items.map((item) {
-          final selected = value == item.$1;
+          final selected = value == item.key;
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -462,7 +708,7 @@ class _MesColisSegmentedTabs extends StatelessWidget {
                 color: selected ? AppTheme.cardColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 child: InkWell(
-                  onTap: () => onChanged(item.$1),
+                  onTap: () => onChanged(item.key),
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                   child: Container(
                     alignment: Alignment.center,
@@ -476,7 +722,7 @@ class _MesColisSegmentedTabs extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            item.$2,
+                            item.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -501,7 +747,7 @@ class _MesColisSegmentedTabs extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            '${counts[item.$1] ?? 0}',
+                            '${counts[item.key] ?? 0}',
                             style: TextStyle(
                               color: selected
                                   ? AppTheme.primary
@@ -1052,7 +1298,7 @@ class _ClientHomeHero extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundColor: Colors.white.withValues(alpha: 0.18),
+                        backgroundColor: Colors.white.withOpacity( 0.18),
                         child: Text(
                           user.initials,
                           style: const TextStyle(
@@ -1150,7 +1396,7 @@ class _ClientPointsCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: inverse
-                ? Colors.white.withValues(alpha: 0.14)
+                ? Colors.white.withOpacity( 0.14)
                 : AppTheme.cardColor,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: inverse ? null : Border.all(color: AppTheme.slate200),
@@ -1163,7 +1409,7 @@ class _ClientPointsCard extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: inverse
-                      ? Colors.white.withValues(alpha: 0.18)
+                      ? Colors.white.withOpacity( 0.18)
                       : AppTheme.amber50,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
@@ -1490,7 +1736,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.2),
+            color: color.withOpacity( 0.2),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1536,4 +1782,10 @@ extension ColorExtension on Color {
       1,
     );
   }
+}
+
+class _StatusTab {
+  final String key;
+  final String label;
+  const _StatusTab(this.key, this.label);
 }

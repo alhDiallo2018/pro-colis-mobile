@@ -407,13 +407,13 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+            color: AppTheme.primaryBlue.withOpacity( 0.3),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+            color: AppTheme.primaryBlue.withOpacity( 0.2),
           ),
         ),
         focusedBorder: OutlineInputBorder(

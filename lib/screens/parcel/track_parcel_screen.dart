@@ -331,7 +331,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -432,10 +432,10 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: primaryBlue.withValues(alpha: 0.1),
+                      color: primaryBlue.withOpacity( 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border:
-                          Border.all(color: primaryBlue.withValues(alpha: 0.2)),
+                          Border.all(color: primaryBlue.withOpacity( 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1078,7 +1078,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               ),
             ),
           ),
-          IconButton.filledTonal(
+          IconButton(
             onPressed: _showScannerDialog,
             tooltip: 'Scanner',
             icon: const Icon(Icons.qr_code_scanner_rounded),
@@ -1089,7 +1089,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           ),
           if (_trackedParcel != null) ...[
             const SizedBox(width: 8),
-            IconButton.filledTonal(
+            IconButton(
               onPressed: _clearSearch,
               tooltip: 'Nouvelle recherche',
               icon: const Icon(Icons.close_rounded),
@@ -1189,7 +1189,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
+                child: ElevatedButton.icon(
                   onPressed: _isSearching ? null : () => _trackParcel(),
                   icon: _isSearching
                       ? const SizedBox(
@@ -1205,7 +1205,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              IconButton.filledTonal(
+              IconButton(
                 onPressed: _showScannerDialog,
                 tooltip: 'Scanner',
                 icon: const Icon(Icons.qr_code_scanner_rounded),
@@ -1316,7 +1316,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                   children: [
                     Container(
                       height: 2,
-                      color: Colors.white.withValues(alpha: 0.42),
+                      color: Colors.white.withOpacity( 0.42),
                     ),
                     const Icon(
                       Icons.local_shipping_rounded,
@@ -1407,7 +1407,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               ],
             ),
           ),
-          IconButton.filledTonal(
+          IconButton(
             onPressed: () => _callDriver(parcel.driverPhone ?? ''),
             icon: const Icon(Icons.call_rounded),
             style: IconButton.styleFrom(
@@ -1416,7 +1416,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             ),
           ),
           const SizedBox(width: 6),
-          IconButton.filledTonal(
+          IconButton(
             onPressed: _viewFullDetails,
             icon: const Icon(Icons.chat_bubble_rounded),
             style: IconButton.styleFrom(
@@ -1466,13 +1466,13 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
 
   Widget _buildDesignTimeline(Parcel parcel) {
     final steps = [
-      ('Créé', 'pending', Icons.inventory_2_rounded),
-      ('Confirmé', 'confirmed', Icons.task_alt_rounded),
-      ('Pris en charge', 'picked_up', Icons.local_shipping_rounded),
-      ('En transit', 'in_transit', Icons.route_rounded),
-      ('Arrivé', 'arrived', Icons.flag_rounded),
-      ('Livraison', 'out_for_delivery', Icons.delivery_dining_rounded),
-      ('Livré', 'delivered', Icons.verified_rounded),
+      const _TrackingStep('Créé', 'pending', Icons.inventory_2_rounded),
+      const _TrackingStep('Confirmé', 'confirmed', Icons.task_alt_rounded),
+      const _TrackingStep('Pris en charge', 'picked_up', Icons.local_shipping_rounded),
+      const _TrackingStep('En transit', 'in_transit', Icons.route_rounded),
+      const _TrackingStep('Arrivé', 'arrived', Icons.flag_rounded),
+      const _TrackingStep('Livraison', 'out_for_delivery', Icons.delivery_dining_rounded),
+      const _TrackingStep('Livré', 'delivered', Icons.verified_rounded),
     ];
 
     return ProcolisCard(
@@ -1481,9 +1481,9 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         children: [
           for (var i = 0; i < steps.length; i++)
             _DesignTimelineItem(
-              title: steps[i].$1,
-              icon: steps[i].$3,
-              completed: _isStepCompleted(parcel, steps[i].$2),
+              title: steps[i].label,
+              icon: steps[i].icon,
+              completed: _isStepCompleted(parcel, steps[i].status),
               last: i == steps.length - 1,
             ),
         ],
@@ -1503,7 +1503,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: FilledButton.icon(
+          child: ElevatedButton.icon(
             onPressed: _viewFullDetails,
             icon: const Icon(Icons.open_in_new_rounded),
             label: const Text('Détail'),
@@ -1554,7 +1554,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1567,7 +1567,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: primaryBlue.withValues(alpha: 0.1),
+                color: primaryBlue.withOpacity( 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
@@ -1774,7 +1774,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1795,7 +1795,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: parcel.status.color.withValues(alpha: 0.15),
+                        color: parcel.status.color.withOpacity( 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1823,7 +1823,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: primaryBlue.withValues(alpha: 0.1),
+                      color: primaryBlue.withOpacity( 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -2016,7 +2016,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: primaryBlue.withValues(alpha: 0.1),
+            color: primaryBlue.withOpacity( 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 16, color: primaryBlue),
@@ -2174,8 +2174,8 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: isActive
-            ? color.withValues(alpha: 0.15)
-            : Colors.grey.withValues(alpha: 0.1),
+            ? color.withOpacity( 0.15)
+            : Colors.grey.withOpacity( 0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isActive ? color : Colors.grey.shade300,
@@ -2217,7 +2217,7 @@ class _DesignStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: Colors.white.withOpacity( 0.94),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -2544,7 +2544,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close_rounded),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withValues(alpha: 0.45),
+                          backgroundColor: Colors.black.withOpacity( 0.45),
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -2553,7 +2553,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                         onPressed: _pasteFromClipboard,
                         icon: const Icon(Icons.content_paste_rounded),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withValues(alpha: 0.45),
+                          backgroundColor: Colors.black.withOpacity( 0.45),
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -2564,7 +2564,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
+                      color: Colors.black.withOpacity( 0.55),
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Column(
@@ -2600,7 +2600,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                             hintText: 'PC-7F3K-2291 ou URL QR',
                             hintStyle: const TextStyle(color: Colors.white54),
                             filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.12),
+                            fillColor: Colors.white.withOpacity( 0.12),
                             prefixIcon: const Icon(
                               Icons.qr_code_2_rounded,
                               color: Colors.white70,
@@ -2628,11 +2628,11 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: FilledButton.icon(
+                              child: ElevatedButton.icon(
                                 onPressed: _submit,
                                 icon: const Icon(Icons.search_rounded),
                                 label: const Text('Rechercher'),
-                                style: FilledButton.styleFrom(
+                                style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF018982),
                                   foregroundColor: Colors.white,
                                 ),
@@ -2726,4 +2726,11 @@ class _ScannerCorner extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TrackingStep {
+  final String label;
+  final String status;
+  final IconData icon;
+  const _TrackingStep(this.label, this.status, this.icon);
 }
