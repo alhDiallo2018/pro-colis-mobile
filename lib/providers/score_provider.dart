@@ -1,238 +1,136 @@
 // lib/providers/score_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../models/score.dart';
 import '../services/api_service.dart';
 
-// Provider pour accéder au service API
-final apiServiceProvider = Provider<ApiService>((ref) {
-  return ApiService();
-});
-
-// Provider pour accéder au score
 final scoreProvider = StateNotifierProvider<ScoreNotifier, ScoreState>((ref) {
-  return ScoreNotifier(ref);
+  return ScoreNotifier();
 });
 
 class ScoreState {
-  final Score? score;
   final bool isLoading;
+  final double balance;
+  final List<Map<String, dynamic>> history;
   final String? error;
+  final Score? score;
   final bool hasAttemptedLoad;
 
-  const ScoreState({
-    this.score,
-    this.isLoading = false,
+  ScoreState({
+    required this.isLoading,
+    this.balance = 0,
+    this.history = const [],
     this.error,
+    this.score,
     this.hasAttemptedLoad = false,
   });
 
+  factory ScoreState.initial() => ScoreState(isLoading: false);
+
   ScoreState copyWith({
-    Score? score,
     bool? isLoading,
+    double? balance,
+    List<Map<String, dynamic>>? history,
     String? error,
+    Score? score,
     bool? hasAttemptedLoad,
-    bool clearError = false,
   }) {
     return ScoreState(
-      score: score ?? this.score,
       isLoading: isLoading ?? this.isLoading,
-      error: clearError ? null : (error ?? this.error),
+      balance: balance ?? this.balance,
+      history: history ?? this.history,
+      error: error ?? this.error,
+      score: score ?? this.score,
       hasAttemptedLoad: hasAttemptedLoad ?? this.hasAttemptedLoad,
     );
   }
 }
 
 class ScoreNotifier extends StateNotifier<ScoreState> {
-  final Ref _ref;
+  ScoreNotifier() : super(ScoreState.initial());
 
-  ScoreNotifier(this._ref) : super(const ScoreState());
+  final ApiService _apiService = ApiService();
 
-  /// Récupérer le score de l'utilisateur depuis le backend
   Future<void> loadScore(String userId) async {
-    if (state.isLoading) return;
-
-    state = state.copyWith(
-      isLoading: true,
-      hasAttemptedLoad: true,
-      clearError: true,
-    );
+    state = state.copyWith(isLoading: true, hasAttemptedLoad: true);
     try {
-      final apiService = _ref.read(apiServiceProvider);
-      
-      // Appel API pour récupérer le score
-      final response = await apiService.getUserScore();
-      
-      print('📊 Response loadScore: $response');
-      
-      if (response['success'] == true) {
-        final data = response['data'] as Map<String, dynamic>?;
-        
-        if (data == null) {
-          state = state.copyWith(
-            isLoading: false,
-            error: 'Données du score non trouvées',
-          );
-          return;
-        }
+      final balance = await _apiService.getScoreBalance();
+      final history = await _apiService.getScoreHistory();
+      final transactions = history
+          .map((t) => ScoreTransaction(
+                id: t['id']?.toString() ?? '',
+                userId: userId,
+                amount: (t['amount'] ?? 0) is int
+                    ? t['amount'] as int
+                    : (t['amount'] as num).toInt(),
+                type: t['type']?.toString() ?? '',
+                parcelId: t['parcelId']?.toString(),
+                timestamp: t['createdAt'] != null
+                    ? DateTime.tryParse(t['createdAt'].toString()) ??
+                        DateTime.now()
+                    : DateTime.now(),
+                description: t['description']?.toString() ?? '',
+                status: t['status']?.toString() ?? 'completed',
+              ))
+          .toList();
 
-        // ✅ Récupérer le score
-        final scoreData = data['score'] as Map<String, dynamic>?;
-        
-        if (scoreData == null) {
-          state = state.copyWith(
-            isLoading: false,
-            error: 'Score non trouvé',
-          );
-          return;
-        }
+      final score = Score(
+        userId: userId,
+        points: balance.toInt(),
+        transactions: transactions,
+      );
 
-        // ✅ Récupérer les transactions depuis data['transactions'] (extérieur)
-        final transactionsData = data['transactions'] as List? ?? [];
-        
-        // ✅ Ajouter les transactions au scoreData
-        scoreData['transactions'] = transactionsData;
-
-        print('📊 scoreData avec transactions: ${scoreData['transactions']}');
-        
-        final score = Score.fromJson(scoreData);
-        state = state.copyWith(score: score, isLoading: false, clearError: true);
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: response['message'] ?? 'Erreur lors du chargement du score',
-        );
-      }
-    } catch (e) {
-      print('❌ Erreur loadScore: $e');
       state = state.copyWith(
+        balance: balance,
+        score: score,
         isLoading: false,
-        error: e.toString(),
+        error: null,
       );
-    }
-  }
-
-  /// Débiter des points (client crée un colis ou chauffeur livre)
-  Future<bool> debitPoints(
-    String userId,
-    int amount,
-    String parcelId,
-    String description,
-  ) async {
-    try {
-      final currentScore = state.score;
-      if (currentScore == null || currentScore.points < amount) {
-        state = state.copyWith(
-          error: 'Points insuffisants. Veuillez acheter des points.',
-        );
-        return false;
-      }
-
-      final apiService = _ref.read(apiServiceProvider);
-      
-      // Appel API pour débiter les points
-      final response = await apiService.debitPoints(
-        userId: userId,
-        amount: amount,
-        type: 'parcel_creation',
-        parcelId: parcelId,
-        description: description,
-      );
-
-      if (response['success'] == true) {
-        // Mettre à jour le score localement
-        final transaction = ScoreTransaction(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          userId: userId,
-          amount: -amount,
-          type: 'parcel_creation',
-          parcelId: parcelId,
-          description: description,
-        );
-
-        final updatedScore = currentScore.copyWith(
-          points: response['newBalance'] ?? (currentScore.points - amount),
-          transactions: [...currentScore.transactions, transaction],
-          lastUpdated: DateTime.now(),
-        );
-
-        state = state.copyWith(score: updatedScore);
-        return true;
-      } else {
-        state = state.copyWith(
-          error: response['message'] ?? 'Erreur lors du débit des points',
-        );
-        return false;
-      }
     } catch (e) {
-      state = state.copyWith(error: e.toString());
-      return false;
+      state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
 
-  /// Créditer des points (achat)
-  Future<bool> creditPoints(
-    String userId,
-    int amount,
-    String description,
-  ) async {
+  Future<void> loadBalance() async {
+    state = state.copyWith(isLoading: true, hasAttemptedLoad: true);
     try {
-      final apiService = _ref.read(apiServiceProvider);
-      
-      // Appel API pour créditer les points
-      final response = await apiService.creditPoints(
-        userId: userId,
-        amount: amount,
-        type: 'purchase',
-        description: description,
+      final balance = await _apiService.getScoreBalance();
+      state = state.copyWith(
+        balance: balance,
+        isLoading: false,
+        error: null,
       );
-
-      if (response['success'] == true) {
-        final currentScore = state.score ?? Score(userId: userId);
-        
-        final transaction = ScoreTransaction(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          userId: userId,
-          amount: amount,
-          type: 'purchase',
-          description: description,
-        );
-
-        final updatedScore = currentScore.copyWith(
-          points: response['newBalance'] ?? (currentScore.points + amount),
-          transactions: [...currentScore.transactions, transaction],
-          lastUpdated: DateTime.now(),
-        );
-
-        state = state.copyWith(score: updatedScore);
-        return true;
-      } else {
-        state = state.copyWith(
-          error: response['message'] ?? 'Erreur lors du crédit des points',
-        );
-        return false;
-      }
     } catch (e) {
-      state = state.copyWith(error: e.toString());
-      return false;
+      state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
 
-  /// Vérifier si l'utilisateur a assez de points
-  bool hasEnoughPoints(int requiredPoints) {
-    final score = state.score;
-    if (score == null) return false;
-    return score.points >= requiredPoints;
+  Future<void> loadHistory() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final history = await _apiService.getScoreHistory();
+      state = state.copyWith(history: history, isLoading: false, error: null);
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+    }
   }
 
-  /// Obtenir le solde actuel
-  int get currentPoints => state.score?.points ?? 0;
-
-  /// Recharger le score depuis le backend
-  Future<void> refreshScore() async {
-    final userId = state.score?.userId;
-    if (userId != null) {
-      await loadScore(userId);
+  Future<bool> purchasePoints(Map<String, dynamic> data) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final result = await _apiService.purchasePoints(data);
+      if (result['success'] == true || result['payment'] != null) {
+        await loadBalance();
+        state = state.copyWith(isLoading: false, error: null);
+        return true;
+      }
+      state = state.copyWith(
+        error: result['message'] ?? 'Erreur achat',
+        isLoading: false,
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+      return false;
     }
   }
 }

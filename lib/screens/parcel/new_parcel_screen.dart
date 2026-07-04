@@ -265,27 +265,24 @@ class _NewParcelScreenState extends ConsumerState<NewParcelScreen> {
     final audioUrls = <String>[];
 
     for (final photo in _photos) {
-      final url = await _apiService.uploadParcelPhoto(photo, parcelId);
+      final url = await _apiService.uploadFile(file: photo, mediaType: 'photo', parcelId: parcelId);
       if (url != null && url.isNotEmpty) photoUrls.add(url);
     }
 
     for (final video in _videos) {
-      final url = await _apiService.uploadParcelVideo(video, parcelId);
+      final url = await _apiService.uploadFile(file: video, mediaType: 'video', parcelId: parcelId);
       if (url != null && url.isNotEmpty) videoUrls.add(url);
     }
 
     for (final voice in _voiceMessages) {
-      final url = await _apiService.uploadAudio(XFile(voice.path), parcelId);
+      final url = await _apiService.uploadFile(file: XFile(voice.path), mediaType: 'audio', parcelId: parcelId);
       if (url != null && url.isNotEmpty) audioUrls.add(url);
     }
 
     if (photoUrls.isEmpty && videoUrls.isEmpty && audioUrls.isEmpty) return;
 
-    await _apiService.updateParcelMedia(parcelId, {
-      'photoUrls': photoUrls,
-      'videoUrls': videoUrls,
-      'audioUrls': audioUrls,
-    });
+    // Médias déjà uploadés, inclus dans les données du colis
+    // (Les URLs sont attachées au payload de création du colis)
   }
 
   Future<void> _publishParcel() async {

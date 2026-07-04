@@ -1,25 +1,286 @@
-// ignore: unused_import
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../models/garage.dart';
+import '../models/parcel.dart';
+import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/auth/pin_login_screen.dart';
+import '../screens/auth/register_page.dart';
 import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/dashboard/notifications/notifications_screen.dart';
+import '../screens/driver/mes_annonces_screen.dart';
+import '../screens/driver/parametres_screen.dart';
+import '../screens/driver/publish_trip_screen.dart';
+import '../screens/driver/revenus_screen.dart';
+import '../screens/garage_admin/garage_admin_drivers_screen.dart';
+import '../screens/garage_admin/garage_admin_parcel_detail.dart';
+import '../screens/garage_admin/garage_assignations_screen.dart';
+import '../screens/help/help_screen.dart';
+import '../screens/parcel/ads/advertisement_detail_screen.dart';
+import '../screens/parcel/ads/advertisements_screen.dart';
+import '../screens/parcel/confirm_delivery_screen.dart';
+import '../screens/parcel/free_parcels_screen.dart';
+import '../screens/parcel/new_parcel_screen.dart';
+import '../screens/parcel/parcel_detail_screen.dart';
+import '../screens/parcel/track_parcel_screen.dart';
+import '../screens/profile/profile_screen.dart';
+import '../screens/settings/settings_screen.dart';
+import '../screens/shared/messages_screen.dart';
+import '../screens/super-admin/garage_drivers_screen.dart';
+import '../screens/super-admin/garage_form_screen.dart';
+import '../screens/super-admin/garages_management_screen.dart';
+import '../screens/super-admin/parcel_form_screen.dart';
+import '../screens/super-admin/stats_screen.dart';
+import '../screens/super-admin/user_form_screen.dart';
+import '../screens/super-admin/users_management_screen.dart';
+import '../screens/wallet/wallet_screen.dart';
+import '../services/auth_notifier.dart';
 
 class AppRouter {
-  static GoRouter router(AuthState authState) {
+  static GoRouter router() {
     return GoRouter(
-      initialLocation: authState.isAuthenticated ? '/dashboard' : '/login',
+      refreshListenable: authRefreshNotifier,
+      initialLocation: '/splash',
+      redirect: (context, state) {
+        final container = ProviderScope.containerOf(context);
+        final authState = container.read(authProvider);
+        final location = state.matchedLocation;
+        final isLogin = location == '/login';
+        final isPinLogin = location == '/pin-login';
+        final isRegister = location == '/register';
+        final isTrack = location.startsWith('/track');
+        final isSplash = location == '/splash';
+        final isPublic = isLogin || isPinLogin || isRegister || isTrack;
+
+        if (isSplash) {
+          if (authState.isLoading) return null;
+          return authState.isAuthenticated ? '/dashboard' : '/login';
+        }
+
+        if (authState.isLoading) return null;
+        if (!authState.isAuthenticated && !isPublic) return '/login';
+        if (authState.isAuthenticated && (isLogin || isPinLogin || isRegister)) return '/dashboard';
+        return null;
+      },
       routes: [
+        GoRoute(
+          path: '/splash',
+          builder: (context, state) => const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          ),
+        ),
         GoRoute(
           path: '/login',
           name: 'login',
           builder: (context, state) => const LoginScreen(),
         ),
         GoRoute(
+          path: '/pin-login',
+          name: 'pin-login',
+          builder: (context, state) => const PinLoginScreen(),
+        ),
+        GoRoute(
+          path: '/register',
+          name: 'register',
+          builder: (context, state) => const RegisterPage(),
+        ),
+        GoRoute(
+          path: '/track',
+          name: 'track',
+          builder: (context, state) => const TrackParcelScreen(),
+          routes: [
+            GoRoute(
+              path: ':trackingNumber',
+              builder: (context, state) => TrackParcelScreen(
+                trackingNumber: state.pathParameters['trackingNumber'],
+              ),
+            ),
+          ],
+        ),
+
+        GoRoute(
           path: '/dashboard',
           name: 'dashboard',
           builder: (context, state) => const DashboardScreen(),
+        ),
+
+        GoRoute(
+          path: '/parcel/:parcelId',
+          name: 'parcel-detail',
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is Parcel) return ParcelDetailScreen(parcel: extra);
+            final parcelId = state.pathParameters['parcelId'] ?? '';
+            return ParcelDetailScreen(parcelId: parcelId);
+          },
+        ),
+
+        GoRoute(
+          path: '/new-parcel',
+          name: 'new-parcel',
+          builder: (context, state) => const NewParcelScreen(),
+        ),
+
+        GoRoute(
+          path: '/free-parcels',
+          name: 'free-parcels',
+          builder: (context, state) => const FreeParcelsScreen(),
+        ),
+
+        GoRoute(
+          path: '/advertisements',
+          name: 'advertisements',
+          builder: (context, state) => const AdvertisementsScreen(),
+        ),
+
+        GoRoute(
+          path: '/advertisement/:adId',
+          name: 'advertisement-detail',
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is Parcel) return AdvertisementDetailScreen(parcel: extra);
+            return const AdvertisementsScreen();
+          },
+        ),
+
+        GoRoute(
+          path: '/confirm-delivery',
+          name: 'confirm-delivery',
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is Parcel) return ConfirmDeliveryScreen(parcel: extra);
+            return const Scaffold(body: Center(child: Text('Aucun colis spécifié')));
+          },
+        ),
+
+        GoRoute(
+          path: '/driver/create-ad',
+          name: 'driver-create-ad',
+          builder: (context, state) => const PublishTripScreen(),
+        ),
+        GoRoute(
+          path: '/driver/my-ads',
+          name: 'driver-my-ads',
+          builder: (context, state) => const DriverMesAnnoncesScreen(),
+        ),
+        GoRoute(
+          path: '/driver/revenue',
+          name: 'driver-revenue',
+          builder: (context, state) => const DriverRevenusScreen(),
+        ),
+        GoRoute(
+          path: '/driver/settings',
+          name: 'driver-settings',
+          builder: (context, state) => const DriverParametresScreen(),
+        ),
+
+        GoRoute(
+          path: '/messages',
+          name: 'messages',
+          builder: (context, state) => const MessagesScreen(),
+        ),
+        GoRoute(
+          path: '/profile',
+          name: 'profile',
+          builder: (context, state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: '/wallet',
+          name: 'wallet',
+          builder: (context, state) => const WalletScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          name: 'settings',
+          builder: (context, state) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: '/help',
+          name: 'help',
+          builder: (context, state) => const HelpScreen(),
+        ),
+        GoRoute(
+          path: '/notifications',
+          name: 'notifications',
+          builder: (context, state) => const NotificationsScreen(),
+        ),
+
+        GoRoute(
+          path: '/garage/assignments',
+          name: 'garage-assignments',
+          builder: (context, state) => const GarageAssignationsScreen(),
+        ),
+        GoRoute(
+          path: '/garage/parcel/:parcelId',
+          name: 'garage-parcel-detail',
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is Parcel) return GarageAdminParcelDetailScreen(parcel: extra);
+            return const Scaffold(body: Center(child: Text('Colis introuvable')));
+          },
+        ),
+        GoRoute(
+          path: '/garage/drivers',
+          name: 'garage-drivers',
+          builder: (context, state) => const GarageAdminDriversScreen(),
+        ),
+
+        GoRoute(
+          path: '/admin/users',
+          name: 'admin-users',
+          builder: (context, state) => const UsersManagementScreen(),
+        ),
+        GoRoute(
+          path: '/admin/garages',
+          name: 'admin-garages',
+          builder: (context, state) => const GaragesManagementScreen(),
+        ),
+        GoRoute(
+          path: '/admin/stats',
+          name: 'admin-stats',
+          builder: (context, state) => const AdminStatsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/garage/drivers',
+          name: 'admin-garage-drivers',
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is Garage) return GarageDriversScreen(garage: extra);
+            return const Scaffold(body: Center(child: Text('Garage introuvable')));
+          },
+        ),
+        GoRoute(
+          path: '/admin/parcel-form',
+          name: 'admin-parcel-form',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            final isEditing = extra?['isEditing'] as bool? ?? false;
+            final parcel = extra?['parcel'] as Parcel?;
+            return ParcelFormScreen(isEditing: isEditing, parcel: parcel);
+          },
+        ),
+        GoRoute(
+          path: '/admin/user-form',
+          name: 'admin-user-form',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            final isEditing = extra?['isEditing'] as bool? ?? false;
+            final user = extra?['user'] as User?;
+            return UserFormScreen(isEditing: isEditing, user: user);
+          },
+        ),
+        GoRoute(
+          path: '/admin/garage-form',
+          name: 'admin-garage-form',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            final isEditing = extra?['isEditing'] as bool? ?? false;
+            final garage = extra?['garage'] as Garage?;
+            return GarageFormScreen(isEditing: isEditing, garage: garage);
+          },
         ),
       ],
     );

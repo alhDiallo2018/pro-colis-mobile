@@ -268,7 +268,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
     try {
-      final result = await _apiService.negotiateBid(bid.id, price, message);
+      final result = await _apiService.negotiateBid(bid.id, {'price': price, 'message': message});
       if (!mounted) return;
 
       if (result['success'] == true) {

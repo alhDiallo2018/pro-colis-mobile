@@ -4,7 +4,7 @@ import '../models/user.dart';
 class MockData {
   static const bool enabled = bool.fromEnvironment(
     'MOCK_API',
-    defaultValue: true,
+    defaultValue: false,
   );
 
   static const String pin = '123456';

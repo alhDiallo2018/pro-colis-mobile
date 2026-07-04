@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM ghcr.io/cirruslabs/flutter:stable AS build
 
 WORKDIR /app
@@ -11,7 +9,7 @@ RUN flutter pub get
 COPY . .
 
 # API_BASE_URL is injected into Dart at compile time because Flutter web is static once built.
-ARG API_BASE_URL=http://localhost:8080
+ARG API_BASE_URL=/api/v1
 RUN flutter build web --release --no-wasm-dry-run --dart-define=API_BASE_URL=${API_BASE_URL}
 
 FROM nginx:1.27-alpine

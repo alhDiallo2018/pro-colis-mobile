@@ -280,7 +280,7 @@ class _ParcelFormScreenState extends ConsumerState<ParcelFormScreen> {
       };
       
       if (widget.isEditing && widget.parcel != null) {
-        await _apiService.updateParcelStatus(
+        await _apiService.advanceParcel(
           widget.parcel!.id,
           _selectedStatus.value,
         );

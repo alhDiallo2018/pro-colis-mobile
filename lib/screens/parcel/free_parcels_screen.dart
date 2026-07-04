@@ -375,6 +375,7 @@ class _FreeParcelDetailsScreenState
 
     final user = ref.read(authProvider).user;
     final bidData = <String, dynamic>{
+      'parcelId': widget.parcel.id,
       'price': price,
       'message': _messageController.text.trim(),
       'driverId': user?.id ?? '',
@@ -391,7 +392,7 @@ class _FreeParcelDetailsScreenState
 
     final result = await ref
         .read(parcelProvider.notifier)
-        .makeBid(widget.parcel.id, bidData);
+        .createBid(bidData);
 
     if (!mounted) return;
     setState(() => _isSending = false);

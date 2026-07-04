@@ -327,9 +327,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await ref.read(authProvider.notifier).updatePin(
-          currentPin: _currentPinController.text,
-          newPin: _newPinController.text,
+    final result = await ref.read(authProvider.notifier).changePin(
+          _currentPinController.text,
+          _newPinController.text,
         );
 
     if (mounted) {

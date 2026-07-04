@@ -21,6 +21,7 @@ import '../parcel/new_parcel_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
 import '../parcel/track_parcel_screen.dart';
 import '../profile/profile_screen.dart';
+import '../shared/messages_screen.dart';
 import '../wallet/wallet_screen.dart';
 
 class ClientDashboard extends ConsumerStatefulWidget {
@@ -89,7 +90,32 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: null,
+      appBar: AppBar(
+        backgroundColor: AppTheme.cardColor,
+        elevation: 0,
+        title: Row(
+          children: [
+            const AppLogo(size: 24, isWhite: false),
+            const SizedBox(width: 8),
+            const Text('PRO COLIS', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chat_rounded),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const MessagesScreen())),
+          ),
+          IconButton(
+            icon: Badge(
+              label: Text('$_unreadNotificationsCount', style: const TextStyle(fontSize: 10)),
+              isLabelVisible: _unreadNotificationsCount > 0,
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            onPressed: _onNotificationsTap,
+          ),
+        ],
+      ),
       body: _getScreen(_selectedIndex, user, parcelState),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,

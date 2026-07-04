@@ -25,6 +25,10 @@ import '../../providers/parcel_provider.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../driver/publish_trip_screen.dart';
+import '../driver/revenus_screen.dart';
+import '../driver/mes_annonces_screen.dart';
+import '../driver/parametres_screen.dart';
+import '../shared/messages_screen.dart';
 import '../parcel/free_parcels_screen.dart';
 import '../parcel/confirm_delivery_screen.dart';
 import '../parcel/new_parcel_screen.dart';
@@ -498,7 +502,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
           final voiceMsg = _voiceMessages[i];
           try {
             final audioFile = XFile(voiceMsg.path);
-            final url = await _apiService.uploadAudio(audioFile, '');
+            final url = await _apiService.uploadFile(file: audioFile, mediaType: 'audio');
             if (url != null && url.isNotEmpty) {
               debugPrint('✅ Message vocal ${i + 1} uploadé: $url');
               uploadedAudioUrls.add(url);
@@ -1502,6 +1506,7 @@ class DriverDashboard extends ConsumerStatefulWidget {
 class _DriverDashboardState extends ConsumerState<DriverDashboard> {
   int _selectedIndex = 0;
   int _unreadNotificationsCount = 0;
+  bool _isUpdatingStatus = false;
 
   @override
   void initState() {
@@ -1554,6 +1559,58 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
     });
   }
 
+  Future<void> _toggleAvailability() async {
+    final user = ref.read(authProvider).user;
+    if (user == null) return;
+    final newStatus = user.isDriverAvailable ? 'offline' : 'available';
+    setState(() => _isUpdatingStatus = true);
+    await ref.read(authProvider.notifier).updateDriverStatus(newStatus);
+    if (mounted) setState(() => _isUpdatingStatus = false);
+  }
+
+  Widget _buildAvailabilityToggle(User? user) {
+    final available = user?.isDriverAvailable ?? false;
+    return Container(
+      color: AppTheme.cardColor,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: available ? AppTheme.green500 : AppTheme.slate400,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            available ? 'Disponible' : 'Indisponible',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: available ? AppTheme.green600 : AppTheme.slate500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 28,
+            child: Switch(
+              value: available,
+              activeColor: AppTheme.green500,
+              activeTrackColor: AppTheme.green100,
+              inactiveThumbColor: AppTheme.slate400,
+              inactiveTrackColor: AppTheme.slate200,
+              onChanged:
+                  _isUpdatingStatus ? null : (_) => _toggleAvailability(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -1562,7 +1619,36 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: null,
+      appBar: AppBar(
+        backgroundColor: AppTheme.cardColor,
+        elevation: 0,
+        title: Row(
+          children: [
+            const AppLogo(size: 24, isWhite: false),
+            const SizedBox(width: 8),
+            const Text('PRO COLIS', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chat_rounded),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const MessagesScreen())),
+          ),
+          IconButton(
+            icon: Badge(
+              label: Text('$_unreadNotificationsCount', style: const TextStyle(fontSize: 10)),
+              isLabelVisible: _unreadNotificationsCount > 0,
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            onPressed: _onNotificationsTap,
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: _buildAvailabilityToggle(user),
+        ),
+      ),
       body: _getScreen(_selectedIndex, user, parcelState),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
@@ -2955,8 +3041,18 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.account_balance_wallet_rounded,
-                      title: 'Points & retraits',
-                      subtitle: 'Solde et historique',
+                      title: 'Points & Revenus',
+                      subtitle: 'Solde, historique et gains',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const DriverRevenusScreen())),
+                    ),
+                    const Divider(height: 1),
+                    _DriverProfileRow(
+                      icon: Icons.campaign_rounded,
+                      title: 'Mes annonces',
+                      subtitle: 'Gérer mes trajets publiés',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const DriverMesAnnoncesScreen())),
                     ),
                   ],
                 ),
@@ -2968,9 +3064,10 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                   children: [
                     _DriverProfileRow(
                       icon: Icons.settings_rounded,
-                      title: 'Paramètres',
-                      subtitle: 'Notifications, sécurité et compte',
-                      onTap: () => _openSettings(context),
+                      title: 'Paramètres véhicule & PIN',
+                      subtitle: 'Véhicule, sécurité',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const DriverParametresScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -4933,11 +5030,23 @@ class _ParcelCardState extends State<_ParcelCard> {
     }
   }
 
+  String _statusToStep(String status) {
+    switch (status) {
+      case 'picked_up': return 'pickup';
+      case 'in_transit': return 'transit';
+      case 'arrived': return 'arrived';
+      case 'out_for_delivery': return 'out-for-delivery';
+      case 'confirmed': return 'confirm';
+      case 'delivered': return 'deliver';
+      default: return status;
+    }
+  }
+
   Future<void> _updateStatus(String newStatus) async {
     setState(() => _isUpdating = true);
     final apiService = ApiService();
     try {
-      await apiService.updateParcelStatus(widget.parcel.id, newStatus);
+      await apiService.advanceParcel(widget.parcel.id, _statusToStep(newStatus));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

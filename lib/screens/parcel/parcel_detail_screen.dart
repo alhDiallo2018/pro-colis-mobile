@@ -13,9 +13,12 @@ import '../../widgets/procolis_design_system.dart';
 import 'confirm_delivery_screen.dart';
 
 class ParcelDetailScreen extends ConsumerStatefulWidget {
-  final Parcel parcel;
+  final Parcel? parcel;
+  final String? parcelId;
 
-  const ParcelDetailScreen({super.key, required this.parcel});
+  const ParcelDetailScreen({super.key, this.parcel, this.parcelId})
+      : assert(parcel != null || parcelId != null,
+            'Either parcel or parcelId must be provided');
 
   @override
   ConsumerState<ParcelDetailScreen> createState() => _ParcelDetailScreenState();
@@ -31,8 +34,36 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _parcel = widget.parcel;
-    _loadDetailData();
+    if (widget.parcel != null) {
+      _parcel = widget.parcel!;
+      _loadDetailData();
+    } else if (widget.parcelId != null) {
+      _loadParcelById(widget.parcelId!);
+    }
+  }
+
+  Future<void> _loadParcelById(String id) async {
+    setState(() => _isLoading = true);
+    try {
+      final parcel = await _apiService.getParcelById(id);
+      if (parcel == null) {
+        if (mounted) _showSnack('Colis introuvable');
+        return;
+      }
+      _parcel = parcel;
+      final events = await _apiService.getParcelTimeline(id);
+      if (mounted) {
+        setState(() {
+          _events = events;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnack('Impossible de charger le colis');
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _loadDetailData() async {
@@ -40,7 +71,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     try {
       final results = await Future.wait([
         _apiService.getParcelById(_parcel.id),
-        _apiService.getParcelEvents(_parcel.id),
+        _apiService.getParcelTimeline(_parcel.id),
       ]);
 
       if (!mounted) return;

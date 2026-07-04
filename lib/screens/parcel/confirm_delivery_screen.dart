@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../models/parcel.dart';
 import '../../providers/parcel_provider.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 
 class ConfirmDeliveryScreen extends ConsumerStatefulWidget {
@@ -19,11 +20,48 @@ class ConfirmDeliveryScreen extends ConsumerStatefulWidget {
 }
 
 class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
-  static const String _demoPin = '4827';
+  final ApiService _apiService = ApiService();
 
+  String? _deliveryCode;
+  bool _isLoadingCode = true;
+  String? _loadError;
   String _pin = '';
   bool _isSubmitting = false;
   bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDeliveryCode();
+  }
+
+  Future<void> _fetchDeliveryCode() async {
+    setState(() {
+      _isLoadingCode = true;
+      _loadError = null;
+    });
+    try {
+      final code = await _apiService.getDeliveryCode(widget.parcel.id);
+      if (!mounted) return;
+      if (code.isEmpty) {
+        setState(() {
+          _loadError = 'Code de livraison non disponible';
+          _isLoadingCode = false;
+        });
+        return;
+      }
+      setState(() {
+        _deliveryCode = code;
+        _isLoadingCode = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = 'Impossible de récupérer le code de livraison';
+        _isLoadingCode = false;
+      });
+    }
+  }
 
   void _pushKey(String key) {
     if (_isSubmitting || _done) return;
@@ -44,11 +82,11 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
   }
 
   Future<void> _confirm(String pin) async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || _deliveryCode == null) return;
 
     setState(() => _isSubmitting = true);
     try {
-      if (pin != _demoPin) {
+      if (pin != _deliveryCode) {
         await Future<void>.delayed(const Duration(milliseconds: 250));
         if (!mounted) return;
         setState(() => _pin = '');
@@ -56,16 +94,17 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
         return;
       }
 
-      final updated =
-          await ref.read(parcelProvider.notifier).updateParcelStatus(
+      final result =
+          await ref.read(parcelProvider.notifier).advanceParcel(
                 widget.parcel.id,
-                ParcelStatus.delivered.value,
-                location: 'Remis au destinataire',
+                'deliver',
+                otp: pin,
               );
 
       if (!mounted) return;
-      if (updated == null) {
-        _showSnack('Confirmation impossible');
+      if (result['success'] != true) {
+        final msg = result['message']?.toString() ?? 'Confirmation impossible';
+        _showSnack(msg);
         return;
       }
 
@@ -153,32 +192,98 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
               const SizedBox(height: 28),
               _OtpBoxes(value: _pin),
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.info_outline_rounded,
-                      size: 15, color: AppTheme.slate400),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Indice démo : $_demoPin',
-                    style: AppTheme.mono(
-                      color: AppTheme.slate400,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+              _buildCodeHint(),
               if (_isSubmitting) ...[
                 const SizedBox(height: 18),
                 const CircularProgressIndicator(color: AppTheme.primary),
               ],
               const Spacer(),
-              _Keypad(onKey: _pushKey),
+              _Keypad(onKey: _deliveryCode != null ? _pushKey : (_) {}),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCodeHint() {
+    if (_isLoadingCode) {
+      return const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              color: AppTheme.slate400,
+              strokeWidth: 2,
+            ),
+          ),
+          SizedBox(width: 8),
+          Text(
+            'Chargement du code...',
+            style: TextStyle(
+              color: AppTheme.slate400,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_loadError != null) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              size: 15, color: AppTheme.red500),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              _loadError!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppTheme.red500,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _fetchDeliveryCode,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Réessayer',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return const Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.check_circle_outline_rounded,
+            size: 15, color: AppTheme.green600),
+        SizedBox(width: 4),
+        Text(
+          'Code de validation chargé',
+          style: TextStyle(
+            color: AppTheme.green600,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 

@@ -502,10 +502,11 @@ class ScoreDisplayWidget extends ConsumerWidget {
       await Future.delayed(const Duration(seconds: 1));
 
       // Créditer les points
-      final success = await ref.read(scoreProvider.notifier).creditPoints(
-            user.id,
-            totalPoints,
-            'Achat de $amount points (${amount >= 50 ? "+${totalPoints - amount} bonus" : ""}) - $totalPrice FCFA',
+      final success = await ref.read(scoreProvider.notifier).purchasePoints(
+            {
+              'points': amount,
+              'method': 'cash',
+            },
           );
 
       // Fermer l'indicateur de chargement
@@ -513,7 +514,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
 
       if (success && context.mounted) {
         // Recharger le score pour mettre à jour l'affichage
-        await ref.read(scoreProvider.notifier).loadScore(user.id);
+        await ref.read(scoreProvider.notifier).loadBalance();
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

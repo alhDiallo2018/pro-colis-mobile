@@ -27,8 +27,9 @@ import '../../widgets/custom_button.dart';
 
 class TrackParcelScreen extends ConsumerStatefulWidget {
   final bool embedded;
+  final String? trackingNumber;
 
-  const TrackParcelScreen({super.key, this.embedded = false});
+  const TrackParcelScreen({super.key, this.embedded = false, this.trackingNumber});
 
   @override
   ConsumerState<TrackParcelScreen> createState() => _TrackParcelScreenState();
@@ -54,6 +55,12 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     super.initState();
     _loadRecentSearches();
     _setupAudioListeners();
+    if (widget.trackingNumber != null && widget.trackingNumber!.isNotEmpty) {
+      _trackingController.text = widget.trackingNumber!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _trackParcel(trackingNumber: widget.trackingNumber);
+      });
+    }
   }
 
   @override

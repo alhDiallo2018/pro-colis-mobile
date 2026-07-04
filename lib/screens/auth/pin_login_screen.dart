@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../dashboard/dashboard_screen.dart';
-import 'otp_verification_screen.dart';
 
 class PinLoginScreen extends ConsumerStatefulWidget {
   const PinLoginScreen({super.key});
@@ -88,45 +87,12 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
   }
 
   Future<void> _forgotPin() async {
-    final savedIdentifier = await ref.read(authProvider.notifier).getSavedIdentifier();
-    
-    if (!mounted) return;
-    
-    if (savedIdentifier == null || savedIdentifier.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun compte trouvé. Veuillez vous connecter avec OTP.')),
-      );
-      return;
-    }
-    
-    setState(() => _isLoading = true);
-    
-    final result = await ref.read(authProvider.notifier).sendOtp(
-      identifier: savedIdentifier,
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Contactez le support pour réinitialiser votre PIN.'),
+        backgroundColor: Colors.orange,
+      ),
     );
-    
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    
-    if (result['success'] == true) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OtpVerificationScreen(
-            userId: result['userId'],
-            identifier: savedIdentifier,
-            isLogin: true,
-          ),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Erreur'), 
-          backgroundColor: Colors.red
-        ),
-      );
-    }
   }
 
   @override

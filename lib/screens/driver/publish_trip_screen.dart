@@ -269,7 +269,7 @@ class _PublishTripScreenState extends ConsumerState<PublishTripScreen> {
       final uploadedAudioUrls = <String>[];
       for (final message in _voiceMessages) {
         try {
-          final url = await _apiService.uploadAudio(XFile(message.path), '');
+          final url = await _apiService.uploadFile(file: XFile(message.path), mediaType: 'audio');
           if (url != null && url.isNotEmpty) {
             uploadedAudioUrls.add(url);
           }

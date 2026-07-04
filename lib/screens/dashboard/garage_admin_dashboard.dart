@@ -10,6 +10,8 @@ import 'package:procolis/widgets/app_logo.dart';
 import '../../models/parcel.dart';
 import '../../models/user.dart';
 import '../../services/api_service.dart';
+import '../garage_admin/garage_admin_parcel_detail.dart';
+import '../garage_admin/garage_assignations_screen.dart';
 
 class GarageAdminDashboard extends ConsumerStatefulWidget {
   const GarageAdminDashboard({super.key});
@@ -146,6 +148,13 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
       ),
       body: _buildBody(),
       bottomNavigationBar: _buildBottomNavBar(),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'garage-assignations',
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const GarageAssignationsScreen())),
+        backgroundColor: primaryBlue,
+        child: const Icon(Icons.assignment_turned_in, color: Colors.white),
+      ),
     );
   }
 
@@ -505,7 +514,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
   Future<void> _confirmParcel(Parcel parcel) async {
     setState(() => _processingParcelId = parcel.id);
     try {
-      await _apiService.updateParcelStatus(parcel.id, 'confirmed');
+      await _apiService.advanceParcel(parcel.id, 'confirm');
       if (mounted) {
         _showSnackBar('Colis confirmé', Colors.green);
         await widget.onRefresh();
@@ -557,7 +566,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
     if (confirm == true) {
       setState(() => _processingParcelId = parcel.id);
       try {
-        await _apiService.updateParcelStatus(parcel.id, 'cancelled');
+        await _apiService.cancelParcel(parcel.id, reason: 'Annulé par le garage admin');
         if (mounted) {
           _showSnackBar('Colis annulé', Colors.green);
           await widget.onRefresh();

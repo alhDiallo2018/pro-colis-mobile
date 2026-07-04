@@ -1,5 +1,5 @@
 // mobile/lib/providers/parcel_provider.dart
-// ignore_for_file: unrelated_type_equality_checks, avoid_print
+// Aligné sur l'API Web ProColis
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/parcel.dart';
 import '../services/api_service.dart';
 
-// Provider pour le gestionnaire des colis
 final parcelProvider =
     StateNotifierProvider<ParcelNotifier, ParcelState>((ref) {
   return ParcelNotifier();
@@ -18,124 +17,71 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
 
   final ApiService _apiService = ApiService();
 
-  // Charger tous les colis de l'utilisateur (client)
   Future<void> loadMyParcels({String? status}) async {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getMyParcels(status: status);
-      state = state.copyWith(
-        parcels: parcels,
-        isLoading: false,
-        error: null,
-      );
+      state = state.copyWith(parcels: parcels, isLoading: false, error: null);
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
 
-  // Charger les colis assignés au chauffeur
   Future<void> loadDriverParcels() async {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getDriverParcels();
-      state = state.copyWith(
-        parcels: parcels,
-        isLoading: false,
-        error: null,
-      );
+      state = state.copyWith(parcels: parcels, isLoading: false, error: null);
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
 
-  // Charger tous les colis (Super Admin)
   Future<void> loadAllParcels() async {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getAllParcelsSuperAdmin();
-      state = state.copyWith(
-        parcels: parcels,
-        isLoading: false,
-        error: null,
-      );
+      state = state.copyWith(parcels: parcels, isLoading: false, error: null);
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
 
-  // Charger les colis d'un garage (Admin Garage)
   Future<void> loadGarageParcels({String? status}) async {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getGarageParcels(status: status);
+      state = state.copyWith(parcels: parcels, isLoading: false, error: null);
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+    }
+  }
+
+  Future<void> loadFreeParcels() async {
+    try {
+      state = state.copyWith(isLoadingFreeParcels: true);
+      final parcels = await _apiService.getFreeParcels();
       state = state.copyWith(
-        parcels: parcels,
-        isLoading: false,
+        freeParcels: parcels,
+        isLoadingFreeParcels: false,
         error: null,
       );
     } catch (e) {
       state = state.copyWith(
         error: e.toString(),
-        isLoading: false,
+        isLoadingFreeParcels: false,
       );
     }
   }
 
-  // Charger les colis en libre service (marchandage)
-  Future<void> loadFreeParcels() async {
-  try {
-    state = state.copyWith(isLoadingFreeParcels: true);
-
-    final parcels = await _apiService.getFreeParcels();
-
-    // ✅ Les offres sont déjà incluses dans les colis
-    // Pas besoin de les recharger séparément
-
-    debugPrint('📦 ${parcels.length} colis en libre service chargés');
-    for (var parcel in parcels) {
-      debugPrint('📦 Colis: ${parcel.trackingNumber} - ${parcel.bids.length} offres');
-      for (var bid in parcel.bids) {
-        debugPrint('   - ${bid.driverName}: ${bid.price} FCFA (${bid.status.label})');
-      }
-    }
-
-    state = state.copyWith(
-      freeParcels: parcels,
-      isLoadingFreeParcels: false,
-      error: null,
-    );
-  } catch (e) {
-    debugPrint('❌ Erreur loadFreeParcels: $e');
-    state = state.copyWith(
-      error: e.toString(),
-      isLoadingFreeParcels: false,
-    );
-  }
-}
-
-  // Faire une offre sur un colis (chauffeur)
-  Future<Map<String, dynamic>> makeBid(
-      String parcelId, Map<String, dynamic> bidData) async {
+  Future<Map<String, dynamic>> createBid(Map<String, dynamic> data) async {
     state = state.copyWith(isLoading: true);
     try {
-      final result = await _apiService.makeBid(parcelId, bidData);
-      if (result['success'] == true) {
-        // Rafraîchir les colis en libre service
+      final result = await _apiService.createBid(data);
+      if (result['success'] == true || result['bid'] != null) {
         await loadFreeParcels();
-        state = state.copyWith(
-          isLoading: false,
-          error: null,
-        );
-        return result;
+        state = state.copyWith(isLoading: false, error: null);
+        return {'success': true};
       }
       state = state.copyWith(
         error: result['message'] ?? 'Erreur lors de l\'envoi de l\'offre',
@@ -143,44 +89,31 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
       );
       return result;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  // Accepter une offre (client)
   Future<bool> acceptBid(String parcelId, String bidId) async {
     state = state.copyWith(isLoading: true);
     try {
       final result = await _apiService.acceptBid(parcelId, bidId);
       if (result['success'] == true) {
-        // Rafraîchir les listes
         await loadMyParcels();
-        await loadFreeParcels();
-        state = state.copyWith(
-          isLoading: false,
-          error: null,
-        );
+        state = state.copyWith(isLoading: false, error: null);
         return true;
       }
       state = state.copyWith(
-        error: result['message'] ?? 'Erreur lors de l\'acceptation de l\'offre',
+        error: result['message'] ?? 'Erreur lors de l\'acceptation',
         isLoading: false,
       );
       return false;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
       return false;
     }
   }
 
-  // Refuser une offre (client)
   Future<bool> rejectBid(String parcelId, String bidId,
       {String? responseMessage}) async {
     state = state.copyWith(isLoading: true);
@@ -189,58 +122,20 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
           responseMessage: responseMessage);
       if (result['success'] == true) {
         await loadMyParcels();
-        await loadFreeParcels();
-        state = state.copyWith(
-          isLoading: false,
-          error: null,
-        );
+        state = state.copyWith(isLoading: false, error: null);
         return true;
       }
       state = state.copyWith(
-        error: result['message'] ?? 'Erreur lors du refus de l\'offre',
+        error: result['message'] ?? 'Erreur lors du refus',
         isLoading: false,
       );
       return false;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
       return false;
     }
   }
 
-  // Mettre un colis en libre service
-  Future<bool> setParcelFreeForBidding(String parcelId,
-      {double? proposedPrice}) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final result = await _apiService.setParcelFreeForBidding(parcelId,
-          proposedPrice: proposedPrice);
-      if (result['success'] == true) {
-        await loadMyParcels();
-        await loadFreeParcels();
-        state = state.copyWith(
-          isLoading: false,
-          error: null,
-        );
-        return true;
-      }
-      state = state.copyWith(
-        error: result['message'] ?? 'Erreur lors de la mise en libre service',
-        isLoading: false,
-      );
-      return false;
-    } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
-      return false;
-    }
-  }
-
-  // Obtenir les offres d'un colis
   Future<List<Bid>> getParcelBids(String parcelId) async {
     try {
       final bids = await _apiService.getParcelBids(parcelId);
@@ -251,28 +146,20 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     }
   }
 
-  // Créer un nouveau colis
   Future<Parcel?> createParcel(Map<String, dynamic> data) async {
     state = state.copyWith(isLoading: true);
     try {
-      final Parcel parcel = await _apiService.createParcel(data);
+      final parcel = await _apiService.createParcel(data);
       await loadMyParcels();
       state = state.copyWith(
-        isLoading: false,
-        error: null,
-        isSuccess: true,
-      );
+          isLoading: false, error: null, isSuccess: true);
       return parcel;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
       return null;
     }
   }
 
-  // Suivre un colis par numéro de tracking
   Future<Parcel?> trackParcel(String trackingNumber) async {
     state = state.copyWith(isLoading: true);
     try {
@@ -284,97 +171,78 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
       );
       return parcel;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      state = state.copyWith(error: e.toString(), isLoading: false);
       return null;
     }
   }
 
-  // Mettre à jour le statut d'un colis
-  Future<Parcel?> updateParcelStatus(String parcelId, String status,
-      {String? location}) async {
+  /// Advance parcel lifecycle: confirm, pickup, transit, arrived, out-for-delivery
+  Future<Map<String, dynamic>> advanceParcel(String parcelId, String step,
+      {String? location, String? otp}) async {
     state = state.copyWith(isLoading: true);
     try {
-      final parcel = await _apiService.updateParcelStatus(parcelId, status,
-          location: location);
-      await loadMyParcels();
+      final result = await _apiService.advanceParcel(parcelId, step,
+          location: location, otp: otp);
+      if (result['success'] == true || result['parcel'] != null) {
+        await loadDriverParcels();
+        state = state.copyWith(isLoading: false, error: null);
+        return {'success': true};
+      }
       state = state.copyWith(
+        error: result['message'] ?? 'Erreur lors de la mise à jour',
         isLoading: false,
-        error: null,
       );
-      return parcel;
+      return result;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
-      return null;
+      state = state.copyWith(error: e.toString(), isLoading: false);
+      return {'success': false, 'message': e.toString()};
     }
   }
 
-  // Récupérer les événements d'un colis
-  Future<List<ParcelEvent>> getParcelEvents(String parcelId) async {
+  /// Confirm delivery with OTP
+  Future<Map<String, dynamic>> deliverParcel(String parcelId,
+      Map<String, dynamic> data) async {
+    state = state.copyWith(isLoading: true);
     try {
-      final events = await _apiService.getParcelEvents(parcelId);
-      return events;
+      final result = await _apiService.driverDeliver(parcelId, data);
+      if (result['success'] == true || result['parcel'] != null) {
+        await loadDriverParcels();
+        state = state.copyWith(isLoading: false, error: null);
+        return {'success': true};
+      }
+      state = state.copyWith(
+        error: result['message'] ?? 'Erreur livraison',
+        isLoading: false,
+      );
+      return result;
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<List<ParcelEvent>> getParcelTimeline(String parcelId) async {
+    try {
+      return await _apiService.getParcelTimeline(parcelId);
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return [];
     }
   }
 
-  // Marquer un colis comme ramassé (chauffeur)
-  Future<void> markAsPickedUp(String parcelId) async {
+  Future<bool> assignDriverToParcel(
+      String parcelId, String driverId) async {
     state = state.copyWith(isLoading: true);
     try {
-      await _apiService.updateParcelStatus(parcelId, 'picked_up',
-          location: 'Au garage');
-      await loadDriverParcels();
-      state = state.copyWith(isLoading: false, error: null);
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-    }
-  }
-
-  // Marquer un colis comme en transit (chauffeur)
-  Future<void> markAsInTransit(String parcelId) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      await _apiService.updateParcelStatus(parcelId, 'in_transit');
-      await loadDriverParcels();
-      state = state.copyWith(isLoading: false, error: null);
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-    }
-  }
-
-  // Marquer un colis comme livré (chauffeur)
-  Future<void> markAsDelivered(String parcelId) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      await _apiService.updateParcelStatus(parcelId, 'delivered',
-          location: 'Au destinataire');
-      await loadDriverParcels();
-      state = state.copyWith(isLoading: false, error: null);
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-    }
-  }
-
-  // Assigner un chauffeur à un colis (Admin Garage)
-  Future<bool> assignDriverToParcel(String parcelId, String driverId) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final result = await _apiService.assignDriverToParcel(parcelId, driverId);
+      final result =
+          await _apiService.assignDriverToParcel(parcelId, driverId);
       if (result['success'] == true) {
         await loadGarageParcels();
         state = state.copyWith(isLoading: false, error: null);
         return true;
       }
       state = state.copyWith(
-        error: result['message'] ?? 'Erreur lors de l\'assignation',
+        error: result['message'] ?? 'Erreur assignation',
         isLoading: false,
       );
       return false;
@@ -384,19 +252,17 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     }
   }
 
-  // Annuler un colis
   Future<bool> cancelParcel(String parcelId, {String? reason}) async {
     state = state.copyWith(isLoading: true);
     try {
       final result = await _apiService.cancelParcel(parcelId, reason: reason);
       if (result['success'] == true) {
         await loadMyParcels();
-        await loadFreeParcels();
         state = state.copyWith(isLoading: false, error: null);
         return true;
       }
       state = state.copyWith(
-        error: result['message'] ?? 'Erreur lors de l\'annulation',
+        error: result['message'] ?? 'Erreur annulation',
         isLoading: false,
       );
       return false;
@@ -406,19 +272,16 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     }
   }
 
-  // Réinitialiser l'état
   void reset() {
     state = ParcelState.initial();
   }
 
-  // Effacer les erreurs
   void clearError() {
     if (state.error != null) {
       state = state.copyWith(error: null);
     }
   }
 
-  // Réinitialiser le succès
   void clearSuccess() {
     if (state.isSuccess) {
       state = state.copyWith(isSuccess: false);
@@ -426,7 +289,6 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
   }
 }
 
-// État du provider
 class ParcelState {
   final bool isLoading;
   final List<Parcel> parcels;
@@ -446,7 +308,6 @@ class ParcelState {
     this.isLoadingFreeParcels = false,
   });
 
-  // État initial
   factory ParcelState.initial() => ParcelState(
         isLoading: false,
         parcels: const [],
@@ -457,7 +318,6 @@ class ParcelState {
         isLoadingFreeParcels: false,
       );
 
-  // État de chargement
   factory ParcelState.loading() => ParcelState(
         isLoading: true,
         parcels: const [],
@@ -468,40 +328,6 @@ class ParcelState {
         isLoadingFreeParcels: false,
       );
 
-  // État avec liste de colis chargée
-  factory ParcelState.loaded(List<Parcel> parcels) => ParcelState(
-        isLoading: false,
-        parcels: parcels,
-        freeParcels: const [],
-        trackedParcel: null,
-        error: null,
-        isSuccess: true,
-        isLoadingFreeParcels: false,
-      );
-
-  // État avec colis suivi
-  factory ParcelState.tracked(Parcel parcel) => ParcelState(
-        isLoading: false,
-        parcels: const [],
-        freeParcels: const [],
-        trackedParcel: parcel,
-        error: null,
-        isSuccess: true,
-        isLoadingFreeParcels: false,
-      );
-
-  // État d'erreur
-  factory ParcelState.error(String error) => ParcelState(
-        isLoading: false,
-        parcels: const [],
-        freeParcels: const [],
-        trackedParcel: null,
-        error: error,
-        isSuccess: false,
-        isLoadingFreeParcels: false,
-      );
-
-  // Méthode copyWith pour créer une nouvelle instance avec des champs modifiés
   ParcelState copyWith({
     bool? isLoading,
     List<Parcel>? parcels,
@@ -522,93 +348,36 @@ class ParcelState {
     );
   }
 
-  // ==================== GETTERS UTILES ====================
-
   bool get hasParcels => parcels.isNotEmpty;
   bool get hasFreeParcels => freeParcels.isNotEmpty;
 
-  // Obtenir les colis par statut
-  List<Parcel> getParcelsByStatus(ParcelStatus status) {
-    return parcels.where((parcel) => parcel.status == status).toList();
-  }
+  List<Parcel> get freeParcelsList => freeParcels;
 
-  // Colis en libre service (marchandage)
-  List<Parcel> get freeParcelsList {
-    return freeParcels;
-  }
+  List<Parcel> get pendingParcels =>
+      parcels.where((p) =>
+          p.status == ParcelStatus.pending ||
+          p.status == ParcelStatus.free ||
+          p.status == ParcelStatus.confirmed).toList();
 
-  // Colis en attente de ramassage
-  List<Parcel> get pendingParcels {
-    return parcels
-        .where((parcel) =>
-            parcel.status == ParcelStatus.pending ||
-            parcel.status == ParcelStatus.free ||
-            parcel.status == ParcelStatus.confirmed)
-        .toList();
-  }
+  List<Parcel> get inProgressParcels =>
+      parcels.where((p) =>
+          p.status == ParcelStatus.pickedUp ||
+          p.status == ParcelStatus.inTransit ||
+          p.status == ParcelStatus.arrived ||
+          p.status == ParcelStatus.outForDelivery).toList();
 
-  // Colis en cours
-  List<Parcel> get inProgressParcels {
-    return parcels
-        .where((parcel) =>
-            parcel.status == ParcelStatus.pickedUp ||
-            parcel.status == ParcelStatus.inTransit ||
-            parcel.status == ParcelStatus.arrived ||
-            parcel.status == ParcelStatus.outForDelivery)
-        .toList();
-  }
+  List<Parcel> get completedParcels =>
+      parcels.where((p) => p.status == ParcelStatus.delivered).toList();
 
-  // Colis terminés
-  List<Parcel> get completedParcels {
-    return parcels
-        .where((parcel) => parcel.status == ParcelStatus.delivered)
-        .toList();
-  }
+  List<Parcel> get cancelledParcels =>
+      parcels.where((p) => p.status == ParcelStatus.cancelled).toList();
 
-  // Colis annulés
-  List<Parcel> get cancelledParcels {
-    return parcels
-        .where((parcel) => parcel.status == ParcelStatus.cancelled)
-        .toList();
-  }
-
-  // Colis avec offres reçues
-  List<Parcel> get parcelsWithBids {
-    return parcels
-        .where((parcel) => parcel.isFreeForBidding && parcel.bids.isNotEmpty)
-        .toList();
-  }
-
-  // Statistiques globales
-  Map<String, int> get stats {
-    return {
-      'total': parcels.length,
-      'free': freeParcels.length,
-      'pending': pendingParcels.length,
-      'inProgress': inProgressParcels.length,
-      'delivered': completedParcels.length,
-      'cancelled': cancelledParcels.length,
-      'withBids': parcelsWithBids.length,
-    };
-  }
-
-  // Statistiques pour le marchandage
-  Map<String, dynamic> get biddingStats {
-    int totalOffers = 0;
-    int pendingOffers = 0;
-    int acceptedOffers = 0;
-
-    for (final parcel in parcels) {
-      totalOffers += parcel.bids.length;
-      pendingOffers += parcel.pendingBids.length;
-      acceptedOffers += parcel.acceptedBids.length;
-    }
-
-    return {
-      'totalParcelsFree': freeParcels.length,
-      'totalOffers': totalOffers,
-      'pendingOffers': pendingOffers,
-      'acceptedOffers': acceptedOffers,
-    };
-  }
+  Map<String, int> get stats => {
+        'total': parcels.length,
+        'free': freeParcels.length,
+        'pending': pendingParcels.length,
+        'inProgress': inProgressParcels.length,
+        'delivered': completedParcels.length,
+        'cancelled': cancelledParcels.length,
+      };
 }

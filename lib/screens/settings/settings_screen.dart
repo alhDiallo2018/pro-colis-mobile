@@ -2,13 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../screens/help/help_screen.dart';
+import '../../screens/profile/profile_screen.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/procolis_design_system.dart';
-
-void _noopSettingsAction() {}
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -21,6 +21,164 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushEnabled = true;
   bool _emailEnabled = false;
   bool _biometricEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationPreferences();
+  }
+
+  Future<void> _loadNotificationPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _pushEnabled = prefs.getBool('pref_notifications_push') ?? true;
+        _emailEnabled = prefs.getBool('pref_notifications_email') ?? false;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _togglePushNotifications(bool value) async {
+    setState(() => _pushEnabled = value);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('pref_notifications_push', value);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleEmailNotifications(bool value) async {
+    setState(() => _emailEnabled = value);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('pref_notifications_email', value);
+    } catch (_) {}
+  }
+
+  Future<void> _changePin() async {
+    final currentPinController = TextEditingController();
+    final newPinController = TextEditingController();
+    final confirmPinController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modifier le code PIN'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: currentPinController,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(
+                  labelText: 'PIN actuel',
+                  counterText: '',
+                ),
+                validator: (value) {
+                  if (value == null || value.length != 6) {
+                    return 'Le PIN doit comporter 6 chiffres';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: newPinController,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Nouveau PIN',
+                  counterText: '',
+                ),
+                validator: (value) {
+                  if (value == null || value.length != 6) {
+                    return 'Le PIN doit comporter 6 chiffres';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: confirmPinController,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Confirmer le nouveau PIN',
+                  counterText: '',
+                ),
+                validator: (value) {
+                  if (value != newPinController.text) {
+                    return 'Les PIN ne correspondent pas';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+
+              final changeResult = await ref
+                  .read(authProvider.notifier)
+                  .changePin(
+                    currentPinController.text,
+                    newPinController.text,
+                  );
+
+              if (!ctx.mounted) return;
+
+              if (changeResult['success'] == true) {
+                Navigator.pop(ctx, true);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('PIN modifié avec succès'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      changeResult['message']?.toString() ??
+                          'Erreur lors du changement de PIN',
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Modifier'),
+          ),
+        ],
+      ),
+    );
+
+    currentPinController.dispose();
+    newPinController.dispose();
+    confirmPinController.dispose();
+  }
+
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+  }
 
   Future<void> _logout() async {
     await ref.read(authProvider.notifier).logout();
@@ -48,22 +206,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsGroup(
             title: 'Compte',
             children: [
-              const _SettingsRow(
+              _SettingsRow(
                 icon: Icons.person_rounded,
                 title: 'Informations personnelles',
-                onTap: _noopSettingsAction,
+                onTap: _navigateToProfile,
               ),
               const _SettingsDivider(),
-              const _SettingsRow(
+              _SettingsRow(
                 icon: Icons.pin_rounded,
                 title: 'Modifier le code PIN',
-                onTap: _noopSettingsAction,
+                onTap: _changePin,
               ),
               const _SettingsDivider(),
               _SettingsRow(
                 icon: Icons.language_rounded,
                 title: 'Langue',
-                onTap: _noopSettingsAction,
+                onTap: () {},
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
@@ -91,7 +249,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: 'Notifications push',
                 trailing: Switch(
                   value: _pushEnabled,
-                  onChanged: (value) => setState(() => _pushEnabled = value),
+                  onChanged: _togglePushNotifications,
                 ),
                 chevron: false,
               ),
@@ -101,7 +259,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: 'E-mails',
                 trailing: Switch(
                   value: _emailEnabled,
-                  onChanged: (value) => setState(() => _emailEnabled = value),
+                  onChanged: _toggleEmailNotifications,
                 ),
                 chevron: false,
               ),
@@ -188,6 +346,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 }
+
+void _noopSettingsAction() {}
 
 class _SettingsGroup extends StatelessWidget {
   final String title;

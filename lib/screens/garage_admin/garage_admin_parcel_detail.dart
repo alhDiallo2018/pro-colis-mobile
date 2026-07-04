@@ -25,21 +25,39 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
   static const Color textPrimary = Color(0xFF1A2332);
   static const Color textSecondary = Color(0xFF6B7A8F);
 
+  String _statusToStep(String status) {
+    switch (status) {
+      case 'picked_up': return 'pickup';
+      case 'in_transit': return 'transit';
+      case 'arrived': return 'arrived';
+      case 'out_for_delivery': return 'out-for-delivery';
+      case 'confirmed': return 'confirm';
+      case 'delivered': return 'deliver';
+      case 'cancelled': return 'cancelled';
+      default: return status;
+    }
+  }
+
   Future<void> _updateStatus(String newStatus) async {
     setState(() => _isUpdating = true);
     try {
-      final Parcel updatedParcel = await _apiService.updateParcelStatus(widget.parcel.id, newStatus);
+      final step = _statusToStep(newStatus);
+      if (step == 'cancelled') {
+        await _apiService.cancelParcel(widget.parcel.id, reason: 'Annulé par l\'admin');
+      } else {
+        await _apiService.advanceParcel(widget.parcel.id, step);
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Statut mis à jour avec succès'),
+            content: const Text('Statut mis à jour avec succès'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
-        Navigator.pop(context, updatedParcel);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
