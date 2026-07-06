@@ -1,16 +1,63 @@
 // mobile/lib/screens/parcel/parcel_detail_screen.dart
 
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/parcel.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/procolis_design_system.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
+import '../../widgets/video_player_widget.dart';
+import '../shared/messages_screen.dart';
 import 'confirm_delivery_screen.dart';
+
+/// Action de cycle de vie côté chauffeur : un seul bouton contextuel qui
+/// fait avancer la mission (aligné sur le web MissionsScreen). L'étape
+/// `deliver` bascule vers le flux OTP (ConfirmDeliveryScreen).
+class _DriverStepAction {
+  final String step;
+  final String label;
+  final IconData icon;
+  const _DriverStepAction(this.step, this.label, this.icon);
+}
+
+_DriverStepAction? _driverNextStep(ParcelStatus status) {
+  switch (status) {
+    case ParcelStatus.pending:
+      return const _DriverStepAction(
+          'confirm', 'Confirmer la prise en charge', Icons.check_circle_rounded);
+    case ParcelStatus.confirmed:
+      return const _DriverStepAction(
+          'pickup', 'Marquer ramassé', Icons.inventory_2_rounded);
+    case ParcelStatus.pickedUp:
+      return const _DriverStepAction(
+          'transit', 'Marquer en transit', Icons.local_shipping_rounded);
+    case ParcelStatus.inTransit:
+      return const _DriverStepAction(
+          'arrived', 'Marquer arrivé', Icons.pin_drop_rounded);
+    case ParcelStatus.arrived:
+      return const _DriverStepAction(
+          'out-for-delivery', 'En livraison', Icons.delivery_dining_rounded);
+    case ParcelStatus.outForDelivery:
+      return const _DriverStepAction(
+          'deliver', 'Confirmer livraison', Icons.task_alt_rounded);
+    default:
+      return null;
+  }
+}
 
 class ParcelDetailScreen extends ConsumerStatefulWidget {
   final Parcel? parcel;
@@ -33,15 +80,33 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   String? _otpCode;
   bool _isLoadingOtp = false;
 
+  // Lecture des notes vocales attachées au colis.
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  int? _playingAudioIndex;
+
+  // Notation du chauffeur (côté client, colis livré).
+  bool _hasRated = false;
+  double? _driverAvgRating;
+  int? _driverRatingCount;
+
   @override
   void initState() {
     super.initState();
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playingAudioIndex = null);
+    });
     if (widget.parcel != null) {
       _parcel = widget.parcel!;
       _loadDetailData();
     } else if (widget.parcelId != null) {
       _loadParcelById(widget.parcelId!);
     }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   Future<void> _loadParcelById(String id) async {
@@ -60,6 +125,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           _isLoading = false;
         });
       }
+      _loadDriverRating();
     } catch (e) {
       if (mounted) {
         _showSnack('Impossible de charger le colis');
@@ -83,6 +149,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         _events = results[1] as List<ParcelEvent>;
       });
       _fetchOtp();
+      _loadDriverRating();
     } catch (error) {
       debugPrint('Erreur chargement détail colis: $error');
       if (mounted) {
@@ -172,15 +239,551 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     }
   }
 
-  void _shareTracking() {
-    Clipboard.setData(
-      ClipboardData(text: 'Suivi Procolis ${_parcel.trackingNumber}'),
-    );
-    _showSnack('Numéro de suivi copié');
+  Rect? _shareOrigin() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
+  Future<void> _shareTracking() async {
+    final trackingUrl = 'https://procolis.sn/track/${_parcel.trackingNumber}';
+    try {
+      await Share.share(
+        '📦 Suivi de colis PRO COLIS\n\n'
+        '🔹 N° de suivi: ${_parcel.trackingNumber}\n'
+        '🔹 Statut: ${_parcel.status.label}\n'
+        '🔹 Expéditeur: ${_parcel.senderName}\n'
+        '🔹 Destinataire: ${_parcel.receiverName}\n\n'
+        '🔗 Suivez votre colis en ligne: $trackingUrl',
+        subject: 'Suivi de colis PRO COLIS',
+        sharePositionOrigin: _shareOrigin(),
+      );
+    } catch (e, s) {
+      // Repli : copie du numéro de suivi si le partage natif échoue.
+      debugPrint('❌ [SHARE] $e\n$s');
+      await Clipboard.setData(
+        ClipboardData(text: 'Suivi Procolis ${_parcel.trackingNumber}'),
+      );
+      _showSnack('Partage indisponible ($e)');
+    }
+  }
+
+  Future<void> _openTrackingUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _showSnack('Impossible d\'ouvrir le lien');
+    }
+  }
+
+  String _formatReceiptDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/'
+      '${date.month.toString().padLeft(2, '0')}/${date.year}';
+
   void _showReceipt() {
-    _showSnack('Reçu bientôt disponible');
+    final GlobalKey receiptKey = GlobalKey();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '📄 Reçu de livraison',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.share, color: AppTheme.primary),
+                            onPressed: () => _shareReceipt(sheetContext, receiptKey),
+                            tooltip: 'Partager',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.link, color: AppTheme.primary),
+                            onPressed: _shareTracking,
+                            tooltip: 'Partager le lien',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(sheetContext),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(16),
+                    child: RepaintBoundary(
+                      key: receiptKey,
+                      child: _buildReceiptWidget(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _shareReceipt(BuildContext context, GlobalKey receiptKey) async {
+    try {
+      final boundary = receiptKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) {
+        _showSnack('Impossible de capturer le reçu');
+        return;
+      }
+
+      final image = await boundary.toImage(pixelRatio: 2.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        _showSnack('Erreur lors de la capture du reçu');
+        return;
+      }
+
+      final pngBytes = byteData.buffer.asUint8List();
+      final tempDir = await getTemporaryDirectory();
+      final file =
+          File('${tempDir.path}/receipt_${_parcel.trackingNumber}.png');
+      await file.writeAsBytes(pngBytes);
+
+      final trackingUrl = 'https://procolis.sn/track/${_parcel.trackingNumber}';
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: '📦 Suivi de colis PRO COLIS\n\n'
+            '🔹 N° de suivi: ${_parcel.trackingNumber}\n'
+            '🔹 Statut: ${_parcel.status.label}\n'
+            '🔹 Expéditeur: ${_parcel.senderName}\n'
+            '🔹 Destinataire: ${_parcel.receiverName}\n'
+            '🔹 Montant: ${_parcel.formattedPrice}\n\n'
+            '🔗 Suivez votre colis en ligne: $trackingUrl',
+        subject: 'Reçu de livraison PRO COLIS',
+        sharePositionOrigin: _shareOrigin(),
+      );
+    } catch (e, s) {
+      debugPrint('❌ [SHARE RECEIPT] $e\n$s');
+      _showSnack('Partage du reçu indisponible ($e)');
+    }
+  }
+
+  Widget _buildReceiptWidget() {
+    final parcel = _parcel;
+    final isDelivered = parcel.status.value == 'delivered';
+    final trackingUrl = 'https://procolis.sn/track/${parcel.trackingNumber}';
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'PRO COLIS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDelivered
+                      ? Colors.green.shade50
+                      : Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isDelivered
+                        ? Colors.green.shade200
+                        : Colors.orange.shade200,
+                  ),
+                ),
+                child: Text(
+                  isDelivered ? '✅ Livré' : '📦 En cours',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDelivered
+                        ? Colors.green.shade700
+                        : Colors.orange.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 16),
+          Center(
+            child: Column(
+              children: [
+                QrImageView(
+                  data: trackingUrl,
+                  version: QrVersions.auto,
+                  size: 180,
+                  backgroundColor: Colors.white,
+                  errorCorrectionLevel: QrErrorCorrectLevel.L,
+                  padding: const EdgeInsets.all(8),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '📱 Scanner pour suivre',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    parcel.trackingNumber,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => _openTrackingUrl(trackingUrl),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border:
+                          Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.open_in_new,
+                            size: 16, color: AppTheme.primary),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Voir en ligne',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildReceiptInfoRow('📋 N° de suivi', parcel.trackingNumber,
+              isBold: true),
+          const SizedBox(height: 8),
+          _buildReceiptInfoRow('📅 Date', _formatReceiptDate(parcel.createdAt)),
+          const SizedBox(height: 8),
+          _buildReceiptInfoRow('📦 Statut', parcel.status.label),
+          const SizedBox(height: 8),
+          _buildReceiptInfoRow('👤 Expéditeur', parcel.senderName),
+          const SizedBox(height: 8),
+          _buildReceiptInfoRow('👤 Destinataire', parcel.receiverName),
+          const SizedBox(height: 8),
+          _buildReceiptInfoRow('📍 Départ', parcel.departureGarageName),
+          if (parcel.arrivalGarageName != null) ...[
+            const SizedBox(height: 8),
+            _buildReceiptInfoRow('📍 Arrivée', parcel.arrivalGarageName!),
+          ],
+          const SizedBox(height: 8),
+          _buildReceiptInfoRow('📦 Poids', parcel.formattedWeight),
+          const SizedBox(height: 8),
+          _buildReceiptInfoRow('💰 Montant', parcel.formattedPrice),
+          if (isDelivered && parcel.deliveryDate != null) ...[
+            const SizedBox(height: 8),
+            _buildReceiptInfoRow(
+                '✅ Livré le', _formatReceiptDate(parcel.deliveryDate!)),
+          ],
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 12),
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  'PRO COLIS - Service de transport interurbain',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '📞 +221 33 123 45 67 | 📧 contact@procolis.sn',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptInfoRow(String label, String value,
+      {bool isBold = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==================== MÉDIAS (PIÈCES JOINTES) ====================
+
+  /// Résout une URL de média : les chemins relatifs `/uploads/...` sont
+  /// préfixés avec le backend, comme dans le reste de l'application.
+  String _mediaUrl(String url) => url.startsWith('http')
+      ? url
+      : 'https://procolis-backend.onrender.com$url';
+
+  bool get _hasMedia =>
+      _parcel.photoUrls.isNotEmpty ||
+      _parcel.videoUrls.isNotEmpty ||
+      _parcel.audioUrls.isNotEmpty;
+
+  void _openPhotoViewer(String url) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4,
+              child: Center(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Icon(Icons.broken_image_rounded,
+                        color: Colors.white54, size: 48),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                onPressed: () => Navigator.pop(dialogContext),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openVideo(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: VideoPlayerWidget(videoUrl: url),
+      ),
+    );
+  }
+
+  Future<void> _toggleParcelAudio(int index, String url) async {
+    try {
+      if (_playingAudioIndex == index) {
+        await _audioPlayer.stop();
+        if (mounted) setState(() => _playingAudioIndex = null);
+        return;
+      }
+      await _audioPlayer.stop();
+      await _audioPlayer.play(UrlSource(url));
+      if (mounted) setState(() => _playingAudioIndex = index);
+    } catch (_) {
+      if (mounted) setState(() => _playingAudioIndex = null);
+      _showSnack('Lecture audio impossible');
+    }
+  }
+
+  List<Widget> _buildMediaSection() {
+    if (!_hasMedia) return const [];
+
+    final photos = _parcel.photoUrls;
+    final videos = _parcel.videoUrls;
+    final audios = _parcel.audioUrls;
+
+    return [
+      const SizedBox(height: 18),
+      const PcSectionHeader('Pièces jointes'),
+      PcCard(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (photos.isNotEmpty) ...[
+              _MediaLabel(icon: Icons.photo_library_rounded, text: 'Photos'),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 80,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: photos.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, i) {
+                    final url = _mediaUrl(photos[i]);
+                    return GestureDetector(
+                      onTap: () => _openPhotoViewer(url),
+                      child: ClipRRect(
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusMd),
+                        child: Image.network(
+                          url,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 80,
+                            height: 80,
+                            color: AppTheme.slate100,
+                            child: const Icon(Icons.broken_image_rounded,
+                                color: AppTheme.slate400),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+            if (videos.isNotEmpty) ...[
+              if (photos.isNotEmpty) const SizedBox(height: 16),
+              _MediaLabel(
+                  icon: Icons.videocam_rounded, text: 'Vidéos'),
+              const SizedBox(height: 10),
+              for (var i = 0; i < videos.length; i++) ...[
+                if (i > 0) const SizedBox(height: 8),
+                _MediaTile(
+                  icon: Icons.play_circle_fill_rounded,
+                  label: 'Vidéo ${i + 1}',
+                  onTap: () => _openVideo(_mediaUrl(videos[i])),
+                ),
+              ],
+            ],
+            if (audios.isNotEmpty) ...[
+              if (photos.isNotEmpty || videos.isNotEmpty)
+                const SizedBox(height: 16),
+              _MediaLabel(
+                  icon: Icons.graphic_eq_rounded, text: 'Notes vocales'),
+              const SizedBox(height: 10),
+              for (var i = 0; i < audios.length; i++) ...[
+                if (i > 0) const SizedBox(height: 8),
+                _MediaTile(
+                  icon: _playingAudioIndex == i
+                      ? Icons.stop_circle_rounded
+                      : Icons.play_circle_fill_rounded,
+                  label: 'Note vocale ${i + 1}',
+                  onTap: () => _toggleParcelAudio(i, _mediaUrl(audios[i])),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    ];
   }
 
   Future<void> _openConfirmDelivery() async {
@@ -211,13 +814,30 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 
   void _openChat() {
+    // Détermine l'interlocuteur selon le rôle : le client parle au chauffeur,
+    // le chauffeur (ou garage) parle au client. On ouvre la vraie messagerie
+    // synchronisée avec le backend (envoi persisté + polling), pas la maquette.
+    final myId = ref.read(authProvider).user?.id;
+
+    String? peerId;
+    String peerName;
+    if (myId != null && myId == _parcel.senderId) {
+      peerId = (_parcel.driverId != null && _parcel.driverId!.isNotEmpty)
+          ? _parcel.driverId
+          : _parcel.bestBid?.driverId;
+      peerName = _driverName;
+    } else {
+      peerId = _parcel.senderId;
+      peerName = _parcel.senderName;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ParcelChatScreen(
-          parcel: _parcel,
-          driverName: _driverName,
-          driverPhone: _driverPhone,
+        builder: (_) => MessagesScreen(
+          initialPeerId: peerId,
+          initialPeerName: peerName,
+          initialParcelId: _parcel.id,
         ),
       ),
     );
@@ -275,6 +895,231 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           _parcel.status == ParcelStatus.arrived ||
           _parcel.status == ParcelStatus.inTransit);
 
+  /// L'utilisateur courant est-il le chauffeur assigné à ce colis ? Seul lui
+  /// voit l'échelle d'étapes de mission (jamais le client).
+  bool get _isAssignedDriver {
+    final me = ref.read(authProvider).user;
+    if (me == null || !me.isDriver) return false;
+    return _parcel.driverId == me.id ||
+        (_parcel.driverId == null && _parcel.bestBid?.driverId == me.id);
+  }
+
+  _DriverStepAction? get _driverStep =>
+      _parcel.isCancelled || _parcel.isDelivered
+          ? null
+          : _driverNextStep(_parcel.status);
+
+  Future<void> _advanceStep(String step) async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      final res = await _apiService.advanceParcel(_parcel.id, step);
+      if (res['success'] == false) {
+        _showSnack(res['message']?.toString() ?? 'Action impossible');
+      } else {
+        await _loadDetailData();
+      }
+    } catch (_) {
+      _showSnack('Action impossible');
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  /// L'utilisateur courant est-il le client propriétaire (expéditeur) du colis ?
+  /// Seul lui peut noter le chauffeur — jamais le chauffeur lui-même.
+  bool get _isClientOwner {
+    final me = ref.read(authProvider).user;
+    if (me == null || me.isDriver) return false;
+    return _parcel.senderId.isNotEmpty && _parcel.senderId == me.id;
+  }
+
+  /// La note du chauffeur n'est proposée que si : (a) je suis le client
+  /// propriétaire, (b) le colis est livré, (c) un chauffeur est assigné.
+  bool get _canRateDriver =>
+      _isClientOwner && _parcel.isDelivered && _parcel.hasDriver;
+
+  /// Libellé de la note moyenne du chauffeur pour la carte (ex: "★ 4,6 · 12 avis").
+  String? get _driverRatingLabel {
+    final avg = _driverAvgRating;
+    final count = _driverRatingCount;
+    if (avg == null || count == null || count == 0) return null;
+    return '★ ${avg.toStringAsFixed(1).replaceAll('.', ',')} · $count avis';
+  }
+
+  /// Récupère (best-effort) la note moyenne du chauffeur pour l'afficher.
+  /// Silencieux en cas d'échec ou de liste vide.
+  Future<void> _loadDriverRating() async {
+    final driverId = _parcel.driverId;
+    if (driverId == null || driverId.isEmpty) return;
+    try {
+      final ratings = await _apiService.getDriverRatings(driverId);
+      if (ratings.isEmpty) return;
+      final values = ratings
+          .map((r) => (r['rating'] as num?)?.toDouble())
+          .whereType<double>()
+          .toList();
+      if (values.isEmpty) return;
+      final avg = values.reduce((a, b) => a + b) / values.length;
+      if (mounted) {
+        setState(() {
+          _driverAvgRating = avg;
+          _driverRatingCount = values.length;
+        });
+      }
+    } catch (_) {
+      // Best-effort : on n'affiche simplement rien de plus.
+    }
+  }
+
+  /// Ouvre la feuille de notation du chauffeur (1–5 étoiles + commentaire).
+  Future<void> _rateDriver() async {
+    final driverId = _parcel.driverId;
+    if (driverId == null || driverId.isEmpty) return;
+
+    final commentCtrl = TextEditingController();
+    int selected = 0;
+    bool submitting = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> submit() async {
+              if (selected == 0 || submitting) return;
+              setSheetState(() => submitting = true);
+              final res = await _apiService.rateDriver(
+                driverId: driverId,
+                rating: selected,
+                parcelId: _parcel.id,
+                comment: commentCtrl.text.trim().isEmpty
+                    ? null
+                    : commentCtrl.text.trim(),
+              );
+              if (res['success'] == false) {
+                setSheetState(() => submitting = false);
+                if (mounted) {
+                  _showSnack(
+                      res['message']?.toString() ?? 'Envoi de la note impossible');
+                }
+                return;
+              }
+              if (mounted) setState(() => _hasRated = true);
+              Navigator.pop(sheetContext);
+              _showSnack('Merci pour votre note !');
+              _loadDriverRating();
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppTheme.cardColor,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppTheme.slate300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Noter le chauffeur',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _driverName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (var i = 1; i <= 5; i++)
+                          IconButton(
+                            onPressed: submitting
+                                ? null
+                                : () => setSheetState(() => selected = i),
+                            iconSize: 42,
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            constraints: const BoxConstraints(),
+                            icon: Icon(
+                              i <= selected
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              color: i <= selected
+                                  ? AppTheme.amber400
+                                  : AppTheme.slate300,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: commentCtrl,
+                      enabled: !submitting,
+                      minLines: 2,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(
+                        hintText: 'Commentaire (facultatif)',
+                        filled: true,
+                        fillColor: AppTheme.slate100,
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusMd),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(14),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    PcButton(
+                      'Envoyer',
+                      onPressed: selected == 0 ? null : submit,
+                      icon: Icons.send_rounded,
+                      size: PcButtonSize.lg,
+                      block: true,
+                      loading: submitting,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    commentCtrl.dispose();
+  }
+
   String _formatNumber(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
           RegExp(r'(\d)(?=(\d{3})+$)'),
@@ -297,6 +1142,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: const AppBottomNav(),
       body: RefreshIndicator(
         color: AppTheme.primary,
         onRefresh: _loadDetailData,
@@ -321,53 +1167,63 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               name: _driverName,
               phone: _driverPhone,
               garage: _parcel.departureGarageName,
+              ratingLabel: _driverRatingLabel,
               onCall: _callDriver,
               onChat: _openChat,
             ),
             const SizedBox(height: 16),
-            ProcolisCard(
+            PcCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
-                  _InfoRow(
+                  PcListRow(
                     icon: Icons.category_rounded,
-                    label: 'Type',
-                    value: _parcel.type.label,
+                    iconTone: PcTone.primary,
+                    title: 'Type',
+                    trailing: _InfoValue(value: _parcel.type.label),
                   ),
-                  const _DetailDivider(),
-                  _InfoRow(
+                  const PcDivider(),
+                  PcListRow(
                     icon: Icons.scale_rounded,
-                    label: 'Poids',
-                    value: _parcel.formattedWeight,
-                    mono: true,
+                    iconTone: PcTone.primary,
+                    title: 'Poids',
+                    trailing:
+                        _InfoValue(value: _parcel.formattedWeight, mono: true),
                   ),
-                  const _DetailDivider(),
-                  _InfoRow(
+                  const PcDivider(),
+                  PcListRow(
                     icon: Icons.person_pin_rounded,
-                    label: 'Destinataire',
-                    value: _parcel.receiverName.isEmpty
-                        ? 'Non renseigné'
-                        : _parcel.receiverName,
+                    iconTone: PcTone.primary,
+                    title: 'Destinataire',
+                    trailing: _InfoValue(
+                      value: _parcel.receiverName.isEmpty
+                          ? 'Non renseigné'
+                          : _parcel.receiverName,
+                    ),
                   ),
-                  const _DetailDivider(),
-                  _InfoRow(
+                  const PcDivider(),
+                  PcListRow(
                     icon: Icons.call_rounded,
-                    label: 'Téléphone',
-                    value: _parcel.receiverPhone.isEmpty
-                        ? 'Non renseigné'
-                        : _parcel.receiverPhone,
-                    mono: true,
+                    iconTone: PcTone.primary,
+                    title: 'Téléphone',
+                    trailing: _InfoValue(
+                      value: _parcel.receiverPhone.isEmpty
+                          ? 'Non renseigné'
+                          : _parcel.receiverPhone,
+                      mono: true,
+                    ),
                   ),
                 ],
               ),
             ),
+            ..._buildMediaSection(),
             if (_parcel.status.isInProgress && _otpCode != null) ...[
               const SizedBox(height: 18),
               _DeliveryCodeCard(otp: _otpCode!, isLoading: _isLoadingOtp),
             ],
             const SizedBox(height: 18),
-            const ProcolisSectionHeader(title: 'Suivi'),
-            ProcolisCard(
+            const PcSectionHeader('Suivi'),
+            PcCard(
               padding: const EdgeInsets.all(16),
               child: _DesignTimeline(
                 parcel: _parcel,
@@ -376,7 +1232,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
             ),
             const SizedBox(height: 16),
             if (_parcel.isDelivered) ...[
-              ProcolisCard(
+              PcCard(
                 padding: const EdgeInsets.all(14),
                 onTap: _openDeliveryProof,
                 child: Row(
@@ -424,65 +1280,71 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            if (_canConfirmDelivery) ...[
-              ElevatedButton.icon(
+            if (_canRateDriver) ...[
+              PcButton(
+                _hasRated ? 'Chauffeur noté ★' : 'Noter le chauffeur',
+                onPressed: _hasRated ? null : _rateDriver,
+                icon: Icons.star_rounded,
+                variant: PcButtonVariant.amber,
+                size: PcButtonSize.lg,
+                block: true,
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_isAssignedDriver && _driverStep != null) ...[
+              PcButton(
+                _driverStep!.label,
+                onPressed: _isUpdating
+                    ? null
+                    : () => _driverStep!.step == 'deliver'
+                        ? _openConfirmDelivery()
+                        : _advanceStep(_driverStep!.step),
+                icon: _driverStep!.icon,
+                size: PcButtonSize.lg,
+                block: true,
+                loading: _isUpdating,
+              ),
+              const SizedBox(height: 12),
+            ] else if (_canConfirmDelivery) ...[
+              PcButton(
+                'Confirmer la livraison',
                 onPressed: _openConfirmDelivery,
-                icon: const Icon(Icons.lock_open_rounded),
-                label: const Text('Confirmer la livraison'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(0, 52),
-                ),
+                icon: Icons.lock_open_rounded,
+                size: PcButtonSize.lg,
+                block: true,
               ),
               const SizedBox(height: 12),
             ],
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: PcButton(
+                    'Voir le reçu',
                     onPressed: _showReceipt,
-                    icon: const Icon(Icons.receipt_long_rounded),
-                    label: const Text('Voir le reçu'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 50),
-                      backgroundColor: AppTheme.amber50,
-                      foregroundColor: AppTheme.amber700,
-                      side: const BorderSide(color: AppTheme.amber400),
-                    ),
+                    icon: Icons.receipt_long_rounded,
+                    variant: PcButtonVariant.secondary,
+                    block: true,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _parcel.isDelivered
-                      ? ElevatedButton.icon(
+                      ? PcButton(
+                          'Preuve',
                           onPressed: _openDeliveryProof,
-                          icon: const Icon(Icons.verified_rounded),
-                          label: const Text('Preuve'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(0, 50),
-                          ),
+                          icon: Icons.verified_rounded,
+                          variant: PcButtonVariant.primary,
+                          block: true,
                         )
-                      : ElevatedButton.icon(
+                      : PcButton(
+                          'Annuler',
                           onPressed: _parcel.isFinished || _isUpdating
                               ? null
                               : _cancelParcel,
-                          icon: _isUpdating
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.cancel_rounded),
-                          label: const Text('Annuler'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.red500,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(0, 50),
-                          ),
+                          icon: Icons.cancel_rounded,
+                          variant: PcButtonVariant.danger,
+                          loading: _isUpdating,
+                          block: true,
                         ),
                 ),
               ],
@@ -692,16 +1554,17 @@ class _HeroStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.statusColors(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity( 0.92),
+        color: Colors.white.withOpacity(0.92),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         status.label.toUpperCase(),
         style: TextStyle(
-          color: status.color,
+          color: colors.foreground,
           fontSize: 10,
           fontWeight: FontWeight.w900,
           letterSpacing: 0.4,
@@ -711,40 +1574,11 @@ class _HeroStatusBadge extends StatelessWidget {
   }
 }
 
-class _ExpressTag extends StatelessWidget {
-  const _ExpressTag();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppTheme.red50,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.flash_on_rounded, color: AppTheme.red500, size: 16),
-          SizedBox(width: 5),
-          Text(
-            'EXPRESS',
-            style: TextStyle(
-              color: AppTheme.red500,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DriverCard extends StatelessWidget {
   final String name;
   final String phone;
   final String garage;
+  final String? ratingLabel;
   final VoidCallback onCall;
   final VoidCallback onChat;
 
@@ -752,52 +1586,21 @@ class _DriverCard extends StatelessWidget {
     required this.name,
     required this.phone,
     required this.garage,
+    this.ratingLabel,
     required this.onCall,
     required this.onChat,
   });
 
   @override
   Widget build(BuildContext context) {
-    final initials = name
-        .split(' ')
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part[0].toUpperCase())
-        .join();
-
-    return ProcolisCard(
+    return PcCard(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppTheme.primaryLight,
-                child: Text(
-                  initials.isEmpty ? 'PC' : initials,
-                  style: const TextStyle(
-                    color: AppTheme.teal700,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 2,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: AppTheme.green500,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-            ],
+          PcAvatar(
+            name.isEmpty ? 'PC' : name,
+            size: 48,
+            status: PcAvatarStatus.online,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -816,7 +1619,9 @@ class _DriverCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '$garage · 4,9 ★ · Camionnette',
+                  ratingLabel != null
+                      ? '$garage · $ratingLabel'
+                      : '$garage · 4,9 ★ · Camionnette',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -829,12 +1634,19 @@ class _DriverCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          _SoftIconButton(
-            icon: Icons.call_rounded,
-            onTap: phone.isEmpty ? null : onCall,
+          PcIconButton(
+            Icons.call_rounded,
+            variant: PcIconButtonVariant.soft,
+            onPressed: phone.isEmpty ? null : onCall,
+            tooltip: 'Appeler',
           ),
           const SizedBox(width: 6),
-          _SoftIconButton(icon: Icons.chat_rounded, onTap: onChat),
+          PcIconButton(
+            Icons.chat_rounded,
+            variant: PcIconButtonVariant.soft,
+            onPressed: onChat,
+            tooltip: 'Message',
+          ),
         ],
       ),
     );
@@ -869,69 +1681,34 @@ class _SoftIconButton extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
+class _InfoValue extends StatelessWidget {
   final String value;
   final bool mono;
 
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.mono = false,
-  });
+  const _InfoValue({required this.value, this.mono = false});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      child: Row(
-        children: [
-          Icon(icon, color: AppTheme.textSecondary, size: 20),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 96,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Text(
+        value,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.right,
+        style: mono
+            ? AppTheme.mono(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              )
+            : const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
               ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: mono
-                  ? AppTheme.mono(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    )
-                  : const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-            ),
-          ),
-        ],
       ),
     );
-  }
-}
-
-class _DetailDivider extends StatelessWidget {
-  const _DetailDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(height: 1, indent: 16, endIndent: 16);
   }
 }
 
@@ -1685,73 +2462,17 @@ class _TagsRow extends StatelessWidget {
       spacing: 8,
       runSpacing: 6,
       children: [
-        if (parcel.isUrgent)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.red50,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.flash_on_rounded, color: AppTheme.red500, size: 14),
-                SizedBox(width: 4),
-                Text(
-                  'Express >>',
-                  style: TextStyle(
-                    color: AppTheme.red500,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        if (parcel.isUrgent) const PcTag.express(),
         if (parcel.isInsured)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.green50,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.shield_rounded, color: AppTheme.green700, size: 14),
-                SizedBox(width: 4),
-                Text(
-                  'Assuré',
-                  style: TextStyle(
-                    color: AppTheme.green700,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
+          const PcTag(
+            'Assuré',
+            icon: Icons.shield_rounded,
+            tone: PcTone.green,
           ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppTheme.teal50,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(parcel.type.icon, color: AppTheme.teal600, size: 14),
-              const SizedBox(width: 4),
-              Text(
-                parcel.type.label,
-                style: const TextStyle(
-                  color: AppTheme.teal700,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
+        PcTag(
+          parcel.type.label,
+          icon: parcel.type.icon,
+          tone: PcTone.primary,
         ),
       ],
     );
@@ -1769,7 +2490,7 @@ class _DeliveryCodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProcolisCard(
+    return PcCard(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
@@ -1838,4 +2559,73 @@ class _StepInfo {
   final String label;
   final DateTime? date;
   const _StepInfo(this.status, this.label, this.date);
+}
+
+class _MediaLabel extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _MediaLabel({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppTheme.primary),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MediaTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _MediaTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.slate50,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Icon(icon, color: AppTheme.primary, size: 26),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

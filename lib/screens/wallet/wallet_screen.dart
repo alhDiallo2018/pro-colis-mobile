@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/app_theme.dart';
-import '../../widgets/procolis_design_system.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 
 class WalletScreen extends StatelessWidget {
   const WalletScreen({super.key});
@@ -23,131 +25,45 @@ class WalletScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: AppTheme.amberGradient,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.amber500.withOpacity( 0.24),
-                  blurRadius: 22,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'SOLDE DE POINTS',
-                        style: TextStyle(
-                          color: Color(0xFF3A2600),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.account_balance_wallet_rounded,
-                      color: Color(0xFF3A2600),
-                      size: 28,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text.rich(
-                  TextSpan(
-                    text: _formatPoints(points),
-                    children: const [
-                      TextSpan(
-                        text: ' pts',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                    ],
-                  ),
-                  style: AppTheme.mono(
-                    color: const Color(0xFF3A2600),
-                    fontSize: 38,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '≈ 24 500 FCFA de réductions disponibles',
-                  style: TextStyle(
-                    color: Color(0xCC3A2600),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+          _BalanceHero(points: points),
+          const SizedBox(height: 18),
+          // Le rechargement de points est réservé aux chauffeurs. Côté client,
+          // les points se gagnent (livraisons) et se dépensent en réductions.
+          PcButton(
+            'Utiliser mes points',
+            icon: Icons.redeem_rounded,
+            variant: PcButtonVariant.secondary,
+            size: PcButtonSize.lg,
+            block: true,
+            onPressed: () => _showComingSoon(context, 'Utilisation des points'),
           ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const TopUpScreen()),
-                  ),
-                  icon: const Icon(Icons.add_card_rounded),
-                  label: const Text('Recharger'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _showComingSoon(context, 'Utilisation des points'),
-                  icon: const Icon(Icons.redeem_rounded),
-                  label: const Text('Utiliser'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const ProcolisSectionHeader(title: 'Historique'),
-          ProcolisCard(
+          const PcSectionHeader('Historique'),
+          PcCard(
             padding: EdgeInsets.zero,
             child: Column(
               children: const [
                 _WalletTxnRow(
                   icon: Icons.task_alt_rounded,
-                  iconColor: AppTheme.green700,
-                  iconBg: AppTheme.green50,
+                  iconTone: PcTone.green,
                   title: 'Livraison validée',
                   subtitle: 'Aujourd’hui · PC-7F3K-2291',
                   amount: '+150 pts',
                   positive: true,
                 ),
-                _WalletDivider(),
+                PcDivider(),
                 _WalletTxnRow(
                   icon: Icons.add_card_rounded,
-                  iconColor: AppTheme.primary,
-                  iconBg: AppTheme.teal50,
+                  iconTone: PcTone.primary,
                   title: 'Recharge de points',
                   subtitle: 'Hier · Orange Money',
                   amount: '+1 000',
                   positive: true,
                 ),
-                _WalletDivider(),
+                PcDivider(),
                 _WalletTxnRow(
                   icon: Icons.redeem_rounded,
-                  iconColor: AppTheme.amber700,
-                  iconBg: AppTheme.amber50,
+                  iconTone: PcTone.amber,
                   title: 'Réduction appliquée',
                   subtitle: '24/06 · Livraison Abidjan',
                   amount: '-300',
@@ -158,6 +74,7 @@ class WalletScreen extends StatelessWidget {
           ),
         ],
       ),
+      bottomNavigationBar: const AppBottomNav(),
     );
   }
 
@@ -173,6 +90,72 @@ class WalletScreen extends StatelessWidget {
       SnackBar(
         content: Text('$label bientôt disponible'),
         behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+}
+
+class _BalanceHero extends StatelessWidget {
+  final int points;
+
+  const _BalanceHero({required this.points});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppTheme.amberGradient,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.amberShadow(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'SOLDE DE POINTS',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppTheme.amberOnFg,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: AppTheme.amberOnFg,
+                size: 28,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text.rich(
+            TextSpan(
+              text: WalletScreen._formatPoints(points),
+              children: const [
+                TextSpan(text: ' pts', style: TextStyle(fontSize: 18)),
+              ],
+            ),
+            style: AppTheme.mono(
+              color: AppTheme.amberOnFg,
+              fontSize: 38,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '≈ ${WalletScreen._formatPoints(points * 10)} FCFA de réductions disponibles',
+            style: GoogleFonts.manrope(
+              color: AppTheme.amberOnFg.withOpacity(0.8),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -247,15 +230,15 @@ class _TopUpScreenState extends State<TopUpScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          ProcolisCard(
+          PcCard(
             color: AppTheme.slate100,
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Total à payer',
-                    style: TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       color: AppTheme.textSecondary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -266,29 +249,30 @@ class _TopUpScreenState extends State<TopUpScreen> {
                   '${WalletScreen._formatPoints(int.parse(_amount))} FCFA',
                   style: AppTheme.mono(
                     color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 18),
-          ElevatedButton.icon(
+          PcButton(
+            'Payer maintenant',
+            icon: Icons.lock_rounded,
+            size: PcButtonSize.lg,
+            block: true,
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.lock_rounded),
-            label: const Text('Payer maintenant'),
-            style: ElevatedButton.styleFrom(minimumSize: const Size(0, 52)),
           ),
         ],
       ),
+      bottomNavigationBar: const AppBottomNav(),
     );
   }
 }
 
 class _WalletTxnRow extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
+  final PcTone iconTone;
   final String title;
   final String subtitle;
   final String amount;
@@ -296,8 +280,7 @@ class _WalletTxnRow extends StatelessWidget {
 
   const _WalletTxnRow({
     required this.icon,
-    required this.iconColor,
-    required this.iconBg,
+    required this.iconTone,
     required this.title,
     required this.subtitle,
     required this.amount,
@@ -306,64 +289,20 @@ class _WalletTxnRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            ),
-            child: Icon(icon, color: iconColor, size: 21),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            amount,
-            style: AppTheme.mono(
-              color: positive ? AppTheme.successColor : AppTheme.textSecondary,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
+    return PcListRow(
+      icon: icon,
+      iconTone: iconTone,
+      title: title,
+      subtitle: subtitle,
+      trailing: Text(
+        amount,
+        style: AppTheme.mono(
+          color: positive ? AppTheme.successColor : AppTheme.textSecondary,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
-  }
-}
-
-class _WalletDivider extends StatelessWidget {
-  const _WalletDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(height: 1, indent: 66, color: AppTheme.slate200);
   }
 }
 
@@ -376,10 +315,10 @@ class _WalletLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: GoogleFonts.plusJakartaSans(
         color: AppTheme.textPrimary,
         fontSize: 14,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -416,7 +355,7 @@ class _AmountButton extends StatelessWidget {
           style: AppTheme.mono(
             color: selected ? AppTheme.teal700 : AppTheme.textSecondary,
             fontSize: 15,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -469,16 +408,16 @@ class _PaymentMethodTile extends StatelessWidget {
                 children: [
                   Text(
                     method.title,
-                    style: const TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       color: AppTheme.textPrimary,
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     method.subtitle,
-                    style: const TextStyle(
+                    style: GoogleFonts.manrope(
                       color: AppTheme.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,

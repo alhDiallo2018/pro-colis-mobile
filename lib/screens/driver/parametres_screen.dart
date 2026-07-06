@@ -1,12 +1,18 @@
 // mobile/lib/screens/driver/parametres_screen.dart
-// Paramètres chauffeur (véhicule + PIN) - aligné Web
+// Paramètres chauffeur (compte, véhicule, disponibilité, notifications,
+// sécurité, à propos) — restylé sur le design system ProColis (web-aligné).
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 import '../../widgets/segmented_control.dart';
 
 class DriverParametresScreen extends ConsumerStatefulWidget {
@@ -38,9 +44,22 @@ class _DriverParametresScreenState
   bool _showPinForm = false;
   bool _isSaving = false;
 
+  // Notification preferences (persistées localement en session)
+  bool _notifMissions = true;
+  bool _notifMessages = true;
+  bool _notifPromos = false;
+
+  static const _statuses = ['available', 'busy', 'offline'];
+
   @override
   void initState() {
     super.initState();
+    // Initialise la disponibilité depuis le statut chauffeur courant.
+    final status = ref.read(authProvider).user?.driverStatus;
+    if (status != null) {
+      final i = _statuses.indexOf(status.value);
+      if (i >= 0) _availabilityIndex = i;
+    }
     _loadVehicle();
   }
 
@@ -112,8 +131,7 @@ class _DriverParametresScreenState
       _isUpdatingAvailability = true;
     });
     try {
-      final statuses = ['available', 'busy', 'offline'];
-      await _apiService.updateDriverStatus(statuses[index]);
+      await _apiService.updateDriverStatus(_statuses[index]);
     } catch (e) {
       debugPrint('Erreur mise à jour disponibilité: $e');
     } finally {
@@ -165,76 +183,102 @@ class _DriverParametresScreenState
     );
   }
 
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Se déconnecter'),
+        content: const Text('Voulez-vous vraiment quitter votre session ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.red400),
+            child: const Text('Se déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    await ref.read(authProvider.notifier).logout();
+    if (!mounted) return;
+    Navigator.popUntil(context, (route) => route.isFirst);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).user;
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: AppTheme.cardColor,
-        title: const Text('Paramètres',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text('Paramètres'),
+        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
+      bottomNavigationBar: const AppBottomNav(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
               children: [
-                // Vehicle section
-                _sectionHeader('Véhicule', Icons.directions_car),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: _cardDecoration(),
+                // ==================== COMPTE ====================
+                const PcSectionHeader('Compte'),
+                if (user != null) _accountCard(user),
+                const SizedBox(height: 22),
+
+                // ==================== VÉHICULE ====================
+                const PcSectionHeader('Véhicule'),
+                PcCard(
+                  padding: const EdgeInsets.all(18),
                   child: Column(
                     children: [
                       _inputField(_plateController, 'Plaque d\'immatriculation',
-                          Icons.confirmation_number, 'AB-123-CD'),
+                          Icons.pin_rounded, 'DK-2024-AB'),
                       const SizedBox(height: 14),
-                      _inputField(_modelController, 'Modèle', Icons.car_repair,
-                          'Toyota HiAce'),
+                      _inputField(_modelController, 'Modèle',
+                          Icons.directions_car_rounded, 'Toyota HiAce'),
                       const SizedBox(height: 14),
                       _inputField(_typeController, 'Type de véhicule',
-                          Icons.category, 'Minibus'),
+                          Icons.category_rounded, 'Minibus'),
                       const SizedBox(height: 14),
                       _inputField(_capacityController, 'Capacité (kg)',
-                          Icons.scale, '1500',
+                          Icons.scale_rounded, '1500',
                           keyboardType: TextInputType.number),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _isSaving ? null : _saveVehicle,
-                          icon: const Icon(Icons.save, size: 18),
-                          label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                          ),
-                        ),
+                      const SizedBox(height: 18),
+                      PcButton(
+                        _isSaving ? 'Enregistrement…' : 'Enregistrer le véhicule',
+                        icon: Icons.save_rounded,
+                        block: true,
+                        loading: _isSaving,
+                        onPressed: _isSaving ? null : _saveVehicle,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 22),
 
-                // Availability section
-                _sectionHeader('Disponibilité', Icons.toggle_on),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: _cardDecoration(),
+                // ==================== DISPONIBILITÉ ====================
+                const PcSectionHeader('Disponibilité'),
+                PcCard(
+                  padding: const EdgeInsets.all(18),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Text(
+                        'Votre statut détermine si vous recevez de nouvelles missions.',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          color: AppTheme.slate500,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
                       SegmentedControl(
-                        options: const [
-                          'Disponible',
-                          'Occupé',
-                          'Hors ligne'
-                        ],
+                        options: const ['Disponible', 'Occupé', 'Hors ligne'],
                         selectedIndex: _availabilityIndex,
                         onChanged: (index) {
                           if (!_isUpdatingAvailability) {
@@ -249,100 +293,125 @@ class _DriverParametresScreenState
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 22),
 
-                // PIN section
-                _sectionHeader('Sécurité', Icons.lock),
-                const SizedBox(height: 12),
+                // ==================== NOTIFICATIONS ====================
+                const PcSectionHeader('Notifications'),
+                PcCard(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    children: [
+                      _switchRow(
+                        icon: Icons.local_shipping_rounded,
+                        tone: PcTone.primary,
+                        title: 'Nouvelles missions',
+                        subtitle: 'Être alerté des courses disponibles',
+                        value: _notifMissions,
+                        onChanged: (v) => setState(() => _notifMissions = v),
+                      ),
+                      const PcDivider(),
+                      _switchRow(
+                        icon: Icons.chat_bubble_rounded,
+                        tone: PcTone.green,
+                        title: 'Messages',
+                        subtitle: 'Notifications des conversations',
+                        value: _notifMessages,
+                        onChanged: (v) => setState(() => _notifMessages = v),
+                      ),
+                      const PcDivider(),
+                      _switchRow(
+                        icon: Icons.campaign_rounded,
+                        tone: PcTone.amber,
+                        title: 'Promotions',
+                        subtitle: 'Offres et actualités ProColis',
+                        value: _notifPromos,
+                        onChanged: (v) => setState(() => _notifPromos = v),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+
+                // ==================== SÉCURITÉ ====================
+                const PcSectionHeader('Sécurité'),
                 if (!_showPinForm)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: _cardDecoration(),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.teal50,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.lock_outline,
-                              color: AppTheme.teal600, size: 24),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Code PIN',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.textPrimary)),
-                              Text('Modifier votre code de connexion',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      color: AppTheme.slate500)),
-                            ],
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              setState(() => _showPinForm = true),
-                          child: const Text('Modifier'),
-                        ),
-                      ],
+                  PcCard(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: PcListRow(
+                      icon: Icons.lock_rounded,
+                      iconTone: PcTone.primary,
+                      title: 'Code PIN',
+                      subtitle: 'Modifier votre code de connexion',
+                      trailing: PcButton(
+                        'Modifier',
+                        variant: PcButtonVariant.secondary,
+                        size: PcButtonSize.sm,
+                        onPressed: () => setState(() => _showPinForm = true),
+                      ),
                     ),
                   )
                 else
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: _cardDecoration(),
+                  PcCard(
+                    padding: const EdgeInsets.all(18),
                     child: Column(
                       children: [
                         TextField(
                           controller: _currentPinController,
-                          decoration: _pinDecoration('PIN actuel'),
+                          decoration: _pinDecoration('PIN actuel', Icons.lock_rounded),
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                           maxLength: 6,
                           obscureText: true,
+                          style: AppTheme.mono(fontSize: 15),
                         ),
                         const SizedBox(height: 14),
                         TextField(
                           controller: _newPinController,
-                          decoration: _pinDecoration('Nouveau PIN'),
+                          decoration:
+                              _pinDecoration('Nouveau PIN', Icons.lock_reset_rounded),
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                           maxLength: 6,
                           obscureText: true,
+                          style: AppTheme.mono(fontSize: 15),
                         ),
                         const SizedBox(height: 14),
                         TextField(
                           controller: _confirmPinController,
-                          decoration: _pinDecoration('Confirmer le PIN'),
+                          decoration: _pinDecoration(
+                              'Confirmer le PIN', Icons.lock_reset_rounded),
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                           maxLength: 6,
                           obscureText: true,
+                          style: AppTheme.mono(fontSize: 15),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => setState(
-                                    () => _showPinForm = false),
-                                child: const Text('Annuler'),
+                              child: PcButton(
+                                'Annuler',
+                                variant: PcButtonVariant.secondary,
+                                block: true,
+                                onPressed: () =>
+                                    setState(() => _showPinForm = false),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: ElevatedButton(
+                              child: PcButton(
+                                _isSaving ? 'Modification…' : 'Modifier',
+                                icon: Icons.check_rounded,
+                                block: true,
+                                loading: _isSaving,
                                 onPressed: _isSaving ? null : _changePin,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primary,
-                                  foregroundColor: Colors.white,
-                                ),
-                                child: Text(_isSaving
-                                    ? 'Modification...'
-                                    : 'Modifier'),
                               ),
                             ),
                           ],
@@ -350,48 +419,134 @@ class _DriverParametresScreenState
                       ],
                     ),
                   ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 22),
 
-                // Info section
-                _sectionHeader('À propos', Icons.info_outline),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: _cardDecoration(),
+                // ==================== À PROPOS ====================
+                const PcSectionHeader('À propos'),
+                PcCard(
+                  padding: const EdgeInsets.all(18),
                   child: Column(
                     children: [
                       _infoRow('Version', '1.0.0'),
-                      const Divider(height: 24),
+                      const SizedBox(height: 14),
+                      const PcDivider(),
+                      const SizedBox(height: 14),
                       _infoRow('Application', 'PRO COLIS'),
-                      const Divider(height: 24),
+                      const SizedBox(height: 14),
+                      const PcDivider(),
+                      const SizedBox(height: 14),
                       _infoRow('API', ApiService.baseUrl),
                     ],
                   ),
+                ),
+                const SizedBox(height: 24),
+
+                // ==================== DÉCONNEXION ====================
+                PcButton(
+                  'Se déconnecter',
+                  icon: Icons.logout_rounded,
+                  variant: PcButtonVariant.danger,
+                  block: true,
+                  onPressed: _logout,
                 ),
               ],
             ),
     );
   }
 
-  Widget _sectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppTheme.primary),
-        const SizedBox(width: 8),
-        Text(title,
-            style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary)),
-      ],
+  // ==================== SOUS-COMPOSANTS ====================
+
+  Widget _accountCard(User user) {
+    final metaParts = <String>[];
+    if (user.phone.isNotEmpty) metaParts.add(user.formattedPhone);
+    if (user.garageName != null && user.garageName!.isNotEmpty) {
+      metaParts.add(user.garageName!);
+    }
+    return PcCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          PcAvatar(
+            user.fullName.isNotEmpty ? user.fullName : 'Chauffeur',
+            size: 56,
+            status: PcAvatarStatus.online,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.fullName.isNotEmpty ? user.fullName : 'Chauffeur',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const PcBadge('Chauffeur', tone: PcTone.primary),
+                    if (user.phone.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          user.formattedPhone,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.mono(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.slate500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (user.garageName != null &&
+                    user.garageName!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    user.garageName!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: AppTheme.slate500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: AppTheme.cardColor,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppTheme.slate200),
+  Widget _switchRow({
+    required IconData icon,
+    required PcTone tone,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return PcListRow(
+      icon: icon,
+      iconTone: tone,
+      title: title,
+      subtitle: subtitle,
+      trailing: Switch(
+        value: value,
+        onChanged: onChanged,
+        activeThumbColor: Colors.white,
+        activeTrackColor: AppTheme.primary,
+      ),
     );
   }
 
@@ -406,16 +561,14 @@ class _DriverParametresScreenState
         labelText: label,
         hintText: hint,
         prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
 
-  InputDecoration _pinDecoration(String label) {
+  InputDecoration _pinDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      prefixIcon: Icon(icon, size: 20),
       counterText: '',
     );
   }
@@ -425,13 +578,18 @@ class _DriverParametresScreenState
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style:
-                const TextStyle(color: AppTheme.slate500, fontSize: 14)),
-        Text(value,
-            style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                fontSize: 14)),
+            style: GoogleFonts.manrope(
+                color: AppTheme.slate500, fontSize: 14)),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(value,
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                  fontSize: 14)),
+        ),
       ],
     );
   }

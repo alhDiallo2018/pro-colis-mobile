@@ -15,6 +15,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
 import 'package:procolis/widgets/app_logo.dart';
+import 'package:procolis/widgets/pc_components.dart';
 import 'package:procolis/widgets/procolis_design_system.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -23,6 +24,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/parcel.dart';
 import '../../providers/parcel_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
 
 class TrackParcelScreen extends ConsumerStatefulWidget {
@@ -40,6 +42,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   final FocusNode _focusNode = FocusNode();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isSearching = false;
+  bool _notFound = false;
   Parcel? _trackedParcel;
   List<String> _recentSearches = [];
   String? _currentlyPlayingAudioUrl;
@@ -134,6 +137,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
 
     setState(() {
       _isSearching = true;
+      _notFound = false;
     });
 
     try {
@@ -143,6 +147,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       setState(() {
         _isSearching = false;
         _trackedParcel = parcel;
+        _notFound = parcel == null;
       });
 
       if (parcel != null) {
@@ -167,7 +172,10 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         );
       }
     } catch (e) {
-      setState(() => _isSearching = false);
+      setState(() {
+        _isSearching = false;
+        _notFound = true;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
@@ -190,6 +198,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     _trackingController.clear();
     setState(() {
       _trackedParcel = null;
+      _notFound = false;
     });
     _focusNode.requestFocus();
   }
@@ -1007,6 +1016,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      bottomNavigationBar: const AppBottomNav(),
       body: Column(
         children: [
           _buildDesignAppBar(),
@@ -1023,15 +1033,27 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   _buildDesignSearchCard(),
+                  if (_notFound && _trackedParcel == null && !_isSearching) ...[
+                    const SizedBox(height: 16),
+                    PcCard(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: PcEmptyState(
+                        icon: Icons.search_off_rounded,
+                        tone: PcTone.amber,
+                        title: 'Colis introuvable',
+                        message:
+                            'Vérifiez le numéro de suivi et réessayez.',
+                      ),
+                    ),
+                  ],
                   if (_trackedParcel != null) ...[
                     const SizedBox(height: 16),
-                    _buildDesignTrackingHero(_trackedParcel!),
+                    _buildDesignResultCard(_trackedParcel!),
                     const SizedBox(height: 16),
                     _buildDesignDriverCard(_trackedParcel!),
                     const SizedBox(height: 16),
                     _buildDesignInfoCard(_trackedParcel!),
                     const SizedBox(height: 16),
-                    ProcolisSectionHeader(title: 'Suivi'),
                     _buildDesignTimeline(_trackedParcel!),
                     const SizedBox(height: 16),
                     _buildDesignActions(),
@@ -1106,82 +1128,50 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
 
   Widget _buildDesignSearchCard() {
     final suggestions = _generateSuggestions(_trackingController.text);
+    final hasText = _trackingController.text.trim().isNotEmpty;
 
-    return ProcolisCard(
-      padding: const EdgeInsets.all(16),
+    return PcCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryLight,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                ),
-                child: const Icon(
-                  Icons.search_rounded,
-                  color: AppTheme.primary,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Rechercher un colis',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    const Text(
-                      'Entrez un numéro ou scannez un QR code',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Text(
+            'Suivre un colis',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Entrez le numéro de suivi (ex. PC-7F3K-2291).',
+            style: GoogleFonts.manrope(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.slate500,
+            ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _trackingController,
             focusNode: _focusNode,
             textInputAction: TextInputAction.search,
-            style: GoogleFonts.robotoMono(
+            onChanged: (_) => setState(() {}),
+            style: AppTheme.mono(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
             ),
             decoration: InputDecoration(
-              hintText: 'PC-7F3K-2291',
+              hintText: 'PC-XXXX-XXXX',
               prefixIcon: const Icon(Icons.qr_code_2_rounded),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_trackingController.text.isNotEmpty)
-                    IconButton(
-                      onPressed: _trackingController.clear,
+              suffixIcon: hasText
+                  ? IconButton(
+                      onPressed: () => setState(_trackingController.clear),
                       icon: const Icon(Icons.close_rounded),
-                    ),
-                  IconButton(
-                    onPressed: _showScannerDialog,
-                    tooltip: 'Scanner',
-                    icon: const Icon(Icons.qr_code_scanner_rounded),
-                  ),
-                ],
-              ),
+                      tooltip: 'Effacer',
+                    )
+                  : null,
             ),
             onSubmitted: (_) => _trackParcel(),
           ),
@@ -1189,31 +1179,23 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           Row(
             children: [
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isSearching ? null : () => _trackParcel(),
-                  icon: _isSearching
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.search_rounded),
-                  label: Text(_isSearching ? 'Recherche...' : 'Rechercher'),
+                child: PcButton(
+                  _isSearching ? 'Recherche...' : 'Suivre',
+                  size: PcButtonSize.lg,
+                  block: true,
+                  loading: _isSearching,
+                  iconTrailing: Icons.arrow_forward_rounded,
+                  onPressed:
+                      hasText && !_isSearching ? () => _trackParcel() : null,
                 ),
               ),
               const SizedBox(width: 10),
-              IconButton(
-                onPressed: _showScannerDialog,
+              PcIconButton(
+                Icons.qr_code_scanner_rounded,
+                variant: PcIconButtonVariant.soft,
+                size: PcButtonSize.lg,
                 tooltip: 'Scanner',
-                icon: const Icon(Icons.qr_code_scanner_rounded),
-                style: IconButton.styleFrom(
-                  minimumSize: const Size(50, 50),
-                  backgroundColor: AppTheme.primaryLight,
-                  foregroundColor: AppTheme.primary,
-                ),
+                onPressed: _showScannerDialog,
               ),
             ],
           ),
@@ -1357,7 +1339,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
 
   Widget _buildDesignDriverCard(Parcel parcel) {
     if (!parcel.hasDriver) {
-      return ProcolisCard(
+      return PcCard(
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
@@ -1377,7 +1359,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       );
     }
 
-    return ProcolisCard(
+    return PcCard(
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
@@ -1397,7 +1379,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 ),
                 const SizedBox(height: 2),
                 const Text(
-                  'Garage partenaire · 4,8 ★ · Camion',
+                  'Zone partenaire · 4,8 ★ · Camion',
                   style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
@@ -1430,7 +1412,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   }
 
   Widget _buildDesignInfoCard(Parcel parcel) {
-    return ProcolisCard(
+    return PcCard(
       padding: EdgeInsets.zero,
       child: Column(
         children: [
@@ -1475,10 +1457,20 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       const _TrackingStep('Livré', 'delivered', Icons.verified_rounded),
     ];
 
-    return ProcolisCard(
-      padding: const EdgeInsets.all(16),
+    return PcCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'Historique',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 18),
           for (var i = 0; i < steps.length; i++)
             _DesignTimelineItem(
               title: steps[i].label,
@@ -1495,21 +1487,106 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton.icon(
+          child: PcButton(
+            'Voir le reçu / QR',
+            variant: PcButtonVariant.secondary,
+            icon: Icons.receipt_long_rounded,
+            block: true,
             onPressed: _showReceiptDialog,
-            icon: const Icon(Icons.receipt_long_rounded),
-            label: const Text('Voir le reçu'),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: ElevatedButton.icon(
+          child: PcButton(
+            'Détail',
+            icon: Icons.open_in_new_rounded,
+            block: true,
             onPressed: _viewFullDetails,
-            icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('Détail'),
           ),
         ),
       ],
+    );
+  }
+
+  // ==================== CARTE RÉSULTAT (style web) ====================
+
+  Widget _buildDesignResultCard(Parcel parcel) {
+    final price = parcel.negotiatedPrice ?? parcel.price;
+    final weight = parcel.formattedWeight;
+    final priceLabel = price == null ? '' : ' · ${_formatMoney(price)}';
+
+    return PcCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  parcel.trackingNumber,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.mono(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.slate700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ResultStatusBadge(status: parcel.status),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (parcel.isUrgent) const PcTag.express(),
+              PcTag(parcel.type.label, icon: Icons.category_rounded),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _ResultRouteField(
+                  label: 'Départ',
+                  value: parcel.departureGarageName,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Icon(Icons.local_shipping_rounded,
+                    color: AppTheme.teal400, size: 22),
+              ),
+              Expanded(
+                child: _ResultRouteField(
+                  label: 'Arrivée',
+                  value: parcel.arrivalGarageName ?? 'Destination',
+                  alignRight: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: AppTheme.slate200),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Spacer(),
+              Text(
+                '$weight$priceLabel',
+                style: AppTheme.mono(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.teal600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -2733,4 +2810,89 @@ class _TrackingStep {
   final String status;
   final IconData icon;
   const _TrackingStep(this.label, this.status, this.icon);
+}
+
+/// Badge de statut clair (sur carte blanche) — reprend le StatusBadge web.
+class _ResultStatusBadge extends StatelessWidget {
+  final ParcelStatus status;
+
+  const _ResultStatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.statusColors(status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: colors.background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: colors.dot, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            status.label.toUpperCase(),
+            style: GoogleFonts.plusJakartaSans(
+              color: colors.foreground,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Extrémité de route (Départ / Arrivée) façon web.
+class _ResultRouteField extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool alignRight;
+
+  const _ResultRouteField({
+    required this.label,
+    required this.value,
+    this.alignRight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment:
+          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.plusJakartaSans(
+            color: AppTheme.slate400,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.7,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value.isEmpty ? '—' : value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignRight ? TextAlign.right : TextAlign.left,
+          style: GoogleFonts.plusJakartaSans(
+            color: AppTheme.textPrimary,
+            fontSize: 16,
+            height: 1,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
 }

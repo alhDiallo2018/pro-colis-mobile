@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:procolis/screens/super-admin/garage_drivers_screen.dart';
 
 import '../../models/garage.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/pc_components.dart';
 
 class GaragesManagementScreen extends ConsumerStatefulWidget {
   const GaragesManagementScreen({super.key});
@@ -15,20 +19,10 @@ class GaragesManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScreen> {
-  // ==================== CONSTANTES DE COULEUR (THÈME BLEU/BLANC) ====================
-  static const Color primaryBlue = Color(0xFF1565C0);
-  static const Color lightBlue = Color(0xFFE3F2FD);
-  static const Color darkBlue = Color(0xFF0D47A1);
-  static const Color backgroundColor = Color(0xFFF5F8FA);
-  static const Color cardColor = Color(0xFFFFFFFF);
-  static const Color textPrimary = Color(0xFF1A2332);
-  static const Color textSecondary = Color(0xFF546E7A);
-  static const Color successColor = Color(0xFF2E7D32);
-  static const Color warningColor = Color(0xFFF57C00);
-  static const Color errorColor = Color(0xFFC62828);
-
   final ApiService _apiService = ApiService();
+  final TextEditingController _searchController = TextEditingController();
   List<Garage> _garages = [];
+  String _searchQuery = '';
   bool _isLoading = true;
   bool _isProcessing = false;
   String? _error;
@@ -37,6 +31,22 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   void initState() {
     super.initState();
     _loadGarages();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Garage> get _filteredGarages {
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isEmpty) return _garages;
+    return _garages.where((g) {
+      return g.name.toLowerCase().contains(q) ||
+          g.city.toLowerCase().contains(q) ||
+          g.region.toLowerCase().contains(q);
+    }).toList();
   }
 
   Future<void> _loadGarages() async {
@@ -76,18 +86,22 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
     if (result == true && mounted) {
       await _loadGarages();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Garage ajouté avec succès'),
-            backgroundColor: successColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
+        _showSnack('Zone ajoutée avec succès', AppTheme.successColor);
       }
     }
+  }
+
+  void _showSnack(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
+      ),
+    );
   }
 
   Future<void> _editGarage(Garage garage) async {
@@ -101,16 +115,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
     if (result == true && mounted) {
       await _loadGarages();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Garage modifié avec succès'),
-            backgroundColor: successColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
+        _showSnack('Zone modifiée avec succès', AppTheme.successColor);
       }
     }
   }
@@ -129,34 +134,37 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         ),
         title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: errorColor, size: 28),
+            const Icon(Icons.warning_amber_rounded,
+                color: AppTheme.red400, size: 28),
             const SizedBox(width: 12),
-            const Text('Supprimer le garage'),
+            Text('Supprimer la zone',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: AppTheme.textPrimary,
+                )),
           ],
         ),
         content: Text(
-          'Voulez-vous vraiment supprimer le garage "${garage.name}" ?',
-          style: const TextStyle(color: textPrimary),
+          'Voulez-vous vraiment supprimer la zone "${garage.name}" ?',
+          style: GoogleFonts.manrope(color: AppTheme.slate600),
         ),
         actions: [
-          TextButton(
+          PcButton(
+            'Annuler',
+            variant: PcButtonVariant.secondary,
+            size: PcButtonSize.sm,
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annuler'),
           ),
-          ElevatedButton(
+          PcButton(
+            'Supprimer',
+            variant: PcButtonVariant.danger,
+            size: PcButtonSize.sm,
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: errorColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -169,43 +177,17 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
         if (result['success'] == true) {
           await _loadGarages();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Garage supprimé avec succès'),
-                backgroundColor: successColor,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            );
+            _showSnack('Zone supprimée avec succès', AppTheme.successColor);
           }
         } else {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result['message'] ?? 'Erreur lors de la suppression'),
-                backgroundColor: errorColor,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            );
+            _showSnack(result['message'] ?? 'Erreur lors de la suppression',
+                AppTheme.errorColor);
           }
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur: $e'),
-              backgroundColor: errorColor,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
+          _showSnack('Erreur: $e', AppTheme.errorColor);
         }
       } finally {
         if (mounted) {
@@ -218,337 +200,395 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundColor,
+      bottomNavigationBar: const AppBottomNav(),
       appBar: AppBar(
-        title: const Text(
-          'Gestion des garages',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: textPrimary,
-          ),
-        ),
-        backgroundColor: cardColor,
-        foregroundColor: textPrimary,
-        elevation: 0,
-        centerTitle: true,
+        title: const Text('Gestion des zones'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.add, color: primaryBlue),
-            onPressed: _addGarage,
-            tooltip: 'Ajouter un garage',
-          ),
-          IconButton(
-            icon: Icon(Icons.refresh, color: primaryBlue),
-            onPressed: _loadGarages,
+          PcIconButton(
+            Icons.refresh_rounded,
+            variant: PcIconButtonVariant.ghost,
             tooltip: 'Rafraîchir',
+            onPressed: _loadGarages,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8, left: 2),
+            child: PcIconButton(
+              Icons.add_rounded,
+              variant: PcIconButtonVariant.soft,
+              tooltip: 'Ajouter une zone',
+              onPressed: _addGarage,
+            ),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
-        color: primaryBlue,
+        color: AppTheme.primary,
         child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
-                ),
-              )
+            ? const Center(child: CircularProgressIndicator())
             : _error != null
                 ? _buildErrorState()
-                : _garages.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _garages.length,
-                        itemBuilder: (context, index) {
-                          final garage = _garages[index];
-                          return _buildGarageCard(garage);
-                        },
+                : _buildContent(),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    final filtered = _filteredGarages;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+          child: _buildSearchField(),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 2, 18, 8),
+          child: Row(
+            children: [
+              Text(
+                'Zones',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '·  ${filtered.length}',
+                style: AppTheme.mono(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.slate500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _garages.isEmpty
+              ? ListView(
+                  children: [
+                    const SizedBox(height: 40),
+                    PcEmptyState(
+                      icon: Icons.garage_rounded,
+                      tone: PcTone.primary,
+                      title: 'Aucune zone',
+                      message: 'Aucune zone enregistrée pour le moment.',
+                      action: PcButton(
+                        'Ajouter une zone',
+                        icon: Icons.add_rounded,
+                        size: PcButtonSize.sm,
+                        onPressed: _addGarage,
                       ),
+                    ),
+                  ],
+                )
+              : filtered.isEmpty
+                  ? ListView(
+                      children: const [
+                        SizedBox(height: 40),
+                        PcEmptyState(
+                          icon: Icons.search_off_rounded,
+                          title: 'Aucun résultat',
+                          message: 'Aucune zone ne correspond à votre recherche.',
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final garage = filtered[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _GarageCard(
+                            garage: garage,
+                            isProcessing: _isProcessing,
+                            onEdit: () => _editGarage(garage),
+                            onDrivers: () => _viewDrivers(garage),
+                            onDelete: () => _deleteGarage(garage),
+                          ),
+                        );
+                      },
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.slate200),
+        boxShadow: AppTheme.shadowXs(),
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (v) => setState(() => _searchQuery = v),
+        style: GoogleFonts.manrope(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textPrimary,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Rechercher une zone, une ville…',
+          hintStyle: GoogleFonts.manrope(
+            fontSize: 14,
+            color: AppTheme.slate400,
+          ),
+          prefixIcon: const Icon(Icons.search_rounded,
+              color: AppTheme.slate400, size: 22),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppTheme.slate400, size: 20),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.transparent,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+        ),
       ),
     );
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(32),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity( 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    return ListView(
+      children: [
+        const SizedBox(height: 40),
+        PcEmptyState(
+          icon: Icons.error_outline_rounded,
+          tone: PcTone.red,
+          title: 'Erreur de chargement',
+          message: _error,
+          action: PcButton(
+            'Réessayer',
+            icon: Icons.refresh_rounded,
+            size: PcButtonSize.sm,
+            onPressed: _loadGarages,
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: errorColor.withOpacity( 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.error_outline,
-                size: 48,
-                color: errorColor,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Erreur de chargement',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: TextStyle(
-                fontSize: 13,
-                color: textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadGarages,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryBlue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Réessayer'),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
+}
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(32),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity( 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: lightBlue,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.business,
-                size: 48,
-                color: primaryBlue,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Aucun garage enregistré',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Appuyez sur le bouton + pour ajouter un garage',
-              style: TextStyle(
-                fontSize: 13,
-                color: textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+// ============================================================
+// Carte garage extensible (design system ProColis)
+// ============================================================
 
-  Widget _buildGarageCard(Garage garage) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ExpansionTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: lightBlue,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(Icons.business, color: primaryBlue, size: 28),
-        ),
-        title: Text(
-          garage.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: textPrimary,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              garage.city,
-              style: const TextStyle(fontSize: 12, color: textSecondary),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: successColor.withOpacity( 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${garage.driversCount} chauffeurs',
-                style: const TextStyle(fontSize: 10, color: successColor),
-              ),
-            ),
-          ],
-        ),
-        trailing: Chip(
-          label: Text(
-            '${garage.parcelsCount} colis',
-            style: const TextStyle(fontSize: 12, color: warningColor),
-          ),
-          backgroundColor: warningColor.withOpacity( 0.1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
+class _GarageCard extends StatefulWidget {
+  final Garage garage;
+  final bool isProcessing;
+  final VoidCallback onEdit;
+  final VoidCallback onDrivers;
+  final VoidCallback onDelete;
+
+  const _GarageCard({
+    required this.garage,
+    required this.isProcessing,
+    required this.onEdit,
+    required this.onDrivers,
+    required this.onDelete,
+  });
+
+  @override
+  State<_GarageCard> createState() => _GarageCardState();
+}
+
+class _GarageCardState extends State<_GarageCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final garage = widget.garage;
+    final location = [garage.city, garage.region]
+        .where((s) => s.trim().isNotEmpty)
+        .join(', ');
+
+    return PcCard(
+      padding: EdgeInsets.zero,
+      shadow: AppTheme.shadowXs(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _InfoRow(label: 'Région', value: garage.region),
-                if (garage.address != null && garage.address!.isNotEmpty)
-                  _InfoRow(label: 'Adresse', value: garage.address!),
-                if (garage.phone != null && garage.phone!.isNotEmpty)
-                  _InfoRow(label: 'Téléphone', value: garage.phone!),
-                if (garage.latitude != null && garage.longitude != null)
-                  _InfoRow(
-                    label: 'Coordonnées',
-                    value: '${garage.latitude!.toStringAsFixed(4)}, ${garage.longitude!.toStringAsFixed(4)}',
-                  ),
-                const Divider(height: 24),
-                _InfoRow(
-                  label: 'Chauffeurs',
-                  value: garage.driversCount.toString(),
-                  valueColor: successColor,
-                ),
-                _InfoRow(
-                  label: 'Colis traités',
-                  value: garage.parcelsCount.toString(),
-                  valueColor: warningColor,
-                ),
-                _InfoRow(
-                  label: 'Chiffre d\'affaires',
-                  value: '${garage.revenue.toInt()} FCFA',
-                  valueColor: primaryBlue,
-                  isBold: true,
-                ),
-                const SizedBox(height: 16),
-                Row(
+          // En-tête cliquable
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _editGarage(garage),
-                        icon: const Icon(Icons.edit, size: 18),
-                        label: const Text('Modifier'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: primaryBlue,
-                          side: BorderSide(color: primaryBlue),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppTheme.teal50,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                       ),
+                      child: const Icon(Icons.garage_rounded,
+                          color: AppTheme.primary, size: 23),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _viewDrivers(garage),
-                        icon: const Icon(Icons.people, size: 18),
-                        label: const Text('Chauffeurs'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: successColor,
-                          side: BorderSide(color: successColor),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            garage.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 3),
+                          Text(
+                            location.isEmpty ? '—' : location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.manrope(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.slate500,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    PcBadge(
+                      garage.isActive ? 'Actif' : 'Inactif',
+                      tone: garage.isActive ? PcTone.green : PcTone.neutral,
+                    ),
+                    const SizedBox(width: 6),
+                    PcBadge(
+                      '${garage.driversCount} chauffeurs',
+                      tone: PcTone.green,
+                    ),
+                    const SizedBox(width: 4),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: const Icon(Icons.expand_more_rounded,
+                          color: AppTheme.slate400, size: 22),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _isProcessing ? null : () => _deleteGarage(garage),
-                  icon: _isProcessing 
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(errorColor),
-                          ),
-                        )
-                      : const Icon(Icons.delete, size: 18),
-                  label: const Text('Supprimer'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: errorColor,
-                    side: BorderSide(color: errorColor),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
+          ),
+          // Détails
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 180),
+            crossFadeState: _expanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: _buildDetails(garage),
+            secondChild: const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetails(Garage garage) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      child: Column(
+        children: [
+          const PcDivider(),
+          const SizedBox(height: 10),
+          _InfoRow(label: 'Région', value: garage.region),
+          if (garage.address != null && garage.address!.isNotEmpty)
+            _InfoRow(label: 'Adresse', value: garage.address!),
+          if (garage.phone != null && garage.phone!.isNotEmpty)
+            _InfoRow(label: 'Téléphone', value: garage.phone!, mono: true),
+          if (garage.latitude != null && garage.longitude != null)
+            _InfoRow(
+              label: 'Coordonnées',
+              value:
+                  '${garage.latitude!.toStringAsFixed(4)}, ${garage.longitude!.toStringAsFixed(4)}',
+              mono: true,
+            ),
+          const SizedBox(height: 6),
+          const PcDivider(),
+          const SizedBox(height: 6),
+          _InfoRow(
+            label: 'Chauffeurs',
+            value: garage.driversCount.toString(),
+            valueColor: AppTheme.green700,
+            mono: true,
+          ),
+          _InfoRow(
+            label: 'Colis traités',
+            value: garage.parcelsCount.toString(),
+            valueColor: AppTheme.amber600,
+            mono: true,
+          ),
+          _InfoRow(
+            label: 'Chiffre d\'affaires',
+            value: '${garage.revenue.toInt()} FCFA',
+            valueColor: AppTheme.primary,
+            mono: true,
+            isBold: true,
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: PcButton(
+                  'Modifier',
+                  icon: Icons.edit_rounded,
+                  variant: PcButtonVariant.secondary,
+                  size: PcButtonSize.sm,
+                  block: true,
+                  onPressed: widget.onEdit,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: PcButton(
+                  'Chauffeurs',
+                  icon: Icons.people_alt_rounded,
+                  size: PcButtonSize.sm,
+                  block: true,
+                  onPressed: widget.onDrivers,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          PcButton(
+            'Supprimer',
+            icon: Icons.delete_outline_rounded,
+            variant: PcButtonVariant.danger,
+            size: PcButtonSize.sm,
+            block: true,
+            loading: widget.isProcessing,
+            onPressed: widget.isProcessing ? null : widget.onDelete,
           ),
         ],
       ),
@@ -561,18 +601,20 @@ class _InfoRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
   final bool isBold;
+  final bool mono;
 
   const _InfoRow({
     required this.label,
     required this.value,
     this.valueColor,
     this.isBold = false,
+    this.mono = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -580,8 +622,8 @@ class _InfoRow extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Colors.grey,
+              style: GoogleFonts.manrope(
+                color: AppTheme.slate500,
                 fontWeight: FontWeight.w500,
                 fontSize: 13,
               ),
@@ -590,11 +632,17 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-                fontSize: 13,
-                color: valueColor ?? const Color(0xFF1A2B3C),
-              ),
+              style: mono
+                  ? AppTheme.mono(
+                      fontSize: 13,
+                      fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+                      color: valueColor ?? AppTheme.textPrimary,
+                    )
+                  : GoogleFonts.manrope(
+                      fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
+                      fontSize: 13,
+                      color: valueColor ?? AppTheme.textPrimary,
+                    ),
             ),
           ),
         ],
@@ -618,12 +666,6 @@ class _GarageFormScreen extends StatefulWidget {
 }
 
 class _GarageFormScreenState extends State<_GarageFormScreen> {
-  // ==================== CONSTANTES DE COULEUR (THÈME BLEU/BLANC) ====================
-  static const Color primaryBlue = Color(0xFF1565C0);
-  static const Color backgroundColor = Color(0xFFF5F8FA);
-  static const Color cardColor = Color(0xFFFFFFFF);
-  static const Color textPrimary = Color(0xFF1A2332);
-
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -698,7 +740,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
         if (result['success'] == true && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Garage modifié avec succès'),
+              content: const Text('Zone modifiée avec succès'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
@@ -733,7 +775,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
         if (result['success'] == true && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Garage créé avec succès'),
+              content: const Text('Zone créée avec succès'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
@@ -778,22 +820,14 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundColor,
+      bottomNavigationBar: const AppBottomNav(),
       appBar: AppBar(
         title: Text(
-          widget.isEditing ? 'Modifier le garage' : 'Nouveau garage',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: textPrimary,
-          ),
+          widget.isEditing ? 'Modifier la zone' : 'Nouvelle zone',
         ),
-        backgroundColor: cardColor,
-        foregroundColor: textPrimary,
-        elevation: 0,
-        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -805,7 +839,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
             children: [
               CustomTextField(
                 controller: _nameController,
-                label: 'Nom du garage',
+                label: 'Nom de la zone',
                 prefixIcon: Icons.business,
                 validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
               ),

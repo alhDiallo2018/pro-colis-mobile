@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 enum UserRole {
   client('client', 'Client', Icons.person, Colors.green),
   driver('driver', 'Chauffeur', Icons.delivery_dining, Colors.blue),
-  admin('admin', 'Admin Garage', Icons.business, Colors.orange),
+  admin('admin', 'Admin Zone', Icons.business, Colors.orange),
   superAdmin('super_admin', 'Super Admin', Icons.admin_panel_settings, Colors.red);
 
   final String value;

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/app_theme.dart';
-import '../../widgets/procolis_design_system.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 
 class HelpScreen extends StatefulWidget {
   const HelpScreen({super.key});
@@ -58,6 +60,7 @@ class _HelpScreenState extends State<HelpScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      bottomNavigationBar: const AppBottomNav(),
       appBar: AppBar(
         title: const Text('Aide & support'),
         backgroundColor: AppTheme.cardColor,
@@ -72,13 +75,18 @@ class _HelpScreenState extends State<HelpScreen> {
           TextField(
             controller: _searchController,
             onChanged: (value) => setState(() => _query = value.trim()),
+            style: GoogleFonts.manrope(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
             decoration: const InputDecoration(
               hintText: 'Rechercher une question...',
               prefixIcon: Icon(Icons.search_rounded),
             ),
           ),
-          const SizedBox(height: 18),
-          const ProcolisSectionHeader(title: 'Catégories'),
+          const SizedBox(height: 20),
+          const PcSectionHeader('Catégories'),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -87,41 +95,41 @@ class _HelpScreenState extends State<HelpScreen> {
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.25,
+              childAspectRatio: 1.3,
             ),
             itemBuilder: (context, index) {
               return _HelpTopicCard(topic: visibleTopics[index]);
             },
           ),
-          const SizedBox(height: 18),
-          const ProcolisSectionHeader(title: 'Questions fréquentes'),
-          ProcolisCard(
+          const SizedBox(height: 20),
+          const PcSectionHeader('Questions fréquentes'),
+          PcCard(
             padding: EdgeInsets.zero,
             child: Column(
               children: [
                 if (visibleFaqs.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(18),
+                  Padding(
+                    padding: const EdgeInsets.all(18),
                     child: Text(
                       'Aucun résultat pour cette recherche.',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
+                      style: GoogleFonts.manrope(
+                        color: AppTheme.slate500,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   )
                 else
                   for (var i = 0; i < visibleFaqs.length; i++) ...[
-                    if (i > 0)
-                      const Divider(height: 1, color: AppTheme.slate200),
+                    if (i > 0) const PcDivider(),
                     _FaqTile(item: visibleFaqs[i]),
                   ],
               ],
             ),
           ),
-          const SizedBox(height: 18),
-          ProcolisCard(
-            color: AppTheme.primaryLight,
+          const SizedBox(height: 20),
+          PcCard(
+            color: AppTheme.teal50,
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
@@ -129,48 +137,47 @@ class _HelpScreenState extends State<HelpScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: AppTheme.cardColor.withOpacity( 0.78),
+                    color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   ),
                   child: const Icon(
                     Icons.support_agent_rounded,
                     color: AppTheme.primary,
-                    size: 30,
+                    size: 28,
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Besoin d’aide ?',
-                        style: TextStyle(
+                        style: GoogleFonts.plusJakartaSans(
                           color: AppTheme.textPrimary,
                           fontSize: 15,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
                         'Notre équipe répond 7j/7',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
+                        style: GoogleFonts.manrope(
+                          color: AppTheme.slate600,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
-                ElevatedButton.icon(
+                const SizedBox(width: 12),
+                PcButton(
+                  'Contacter',
+                  icon: Icons.chat_rounded,
+                  size: PcButtonSize.sm,
                   onPressed: () => _showContactSheet(context),
-                  icon: const Icon(Icons.chat_rounded, size: 17),
-                  label: const Text('Contacter'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 38),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
                 ),
               ],
             ),
@@ -190,7 +197,7 @@ class _HelpScreenState extends State<HelpScreen> {
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -202,23 +209,29 @@ class _HelpScreenState extends State<HelpScreen> {
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                const SizedBox(height: 18),
-                const _SupportRow(
+                const SizedBox(height: 12),
+                const PcListRow(
                   icon: Icons.chat_bubble_rounded,
+                  iconTone: PcTone.primary,
                   title: 'Chat support',
                   subtitle: 'Réponse moyenne : 5 min',
+                  chevron: true,
                 ),
-                const Divider(height: 1, color: AppTheme.slate200),
-                const _SupportRow(
+                const PcDivider(),
+                const PcListRow(
                   icon: Icons.call_rounded,
+                  iconTone: PcTone.green,
                   title: 'Appeler le support',
                   subtitle: '+225 07 11 45 90',
+                  chevron: true,
                 ),
-                const Divider(height: 1, color: AppTheme.slate200),
-                const _SupportRow(
+                const PcDivider(),
+                const PcListRow(
                   icon: Icons.mail_rounded,
+                  iconTone: PcTone.amber,
                   title: 'Envoyer un e-mail',
                   subtitle: 'support@procolis.ci',
+                  chevron: true,
                 ),
               ],
             ),
@@ -243,7 +256,7 @@ class _HelpTopicCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProcolisCard(
+    return PcCard(
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,7 +265,7 @@ class _HelpTopicCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.primaryLight,
+              color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
             child: Icon(topic.icon, color: AppTheme.primary, size: 22),
@@ -262,11 +275,11 @@ class _HelpTopicCard extends StatelessWidget {
             topic.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: GoogleFonts.plusJakartaSans(
               color: AppTheme.textPrimary,
               fontSize: 13.5,
               height: 1.25,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -307,19 +320,20 @@ class _FaqTileState extends State<_FaqTile> {
                 Expanded(
                   child: Text(
                     widget.item.question,
-                    style: const TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       color: AppTheme.textPrimary,
                       fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+                const SizedBox(width: 12),
                 AnimatedRotation(
                   turns: _open ? 0.5 : 0,
                   duration: const Duration(milliseconds: 180),
                   child: const Icon(
                     Icons.expand_more_rounded,
-                    color: AppTheme.textSecondary,
+                    color: AppTheme.slate500,
                   ),
                 ),
               ],
@@ -327,16 +341,19 @@ class _FaqTileState extends State<_FaqTile> {
           ),
         ),
         AnimatedCrossFade(
-          firstChild: const SizedBox.shrink(),
+          firstChild: const SizedBox(width: double.infinity),
           secondChild: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: Text(
-              widget.item.answer,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13.5,
-                height: 1.55,
-                fontWeight: FontWeight.w600,
+            child: SizedBox(
+              width: double.infinity,
+              child: Text(
+                widget.item.answer,
+                style: GoogleFonts.manrope(
+                  color: AppTheme.slate600,
+                  fontSize: 13.5,
+                  height: 1.55,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -345,49 +362,6 @@ class _FaqTileState extends State<_FaqTile> {
           duration: const Duration(milliseconds: 160),
         ),
       ],
-    );
-  }
-}
-
-class _SupportRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _SupportRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryLight,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        ),
-        child: Icon(icon, color: AppTheme.primary, size: 21),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
 }

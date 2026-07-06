@@ -27,7 +27,17 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>ProColis utilise la caméra pour scanner les QR codes de suivi des colis.</string>
+	<string>ProColis utilise la caméra pour scanner les QR codes et photographier les colis.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ProColis utilise le microphone pour enregistrer et écouter les notes vocales des messages et des annonces.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ProColis accède à vos photos pour joindre des images à vos colis et messages.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ProColis enregistre les reçus et images de colis dans votre galerie.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ProColis utilise votre position pour afficher les trajets et suivre les livraisons.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>ProColis accède à vos contacts pour sélectionner rapidement les destinataires de vos colis.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

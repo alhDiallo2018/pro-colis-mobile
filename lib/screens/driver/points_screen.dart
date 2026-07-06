@@ -4,11 +4,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/pc_components.dart';
 
 class DriverPointsScreen extends ConsumerStatefulWidget {
   const DriverPointsScreen({super.key});
@@ -70,23 +73,20 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
         title: const Text('Mes Points',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
       ),
+      bottomNavigationBar: const AppBottomNav(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadData,
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
                   _buildBalanceCard(),
                   const SizedBox(height: 20),
-                  _buildActionButtons(),
-                  const SizedBox(height: 28),
-                  const Text('Historique des transactions',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary)),
-                  const SizedBox(height: 12),
+                  const PcSectionHeader('Comment gagner des points'),
+                  _buildHowItWorks(),
+                  const SizedBox(height: 22),
+                  const PcSectionHeader('Historique des points'),
                   _buildTransactionHistory(),
                 ],
               ),
@@ -97,114 +97,26 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
   Widget _buildBalanceCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: AppTheme.amberGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppTheme.brandShadow(),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.amberShadow(),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _formatFcfa(_balance),
-            style: const TextStyle(
-              fontSize: 42,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Points disponibles',
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.white.withOpacity( 0.85),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: CustomButton(
-            text: 'Recharger',
-            icon: Icons.add_circle_outline,
-            backgroundColor: AppTheme.amber400,
-            onPressed: () => _showRechargeSheet(),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: CustomButton(
-            text: 'Utiliser',
-            icon: Icons.redeem,
-            outlined: true,
-            backgroundColor: AppTheme.amber400,
-            onPressed: () {},
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTransactionHistory() {
-    if (_transactions.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-          border: Border.all(color: AppTheme.slate200),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.receipt_long_outlined,
-                size: 48, color: AppTheme.slate300),
-            const SizedBox(height: 8),
-            const Text('Aucune transaction',
-                style: TextStyle(color: AppTheme.slate500)),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: _transactions.map((tx) {
-        final amount = (tx['amount'] ?? 0).toInt();
-        final isPositive = amount >= 0;
-        final description = tx['description']?.toString() ?? '';
-        final type = tx['type']?.toString() ?? '';
-        final date = tx['createdAt']?.toString() ?? tx['timestamp']?.toString() ?? '';
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.cardColor,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(color: AppTheme.slate200),
-          ),
-          child: Row(
+          Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: isPositive
-                      ? AppTheme.green50
-                      : AppTheme.red50,
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
-                child: Icon(
-                  isPositive ? Icons.add : Icons.remove,
-                  color: isPositive ? AppTheme.green600 : AppTheme.red400,
-                  size: 22,
-                ),
+                child: const Icon(Icons.account_balance_wallet_rounded,
+                    size: 28, color: AppTheme.amberOnFg),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -212,33 +124,161 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      description.isNotEmpty ? description : type,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: AppTheme.textPrimary),
-                    ),
-                    if (date.isNotEmpty)
-                      Text(
-                        _formatDate(date),
-                        style: const TextStyle(
-                            fontSize: 12, color: AppTheme.slate500),
+                      'SOLDE DE POINTS',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.7,
+                        color: AppTheme.amberOnFg.withOpacity(0.75),
                       ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          _formatFcfa(_balance),
+                          style: AppTheme.mono(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.amberOnFg,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'pts',
+                          style: AppTheme.mono(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.amberOnFg.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
-              ),
-              Text(
-                '${isPositive ? '+' : ''}${_formatFcfa(amount)} pts',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: isPositive ? AppTheme.green600 : AppTheme.red400,
                 ),
               ),
             ],
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 18),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 340),
+            child: Row(
+              children: [
+                Expanded(
+                  child: PcButton(
+                    'Recharger',
+                    icon: Icons.add_rounded,
+                    variant: PcButtonVariant.secondary,
+                    block: true,
+                    onPressed: _showRechargeSheet,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _GhostButton(
+                    label: 'Utiliser',
+                    icon: Icons.redeem_rounded,
+                    onPressed: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHowItWorks() {
+    Widget row(IconData icon, PcTone tone, String title, String subtitle,
+        {bool divider = true}) {
+      return Column(
+        children: [
+          PcListRow(
+            icon: icon,
+            iconTone: tone,
+            title: title,
+            subtitle: subtitle,
+          ),
+          if (divider) const PcDivider(),
+        ],
+      );
+    }
+
+    return PcCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          row(Icons.local_shipping_rounded, PcTone.green,
+              'Effectuez des livraisons', 'Gagnez des points à chaque colis livré'),
+          row(Icons.add_circle_rounded, PcTone.amber, 'Rechargez votre solde',
+              '1 point = 1 FCFA'),
+          row(Icons.rocket_launch_rounded, PcTone.primary,
+              'Boostez vos annonces', 'Utilisez vos points pour plus de visibilité',
+              divider: false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionHistory() {
+    if (_transactions.isEmpty) {
+      return PcCard(
+        padding: EdgeInsets.zero,
+        child: const PcEmptyState(
+          icon: Icons.savings_rounded,
+          title: 'Aucun mouvement',
+          message: 'Vos crédits et débits de points apparaîtront ici.',
+        ),
+      );
+    }
+
+    final rows = <Widget>[];
+    for (var i = 0; i < _transactions.length; i++) {
+      final tx = _transactions[i];
+      final amount = (tx['amount'] ?? 0).toInt();
+      final isPositive = amount >= 0;
+      final description = tx['description']?.toString() ?? '';
+      final type = tx['type']?.toString() ?? '';
+      final date =
+          tx['createdAt']?.toString() ?? tx['timestamp']?.toString() ?? '';
+      final title = description.isNotEmpty ? description : type;
+
+      rows.add(
+        PcListRow(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: isPositive ? AppTheme.green50 : AppTheme.red50,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: Icon(
+              isPositive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+              color: isPositive ? AppTheme.green700 : AppTheme.red500,
+              size: 22,
+            ),
+          ),
+          title: title.isNotEmpty ? title : 'Mouvement',
+          subtitle: date.isNotEmpty ? _formatDate(date) : null,
+          trailing: Text(
+            '${isPositive ? '+' : ''}${_formatFcfa(amount)} pts',
+            style: AppTheme.mono(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: isPositive ? AppTheme.green600 : AppTheme.red500,
+            ),
+          ),
+        ),
+      );
+      if (i != _transactions.length - 1) rows.add(const PcDivider());
+    }
+
+    return PcCard(
+      padding: EdgeInsets.zero,
+      child: Column(children: rows),
     );
   }
 
@@ -251,6 +291,52 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => const _RechargeSheetContent(),
     ).then((_) => _loadData());
+  }
+}
+
+// Bouton translucide posé sur le dégradé ambre (action secondaire du solde).
+class _GhostButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _GhostButton({
+    required this.label,
+    required this.icon,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(0.18),
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: Container(
+          height: 46,
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 20, color: AppTheme.amberOnFg),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.amberOnFg,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

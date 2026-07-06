@@ -3,10 +3,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:procolis/widgets/app_logo.dart';
 
 import '../../models/user.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 
 class GarageAdminDriversScreen extends ConsumerStatefulWidget {
   const GarageAdminDriversScreen({super.key});
@@ -20,13 +24,6 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
   List<User> _drivers = [];
   bool _isLoading = true;
   String? _error;
-
-  // Thème Bleu/Blanc
-  static const Color primaryBlue = Color(0xFF2563EB);
-  static const Color secondaryBlue = Color(0xFF3B82F6);
-  static const Color backgroundColor = Color(0xFFF0F4F8);
-  static const Color textPrimary = Color(0xFF1A2332);
-  static const Color textSecondary = Color(0xFF6B7A8F);
 
   @override
   void initState() {
@@ -57,125 +54,78 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: Row(
           children: [
             const AppLogo(size: 24, isWhite: false),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'PRO COLIS',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
                 fontSize: 18,
-                color: textPrimary,
+                color: AppTheme.textPrimary,
+                letterSpacing: 0.2,
               ),
             ),
           ],
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: textPrimary,
+        backgroundColor: AppTheme.cardColor,
+        foregroundColor: AppTheme.textPrimary,
         elevation: 0.5,
-        shadowColor: Colors.grey.shade200,
+        shadowColor: AppTheme.slate200,
         actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: primaryBlue),
-            onPressed: _loadDrivers,
-            tooltip: 'Actualiser',
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: PcIconButton(
+              Icons.refresh_rounded,
+              variant: PcIconButtonVariant.soft,
+              size: PcButtonSize.sm,
+              tooltip: 'Actualiser',
+              onPressed: _loadDrivers,
+            ),
           ),
         ],
       ),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
-              ),
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primary),
             )
           : _error != null
               ? _buildErrorView()
               : _drivers.isEmpty
                   ? _buildEmptyView()
                   : _buildDriversList(),
+      bottomNavigationBar: const AppBottomNav(),
     );
   }
 
   Widget _buildErrorView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-          const SizedBox(height: 16),
-          Text(
-            'Erreur: $_error',
-            style: TextStyle(color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _loadDrivers,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryBlue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
+    return PcEmptyState(
+      icon: Icons.error_outline_rounded,
+      tone: PcTone.red,
+      title: 'Une erreur est survenue',
+      message: _error,
+      action: PcButton(
+        'Réessayer',
+        icon: Icons.refresh_rounded,
+        onPressed: _loadDrivers,
       ),
     );
   }
 
   Widget _buildEmptyView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people_outline, size: 80, color: Colors.grey.withOpacity( 0.3)),
-          const SizedBox(height: 16),
-          Text(
-            'Aucun chauffeur',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ce garage ne dispose pas encore de chauffeurs',
-            style: TextStyle(
-              fontSize: 13,
-              color: textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Contactez le super administrateur',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.withOpacity( 0.6),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _loadDrivers,
-            icon: Icon(Icons.refresh, size: 18),
-            label: const Text('Actualiser'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryBlue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
+    return PcEmptyState(
+      icon: Icons.people_outline_rounded,
+      tone: PcTone.primary,
+      title: 'Aucun chauffeur',
+      message: "Aucun chauffeur n'est rattaché à votre garage.",
+      action: PcButton(
+        'Actualiser',
+        variant: PcButtonVariant.secondary,
+        icon: Icons.refresh_rounded,
+        onPressed: _loadDrivers,
       ),
     );
   }
@@ -183,13 +133,19 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
   Widget _buildDriversList() {
     return RefreshIndicator(
       onRefresh: _loadDrivers,
-      color: primaryBlue,
+      color: AppTheme.primary,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _drivers.length,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        itemCount: _drivers.length + 1,
         itemBuilder: (context, index) {
-          final driver = _drivers[index];
-          return _DriverCard(driver: driver);
+          if (index == 0) {
+            return PcSectionHeader('Chauffeurs · ${_drivers.length}');
+          }
+          final driver = _drivers[index - 1];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _DriverCard(driver: driver),
+          );
         },
       ),
     );
@@ -202,200 +158,216 @@ class _DriverCard extends StatelessWidget {
 
   const _DriverCard({required this.driver});
 
-  static const Color primaryBlue = Color(0xFF2563EB);
-  static const Color textPrimary = Color(0xFF1A2332);
-  static const Color textSecondary = Color(0xFF6B7A8F);
-
-  Color _getDriverStatusColor(DriverStatus? status) {
-    if (status == null) return Colors.green;
+  PcAvatarStatus _avatarStatus(DriverStatus? status) {
     switch (status) {
       case DriverStatus.available:
-        return Colors.green;
+        return PcAvatarStatus.online;
       case DriverStatus.busy:
-        return Colors.orange;
+        return PcAvatarStatus.busy;
       case DriverStatus.offline:
-        return Colors.red;
+      case null:
+        return PcAvatarStatus.offline;
     }
   }
 
-  String _getDriverStatusLabel(DriverStatus? status) {
-    if (status == null) return 'Disponible';
+  PcTone _statusTone(DriverStatus? status) {
     switch (status) {
       case DriverStatus.available:
-        return '🟢 Disponible';
+        return PcTone.green;
       case DriverStatus.busy:
-        return '🟠 En livraison';
+        return PcTone.amber;
       case DriverStatus.offline:
-        return '🔴 Hors ligne';
+      case null:
+        return PcTone.neutral;
+    }
+  }
+
+  String _statusLabel(DriverStatus? status) {
+    switch (status) {
+      case DriverStatus.available:
+        return 'Disponible';
+      case DriverStatus.busy:
+        return 'Occupé';
+      case DriverStatus.offline:
+      case null:
+        return 'Hors ligne';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _getDriverStatusColor(driver.driverStatus);
+    final tone = _statusTone(driver.driverStatus);
+    final rating = driver.rating != null ? driver.formattedRating : '—';
+    final deliveries = driver.completedDeliveries ?? driver.totalDeliveries ?? 0;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withOpacity( 0.15)),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.slate200),
+        boxShadow: AppTheme.shadowXs(),
       ),
-      child: ExpansionTile(
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: statusColor.withOpacity( 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            Icons.person,
-            color: statusColor,
-            size: 24,
-          ),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
         ),
-        title: Text(
-          driver.fullName,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            color: textPrimary,
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          leading: PcAvatar(
+            driver.fullName,
+            size: 44,
+            status: _avatarStatus(driver.driverStatus),
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          driver.phone,
-          style: TextStyle(
-            fontSize: 13,
-            color: textSecondary,
+          title: Text(
+            driver.fullName,
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w700,
+              fontSize: 14.5,
+              color: AppTheme.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor.withOpacity( 0.15),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            _getDriverStatusLabel(driver.driverStatus),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: statusColor,
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              driver.phone,
+              style: AppTheme.mono(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.slate500,
+              ),
             ),
           ),
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: [
-                // En-tête des infos
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: primaryBlue.withOpacity( 0.05),
-                    borderRadius: BorderRadius.circular(12),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    rating,
+                    style: AppTheme.mono(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.slate700,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.badge, size: 16, color: primaryBlue),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Informations du chauffeur',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: primaryBlue,
-                          ),
-                        ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.star_rounded, size: 14, color: AppTheme.amber400),
+                ],
+              ),
+              const SizedBox(height: 3),
+              PcBadge(_statusLabel(driver.driverStatus), tone: tone),
+            ],
+          ),
+          children: [
+            // Ligne livraisons rappelée dans le détail
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.teal50,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.badge_outlined, size: 16, color: AppTheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Informations du chauffeur',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.teal600,
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Infos
-                _InfoRow(
-                  icon: Icons.email,
-                  label: 'Email',
-                  value: driver.email,
-                ),
-                _InfoRow(
-                  icon: Icons.phone,
-                  label: 'Téléphone',
-                  value: driver.phone,
-                ),
-                if (driver.vehiclePlate != null && driver.vehiclePlate!.isNotEmpty)
-                  _InfoRow(
-                    icon: Icons.confirmation_number,
-                    label: 'Plaque',
-                    value: driver.vehiclePlate!,
-                  ),
-                if (driver.vehicleModel != null && driver.vehicleModel!.isNotEmpty)
-                  _InfoRow(
-                    icon: Icons.car_repair,
-                    label: 'Modèle',
-                    value: driver.vehicleModel!,
-                  ),
-                if (driver.vehicleColor != null && driver.vehicleColor!.isNotEmpty)
-                  _InfoRow(
-                    icon: Icons.color_lens,
-                    label: 'Couleur',
-                    value: driver.vehicleColor!,
-                  ),
-                if (driver.vehicleYear != null)
-                  _InfoRow(
-                    icon: Icons.calendar_today,
-                    label: 'Année',
-                    value: driver.vehicleYear!.toString(),
-                  ),
-                _InfoRow(
-                  icon: Icons.timeline,
-                  label: 'Statut',
-                  value: _getDriverStatusLabel(driver.driverStatus),
-                ),
-                _InfoRow(
-                  icon: Icons.calendar_month,
-                  label: 'Inscription',
-                  value: _formatDate(driver.createdAt),
-                ),
-                // Statistiques
-                if (driver.totalDeliveries != null || driver.rating != null)
-                  Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity( 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.withOpacity( 0.2)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _StatItem(
-                          icon: Icons.local_shipping,
-                          label: 'Livraisons',
-                          value: driver.totalDeliveries?.toString() ?? '0',
-                        ),
-                        _StatItem(
-                          icon: Icons.star,
-                          label: 'Note',
-                          value: driver.formattedRating,
-                        ),
-                        _StatItem(
-                          icon: Icons.trending_up,
-                          label: 'Taux succès',
-                          value: driver.formattedSuccessRate,
-                        ),
-                      ],
                     ),
                   ),
-              ],
+                  Text(
+                    '$deliveries livraisons',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.slate500,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            _InfoRow(icon: Icons.email_outlined, label: 'Email', value: driver.email),
+            _InfoRow(icon: Icons.phone_outlined, label: 'Téléphone', value: driver.phone, mono: true),
+            if (driver.vehiclePlate != null && driver.vehiclePlate!.isNotEmpty)
+              _InfoRow(
+                icon: Icons.confirmation_number_outlined,
+                label: 'Plaque',
+                value: driver.vehiclePlate!,
+                mono: true,
+              ),
+            if (driver.vehicleModel != null && driver.vehicleModel!.isNotEmpty)
+              _InfoRow(icon: Icons.directions_car_outlined, label: 'Modèle', value: driver.vehicleModel!),
+            if (driver.vehicleColor != null && driver.vehicleColor!.isNotEmpty)
+              _InfoRow(icon: Icons.color_lens_outlined, label: 'Couleur', value: driver.vehicleColor!),
+            if (driver.vehicleYear != null)
+              _InfoRow(
+                icon: Icons.calendar_today_outlined,
+                label: 'Année',
+                value: driver.vehicleYear!.toString(),
+                mono: true,
+              ),
+            _InfoRow(
+              icon: Icons.timeline_outlined,
+              label: 'Statut',
+              value: _statusLabel(driver.driverStatus),
+            ),
+            _InfoRow(
+              icon: Icons.calendar_month_outlined,
+              label: 'Inscription',
+              value: _formatDate(driver.createdAt),
+              mono: true,
+            ),
+            // Statistiques
+            if (driver.totalDeliveries != null || driver.rating != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: PcStatBox(
+                      icon: Icons.local_shipping_outlined,
+                      value: driver.totalDeliveries?.toString() ?? '0',
+                      label: 'Livraisons',
+                      tone: PcTone.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: PcStatBox(
+                      icon: Icons.star_rounded,
+                      value: driver.formattedRating,
+                      label: 'Note',
+                      tone: PcTone.amber,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: PcStatBox(
+                      icon: Icons.trending_up_rounded,
+                      value: driver.formattedSuccessRate,
+                      label: 'Taux succès',
+                      tone: PcTone.green,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -404,66 +376,46 @@ class _DriverCard extends StatelessWidget {
     required IconData icon,
     required String label,
     required String value,
+    bool mono = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.grey[500]),
+          Icon(icon, size: 16, color: AppTheme.slate400),
           const SizedBox(width: 10),
           SizedBox(
-            width: 85,
+            width: 88,
             child: Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.manrope(
                 fontSize: 12,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+                color: AppTheme.slate500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: 13,
-                color: textPrimary,
-              ),
+              style: mono
+                  ? AppTheme.mono(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.slate700,
+                    )
+                  : GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: AppTheme.slate700,
+                      fontWeight: FontWeight.w500,
+                    ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _StatItem({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, size: 18, color: Colors.amber[700]),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.amber[700],
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[600],
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
     );
   }
 

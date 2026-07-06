@@ -7,7 +7,6 @@ import '../models/parcel.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/auth/pin_login_screen.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/dashboard/notifications/notifications_screen.dart';
@@ -16,8 +15,8 @@ import '../screens/driver/mes_annonces_screen.dart';
 import '../screens/driver/parametres_screen.dart';
 import '../screens/driver/points_screen.dart';
 import '../screens/driver/itinerary_map_screen.dart';
-import '../screens/driver/publish_trip_screen.dart';
 import '../screens/driver/revenus_screen.dart';
+import '../screens/driver/vehicle_documents_screen.dart';
 import '../screens/garage_admin/garage_admin_drivers_screen.dart';
 import '../screens/garage_admin/garage_admin_parcel_detail.dart';
 import '../screens/garage_admin/garage_assignations_screen.dart';
@@ -27,8 +26,6 @@ import '../screens/parcel/ads/advertisement_detail_screen.dart';
 import '../screens/parcel/ads/advertisements_screen.dart';
 import '../screens/parcel/confirm_delivery_screen.dart';
 import '../screens/parcel/free_parcels_screen.dart';
-import '../screens/parcel/new_parcel_screen.dart';
-import '../screens/parcel/new_parcel_wizard_screen.dart';
 import '../screens/parcel/parcel_detail_screen.dart';
 import '../screens/parcel/track_parcel_screen.dart';
 import '../screens/profile/profile_screen.dart';
@@ -36,11 +33,8 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/shared/messages_screen.dart';
 import '../screens/super-admin/admin_parametres_screen.dart';
 import '../screens/super-admin/garage_drivers_screen.dart';
-import '../screens/super-admin/garage_form_screen.dart';
 import '../screens/super-admin/garages_management_screen.dart';
-import '../screens/super-admin/parcel_form_screen.dart';
 import '../screens/super-admin/stats_screen.dart';
-import '../screens/super-admin/user_form_screen.dart';
 import '../screens/super-admin/users_management_screen.dart';
 import '../screens/wallet/wallet_screen.dart';
 import '../services/auth_notifier.dart';
@@ -55,11 +49,10 @@ class AppRouter {
         final authState = container.read(authProvider);
         final location = state.matchedLocation;
         final isLogin = location == '/login';
-        final isPinLogin = location == '/pin-login';
         final isRegister = location == '/register';
         final isTrack = location.startsWith('/track');
         final isSplash = location == '/splash';
-        final isPublic = isLogin || isPinLogin || isRegister || isTrack;
+        final isPublic = isLogin || isRegister || isTrack;
 
         if (isSplash) {
           if (authState.isLoading) return null;
@@ -68,7 +61,7 @@ class AppRouter {
 
         if (authState.isLoading) return null;
         if (!authState.isAuthenticated && !isPublic) return '/login';
-        if (authState.isAuthenticated && (isLogin || isPinLogin || isRegister)) return '/dashboard';
+        if (authState.isAuthenticated && (isLogin || isRegister)) return '/dashboard';
         return null;
       },
       routes: [
@@ -82,11 +75,6 @@ class AppRouter {
           path: '/login',
           name: 'login',
           builder: (context, state) => const LoginScreen(),
-        ),
-        GoRoute(
-          path: '/pin-login',
-          name: 'pin-login',
-          builder: (context, state) => const PinLoginScreen(),
         ),
         GoRoute(
           path: '/register',
@@ -124,17 +112,6 @@ class AppRouter {
           },
         ),
 
-        GoRoute(
-          path: '/new-parcel',
-          name: 'new-parcel',
-          builder: (context, state) => const NewParcelScreen(),
-        ),
-
-        GoRoute(
-          path: '/new-parcel-wizard',
-          name: 'new-parcel-wizard',
-          builder: (context, state) => const NewParcelWizardScreen(),
-        ),
 
         GoRoute(
           path: '/free-parcels',
@@ -178,11 +155,6 @@ class AppRouter {
         ),
 
         GoRoute(
-          path: '/driver/create-ad',
-          name: 'driver-create-ad',
-          builder: (context, state) => const PublishTripScreen(),
-        ),
-        GoRoute(
           path: '/driver/my-ads',
           name: 'driver-my-ads',
           builder: (context, state) => const DriverMesAnnoncesScreen(),
@@ -221,6 +193,11 @@ class AppRouter {
           path: '/driver/garage',
           name: 'driver-garage',
           builder: (context, state) => const DriverGarageScreen(),
+        ),
+        GoRoute(
+          path: '/driver/documents',
+          name: 'driver-documents',
+          builder: (context, state) => const VehicleDocumentsScreen(),
         ),
 
         GoRoute(
@@ -306,36 +283,6 @@ class AppRouter {
             final extra = state.extra;
             if (extra is Garage) return GarageDriversScreen(garage: extra);
             return const Scaffold(body: Center(child: Text('Garage introuvable')));
-          },
-        ),
-        GoRoute(
-          path: '/admin/parcel-form',
-          name: 'admin-parcel-form',
-          builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>?;
-            final isEditing = extra?['isEditing'] as bool? ?? false;
-            final parcel = extra?['parcel'] as Parcel?;
-            return ParcelFormScreen(isEditing: isEditing, parcel: parcel);
-          },
-        ),
-        GoRoute(
-          path: '/admin/user-form',
-          name: 'admin-user-form',
-          builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>?;
-            final isEditing = extra?['isEditing'] as bool? ?? false;
-            final user = extra?['user'] as User?;
-            return UserFormScreen(isEditing: isEditing, user: user);
-          },
-        ),
-        GoRoute(
-          path: '/admin/garage-form',
-          name: 'admin-garage-form',
-          builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>?;
-            final isEditing = extra?['isEditing'] as bool? ?? false;
-            final garage = extra?['garage'] as Garage?;
-            return GarageFormScreen(isEditing: isEditing, garage: garage);
           },
         ),
       ],

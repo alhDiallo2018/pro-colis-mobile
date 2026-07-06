@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/garage.dart';
@@ -9,7 +10,8 @@ import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/procolis_design_system.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 
 class DriverGarageScreen extends ConsumerStatefulWidget {
   const DriverGarageScreen({super.key});
@@ -71,22 +73,23 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
   }
 
   Future<void> _callPhone(String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^0-9+]'), ''));
+    final uri =
+        Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^0-9+]'), ''));
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
   }
 
-  Color _statusColor(DriverStatus? status) {
+  PcAvatarStatus _avatarStatus(DriverStatus? status) {
     switch (status) {
       case DriverStatus.available:
-        return AppTheme.successColor;
+        return PcAvatarStatus.online;
       case DriverStatus.busy:
-        return AppTheme.amber500;
+        return PcAvatarStatus.busy;
       case DriverStatus.offline:
-        return AppTheme.slate400;
+        return PcAvatarStatus.offline;
       default:
-        return AppTheme.slate400;
+        return PcAvatarStatus.offline;
     }
   }
 
@@ -96,10 +99,8 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppTheme.cardColor,
-        title: const Text('Mon Garage'),
-      ),
+      appBar: AppBar(title: const Text('Ma Zone')),
+      bottomNavigationBar: const AppBottomNav(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildContent(user),
@@ -117,7 +118,7 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _buildGarageCard(user),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           _buildColleaguesSection(),
         ],
       ),
@@ -125,83 +126,59 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
   }
 
   Widget _buildNoGarage() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryLight,
-                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              ),
-              child: const Icon(
-                Icons.garage_rounded,
-                size: 40,
-                color: AppTheme.primary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Aucun garage rattaché',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Vous n'êtes rattaché à aucun garage. Contactez un administrateur pour en rejoindre un.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.slate500),
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              onPressed: () {
-                final uri = Uri(
-                  scheme: 'mailto',
-                  path: 'support@procolis.com',
-                  query: 'subject=Aide - Rattachement à un garage',
-                );
-                launchUrl(uri);
-              },
-              icon: const Icon(Icons.mail_outline),
-              label: const Text('Contacter le support'),
-            ),
-          ],
-        ),
+    return PcEmptyState(
+      icon: Icons.garage_rounded,
+      tone: PcTone.primary,
+      title: 'Aucune zone rattachée',
+      message:
+          "Vous n'êtes rattaché à aucune zone. Contactez un administrateur pour en rejoindre une.",
+      action: PcButton(
+        'Contacter le support',
+        variant: PcButtonVariant.secondary,
+        icon: Icons.mail_outline_rounded,
+        onPressed: () {
+          final uri = Uri(
+            scheme: 'mailto',
+            path: 'support@procolis.com',
+            query: 'subject=Aide - Rattachement à une zone',
+          );
+          launchUrl(uri);
+        },
       ),
     );
   }
 
   Widget _buildGarageCard(User? user) {
-    final name = _garage?.name ?? user?.garageName ?? 'Mon garage';
+    final name = _garage?.name ?? user?.garageName ?? 'Ma zone';
     final city = _garage?.city;
     final region = _garage?.region;
     final phone = _garage?.phone;
-    final locationText =
-        [city, region].where((e) => e != null && e.isNotEmpty).join(', ');
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: AppTheme.brandGradient,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        boxShadow: AppTheme.brandShadow(),
-      ),
-      padding: const EdgeInsets.all(22),
+    final parts = [city, region]
+        .where((e) => e != null && e.isNotEmpty)
+        .cast<String>()
+        .toList();
+    var locationText = parts.isEmpty ? '—' : parts.join(', ');
+    if (phone != null && phone.isNotEmpty) {
+      locationText = '$locationText · $phone';
+    }
+
+    return PcCard(
+      padding: const EdgeInsets.all(20),
+      shadow: AppTheme.shadowXs(),
       child: Row(
         children: [
           Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity( 0.2),
+              color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: const Icon(
               Icons.garage_rounded,
               size: 30,
-              color: Colors.white,
+              color: AppTheme.primary,
             ),
           ),
           const SizedBox(width: 16),
@@ -211,45 +188,33 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    fontFamily: 'PlusJakartaSans',
+                  style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
                     fontSize: 20,
-                    color: Colors.white,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-                if (locationText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    locationText,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity( 0.75),
-                    ),
+                const SizedBox(height: 3),
+                Text(
+                  locationText,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.slate500,
                   ),
-                ],
-                if (phone != null && phone.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => _callPhone(phone),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.call_rounded,
-                            size: 16, color: Colors.white70),
-                        const SizedBox(width: 6),
-                        Text(
-                          phone,
-                          style: AppTheme.mono(
-                              fontSize: 14, color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
           ),
+          if (phone != null && phone.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            PcIconButton(
+              Icons.call_rounded,
+              variant: PcIconButtonVariant.soft,
+              onPressed: () => _callPhone(phone),
+              tooltip: 'Appeler la zone',
+            ),
+          ],
         ],
       ),
     );
@@ -259,163 +224,42 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              'Collègues',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(width: 8),
-            if (_colleagues.isNotEmpty)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryLight,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  '${_colleagues.length}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.primary,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
+        PcSectionHeader('Chauffeurs de la zone · ${_colleagues.length}'),
         if (_colleagues.isEmpty)
-          ProcolisCard(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              children: [
-                Icon(Icons.people_outline_rounded,
-                    size: 48, color: AppTheme.slate300),
-                const SizedBox(height: 10),
-                const Text(
-                  'Aucun collègue',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Vous êtes le seul chauffeur de ce garage pour le moment.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.slate500,
-                  ),
-                ),
-              ],
+          const PcCard(
+            child: PcEmptyState(
+              icon: Icons.people_outline_rounded,
+              title: 'Aucun collègue',
+              message:
+                  'Vous êtes le seul chauffeur rattaché à cette zone pour le moment.',
             ),
           )
         else
-          ...List.generate(_colleagues.length, (index) {
-            final colleague = _colleagues[index];
-
-            return ProcolisCard(
-              padding: EdgeInsets.zero,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {},
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: AppTheme.primaryLight,
-                              child: Text(
-                                colleague.initials,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
-                                  color: AppTheme.primary,
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color:
-                                      _statusColor(colleague.driverStatus),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: AppTheme.cardColor, width: 2),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                colleague.fullName,
-                                style: const TextStyle(
-                                  fontFamily: 'PlusJakartaSans',
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Row(
-                                children: [
-                                  Icon(Icons.star_rounded,
-                                      size: 14,
-                                      color: AppTheme.amber400),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    colleague.formattedRating,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.slate600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Icon(Icons.inventory_2_outlined,
-                                      size: 13, color: AppTheme.slate400),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${colleague.totalDeliveries ?? 0} livraisons',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.slate500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.chevron_right_rounded,
-                            color: AppTheme.slate300),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (var i = 0; i < _colleagues.length; i++) ...[
+                  if (i > 0) const PcDivider(),
+                  _buildColleagueRow(_colleagues[i]),
+                ],
+              ],
+            ),
+          ),
       ],
+    );
+  }
+
+  Widget _buildColleagueRow(User colleague) {
+    return PcListRow(
+      leading: PcAvatar(
+        colleague.fullName,
+        size: 44,
+        status: _avatarStatus(colleague.driverStatus),
+      ),
+      title: colleague.fullName,
+      subtitle:
+          '${colleague.formattedRating} ★ · ${colleague.totalDeliveries ?? 0} livraisons',
     );
   }
 }

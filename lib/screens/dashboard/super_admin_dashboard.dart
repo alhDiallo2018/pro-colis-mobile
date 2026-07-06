@@ -1,15 +1,25 @@
 // mobile/lib/screens/dashboard/super_admin_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/models/garage.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/models/user.dart';
 import 'package:procolis/screens/dashboard/notifications/notifications_screen.dart';
 import 'package:procolis/screens/super-admin/garages_management_screen.dart';
 import 'package:procolis/screens/super-admin/users_management_screen.dart';
+import 'package:procolis/screens/super-admin/colis_management_screen.dart';
+import 'package:procolis/screens/super-admin/chauffeurs_management_screen.dart';
+import 'package:procolis/screens/super-admin/stats_screen.dart';
+import 'package:procolis/screens/super-admin/admin_parametres_screen.dart';
 import 'package:procolis/services/api_service.dart';
+import 'package:procolis/theme/app_theme.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
+import '../../widgets/pc_components.dart';
+import '../../widgets/procolis_design_system.dart';
 import '../profile/profile_screen.dart';
 
 // Provider pour les utilisateurs
@@ -57,6 +67,25 @@ class UserNotifier extends StateNotifier<List<User>> {
   }
 }
 
+// Provider pour les garages
+final garageProvider = StateNotifierProvider<GarageNotifier, List<Garage>>((ref) {
+  return GarageNotifier();
+});
+
+class GarageNotifier extends StateNotifier<List<Garage>> {
+  GarageNotifier() : super([]);
+  final ApiService _apiService = ApiService();
+
+  Future<void> loadGarages() async {
+    try {
+      final garages = await _apiService.getAllGaragesSuperAdmin();
+      state = garages;
+    } catch (e) {
+      debugPrint('Erreur chargement garages: $e');
+    }
+  }
+}
+
 class SuperAdminDashboard extends ConsumerStatefulWidget {
   const SuperAdminDashboard({super.key});
 
@@ -79,6 +108,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     Future.microtask(() {
       ref.read(parcelProvider.notifier).loadAllParcels();
       ref.read(userProvider.notifier).loadUsers();
+      ref.read(garageProvider.notifier).loadGarages();
     });
   }
 
@@ -115,58 +145,44 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     final user = authState.user;
     final parcelState = ref.watch(parcelProvider);
     final users = ref.watch(userProvider);
+    final garages = ref.watch(garageProvider);
+
+    // Synchronise l'onglet avec la barre de navigation persistante (AppBottomNav)
+    ref.listen<int>(dashboardTabProvider, (prev, next) {
+      if (next != _selectedIndex && next >= 0 && next < 5) {
+        setState(() => _selectedIndex = next);
+      }
+    });
 
     return Scaffold(
-      body: _getScreen(_selectedIndex, user, parcelState, users),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
+      backgroundColor: AppTheme.backgroundColor,
+      body: _getScreen(_selectedIndex, user, parcelState, users, garages),
+      bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        selectedItemColor: const Color(0xFF0B6E3A),
-        unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+          ref.read(dashboardTabProvider.notifier).state = index;
+        },
         items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+          const ProcolisTabItem(
+            icon: Icons.dashboard_rounded,
+            label: 'Tableau',
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.people),
+          const ProcolisTabItem(
+            icon: Icons.group_rounded,
             label: 'Utilisateurs',
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.business),
-            label: 'Garages',
+          const ProcolisTabItem(
+            icon: Icons.garage_rounded,
+            label: 'Zones',
           ),
-          BottomNavigationBarItem(
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_rounded),
-                if (_unreadNotificationsCount > 0)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '${_unreadNotificationsCount > 9 ? '9+' : _unreadNotificationsCount}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            label: 'Notifications',
+          ProcolisTabItem(
+            icon: Icons.notifications_rounded,
+            label: 'Alertes',
+            badge: _unreadNotificationsCount,
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+          const ProcolisTabItem(
+            icon: Icons.person_rounded,
             label: 'Profil',
           ),
         ],
@@ -174,13 +190,14 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     );
   }
 
-  Widget _getScreen(int index, User? user, ParcelState parcelState, List<User> users) {
+  Widget _getScreen(int index, User? user, ParcelState parcelState, List<User> users, List<Garage> garages) {
     switch (index) {
       case 0:
         return _SuperAdminHomeScreen(
           user: user,
           parcelState: parcelState,
           users: users,
+          garages: garages,
           onRefresh: _loadData,
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
@@ -204,6 +221,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
           user: user,
           parcelState: parcelState,
           users: users,
+          garages: garages,
           onRefresh: _loadData,
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
@@ -216,6 +234,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   final User? user;
   final ParcelState parcelState;
   final List<User> users;
+  final List<Garage> garages;
   final VoidCallback onRefresh;
   final VoidCallback onNotificationsTap;
   final int unreadNotificationsCount;
@@ -224,6 +243,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
     required this.user,
     required this.parcelState,
     required this.users,
+    required this.garages,
     required this.onRefresh,
     required this.onNotificationsTap,
     this.unreadNotificationsCount = 0,
@@ -233,164 +253,62 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   int get _pendingParcels => parcelState.parcels.where((p) => p.status == ParcelStatus.pending).length;
   int get _inTransitParcels => parcelState.parcels.where((p) => p.isInProgress).length;
   int get _deliveredParcels => parcelState.parcels.where((p) => p.isDelivered).length;
-  
+
   int get _totalUsers => users.length;
   int get _totalDrivers => users.where((u) => u.isDriver).length;
   int get _totalAdmins => users.where((u) => u.isAdmin).length;
+  int get _totalGarages => garages.length;
+
+  // Chauffeurs (dérivés de la liste des utilisateurs) pour le panneau latéral.
+  List<User> get _drivers => users.where((u) => u.isDriver).toList();
+  int get _availableDrivers => users.where((u) => u.isDriverAvailable).length;
+
+  // Revenu encaissé : somme des montants des colis livrés (totalAmount ou prix).
+  double get _revenue {
+    double sum = 0;
+    for (final p in parcelState.parcels) {
+      if (p.isDelivered) sum += p.totalAmount ?? p.price ?? 0;
+    }
+    return sum;
+  }
+
+  String _formatAmount(double value) {
+    final digits = value.round().toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  // Données de volume (12 mois) — reprises du dashboard web.
+  static const List<int> _volume = [38, 44, 41, 52, 49, 61, 58, 67, 72, 70, 84, 100];
+  static const List<String> _months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
+      color: AppTheme.primary,
       child: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            expandedHeight: 180,
-            floating: true,
-            pinned: true,
-            backgroundColor: const Color(0xFF0B6E3A),
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                'Admin ${user?.fullName.split(' ').first ?? "Super"}',
-                style: const TextStyle(fontSize: 16),
-              ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF0B6E3A), Color(0xFF168A48)],
-                  ),
-                ),
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Spacer(),
-                            GestureDetector(
-                              onTap: onNotificationsTap,
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withAlpha(30),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.notifications_rounded,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  if (unreadNotificationsCount > 0)
-                                    Positioned(
-                                      right: 0,
-                                      top: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Text(
-                                          '${unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Spacer(),
-                        const Text(
-                          'Administration',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Gérez l\'ensemble de la plateforme',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withAlpha(200),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            actions: [
-              // Icône de notification dans l'AppBar
-              GestureDetector(
-                onTap: onNotificationsTap,
-                child: Stack(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(30),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.notifications_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    if (unreadNotificationsCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '${unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-            ],
-          ),
+          SliverToBoxAdapter(child: _buildHero()),
           SliverPadding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 100),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _buildStatsSection(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
+                _buildVolumeSection(),
+                const SizedBox(height: 22),
                 _buildQuickActions(context),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
+                _buildDriversPanel(),
+                const SizedBox(height: 22),
+                _buildGaragesPanel(context),
+                const SizedBox(height: 22),
                 _buildRecentActivitySection(),
-                const SizedBox(height: 80),
               ]),
             ),
           ),
@@ -399,68 +317,161 @@ class _SuperAdminHomeScreen extends StatelessWidget {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Hero / bandeau brand
+  // ---------------------------------------------------------------------------
+
+  Widget _buildHero() {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(gradient: AppTheme.brandGradient),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: const Color(0xFFC9F3EE),
+                    child: Text(
+                      user?.initials ?? 'SA',
+                      style: const TextStyle(
+                        color: AppTheme.teal700,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Super Admin',
+                          style: GoogleFonts.manrope(
+                            color: Colors.white.withAlpha(220),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          user?.fullName ?? 'Administration',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onNotificationsTap,
+                    color: Colors.white,
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.notifications_rounded, size: 27),
+                        if (unreadNotificationsCount > 0)
+                          Positioned(
+                            right: -2,
+                            top: -2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppTheme.amber400,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: AppTheme.teal600, width: 2),
+                              ),
+                              child: Text(
+                                unreadNotificationsCount > 99 ? '99+' : '$unreadNotificationsCount',
+                                style: const TextStyle(
+                                  color: AppTheme.amberOnFg,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Gérez l\'ensemble de la plateforme',
+                style: GoogleFonts.manrope(
+                  color: Colors.white.withAlpha(220),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Statistiques globales
+  // ---------------------------------------------------------------------------
+
   Widget _buildStatsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Statistiques globales',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
+        const PcSectionHeader('Statistiques globales'),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          childAspectRatio: 1.35,
           children: [
-            _StatCardLarge(
-              title: 'Colis',
-              value: _totalParcels.toString(),
-              icon: Icons.inventory,
-              color: Colors.blue,
-            ),
-            _StatCardLarge(
-              title: 'Utilisateurs',
-              value: _totalUsers.toString(),
-              icon: Icons.people,
-              color: Colors.green,
-            ),
-            _StatCardLarge(
-              title: 'Chauffeurs',
-              value: _totalDrivers.toString(),
-              icon: Icons.delivery_dining,
-              color: Colors.orange,
-            ),
-            _StatCardLarge(
-              title: 'Admins',
-              value: _totalAdmins.toString(),
-              icon: Icons.admin_panel_settings,
-              color: Colors.purple,
-            ),
+            const _AdminStat(icon: Icons.inventory_2_rounded, tone: PcTone.primary, label: 'Colis', valueKey: 'parcels').resolve(this),
+            _revenueStatBox(),
+            const _AdminStat(icon: Icons.local_shipping_rounded, tone: PcTone.green, label: 'Chauffeurs', valueKey: 'drivers').resolve(this),
+            const _AdminStat(icon: Icons.garage_rounded, tone: PcTone.amber, label: 'Zones', valueKey: 'garages').resolve(this),
+            const _AdminStat(icon: Icons.group_rounded, tone: PcTone.neutral, label: 'Utilisateurs', valueKey: 'users').resolve(this),
+            const _AdminStat(icon: Icons.admin_panel_settings_rounded, tone: PcTone.neutral, label: 'Admins', valueKey: 'admins').resolve(this),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           children: [
-            _StatCardSmall(
-              title: 'En attente',
-              value: _pendingParcels.toString(),
-              color: Colors.orange,
+            Expanded(
+              child: _StatusMini(
+                label: 'En attente',
+                value: _pendingParcels,
+                tone: PcTone.amber,
+              ),
             ),
             const SizedBox(width: 12),
-            _StatCardSmall(
-              title: 'En cours',
-              value: _inTransitParcels.toString(),
-              color: Colors.blue,
+            Expanded(
+              child: _StatusMini(
+                label: 'En cours',
+                value: _inTransitParcels,
+                tone: PcTone.primary,
+              ),
             ),
             const SizedBox(width: 12),
-            _StatCardSmall(
-              title: 'Livrés',
-              value: _deliveredParcels.toString(),
-              color: Colors.green,
+            Expanded(
+              child: _StatusMini(
+                label: 'Livrés',
+                value: _deliveredParcels,
+                tone: PcTone.green,
+              ),
             ),
           ],
         ),
@@ -468,22 +479,79 @@ class _SuperAdminHomeScreen extends StatelessWidget {
     );
   }
 
+  int _statValue(String key) {
+    switch (key) {
+      case 'parcels':
+        return _totalParcels;
+      case 'users':
+        return _totalUsers;
+      case 'drivers':
+        return _totalDrivers;
+      case 'admins':
+        return _totalAdmins;
+      case 'garages':
+        return _totalGarages;
+      default:
+        return 0;
+    }
+  }
+
+  Widget _revenueStatBox() {
+    return PcStatBox(
+      icon: Icons.account_balance_wallet_rounded,
+      tone: PcTone.neutral,
+      value: _revenue > 0 ? _formatAmount(_revenue) : '—',
+      label: 'FCFA encaissés',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Volume de colis (mini graphique)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildVolumeSection() {
+    return PcCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Volume de colis · 12 mois',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const PcBadge('+12%', tone: PcTone.primary),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _MiniBarChart(bars: _volume, labels: _months, height: 120),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Actions rapides
+  // ---------------------------------------------------------------------------
+
   Widget _buildQuickActions(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Actions rapides',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
+        const PcSectionHeader('Actions rapides'),
         Row(
           children: [
             Expanded(
               child: _ActionCard(
-                icon: Icons.business,
-                label: 'Garages',
-                color: const Color(0xFF0B6E3A),
+                icon: Icons.garage_rounded,
+                label: 'Zones',
+                tone: PcTone.primary,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -495,9 +563,9 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _ActionCard(
-                icon: Icons.people,
+                icon: Icons.group_rounded,
                 label: 'Utilisateurs',
-                color: Colors.orange,
+                tone: PcTone.amber,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -508,109 +576,349 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.inventory_2_rounded,
+                label: 'Colis',
+                tone: PcTone.primary,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const ColisManagementScreen()),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.local_shipping_rounded,
+                label: 'Chauffeurs',
+                tone: PcTone.amber,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const ChauffeursManagementScreen()),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.insights_rounded,
+                label: 'Statistiques',
+                tone: PcTone.green,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const AdminStatsScreen()),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.settings_rounded,
+                label: 'Paramètres',
+                tone: PcTone.neutral,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const AdminParametresScreen()),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Panneau Chauffeurs (top 5)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildDriversPanel() {
+    final drivers = _drivers;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 4, 2, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Chauffeurs',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              if (_availableDrivers > 0)
+                PcBadge('$_availableDrivers dispo', tone: PcTone.green),
+            ],
+          ),
+        ),
+        if (drivers.isEmpty)
+          const PcCard(
+            child: PcEmptyState(
+              icon: Icons.local_shipping_rounded,
+              title: 'Aucun chauffeur',
+              message: 'Les chauffeurs de la plateforme apparaîtront ici.',
+              tone: PcTone.neutral,
+            ),
+          )
+        else
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (int i = 0; i < drivers.take(5).length; i++) ...[
+                  if (i > 0) const PcDivider(),
+                  _buildDriverRow(drivers[i]),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDriverRow(User driver) {
+    final status = switch (driver.driverStatus) {
+      DriverStatus.available => PcAvatarStatus.online,
+      DriverStatus.busy => PcAvatarStatus.busy,
+      DriverStatus.offline => PcAvatarStatus.offline,
+      _ => PcAvatarStatus.offline,
+    };
+    final place = (driver.city != null && driver.city!.isNotEmpty)
+        ? driver.city!
+        : (driver.garageName ?? '—');
+    final rating = driver.rating != null ? driver.rating!.toStringAsFixed(1) : '—';
+    return PcListRow(
+      leading: PcAvatar(driver.fullName, size: 40, status: status),
+      title: driver.fullName,
+      subtitle: '$place · $rating ★',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Panneau Garages (top 5)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildGaragesPanel(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PcSectionHeader(
+          'Zones',
+          action: 'Tout voir',
+          onAction: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const GaragesManagementScreen()),
+            );
+          },
+        ),
+        if (garages.isEmpty)
+          const PcCard(
+            child: PcEmptyState(
+              icon: Icons.garage_rounded,
+              title: 'Aucune zone',
+              message: 'Les zones enregistrées apparaîtront ici.',
+              tone: PcTone.neutral,
+            ),
+          )
+        else
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (int i = 0; i < garages.take(5).length; i++) ...[
+                  if (i > 0) const PcDivider(),
+                  _buildGarageRow(garages[i]),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildGarageRow(Garage garage) {
+    return PcListRow(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: AppTheme.slate100,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        ),
+        child: const Icon(Icons.garage_rounded, size: 22, color: AppTheme.slate500),
+      ),
+      title: garage.name,
+      subtitle: garage.city.isNotEmpty ? garage.city : '—',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Activité récente
+  // ---------------------------------------------------------------------------
 
   Widget _buildRecentActivitySection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Activité récente',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
+        const PcSectionHeader('Activité récente'),
         if (parcelState.isLoading)
-          const Center(child: CircularProgressIndicator())
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+          )
         else if (parcelState.parcels.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(40),
-            alignment: Alignment.center,
-            child: Text(
-              'Aucune activité récente',
-              style: TextStyle(color: Colors.grey.withAlpha(150)),
+          const PcCard(
+            child: PcEmptyState(
+              icon: Icons.local_shipping_rounded,
+              title: 'Aucune activité récente',
+              message: 'Les derniers colis enregistrés apparaîtront ici.',
+              tone: PcTone.neutral,
             ),
           )
         else
-          ...parcelState.parcels.take(5).map((parcel) => ListTile(
-            leading: CircleAvatar(
-              backgroundColor: parcel.status.color.withAlpha(25),
-              child: Icon(Icons.local_shipping, color: parcel.status.color, size: 20),
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (int i = 0; i < parcelState.parcels.take(5).length; i++) ...[
+                  if (i > 0) const PcDivider(),
+                  _buildActivityRow(parcelState.parcels[i]),
+                ],
+              ],
             ),
-            title: Text(
-              parcel.trackingNumber,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text('${parcel.receiverName} - ${parcel.status.label}'),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: parcel.status.color.withAlpha(25),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                parcel.status.label,
-                style: TextStyle(fontSize: 11, color: parcel.status.color),
-              ),
-            ),
-          )),
+          ),
       ],
+    );
+  }
+
+  Widget _buildActivityRow(Parcel parcel) {
+    final colors = AppTheme.statusColors(parcel.status);
+    return PcListRow(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: colors.background,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        ),
+        child: Icon(Icons.local_shipping_rounded, color: colors.foreground, size: 22),
+      ),
+      title: parcel.trackingNumber,
+      subtitle: parcel.receiverName,
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: colors.background,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          parcel.status.label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: colors.foreground,
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _StatCardLarge extends StatelessWidget {
-  final String title;
-  final String value;
+// A helper descriptor so we can build tone-aware PcStatBox from static config
+// while still reading live values from the home screen.
+class _AdminStat {
   final IconData icon;
-  final Color color;
+  final PcTone tone;
+  final String label;
+  final String valueKey;
 
-  const _StatCardLarge({
-    required this.title,
-    required this.value,
+  const _AdminStat({
     required this.icon,
-    required this.color,
+    required this.tone,
+    required this.label,
+    required this.valueKey,
   });
+
+  Widget resolve(_SuperAdminHomeScreen host) {
+    return PcStatBox(
+      icon: icon,
+      tone: tone,
+      value: '${host._statValue(valueKey)}',
+      label: label,
+    );
+  }
+}
+
+class _StatusMini extends StatelessWidget {
+  final String label;
+  final int value;
+  final PcTone tone;
+
+  const _StatusMini({
+    required this.label,
+    required this.value,
+    required this.tone,
+  });
+
+  Color get _fg {
+    switch (tone) {
+      case PcTone.primary:
+        return AppTheme.teal500;
+      case PcTone.green:
+        return AppTheme.green700;
+      case PcTone.amber:
+        return AppTheme.amber600;
+      case PcTone.red:
+        return AppTheme.red500;
+      case PcTone.neutral:
+        return AppTheme.slate500;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
+    return PcCard(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: Colors.white, size: 24),
+          Text(
+            '$value',
+            style: AppTheme.mono(fontSize: 20, fontWeight: FontWeight.w800, color: _fg),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.slate500,
             ),
           ),
         ],
@@ -619,36 +927,64 @@ class _StatCardLarge extends StatelessWidget {
   }
 }
 
-class _StatCardSmall extends StatelessWidget {
-  final String title;
-  final String value;
-  final Color color;
+class _MiniBarChart extends StatelessWidget {
+  final List<int> bars;
+  final List<String> labels;
+  final double height;
 
-  const _StatCardSmall({
-    required this.title,
-    required this.value,
-    required this.color,
+  const _MiniBarChart({
+    required this.bars,
+    required this.labels,
+    this.height = 120,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withAlpha(25),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+    final maxVal = bars.isEmpty ? 1 : bars.reduce((a, b) => a > b ? a : b);
+    return SizedBox(
+      height: height,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (int i = 0; i < bars.length; i++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: FractionallySizedBox(
+                        alignment: Alignment.bottomCenter,
+                        heightFactor: (bars[i] / maxVal).clamp(0.06, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: i == bars.length - 1
+                                  ? const [AppTheme.amber400, AppTheme.amber500]
+                                  : const [AppTheme.teal400, AppTheme.teal600],
+                            ),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      i < labels.length ? labels[i] : '',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.slate400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(title, style: const TextStyle(fontSize: 11)),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -657,34 +993,58 @@ class _StatCardSmall extends StatelessWidget {
 class _ActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
+  final PcTone tone;
   final VoidCallback onTap;
 
   const _ActionCard({
     required this.icon,
     required this.label,
-    required this.color,
+    required this.tone,
     required this.onTap,
   });
 
+  ({Color bg, Color fg}) get _chip {
+    switch (tone) {
+      case PcTone.primary:
+        return (bg: AppTheme.teal50, fg: AppTheme.teal500);
+      case PcTone.green:
+        return (bg: AppTheme.green50, fg: AppTheme.green700);
+      case PcTone.amber:
+        return (bg: AppTheme.amber50, fg: AppTheme.amber600);
+      case PcTone.red:
+        return (bg: AppTheme.red50, fg: AppTheme.red500);
+      case PcTone.neutral:
+        return (bg: AppTheme.slate100, fg: AppTheme.slate500);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final chip = _chip;
+    return PcCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withAlpha(25),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w500)),
-          ],
-        ),
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Column(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: chip.bg,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: Icon(icon, color: chip.fg, size: 26),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }

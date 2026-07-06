@@ -2,12 +2,16 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/models/advertisement.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/providers/auth_provider.dart';
 import 'package:procolis/providers/parcel_provider.dart';
-import 'package:procolis/screens/parcel/new_parcel_screen.dart';
+import 'package:procolis/screens/parcel/ads/advertisement_detail_screen.dart';
+import 'package:procolis/screens/parcel/create_colis_sheet.dart';
 import 'package:procolis/services/api_service.dart';
 import 'package:procolis/theme/app_theme.dart';
+import 'package:procolis/widgets/app_bottom_nav.dart';
+import 'package:procolis/widgets/pc_components.dart';
 
 class AdvertisementsScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -22,22 +26,30 @@ class AdvertisementsScreen extends ConsumerStatefulWidget {
       _AdvertisementsScreenState();
 }
 
-class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
+class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
+    with SingleTickerProviderStateMixin {
   final _apiService = ApiService();
   final _audioPlayer = AudioPlayer();
 
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _playingAudioUrl;
+  late final TabController _tabController;
+  List<Advertisement> _trips = const [];
+  final _tripSearchController = TextEditingController();
+  String _tripQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadLibreService());
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
+    _tripSearchController.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -47,6 +59,10 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
     try {
       await ref.read(parcelProvider.notifier).loadMyParcels();
       await ref.read(parcelProvider.notifier).loadFreeParcels();
+      final rawTrips =
+          await _apiService.getAdvertisements(params: {'status': 'open'});
+      final trips = rawTrips.map(Advertisement.fromJson).toList();
+      if (mounted) setState(() => _trips = trips);
     } catch (e) {
       debugPrint('Erreur chargement libre service: $e');
       if (mounted) {
@@ -61,8 +77,35 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
   Widget build(BuildContext context) {
     final content = Column(
       children: [
-        _LibreServiceHeader(onRefresh: _loadLibreService),
-        Expanded(child: _buildBody()),
+        _LibreServiceHeader(
+          onRefresh: _loadLibreService,
+          onBack: widget.embedded
+              ? null
+              : () => Navigator.of(context).maybePop(),
+        ),
+        Container(
+          color: AppTheme.cardColor,
+          child: TabBar(
+            controller: _tabController,
+            labelColor: AppTheme.primary,
+            unselectedLabelColor: AppTheme.textSecondary,
+            indicatorColor: AppTheme.primary,
+            labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+            tabs: const [
+              Tab(text: 'Mes annonces'),
+              Tab(text: 'Voyages'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildBody(),
+              _buildTripsTab(),
+            ],
+          ),
+        ),
       ],
     );
 
@@ -73,6 +116,140 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: content,
+      bottomNavigationBar: const AppBottomNav(),
+    );
+  }
+
+  List<Advertisement> _filteredTrips() {
+    final query = _tripQuery.trim().toLowerCase();
+    if (query.isEmpty) return _trips;
+    return _trips.where((trip) {
+      final haystack = [
+        trip.departureCity ?? '',
+        trip.arrivalCity ?? '',
+        trip.driverName,
+        trip.description ?? '',
+      ].join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
+  void _openTrip(Advertisement trip) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AdvertisementDetailScreen(adId: trip.id),
+      ),
+    ).then((_) => _loadLibreService());
+  }
+
+  Widget _buildTripsTab() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.primary),
+      );
+    }
+
+    final trips = _filteredTrips();
+
+    Widget listArea;
+    if (trips.isEmpty) {
+      listArea = RefreshIndicator(
+        color: AppTheme.primary,
+        onRefresh: _loadLibreService,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+            PcEmptyState(
+              icon: Icons.local_shipping_outlined,
+              tone: PcTone.primary,
+              title: _tripQuery.trim().isEmpty
+                  ? 'Aucun voyage disponible'
+                  : 'Aucun résultat',
+              message: _tripQuery.trim().isEmpty
+                  ? 'Les voyages des chauffeurs apparaîtront ici.'
+                  : 'Aucun voyage ne correspond à votre recherche.',
+            ),
+          ],
+        ),
+      );
+    } else {
+      listArea = RefreshIndicator(
+        color: AppTheme.primary,
+        backgroundColor: AppTheme.cardColor,
+        onRefresh: _loadLibreService,
+        child: ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: trips.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) => _TripCard(
+            trip: trips[index],
+            onTap: () => _openTrip(trips[index]),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        _buildTripSearchField(),
+        Expanded(child: listArea),
+      ],
+    );
+  }
+
+  Widget _buildTripSearchField() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+      child: TextField(
+        controller: _tripSearchController,
+        onChanged: (value) => setState(() => _tripQuery = value),
+        textInputAction: TextInputAction.search,
+        style: GoogleFonts.manrope(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+        ),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: AppTheme.slate50,
+          hintText: 'Rechercher (ville, chauffeur, description)',
+          hintStyle: GoogleFonts.manrope(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.slate400,
+          ),
+          prefixIcon: const Icon(Icons.search_rounded,
+              size: 20, color: AppTheme.slate400),
+          suffixIcon: _tripQuery.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      size: 18, color: AppTheme.slate400),
+                  onPressed: () {
+                    _tripSearchController.clear();
+                    setState(() => _tripQuery = '');
+                  },
+                ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            borderSide: const BorderSide(color: AppTheme.slate200),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            borderSide: const BorderSide(color: AppTheme.slate200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+          ),
+        ),
+      ),
     );
   }
 
@@ -104,8 +281,8 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
         children: [
           _LibreParcelCard(parcel: selectedParcel),
           const SizedBox(height: 18),
-          _SectionHeader(title: '${offers.length} offres reçues'),
-          const SizedBox(height: 10),
+          PcSectionHeader('${offers.length} offres reçues'),
+          const SizedBox(height: 4),
           if (offers.isEmpty)
             _NoOffersCard(onCreate: _openNewParcel)
           else
@@ -291,10 +468,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
   }
 
   void _openNewParcel() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const NewParcelScreen()),
-    ).then((_) => _loadLibreService());
+    showCreateColisSheet(context).then((_) => _loadLibreService());
   }
 
   void _showSnack(String message, {bool isError = false}) {
@@ -314,8 +488,9 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen> {
 
 class _LibreServiceHeader extends StatelessWidget {
   final VoidCallback onRefresh;
+  final VoidCallback? onBack;
 
-  const _LibreServiceHeader({required this.onRefresh});
+  const _LibreServiceHeader({required this.onRefresh, this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -334,6 +509,15 @@ class _LibreServiceHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
+          if (onBack != null) ...[
+            PcIconButton(
+              Icons.arrow_back_rounded,
+              onPressed: onBack,
+              variant: PcIconButtonVariant.soft,
+              tooltip: 'Retour',
+            ),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Text(
               'Libre service',
@@ -345,14 +529,11 @@ class _LibreServiceHeader extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
+          PcIconButton(
+            Icons.tune_rounded,
             onPressed: onRefresh,
-            icon: const Icon(Icons.tune_rounded),
+            variant: PcIconButtonVariant.soft,
             tooltip: 'Actualiser',
-            style: IconButton.styleFrom(
-              backgroundColor: AppTheme.slate100,
-              foregroundColor: AppTheme.textPrimary,
-            ),
           ),
         ],
       ),
@@ -370,14 +551,10 @@ class _LibreParcelCard extends StatelessWidget {
     final price =
         parcel.proposedPrice ?? parcel.negotiatedPrice ?? parcel.price;
 
-    return Container(
+    return PcCard(
+      radius: AppTheme.radiusLg,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.slate200),
-        boxShadow: AppTheme.softShadow(alpha: 0.06),
-      ),
+      shadow: AppTheme.softShadow(alpha: 0.06),
       child: Column(
         children: [
           Row(
@@ -389,19 +566,18 @@ class _LibreParcelCard extends StatelessWidget {
                 child: Text(
                   parcel.trackingNumber,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 15,
+                  style: AppTheme.mono(
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.slate700,
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              _StatusPill(
-                text: 'LIBRE SERVICE',
+              const PcBadge(
+                'Libre service',
+                tone: PcTone.primary,
                 icon: Icons.sell_rounded,
-                foreground: const Color(0xFF1E55B8),
-                background: const Color(0xFFE9F0FF),
               ),
             ],
           ),
@@ -434,6 +610,7 @@ class _LibreParcelCard extends StatelessWidget {
                 child: _MetaItem(
                   icon: Icons.shopping_bag_outlined,
                   value: '${_trimNumber(parcel.weight)} kg',
+                  mono: true,
                 ),
               ),
               Expanded(
@@ -452,9 +629,8 @@ class _LibreParcelCard extends StatelessWidget {
                 child: Text(
                   price == null ? '-- FCFA' : '${_formatMoney(price)} FCFA',
                   textAlign: TextAlign.right,
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 18,
-                    height: 1.15,
+                  style: AppTheme.mono(
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.teal600,
                   ),
@@ -525,7 +701,11 @@ class _OfferCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _AvatarInitials(name: bid.driverName),
+          PcAvatar(
+            bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName,
+            size: 48,
+            status: PcAvatarStatus.online,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -557,8 +737,8 @@ class _OfferCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Garage partenaire · 4,8 ★',
-                  style: TextStyle(
+                  'Zone partenaire · 4,8 ★',
+                  style: GoogleFonts.manrope(
                     fontSize: 12.5,
                     color: AppTheme.textSecondary,
                     fontWeight: FontWeight.w500,
@@ -576,7 +756,7 @@ class _OfferCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         _formatWhen(bid.createdAt),
-                        style: const TextStyle(
+                        style: GoogleFonts.manrope(
                           fontSize: 11.5,
                           color: AppTheme.slate400,
                           fontWeight: FontWeight.w600,
@@ -584,49 +764,30 @@ class _OfferCard extends StatelessWidget {
                       ),
                     ),
                     if (bid.isAccepted)
-                      const _StatusPill(
-                        text: 'Acceptée',
+                      const PcBadge(
+                        'Acceptée',
+                        tone: PcTone.green,
                         icon: Icons.check_rounded,
-                        foreground: AppTheme.green700,
-                        background: AppTheme.green50,
                       )
                     else if (bid.isRejected)
-                      const _StatusPill(
-                        text: 'Rejetée',
+                      const PcBadge(
+                        'Rejetée',
+                        tone: PcTone.red,
                         icon: Icons.close_rounded,
-                        foreground: AppTheme.red500,
-                        background: AppTheme.red50,
                       )
                     else ...[
-                      OutlinedButton(
+                      PcButton(
+                        'Négocier',
+                        variant: PcButtonVariant.secondary,
+                        size: PcButtonSize.sm,
                         onPressed: isSubmitting ? null : onNegotiate,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 36),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          side: const BorderSide(color: AppTheme.slate200),
-                          foregroundColor: AppTheme.textPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusSm),
-                          ),
-                        ),
-                        child: const Text('Négocier'),
                       ),
                       const SizedBox(width: 8),
-                      ElevatedButton.icon(
+                      PcButton(
+                        'Accepter',
+                        icon: Icons.check_rounded,
+                        size: PcButtonSize.sm,
                         onPressed: isSubmitting ? null : onAccept,
-                        icon: const Icon(Icons.check_rounded, size: 17),
-                        label: const Text('Accepter'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(0, 36),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusSm),
-                          ),
-                        ),
                       ),
                     ],
                   ],
@@ -801,10 +962,11 @@ class _NegotiateSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            ElevatedButton.icon(
+            PcButton(
+              'Envoyer la contre-offre',
+              icon: Icons.send_rounded,
+              block: true,
               onPressed: onSubmit,
-              icon: const Icon(Icons.send_rounded),
-              label: const Text('Envoyer la contre-offre'),
             ),
           ],
         ),
@@ -821,58 +983,18 @@ class _EmptyLibreServiceState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 80, 24, 120),
+      padding: const EdgeInsets.fromLTRB(24, 64, 24, 120),
       children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppTheme.cardColor,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            border: Border.all(color: AppTheme.slate200),
-            boxShadow: AppTheme.softShadow(alpha: 0.04),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppTheme.teal50,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                ),
-                child: const Icon(
-                  Icons.sell_rounded,
-                  color: AppTheme.primary,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Aucune annonce libre service',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Publiez un colis en libre service pour recevoir les offres des chauffeurs.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 22),
-              ElevatedButton.icon(
-                onPressed: onCreate,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Ajouter un colis'),
-              ),
-            ],
+        PcEmptyState(
+          icon: Icons.sell_rounded,
+          tone: PcTone.primary,
+          title: 'Aucune annonce libre service',
+          message:
+              'Publiez un colis en libre service pour recevoir les offres des chauffeurs.',
+          action: PcButton(
+            'Ajouter un colis',
+            icon: Icons.add_rounded,
+            onPressed: onCreate,
           ),
         ),
       ],
@@ -887,46 +1009,37 @@ class _NoOffersCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.slate200),
-      ),
+    return PcCard(
       child: Row(
         children: [
-          const Icon(Icons.inbox_outlined, color: AppTheme.slate400),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.slate100,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: const Icon(Icons.inbox_outlined, color: AppTheme.slate500),
+          ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
               'Aucune offre reçue pour le moment.',
-              style: TextStyle(
+              style: GoogleFonts.manrope(
+                fontSize: 13.5,
                 color: AppTheme.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          TextButton(onPressed: onCreate, child: const Text('Nouveau')),
+          const SizedBox(width: 8),
+          PcButton(
+            'Nouveau',
+            variant: PcButtonVariant.ghost,
+            size: PcButtonSize.sm,
+            onPressed: onCreate,
+          ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: GoogleFonts.plusJakartaSans(
-        fontSize: 20,
-        fontWeight: FontWeight.w800,
-        color: AppTheme.textPrimary,
       ),
     );
   }
@@ -979,117 +1092,39 @@ class _RouteEnd extends StatelessWidget {
 class _MetaItem extends StatelessWidget {
   final IconData icon;
   final String value;
+  final bool mono;
 
   const _MetaItem({
     required this.icon,
     required this.value,
+    this.mono = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final style = mono
+        ? AppTheme.mono(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.slate600,
+          )
+        : GoogleFonts.manrope(
+            fontSize: 14,
+            height: 1.25,
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 19, color: AppTheme.slate400),
+        Icon(icon, size: 18, color: AppTheme.slate400),
         const SizedBox(width: 6),
         Flexible(
           child: Text(
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 15,
-              height: 1.25,
-              color: AppTheme.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String text;
-  final IconData icon;
-  final Color foreground;
-  final Color background;
-
-  const _StatusPill({
-    required this.text,
-    required this.icon,
-    required this.foreground,
-    required this.background,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: foreground),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: foreground,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AvatarInitials extends StatelessWidget {
-  final String name;
-
-  const _AvatarInitials({required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    final initials = parts
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part.substring(0, 1).toUpperCase())
-        .join();
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: AppTheme.teal50,
-          child: Text(
-            initials.isEmpty ? 'CH' : initials,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.teal700,
-            ),
-          ),
-        ),
-        Positioned(
-          right: -1,
-          bottom: -1,
-          child: Container(
-            width: 13,
-            height: 13,
-            decoration: BoxDecoration(
-              color: AppTheme.green500,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
+            style: style,
           ),
         ),
       ],
@@ -1113,7 +1148,7 @@ class _Waveform extends StatelessWidget {
                 height: height,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity( 0.38),
+                  color: AppTheme.primary.withValues(alpha: 0.38),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -1147,4 +1182,145 @@ String _formatWhen(DateTime date) {
   if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
   if (diff.inDays < 7) return 'il y a ${diff.inDays} j';
   return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+}
+
+const _tripMonths = [
+  'jan', 'fév', 'mar', 'avr', 'mai', 'juin',
+  'juil', 'août', 'sep', 'oct', 'nov', 'déc'
+];
+
+String formatTripDate(DateTime d) {
+  final hh = d.hour.toString().padLeft(2, '0');
+  final mm = d.minute.toString().padLeft(2, '0');
+  return '${d.day} ${_tripMonths[d.month - 1]} · $hh:$mm';
+}
+
+class _TripCard extends StatelessWidget {
+  final Advertisement trip;
+  final VoidCallback onTap;
+
+  const _TripCard({required this.trip, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final from = trip.departureCity?.isNotEmpty == true ? trip.departureCity! : '—';
+    final to = trip.arrivalCity?.isNotEmpty == true ? trip.arrivalCity! : '—';
+    final driver = trip.driverName.isNotEmpty ? trip.driverName : 'Chauffeur';
+    final tripDate = trip.departureAt;
+
+    return PcCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.teal50,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                ),
+                child: const Icon(Icons.local_shipping_rounded,
+                    color: AppTheme.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(from,
+                          style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: AppTheme.textPrimary),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6),
+                      child: Icon(Icons.arrow_forward_rounded,
+                          size: 16, color: AppTheme.slate400),
+                    ),
+                    Flexible(
+                      child: Text(to,
+                          style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: AppTheme.textPrimary),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppTheme.slate400),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (tripDate != null)
+                _chip(Icons.event_rounded, formatTripDate(tripDate)),
+              _chip(Icons.scale_rounded, trip.formattedWeight, mono: true),
+              _chip(Icons.payments_rounded, trip.formattedPrice, mono: true),
+              if (trip.offersCount > 0)
+                _chip(Icons.local_offer_rounded,
+                    '${trip.offersCount} offre${trip.offersCount > 1 ? 's' : ''}'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              PcAvatar(driver, size: 26),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(driver,
+                    style: GoogleFonts.manrope(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Text('Détail',
+                  style: GoogleFonts.plusJakartaSans(
+                      color: AppTheme.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(IconData icon, String label, {bool mono = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.slate50,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(color: AppTheme.slate200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.slate400),
+          const SizedBox(width: 6),
+          Text(label,
+              style: mono
+                  ? AppTheme.mono(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.slate700)
+                  : GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.slate700)),
+        ],
+      ),
+    );
+  }
 }

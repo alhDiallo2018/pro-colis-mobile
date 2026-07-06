@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/procolis_design_system.dart';
 
 class ItineraryMapScreen extends StatefulWidget {
@@ -332,6 +333,7 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: const AppBottomNav(),
       body: Stack(
         children: [
           if (_sameLocation)

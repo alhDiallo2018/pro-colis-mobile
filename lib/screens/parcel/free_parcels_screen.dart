@@ -7,6 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -17,7 +18,11 @@ import '../../models/voice_message.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/procolis_design_system.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/parcel_card.dart';
+import '../../widgets/pc_components.dart';
+import '../driver/itinerary_map_screen.dart';
+import '../shared/messages_screen.dart';
 
 class FreeParcelsScreen extends ConsumerStatefulWidget {
   const FreeParcelsScreen({super.key});
@@ -90,122 +95,51 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        toolbarHeight: 76,
-        titleSpacing: 16,
-        title: const Row(
-          children: [
-            _AppBarIcon(icon: Icons.sell_rounded),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Colis à prendre'),
-                  SizedBox(height: 2),
-                  Text(
-                    'Libre service chauffeur',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppTheme.cardColor,
-        foregroundColor: AppTheme.textPrimary,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          IconButton(
-            onPressed: _refresh,
-            icon: const Icon(Icons.tune_rounded, color: AppTheme.primary),
-          ),
-        ],
-        shape: const Border(
-          bottom: BorderSide(color: AppTheme.slate200),
-        ),
-      ),
+      bottomNavigationBar: const AppBottomNav(),
       body: Column(
         children: [
-          _PoolSummaryBand(
-            visibleCount: parcels.length,
-            totalCount: parcelState.freeParcels.length,
+          _PoolHeader(
+            count: parcelState.freeParcels.length,
+            onRefresh: _refresh,
           ),
-          Container(
-            height: 60,
-            decoration: const BoxDecoration(
-              color: AppTheme.cardColor,
-              border: Border(bottom: BorderSide(color: AppTheme.slate200)),
-            ),
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              scrollDirection: Axis.horizontal,
-              itemBuilder: (context, index) {
-                final filter = _filters[index];
-                return _PoolFilterChip(
-                  label: filter,
-                  selected: _selectedFilter == filter,
-                  onTap: () => setState(() => _selectedFilter = filter),
-                );
-              },
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemCount: _filters.length,
-            ),
+          _PoolFilterBar(
+            filters: _filters,
+            selected: _selectedFilter,
+            onSelect: (filter) => setState(() => _selectedFilter = filter),
           ),
           Expanded(
             child: RefreshIndicator(
               color: AppTheme.primary,
+              backgroundColor: AppTheme.cardColor,
               onRefresh: _refresh,
               child: parcelState.isLoadingFreeParcels
                   ? const _PoolLoadingList()
                   : parcels.isEmpty
                       ? ListView(
-                          padding: const EdgeInsets.fromLTRB(24, 90, 24, 120),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(24, 48, 24, 120),
                           children: const [
-                            _EmptyPoolCard(),
+                            PcEmptyState(
+                              icon: Icons.inventory_2_outlined,
+                              tone: PcTone.primary,
+                              title: 'Aucun colis à prendre',
+                              message:
+                                  'Les demandes clients en libre service apparaîtront ici.',
+                            ),
                           ],
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
                           itemCount: parcels.length,
                           separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 14),
                           itemBuilder: (context, index) {
                             final parcel = parcels[index];
-                            return _ParcelRouteCard(
+                            return _FreeParcelItem(
                               parcel: parcel,
-                              onTap: () => _openOffer(parcel),
-                              footer: Row(
-                                children: [
-                                  const Icon(Icons.route_rounded,
-                                      size: 18, color: AppTheme.slate500),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      '240 km · ${parcel.bids.length} offre${parcel.bids.length > 1 ? 's' : ''}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: AppTheme.textSecondary,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  _OfferActionButton(
-                                    parcel: parcel,
-                                    currentUserId: currentUserId,
-                                    onTap: () => _openOffer(parcel),
-                                  ),
-                                ],
-                              ),
+                              currentUserId: currentUserId,
+                              onOffer: () => _openOffer(parcel),
                             );
                           },
                         ),
@@ -410,45 +344,71 @@ class _FreeParcelDetailsScreenState
     }
   }
 
+  void _openItinerary() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ItineraryMapScreen(
+          departureName: widget.parcel.departureGarageName,
+          arrivalName: widget.parcel.arrivalGarageName ?? '',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_sent) return _OfferSuccessScreen(price: _priceController.text);
+    if (_sent) {
+      return _OfferSuccessScreen(
+        price: _priceController.text,
+        parcel: widget.parcel,
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Faire une offre'),
         titleSpacing: 0,
-        toolbarHeight: 72,
+        toolbarHeight: 64,
         backgroundColor: AppTheme.cardColor,
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: GoogleFonts.plusJakartaSans(
           color: AppTheme.textPrimary,
-          fontSize: 24,
-          fontWeight: FontWeight.w900,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
         ),
         shape: const Border(
           bottom: BorderSide(color: AppTheme.slate200),
         ),
       ),
+      bottomNavigationBar: const AppBottomNav(),
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 26, 24, 30),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           children: [
-            _ParcelRouteCard(parcel: widget.parcel),
-            const SizedBox(height: 30),
+            ParcelCard(parcel: widget.parcel, onTap: () {}),
+            const SizedBox(height: 12),
+            PcButton(
+              'Itinéraire',
+              icon: Icons.map_rounded,
+              variant: PcButtonVariant.secondary,
+              block: true,
+              onPressed: _openItinerary,
+            ),
+            const SizedBox(height: 26),
             _OfferPriceField(
               controller: _priceController,
               proposedPrice:
                   widget.parcel.proposedPrice ?? widget.parcel.price ?? 0,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
             _OfferMessageField(controller: _messageController),
-            const SizedBox(height: 30),
+            const SizedBox(height: 26),
             _OfferVoiceField(
               voiceMessage: _voiceMessage,
               isRecording: _isRecording,
@@ -459,35 +419,13 @@ class _FreeParcelDetailsScreenState
               onRemove: _removeVoice,
             ),
             const SizedBox(height: 26),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isRecording || _isSending ? null : _submitOffer,
-                icon: _isSending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.send_rounded),
-                label: Text(_isSending ? 'Envoi...' : 'Envoyer l’offre'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.deep500,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 36),
-                  padding: const EdgeInsets.symmetric(vertical: 7),
-                  textStyle: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
+            PcButton(
+              _isSending ? 'Envoi...' : 'Envoyer l’offre',
+              icon: Icons.send_rounded,
+              block: true,
+              size: PcButtonSize.lg,
+              loading: _isSending,
+              onPressed: _isRecording || _isSending ? null : _submitOffer,
             ),
           ],
         ),
@@ -496,98 +434,181 @@ class _FreeParcelDetailsScreenState
   }
 }
 
-class _AppBarIcon extends StatelessWidget {
-  final IconData icon;
+// ============================================================
+// Liste — en-tête, filtres, item colis
+// ============================================================
 
-  const _AppBarIcon({required this.icon});
+class _PoolHeader extends StatelessWidget {
+  final int count;
+  final VoidCallback onRefresh;
+
+  const _PoolHeader({required this.count, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryLight,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        MediaQuery.paddingOf(context).top + 12,
+        16,
+        14,
       ),
-      child: Icon(icon, color: AppTheme.primary, size: 23),
+      decoration: const BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border(bottom: BorderSide(color: AppTheme.slate200)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.teal50,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+            child: const Icon(Icons.sell_rounded,
+                color: AppTheme.primary, size: 23),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Colis à prendre',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 22,
+                    height: 1.05,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Libre service chauffeur',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          PcBadge('$count', tone: PcTone.primary),
+          const SizedBox(width: 8),
+          PcIconButton(
+            Icons.tune_rounded,
+            onPressed: onRefresh,
+            variant: PcIconButtonVariant.soft,
+            tooltip: 'Actualiser',
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _PoolSummaryBand extends StatelessWidget {
-  final int visibleCount;
-  final int totalCount;
+class _PoolFilterBar extends StatelessWidget {
+  final List<String> filters;
+  final String selected;
+  final ValueChanged<String> onSelect;
 
-  const _PoolSummaryBand({
-    required this.visibleCount,
-    required this.totalCount,
+  const _PoolFilterBar({
+    required this.filters,
+    required this.selected,
+    required this.onSelect,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      color: AppTheme.cardColor,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-      child: ProcolisCard(
-        color: AppTheme.slate50,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
+      decoration: const BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border(bottom: BorderSide(color: AppTheme.slate200)),
+      ),
+      child: SizedBox(
+        height: 58,
+        child: ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 11, 16, 11),
+          scrollDirection: Axis.horizontal,
+          itemBuilder: (context, index) {
+            final filter = filters[index];
+            return _PoolFilterChip(
+              label: filter,
+              selected: selected == filter,
+              onTap: () => onSelect(filter),
+            );
+          },
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemCount: filters.length,
+        ),
+      ),
+    );
+  }
+}
+
+class _FreeParcelItem extends StatelessWidget {
+  final Parcel parcel;
+  final String? currentUserId;
+  final VoidCallback onOffer;
+
+  const _FreeParcelItem({
+    required this.parcel,
+    required this.currentUserId,
+    required this.onOffer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasBid = currentUserId != null &&
+        parcel.bids.any((bid) => bid.driverId == currentUserId);
+    final bidCount = parcel.bids.length;
+    final bidLabel = bidCount == 0
+        ? 'Soyez le premier à proposer'
+        : '$bidCount offre${bidCount > 1 ? 's' : ''} reçue${bidCount > 1 ? 's' : ''}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ParcelCard(parcel: parcel, onTap: onOffer),
+        const SizedBox(height: 10),
+        Row(
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-              ),
-              child: const Icon(Icons.radar_rounded,
-                  color: Colors.white, size: 21),
-            ),
-            const SizedBox(width: 12),
+            const Icon(Icons.gavel_rounded, size: 16, color: AppTheme.slate400),
+            const SizedBox(width: 6),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$visibleCount colis affiché${visibleCount > 1 ? 's' : ''}',
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$totalCount disponible${totalCount > 1 ? 's' : ''} dans le pool',
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.green50,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Text(
-                'LIVE',
-                style: TextStyle(
-                  color: AppTheme.green700,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
+              child: Text(
+                bidLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.manrope(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
+            const SizedBox(width: 10),
+            if (hasBid)
+              const PcBadge(
+                'Offre envoyée',
+                tone: PcTone.amber,
+                icon: Icons.check_circle_rounded,
+              )
+            else
+              PcButton(
+                'Faire une offre',
+                icon: Icons.gavel_rounded,
+                variant: PcButtonVariant.secondary,
+                size: PcButtonSize.sm,
+                onPressed: onOffer,
+              ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
@@ -598,9 +619,10 @@ class _PoolLoadingList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
       itemBuilder: (context, index) => const _PoolSkeletonCard(),
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemCount: 3,
     );
   }
@@ -622,36 +644,37 @@ class _PoolSkeletonCard extends StatelessWidget {
       );
     }
 
-    return ProcolisCard(
-      padding: const EdgeInsets.all(20),
+    return PcCard(
+      radius: AppTheme.radiusLg,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              block(130, 18),
+              block(130, 16),
               const Spacer(),
-              block(110, 28),
-            ],
-          ),
-          const SizedBox(height: 26),
-          Row(
-            children: [
-              block(118, 24),
-              const Spacer(),
-              block(118, 24),
+              block(90, 22),
             ],
           ),
           const SizedBox(height: 22),
-          block(double.infinity, 1),
-          const SizedBox(height: 18),
           Row(
             children: [
-              block(64, 18),
-              const SizedBox(width: 18),
-              block(98, 18),
+              block(110, 22),
               const Spacer(),
-              block(84, 36),
+              block(110, 22),
+            ],
+          ),
+          const SizedBox(height: 20),
+          block(double.infinity, 1),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              block(64, 16),
+              const SizedBox(width: 16),
+              block(90, 16),
+              const Spacer(),
+              block(78, 16),
             ],
           ),
         ],
@@ -697,10 +720,10 @@ class _PoolFilterChip extends StatelessWidget {
             ],
             Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.plusJakartaSans(
                 color: selected ? Colors.white : AppTheme.textSecondary,
                 fontSize: 13,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -710,245 +733,9 @@ class _PoolFilterChip extends StatelessWidget {
   }
 }
 
-class _ParcelRouteCard extends StatelessWidget {
-  final Parcel parcel;
-  final Widget? footer;
-  final VoidCallback? onTap;
-
-  const _ParcelRouteCard({required this.parcel, this.footer, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final destination = parcel.arrivalGarageName?.isNotEmpty == true
-        ? parcel.arrivalGarageName!
-        : 'Arrivée';
-    final price = parcel.proposedPrice ?? parcel.price ?? 0;
-    final weight = parcel.weight.toStringAsFixed(
-      parcel.weight.truncateToDouble() == parcel.weight ? 0 : 1,
-    );
-
-    return ProcolisCard(
-      onTap: onTap,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.qr_code_2_rounded,
-                  size: 19, color: AppTheme.slate400),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  parcel.trackingNumber,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.mono(
-                    color: AppTheme.slate700,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              ProcolisStatusBadge(status: parcel.status),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              Expanded(
-                child: _RouteEndpoint(
-                  label: 'DÉPART',
-                  value: parcel.departureGarageName,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(Icons.local_shipping_rounded,
-                    color: AppTheme.primary, size: 26),
-              ),
-              Expanded(
-                child: _RouteEndpoint(
-                  label: 'ARRIVÉE',
-                  value: destination,
-                  alignEnd: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _RouteMeta(
-                icon: Icons.shopping_bag_outlined,
-                value: '$weight\nkg',
-              ),
-              const SizedBox(width: 18),
-              Expanded(
-                child: _RouteMeta(
-                  icon: Icons.category_outlined,
-                  value: parcel.type.label,
-                ),
-              ),
-              const SizedBox(width: 14),
-              const _RouteMeta(icon: Icons.schedule_rounded, value: '~5\nh'),
-              const SizedBox(width: 16),
-              Text(
-                '${_formatFcfa(price)}\nFCFA',
-                style: AppTheme.mono(
-                  color: AppTheme.deep500,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          if (footer != null) ...[
-            const SizedBox(height: 18),
-            footer!,
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _RouteEndpoint extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool alignEnd;
-
-  const _RouteEndpoint({
-    required this.label,
-    required this.value,
-    this.alignEnd = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.slate400,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.7,
-          ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RouteMeta extends StatelessWidget {
-  final IconData icon;
-  final String value;
-
-  const _RouteMeta({required this.icon, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 19, color: AppTheme.slate400),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _OfferActionButton extends StatelessWidget {
-  final Parcel parcel;
-  final String? currentUserId;
-  final VoidCallback onTap;
-
-  const _OfferActionButton({
-    required this.parcel,
-    required this.currentUserId,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasBid = currentUserId != null &&
-        parcel.bids.any((bid) => bid.driverId == currentUserId);
-
-    if (hasBid) {
-      return Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppTheme.amber50,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle_rounded,
-                color: AppTheme.amber500, size: 18),
-            SizedBox(width: 6),
-            Text(
-              'Offre envoyée',
-              style: TextStyle(
-                color: AppTheme.amber700,
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.gavel_rounded, size: 20),
-      label: const Text('Faire une offre'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppTheme.deep500,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        minimumSize: const Size(0, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        ),
-      ),
-    );
-  }
-}
+// ============================================================
+// Formulaire d'offre — prix / message / note vocale
+// ============================================================
 
 class _OfferPriceField extends StatelessWidget {
   final TextEditingController controller;
@@ -964,22 +751,22 @@ class _OfferPriceField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Votre prix',
-          style: TextStyle(
+          style: GoogleFonts.plusJakartaSans(
             color: AppTheme.textPrimary,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Container(
-          height: 88,
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          height: 84,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
             color: AppTheme.cardColor,
-            border: Border.all(color: AppTheme.deep500, width: 2.5),
-            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppTheme.primary, width: 2),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           ),
           child: Row(
             children: [
@@ -990,32 +777,33 @@ class _OfferPriceField extends StatelessWidget {
                   inputFormatters: const [_FcfaThousandsFormatter()],
                   style: AppTheme.mono(
                     color: AppTheme.textPrimary,
-                    fontSize: 40,
+                    fontSize: 36,
                     fontWeight: FontWeight.w900,
                   ),
                   decoration: const InputDecoration(
+                    isCollapsed: true,
                     border: InputBorder.none,
                     hintText: '0',
                   ),
                 ),
               ),
-              const Text(
+              Text(
                 'FCFA',
-                style: TextStyle(
+                style: GoogleFonts.plusJakartaSans(
                   color: AppTheme.textSecondary,
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Text(
           'Prix proposé par le client : ${_formatFcfa(proposedPrice)} FCFA',
           style: AppTheme.mono(
             color: AppTheme.textSecondary,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -1034,43 +822,44 @@ class _OfferMessageField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Message au client (optionnel)',
-          style: TextStyle(
+          style: GoogleFonts.plusJakartaSans(
             color: AppTheme.textPrimary,
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         TextField(
           controller: controller,
           minLines: 4,
           maxLines: 4,
           maxLength: 160,
-          style: const TextStyle(fontSize: 18),
+          style: GoogleFonts.manrope(fontSize: 15, color: AppTheme.slate700),
           decoration: InputDecoration(
             hintText: 'Ex : Je pars cet après-midi, livraison ce soir.',
-            hintStyle: const TextStyle(color: AppTheme.slate500, fontSize: 18),
+            hintStyle:
+                GoogleFonts.manrope(color: AppTheme.slate400, fontSize: 15),
             filled: true,
             fillColor: AppTheme.cardColor,
-            counterStyle: const TextStyle(
+            counterStyle: GoogleFonts.manrope(
               color: AppTheme.slate400,
-              fontSize: 16,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
-            contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+            contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: AppTheme.slate300),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: const BorderSide(color: AppTheme.slate200),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: AppTheme.slate300),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: const BorderSide(color: AppTheme.slate200),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: AppTheme.deep500, width: 1.5),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: const BorderSide(color: AppTheme.primary, width: 2),
             ),
           ),
         ),
@@ -1105,22 +894,22 @@ class _OfferVoiceField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Note vocale (optionnel)',
-          style: TextStyle(
+          style: GoogleFonts.plusJakartaSans(
             color: AppTheme.textPrimary,
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         if (voice != null)
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: AppTheme.cardColor,
               border: Border.all(color: AppTheme.slate200),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: Row(
               children: [
@@ -1155,37 +944,37 @@ class _OfferVoiceField extends StatelessWidget {
         else
           InkWell(
             onTap: onRecordTap,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             child: Container(
               width: double.infinity,
-              height: 82,
-              padding: const EdgeInsets.symmetric(horizontal: 28),
+              height: 76,
+              padding: const EdgeInsets.symmetric(horizontal: 22),
               decoration: BoxDecoration(
                 color: isRecording ? AppTheme.red50 : AppTheme.cardColor,
                 border: Border.all(
                   color: isRecording ? AppTheme.red400 : AppTheme.slate200,
                 ),
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.mic_rounded,
                     color: isRecording ? AppTheme.red500 : AppTheme.primary,
-                    size: 28,
+                    size: 26,
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Text(
                       isRecording
                           ? 'Enregistrement... touchez pour arrêter'
                           : 'Enregistrer une note vocale',
-                      style: TextStyle(
+                      style: GoogleFonts.plusJakartaSans(
                         color: isRecording
                             ? AppTheme.red500
                             : AppTheme.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -1209,13 +998,28 @@ class _OfferVoiceField extends StatelessWidget {
 
 class _OfferSuccessScreen extends StatelessWidget {
   final String price;
+  final Parcel parcel;
 
-  const _OfferSuccessScreen({required this.price});
+  const _OfferSuccessScreen({required this.price, required this.parcel});
+
+  void _openChat(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MessagesScreen(
+          initialPeerId: parcel.senderId,
+          initialPeerName: parcel.senderName,
+          initialParcelId: parcel.id,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      bottomNavigationBar: const AppBottomNav(),
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -1227,19 +1031,19 @@ class _OfferSuccessScreen extends StatelessWidget {
                   width: 92,
                   height: 92,
                   decoration: const BoxDecoration(
-                    color: AppTheme.primaryLight,
+                    color: AppTheme.teal50,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.gavel_rounded,
-                      color: AppTheme.primary, size: 54),
+                      color: AppTheme.primary, size: 50),
                 ),
                 const SizedBox(height: 22),
-                const Text(
+                Text(
                   'Offre envoyée !',
-                  style: TextStyle(
+                  style: GoogleFonts.plusJakartaSans(
                     color: AppTheme.textPrimary,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 23,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1259,10 +1063,10 @@ class _OfferSuccessScreen extends StatelessWidget {
                     ],
                   ),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: GoogleFonts.manrope(
                     color: AppTheme.textSecondary,
                     fontSize: 15,
-                    height: 1.35,
+                    height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 26),
@@ -1270,20 +1074,25 @@ class _OfferSuccessScreen extends StatelessWidget {
                   width: 280,
                   child: Column(
                     children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Voir d’autres colis'),
-                        ),
+                      PcButton(
+                        'Discuter avec le client',
+                        icon: Icons.chat_bubble_rounded,
+                        variant: PcButtonVariant.secondary,
+                        block: true,
+                        onPressed: () => _openChat(context),
                       ),
                       const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Tableau de bord'),
-                        ),
+                      PcButton(
+                        'Voir d’autres colis',
+                        block: true,
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(height: 10),
+                      PcButton(
+                        'Tableau de bord',
+                        variant: PcButtonVariant.ghost,
+                        block: true,
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
@@ -1292,46 +1101,6 @@ class _OfferSuccessScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _EmptyPoolCard extends StatelessWidget {
-  const _EmptyPoolCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return ProcolisCard(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryLight,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            ),
-            child: const Icon(Icons.inventory_2_rounded,
-                color: AppTheme.primary, size: 34),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Aucun colis à prendre',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Les demandes clients en libre service apparaîtront ici.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.textSecondary),
-          ),
-        ],
       ),
     );
   }

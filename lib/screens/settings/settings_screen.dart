@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../screens/help/help_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/procolis_design_system.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -60,7 +63,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmPinController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    final result = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Modifier le code PIN'),
@@ -190,6 +193,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      bottomNavigationBar: const AppBottomNav(),
       appBar: AppBar(
         title: const Text('Paramètres'),
         backgroundColor: AppTheme.cardColor,
@@ -201,134 +205,154 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
         children: [
-          _SettingsGroup(
-            title: 'Compte',
-            children: [
-              _SettingsRow(
-                icon: Icons.person_rounded,
-                title: 'Informations personnelles',
-                onTap: _navigateToProfile,
-              ),
-              const _SettingsDivider(),
-              _SettingsRow(
-                icon: Icons.pin_rounded,
-                title: 'Modifier le code PIN',
-                onTap: _changePin,
-              ),
-              const _SettingsDivider(),
-              _SettingsRow(
-                icon: Icons.language_rounded,
-                title: 'Langue',
-                onTap: () {},
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text(
-                      'Français',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
-                  ],
+          // ==================== COMPTE ====================
+          const PcSectionHeader('Compte'),
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                PcListRow(
+                  icon: Icons.person_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Informations personnelles',
+                  subtitle: 'Nom, e-mail et coordonnées',
+                  chevron: true,
+                  onTap: _navigateToProfile,
                 ),
-              ),
-            ],
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.pin_rounded,
+                  iconTone: PcTone.neutral,
+                  title: 'Modifier le code PIN',
+                  subtitle: 'Changer votre code de connexion',
+                  chevron: true,
+                  onTap: _changePin,
+                ),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.language_rounded,
+                  iconTone: PcTone.neutral,
+                  title: 'Langue',
+                  subtitle: 'Langue de l’application',
+                  trailing: Text(
+                    'Français',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppTheme.slate500,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  chevron: true,
+                  onTap: () {},
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 18),
-          _SettingsGroup(
-            title: 'Notifications',
-            children: [
-              _SettingsRow(
-                icon: Icons.notifications_rounded,
-                title: 'Notifications push',
-                trailing: Switch(
+          const SizedBox(height: 22),
+
+          // ==================== NOTIFICATIONS ====================
+          const PcSectionHeader('Notifications'),
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _switchRow(
+                  icon: Icons.notifications_rounded,
+                  tone: PcTone.primary,
+                  title: 'Notifications push',
+                  subtitle: 'Alertes en temps réel sur cet appareil',
                   value: _pushEnabled,
                   onChanged: _togglePushNotifications,
                 ),
-                chevron: false,
-              ),
-              const _SettingsDivider(),
-              _SettingsRow(
-                icon: Icons.mail_rounded,
-                title: 'E-mails',
-                trailing: Switch(
+                const PcDivider(),
+                _switchRow(
+                  icon: Icons.mail_rounded,
+                  tone: PcTone.green,
+                  title: 'E-mails',
+                  subtitle: 'Recevoir les mises à jour par e-mail',
                   value: _emailEnabled,
                   onChanged: _toggleEmailNotifications,
                 ),
-                chevron: false,
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 18),
-          _SettingsGroup(
-            title: 'Sécurité',
-            children: [
-              _SettingsRow(
-                icon: Icons.fingerprint_rounded,
-                title: 'Déverrouillage biométrique',
-                trailing: Switch(
+          const SizedBox(height: 22),
+
+          // ==================== SÉCURITÉ ====================
+          const PcSectionHeader('Sécurité'),
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _switchRow(
+                  icon: Icons.fingerprint_rounded,
+                  tone: PcTone.primary,
+                  title: 'Déverrouillage biométrique',
+                  subtitle: 'Empreinte ou reconnaissance faciale',
                   value: _biometricEnabled,
                   onChanged: (value) =>
                       setState(() => _biometricEnabled = value),
                 ),
-                chevron: false,
-              ),
-              const _SettingsDivider(),
-              const _SettingsRow(
-                icon: Icons.devices_rounded,
-                title: 'Appareils connectés',
-                onTap: _noopSettingsAction,
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          _SettingsGroup(
-            title: 'À propos',
-            children: [
-              const _SettingsRow(
-                icon: Icons.description_rounded,
-                title: 'Conditions d’utilisation',
-                onTap: _noopSettingsAction,
-              ),
-              const _SettingsDivider(),
-              const _SettingsRow(
-                icon: Icons.shield_rounded,
-                title: 'Confidentialité',
-                onTap: _noopSettingsAction,
-              ),
-              const _SettingsDivider(),
-              _SettingsRow(
-                icon: Icons.help_rounded,
-                title: 'Aide & support',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const HelpScreen()),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.devices_rounded,
+                  iconTone: PcTone.neutral,
+                  title: 'Appareils connectés',
+                  subtitle: 'Gérer vos sessions actives',
+                  chevron: true,
+                  onTap: _noopSettingsAction,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _logout,
-              icon: const Icon(Icons.logout_rounded),
-              label: const Text('Se déconnecter'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.red500,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(0, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                ),
-              ),
+              ],
             ),
+          ),
+          const SizedBox(height: 22),
+
+          // ==================== À PROPOS ====================
+          const PcSectionHeader('À propos'),
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                const PcListRow(
+                  icon: Icons.description_rounded,
+                  iconTone: PcTone.neutral,
+                  title: 'Conditions d’utilisation',
+                  chevron: true,
+                  onTap: _noopSettingsAction,
+                ),
+                const PcDivider(),
+                const PcListRow(
+                  icon: Icons.shield_rounded,
+                  iconTone: PcTone.neutral,
+                  title: 'Confidentialité',
+                  chevron: true,
+                  onTap: _noopSettingsAction,
+                ),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.help_rounded,
+                  iconTone: PcTone.neutral,
+                  title: 'Aide & support',
+                  chevron: true,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HelpScreen()),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ==================== DÉCONNEXION ====================
+          PcButton(
+            'Se déconnecter',
+            icon: Icons.logout_rounded,
+            variant: PcButtonVariant.danger,
+            block: true,
+            onPressed: _logout,
           ),
           const SizedBox(height: 18),
           Center(
@@ -345,111 +369,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
-}
 
-void _noopSettingsAction() {}
-
-class _SettingsGroup extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-
-  const _SettingsGroup({
-    required this.title,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
-          child: Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.7,
-            ),
-          ),
-        ),
-        ProcolisCard(
-          padding: EdgeInsets.zero,
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-}
-
-class _SettingsDivider extends StatelessWidget {
-  const _SettingsDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(height: 1, indent: 68);
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Widget? trailing;
-  final bool chevron;
-  final VoidCallback? onTap;
-
-  const _SettingsRow({
-    required this.icon,
-    required this.title,
-    this.trailing,
-    this.chevron = true,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppTheme.slate100,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                ),
-                child: Icon(icon, color: AppTheme.slate600, size: 21),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              if (trailing != null)
-                trailing!
-              else if (chevron)
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppTheme.slate400),
-            ],
-          ),
-        ),
+  Widget _switchRow({
+    required IconData icon,
+    required PcTone tone,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return PcListRow(
+      icon: icon,
+      iconTone: tone,
+      title: title,
+      subtitle: subtitle,
+      trailing: Switch(
+        value: value,
+        onChanged: onChanged,
+        activeThumbColor: Colors.white,
+        activeTrackColor: AppTheme.primary,
       ),
     );
   }
 }
+
+void _noopSettingsAction() {}

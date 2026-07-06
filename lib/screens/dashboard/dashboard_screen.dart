@@ -7,7 +7,6 @@ import '../../providers/auth_provider.dart';
 // ignore: unused_import
 import '../../providers/parcel_provider.dart';
 // ignore: unused_import
-import '../parcel/new_parcel_screen.dart';
 // ignore: unused_import
 import '../parcel/track_parcel_screen.dart';
 // ignore: unused_import

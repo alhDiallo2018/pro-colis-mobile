@@ -1,9 +1,11 @@
 // mobile/lib/screens/garage_admin/garage_admin_parcel_detail.dart
 import 'package:flutter/material.dart';
-import 'package:procolis/widgets/app_logo.dart';
 
 import '../../models/parcel.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 
 class GarageAdminParcelDetailScreen extends StatefulWidget {
   final Parcel parcel;
@@ -11,30 +13,33 @@ class GarageAdminParcelDetailScreen extends StatefulWidget {
   const GarageAdminParcelDetailScreen({super.key, required this.parcel});
 
   @override
-  State<GarageAdminParcelDetailScreen> createState() => _GarageAdminParcelDetailScreenState();
+  State<GarageAdminParcelDetailScreen> createState() =>
+      _GarageAdminParcelDetailScreenState();
 }
 
-class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailScreen> {
+class _GarageAdminParcelDetailScreenState
+    extends State<GarageAdminParcelDetailScreen> {
   final ApiService _apiService = ApiService();
   bool _isUpdating = false;
 
-  // Thème Bleu/Blanc
-  static const Color primaryBlue = Color(0xFF2563EB);
-  static const Color secondaryBlue = Color(0xFF3B82F6);
-  static const Color backgroundColor = Color(0xFFF0F4F8);
-  static const Color textPrimary = Color(0xFF1A2332);
-  static const Color textSecondary = Color(0xFF6B7A8F);
-
   String _statusToStep(String status) {
     switch (status) {
-      case 'picked_up': return 'pickup';
-      case 'in_transit': return 'transit';
-      case 'arrived': return 'arrived';
-      case 'out_for_delivery': return 'out-for-delivery';
-      case 'confirmed': return 'confirm';
-      case 'delivered': return 'deliver';
-      case 'cancelled': return 'cancelled';
-      default: return status;
+      case 'picked_up':
+        return 'pickup';
+      case 'in_transit':
+        return 'transit';
+      case 'arrived':
+        return 'arrived';
+      case 'out_for_delivery':
+        return 'out-for-delivery';
+      case 'confirmed':
+        return 'confirm';
+      case 'delivered':
+        return 'deliver';
+      case 'cancelled':
+        return 'cancelled';
+      default:
+        return status;
     }
   }
 
@@ -43,18 +48,18 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
     try {
       final step = _statusToStep(newStatus);
       if (step == 'cancelled') {
-        await _apiService.cancelParcel(widget.parcel.id, reason: 'Annulé par l\'admin');
+        await _apiService.cancelParcel(widget.parcel.id,
+            reason: 'Annulé par l\'admin');
       } else {
         await _apiService.advanceParcel(widget.parcel.id, step);
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Statut mis à jour avec succès'),
-            backgroundColor: Colors.green,
+          const SnackBar(
+            content: Text('Statut mis à jour avec succès'),
+            backgroundColor: AppTheme.successColor,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
         Navigator.pop(context, true);
@@ -64,9 +69,8 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -75,481 +79,605 @@ class _GarageAdminParcelDetailScreenState extends State<GarageAdminParcelDetailS
     }
   }
 
+  String get _arrival => widget.parcel.arrivalGarageName?.isNotEmpty == true
+      ? widget.parcel.arrivalGarageName!
+      : 'Arrivée';
+
+  String get _driverName => widget.parcel.driverName?.isNotEmpty == true
+      ? widget.parcel.driverName!
+      : 'Chauffeur non assigné';
+
   @override
   Widget build(BuildContext context) {
+    final parcel = widget.parcel;
+    final isPending = parcel.status == ParcelStatus.pending;
+    final isConfirmed = parcel.status == ParcelStatus.confirmed;
+    final canCancel = isPending || isConfirmed;
+
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Row(
-          children: [
-            const AppLogo(size: 24, isWhite: false),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                widget.parcel.trackingNumber,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: textPrimary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: textPrimary,
-        elevation: 0.5,
-        shadowColor: Colors.grey.shade200,
+        title: const Text('Détail du colis'),
+        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: primaryBlue),
             onPressed: () => setState(() {}),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Actualiser',
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildInfoCard(),
-            const SizedBox(height: 16),
-            _buildStatusCard(),
-            if (widget.parcel.status == ParcelStatus.pending ||
-                widget.parcel.status == ParcelStatus.confirmed) ...[
-              const SizedBox(height: 16),
-              _buildActionsCard(),
-            ],
-            if (widget.parcel.isDelivered) ...[
-              const SizedBox(height: 16),
-              _buildDeliveryInfoCard(),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==================== INFORMATION CARD ====================
-  Widget _buildInfoCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withOpacity( 0.15)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        children: [
+          _TrackingHero(parcel: parcel, arrival: _arrival),
+          const SizedBox(height: 12),
+          _TagsRow(parcel: parcel),
+          const SizedBox(height: 16),
+          _DriverCard(
+            name: _driverName,
+            garage: parcel.departureGarageName,
+            assigned: parcel.driverName?.isNotEmpty == true,
+          ),
+          const SizedBox(height: 16),
+          const PcSectionHeader('Informations du colis'),
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: primaryBlue.withOpacity( 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.info, color: primaryBlue, size: 20),
+                PcListRow(
+                  icon: Icons.category_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Type',
+                  trailing: _InfoValue(value: parcel.type.label),
                 ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Informations du colis',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.scale_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Poids',
+                  trailing:
+                      _InfoValue(value: parcel.formattedWeight, mono: true),
+                ),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.person_pin_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Destinataire',
+                  trailing: _InfoValue(
+                    value: parcel.receiverName.isEmpty
+                        ? 'Non renseigné'
+                        : parcel.receiverName,
+                  ),
+                ),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.call_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Téléphone',
+                  trailing: _InfoValue(
+                    value: parcel.receiverPhone.isEmpty
+                        ? 'Non renseigné'
+                        : parcel.receiverPhone,
+                    mono: true,
+                  ),
+                ),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.person_outline_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Expéditeur',
+                  trailing: _InfoValue(
+                    value: parcel.senderName.isEmpty
+                        ? 'Non renseigné'
+                        : parcel.senderName,
+                  ),
+                ),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.payments_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Prix',
+                  trailing:
+                      _InfoValue(value: parcel.formattedPrice, mono: true),
+                ),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.event_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Créé le',
+                  trailing: _InfoValue(
+                    value: _formatDate(parcel.createdAt),
+                    mono: true,
                   ),
                 ),
               ],
             ),
+          ),
+          if (parcel.isDelivered) ...[
             const SizedBox(height: 16),
-            _buildInfoRow(
-              label: 'Numéro de suivi',
-              value: widget.parcel.trackingNumber,
-              isBold: true,
-            ),
-            _buildInfoRow(label: 'Expéditeur', value: widget.parcel.senderName),
-            _buildInfoRow(label: 'Destinataire', value: widget.parcel.receiverName),
-            _buildInfoRow(label: 'Téléphone', value: widget.parcel.receiverPhone),
-            _buildInfoRow(
-              label: 'Description',
-              value: widget.parcel.description,
-              maxLines: 2,
-            ),
-            _buildInfoRow(label: 'Poids', value: '${widget.parcel.weight} kg'),
-            _buildInfoRow(label: 'Type', value: widget.parcel.type.label),
-            if (widget.parcel.price != null)
-              _buildInfoRow(
-                label: 'Prix',
-                value: '${widget.parcel.price!.toInt()} FCFA',
-                isPrice: true,
-              ),
-            _buildInfoRow(label: 'Départ', value: widget.parcel.departureGarageName),
-            if (widget.parcel.arrivalGarageName != null)
-              _buildInfoRow(label: 'Arrivée', value: widget.parcel.arrivalGarageName!),
-            _buildInfoRow(label: 'Créé le', value: _formatDate(widget.parcel.createdAt)),
-            if (widget.parcel.isUrgent)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity( 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.red.withOpacity( 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.flash_on, size: 14, color: Colors.red),
-                    const SizedBox(width: 4),
-                    Text(
-                      'URGENT',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            _DeliveryInfoCard(parcel: parcel, formatDate: _formatDate),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ==================== STATUS CARD ====================
-  Widget _buildStatusCard() {
-    final statusColor = widget.parcel.status.color;
-    final isDelivered = widget.parcel.status == ParcelStatus.delivered;
-    final isCancelled = widget.parcel.status == ParcelStatus.cancelled;
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withOpacity( 0.15)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity( 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    isDelivered ? Icons.check_circle : Icons.pending,
-                    color: statusColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Statut actuel',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    statusColor.withOpacity( 0.1),
-                    statusColor.withOpacity( 0.05),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: statusColor.withOpacity( 0.2)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity( 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      isDelivered
-                          ? Icons.check_circle
-                          : isCancelled
-                              ? Icons.cancel
-                              : Icons.pending,
-                      color: statusColor,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.parcel.status.label,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
-                        ),
-                        if (widget.parcel.driverName != null)
-                          Text(
-                            'Chauffeur: ${widget.parcel.driverName}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textSecondary,
-                            ),
-                          ),
-                        if (widget.parcel.deliveryDate != null)
-                          Text(
-                            'Livré le: ${_formatDate(widget.parcel.deliveryDate!)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textSecondary,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==================== ACTIONS CARD ====================
-  Widget _buildActionsCard() {
-    final isPending = widget.parcel.status == ParcelStatus.pending;
-    final isConfirmed = widget.parcel.status == ParcelStatus.confirmed;
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withOpacity( 0.15)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity( 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.settings, color: Colors.blue, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Actions',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (isPending)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isUpdating ? null : () => _updateStatus('confirmed'),
-                  icon: Icon(Icons.check_circle, size: 18),
-                  label: const Text('Confirmer le colis'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryBlue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            if (isConfirmed)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isUpdating ? null : () => _updateStatus('picked_up'),
-                  icon: Icon(Icons.local_shipping, size: 18),
-                  label: const Text('Marquer comme ramassé'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isUpdating ? null : () => _updateStatus('cancelled'),
-                icon: Icon(Icons.cancel, size: 18),
-                label: const Text('Annuler le colis'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==================== DELIVERY INFO CARD ====================
-  Widget _buildDeliveryInfoCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.green.withOpacity( 0.2)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity( 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.verified, color: Colors.green, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Livraison terminée',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 20),
+          if (isPending) ...[
+            PcButton(
+              'Confirmer le colis',
+              onPressed: _isUpdating ? null : () => _updateStatus('confirmed'),
+              icon: Icons.check_circle_rounded,
+              size: PcButtonSize.lg,
+              loading: _isUpdating,
+              block: true,
             ),
             const SizedBox(height: 12),
-            if (widget.parcel.deliveryDate != null)
-              _buildInfoRow(
-                label: 'Date de livraison',
-                value: _formatDate(widget.parcel.deliveryDate!),
-              ),
-            if (widget.parcel.driverName != null)
-              _buildInfoRow(label: 'Chauffeur', value: widget.parcel.driverName!),
-            if (widget.parcel.signatureUrl != null)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity( 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.edit, size: 16, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Signature disponible',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
           ],
+          if (isConfirmed) ...[
+            PcButton(
+              'Marquer comme ramassé',
+              onPressed: _isUpdating ? null : () => _updateStatus('picked_up'),
+              icon: Icons.local_shipping_rounded,
+              size: PcButtonSize.lg,
+              loading: _isUpdating,
+              block: true,
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (canCancel)
+            PcButton(
+              'Annuler le colis',
+              onPressed: _isUpdating ? null : () => _updateStatus('cancelled'),
+              icon: Icons.cancel_rounded,
+              variant: PcButtonVariant.danger,
+              size: PcButtonSize.lg,
+              block: true,
+            ),
+        ],
+      ),
+      bottomNavigationBar: const AppBottomNav(),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} à ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ============================================================
+// Tracking hero (bandeau brand)
+// ============================================================
+
+class _TrackingHero extends StatelessWidget {
+  final Parcel parcel;
+  final String arrival;
+
+  const _TrackingHero({required this.parcel, required this.arrival});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: AppTheme.brandGradient,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.brandShadow(),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.qr_code_2_rounded,
+                  color: Colors.white, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  parcel.trackingNumber,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.mono(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _HeroStatusBadge(status: parcel.status),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _RouteEnd(
+                  label: 'Départ',
+                  city: parcel.departureGarageName.isEmpty
+                      ? 'Départ'
+                      : parcel.departureGarageName,
+                  alignEnd: false,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(child: _RouteLine()),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _RouteEnd(
+                  label: 'Arrivée',
+                  city: arrival,
+                  alignEnd: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _HeroMeta(label: 'Type', value: parcel.type.label),
+              const SizedBox(width: 18),
+              _HeroMeta(label: 'Poids', value: parcel.formattedWeight),
+              const SizedBox(width: 18),
+              Expanded(
+                child: _HeroMeta(label: 'Prix', value: parcel.formattedPrice),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteEnd extends StatelessWidget {
+  final String label;
+  final String city;
+  final bool alignEnd;
+
+  const _RouteEnd({
+    required this.label,
+    required this.city,
+    required this.alignEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.7,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          city,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RouteLine extends StatelessWidget {
+  const _RouteLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            height: 2,
+            color: Colors.white.withOpacity(0.42),
+          ),
+          const Positioned(
+            left: 34,
+            child: Icon(
+              Icons.local_shipping_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroMeta extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _HeroMeta({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.mono(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroStatusBadge extends StatelessWidget {
+  final ParcelStatus status;
+
+  const _HeroStatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.statusColors(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status.label.toUpperCase(),
+        style: TextStyle(
+          color: colors.foreground,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.4,
         ),
       ),
     );
   }
+}
 
-  // ==================== INFO ROW ====================
-  Widget _buildInfoRow({
-    required String label,
-    required String value,
-    bool isBold = false,
-    bool isPrice = false,
-    int maxLines = 1,
-  }) {
+// ============================================================
+// Driver / assignment card
+// ============================================================
+
+class _DriverCard extends StatelessWidget {
+  final String name;
+  final String garage;
+  final bool assigned;
+
+  const _DriverCard({
+    required this.name,
+    required this.garage,
+    required this.assigned,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PcCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          PcAvatar(
+            assigned ? name : 'PC',
+            size: 48,
+            status: assigned ? PcAvatarStatus.online : PcAvatarStatus.offline,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  garage.isEmpty ? 'Zone de départ' : garage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          PcBadge(
+            assigned ? 'Assigné' : 'Non assigné',
+            tone: assigned ? PcTone.green : PcTone.neutral,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Tags row
+// ============================================================
+
+class _TagsRow extends StatelessWidget {
+  final Parcel parcel;
+
+  const _TagsRow({required this.parcel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        if (parcel.isUrgent) const PcTag.express(),
+        if (parcel.isInsured)
+          const PcTag(
+            'Assuré',
+            icon: Icons.shield_rounded,
+            tone: PcTone.green,
+          ),
+        PcTag(
+          parcel.type.label,
+          icon: parcel.type.icon,
+          tone: PcTone.primary,
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// Info value (trailing)
+// ============================================================
+
+class _InfoValue extends StatelessWidget {
+  final String value;
+  final bool mono;
+
+  const _InfoValue({required this.value, this.mono = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Text(
+        value,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.right,
+        style: mono
+            ? AppTheme.mono(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              )
+            : const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Delivery info card
+// ============================================================
+
+class _DeliveryInfoCard extends StatelessWidget {
+  final Parcel parcel;
+  final String Function(DateTime) formatDate;
+
+  const _DeliveryInfoCard({required this.parcel, required this.formatDate});
+
+  @override
+  Widget build(BuildContext context) {
+    return PcCard(
+      accent: AppTheme.successColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.verified_rounded,
+                  color: AppTheme.successColor, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Livraison terminée',
+                style: TextStyle(
+                  color: AppTheme.successColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (parcel.deliveryDate != null)
+            _MiniRow(
+              label: 'Date de livraison',
+              value: formatDate(parcel.deliveryDate!),
+              mono: true,
+            ),
+          if (parcel.driverName != null)
+            _MiniRow(label: 'Chauffeur', value: parcel.driverName!),
+          if (parcel.signatureUrl != null)
+            _MiniRow(label: 'Signature', value: 'Disponible'),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool mono;
+
+  const _MiniRow({required this.label, required this.value, this.mono = false});
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 90,
+            width: 120,
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                color: textSecondary,
-                fontWeight: FontWeight.w500,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                color: isPrice ? primaryBlue : textPrimary,
-              ),
-              maxLines: maxLines,
-              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: mono
+                  ? AppTheme.mono(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    )
+                  : const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
             ),
           ),
         ],
       ),
     );
-  }
-
-  // ==================== FORMAT DATE ====================
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} à ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

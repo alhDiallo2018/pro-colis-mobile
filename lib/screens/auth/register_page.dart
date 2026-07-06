@@ -1,13 +1,14 @@
 // mobile/lib/screens/auth/register_page.dart
-// Formulaire d'inscription simplifié aligné sur l'app Web
+// Formulaire d'inscription — restylé sur le design system ProColis.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/pc_components.dart';
 import '../dashboard/dashboard_screen.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -98,343 +99,395 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppTheme.cardColor,
-        foregroundColor: AppTheme.textPrimary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'PRO COLIS',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0FA958), Color(0xFF018982), Color(0xFF0C6E7D)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Bandeau brand
+          PcGradientHeader(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TranslucentBackButton(onTap: () => Navigator.pop(context)),
+                const SizedBox(height: 18),
+                Text(
+                  'Créer un compte',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(20),
-              ),
+                const SizedBox(height: 6),
+                Text(
+                  'Quelques informations et vous êtes prêt.',
+                  style: GoogleFonts.manrope(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Corps
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(30),
-                      shape: BoxShape.circle,
+                  // Rôle
+                  Text(
+                    'Je suis…',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.slate600,
                     ),
-                    child: const Icon(Icons.local_shipping,
-                        size: 48, color: Colors.white),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _RoleTile(
+                          selected: _role == 'client',
+                          iconSelected: Icons.inventory_2,
+                          iconIdle: Icons.inventory_2_outlined,
+                          label: 'Expéditeur',
+                          onTap: () => setState(() => _role = 'client'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _RoleTile(
+                          selected: _role == 'driver',
+                          iconSelected: Icons.local_shipping,
+                          iconIdle: Icons.local_shipping_outlined,
+                          label: 'Chauffeur',
+                          onTap: () => setState(() => _role = 'driver'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Nom
+                  CustomTextField(
+                    controller: _fullNameController,
+                    label: 'Nom complet',
+                    prefixIcon: Icons.badge_outlined,
+                    hint: 'Ex : Aïcha Mballa',
+                    onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Rejoignez le réseau Procolis',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+
+                  // Ville
+                  CustomTextField(
+                    controller: _cityController,
+                    label: 'Ville',
+                    prefixIcon: Icons.location_on_outlined,
+                    hint: 'Douala',
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Chauffeurs vérifiés, prix libres, suivi en temps réel.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withAlpha(220),
-                      fontSize: 14,
+                  const SizedBox(height: 16),
+
+                  // Téléphone (préfixe pays) + PIN
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Téléphone',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.slate600,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            _PhoneField(
+                              controller: _phoneController,
+                              countryCode: _selectedCountryCode,
+                              countryCodes: _countryCodes,
+                              onCountryChanged: (v) =>
+                                  setState(() => _selectedCountryCode = v),
+                              onChanged: () => setState(() {}),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: CustomTextField(
+                          controller: _pinController,
+                          label: 'Code PIN',
+                          prefixIcon: Icons.lock_outline,
+                          keyboardType: TextInputType.number,
+                          maxLength: 6,
+                          hint: '6 chiffres',
+                          style: AppTheme.mono(fontSize: 16),
+                          onChanged: (value) {
+                            final cleaned =
+                                value.replaceAll(RegExp(r'[^0-9]'), '');
+                            if (cleaned != value) {
+                              _pinController.text = cleaned;
+                              _pinController.selection =
+                                  TextSelection.fromPosition(
+                                TextPosition(offset: cleaned.length),
+                              );
+                            }
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Conditions
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: _accepted,
+                          onChanged: (v) =>
+                              setState(() => _accepted = v ?? false),
+                          activeColor: AppTheme.primary,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusXs),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _accepted = !_accepted),
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              'J\'accepte les conditions de transport et la politique de confidentialité.',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12.5,
+                                height: 1.4,
+                                color: AppTheme.slate500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Soumettre
+                  PcButton(
+                    'Créer mon compte',
+                    icon: Icons.person_add_alt_1,
+                    block: true,
+                    size: PcButtonSize.lg,
+                    loading: _isLoading,
+                    onPressed: _canSubmit ? _register : null,
+                  ),
+                  const SizedBox(height: 20),
+
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            color: AppTheme.slate500,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Déjà un compte ? '),
+                            TextSpan(
+                              text: 'Se connecter',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-            const Text(
-              'Créer un compte',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Quelques informations et vous êtes prêt.',
-              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 24),
+// ============================================================
+// Bouton retour translucide (sur bandeau brand)
+// ============================================================
 
-            // Rôle
-            const Text(
-              'Je veux…',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _RoleCard(
-                    selected: _role == 'client',
-                    icon: Icons.inventory_2,
-                    label: 'Envoyer un colis',
-                    onTap: () => setState(() => _role = 'client'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _RoleCard(
-                    selected: _role == 'driver',
-                    icon: Icons.local_shipping,
-                    label: 'Conduire',
-                    onTap: () => setState(() => _role = 'driver'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+class _TranslucentBackButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _TranslucentBackButton({required this.onTap});
 
-            // Info personnelle
-            Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    controller: _fullNameController,
-                    label: 'Nom complet',
-                    prefixIcon: Icons.badge,
-                    hint: 'Ex : Aïcha Mballa',
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _cityController,
-                    label: 'Ville',
-                    prefixIcon: Icons.location_on,
-                    hint: 'Douala',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Téléphone + PIN
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Téléphone',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Container(
-                            height: 52,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: Colors.grey.withAlpha(60)),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedCountryCode,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
-                                icon: const Icon(Icons.arrow_drop_down,
-                                    size: 18),
-                                style: const TextStyle(
-                                    fontSize: 13, color: AppTheme.textPrimary),
-                                items: _countryCodes.map((c) {
-                                  return DropdownMenuItem(
-                                    value: c['code'],
-                                    child: Text('${c['flag']} ${c['code']}'),
-                                  );
-                                }).toList(),
-                                onChanged: (v) =>
-                                    setState(() => _selectedCountryCode = v!),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _phoneController,
-                              keyboardType: TextInputType.phone,
-                              decoration: InputDecoration(
-                                hintText: '77 123 45 67',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(
-                                      color: Colors.grey.withAlpha(60)),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 14),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: CustomTextField(
-                    controller: _pinController,
-                    label: 'Code PIN',
-                    prefixIcon: Icons.lock,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    hint: '6 chiffres',
-                    onChanged: (value) {
-                      if (value != null) {
-                        final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
-                        if (cleaned != value) {
-                          _pinController.text = cleaned;
-                          _pinController.selection = TextSelection.fromPosition(
-                            TextPosition(offset: cleaned.length),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Conditions
-            Row(
-              children: [
-                Checkbox(
-                  value: _accepted,
-                  onChanged: (v) => setState(() => _accepted = v ?? false),
-                  activeColor: AppTheme.primaryBlue,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6)),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _accepted = !_accepted),
-                    child: Text(
-                      'J\'accepte les conditions de transport et la politique de confidentialité.',
-                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            CustomButton(
-              text: 'Créer mon compte',
-              onPressed: _canSubmit ? _register : null,
-              isLoading: _isLoading,
-            ),
-            const SizedBox(height: 20),
-
-            Center(
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: RichText(
-                  text: TextSpan(
-                    style: TextStyle(
-                        fontSize: 14, color: AppTheme.textSecondary),
-                    children: [
-                      const TextSpan(text: 'Déjà un compte ? '),
-                      TextSpan(
-                        text: 'Se connecter',
-                        style: TextStyle(
-                          color: AppTheme.primaryBlue,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 30),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        child: const SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(Icons.arrow_back, size: 22, color: Colors.white),
         ),
       ),
     );
   }
 }
 
-class _RoleCard extends StatelessWidget {
+// ============================================================
+// Tuile de rôle sélectionnable
+// ============================================================
+
+class _RoleTile extends StatelessWidget {
   final bool selected;
-  final IconData icon;
+  final IconData iconSelected;
+  final IconData iconIdle;
   final String label;
   final VoidCallback onTap;
 
-  const _RoleCard({
+  const _RoleTile({
     required this.selected,
-    required this.icon,
+    required this.iconSelected,
+    required this.iconIdle,
     required this.label,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.primaryBlue.withAlpha(20)
-              : AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppTheme.primaryBlue : Colors.grey.withAlpha(50),
-            width: selected ? 2 : 1,
+    return Material(
+      color: selected ? AppTheme.teal50 : AppTheme.cardColor,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: selected ? AppTheme.primary : AppTheme.slate200,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                selected ? iconSelected : iconIdle,
+                size: 30,
+                color: selected ? AppTheme.primary : AppTheme.slate400,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? AppTheme.teal700 : AppTheme.slate600,
+                ),
+              ),
+            ],
           ),
         ),
-        child: Column(
-          children: [
-            Icon(icon,
-                size: 32,
-                color: selected ? AppTheme.primaryBlue : Colors.grey),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected ? AppTheme.primaryBlue : AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
       ),
+    );
+  }
+}
+
+// ============================================================
+// Champ téléphone avec préfixe pays
+// ============================================================
+
+class _PhoneField extends StatelessWidget {
+  final TextEditingController controller;
+  final String countryCode;
+  final List<Map<String, String>> countryCodes;
+  final ValueChanged<String> onCountryChanged;
+  final VoidCallback onChanged;
+
+  const _PhoneField({
+    required this.controller,
+    required this.countryCode,
+    required this.countryCodes,
+    required this.onCountryChanged,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor,
+            border: Border.all(color: AppTheme.slate200),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: countryCode,
+              icon: const Icon(Icons.arrow_drop_down,
+                  size: 18, color: AppTheme.slate500),
+              style: AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w600),
+              items: countryCodes.map((c) {
+                return DropdownMenuItem(
+                  value: c['code'],
+                  child: Text('${c['flag']} ${c['code']}'),
+                );
+              }).toList(),
+              onChanged: (v) {
+                if (v != null) onCountryChanged(v);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.phone,
+            onChanged: (_) => onChanged(),
+            style: AppTheme.mono(fontSize: 15, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              hintText: '77 123 45 67',
+              filled: true,
+              fillColor: AppTheme.cardColor,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

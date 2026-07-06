@@ -8,6 +8,7 @@ import '../../models/parcel.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
 
 class ConfirmDeliveryScreen extends ConsumerStatefulWidget {
   final Parcel parcel;
@@ -137,6 +138,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
         surfaceTintColor: Colors.transparent,
         shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
+      bottomNavigationBar: const AppBottomNav(),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -290,6 +292,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
   Widget _buildSuccess() {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      bottomNavigationBar: const AppBottomNav(),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -422,6 +425,7 @@ class _DeliveryProofScreenState extends State<DeliveryProofScreen> {
         surfaceTintColor: Colors.transparent,
         shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
+      bottomNavigationBar: const AppBottomNav(),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
         children: [
@@ -577,9 +581,9 @@ class _Keypad extends StatelessWidget {
         final key = keys[index];
         if (key.isEmpty) return const SizedBox.shrink();
 
-        return ElevatedButton.tonal(
+        return FilledButton.tonal(
           onPressed: () => onKey(key),
-          style: ElevatedButton.styleFrom(
+          style: FilledButton.styleFrom(
             backgroundColor: AppTheme.cardColor,
             foregroundColor: AppTheme.textPrimary,
             shape: RoundedRectangleBorder(

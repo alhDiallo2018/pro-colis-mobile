@@ -13,6 +13,7 @@ class Garage {
   final int driversCount;
   final int parcelsCount;
   final double revenue;
+  final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -28,6 +29,7 @@ class Garage {
     this.driversCount = 0,
     this.parcelsCount = 0,
     this.revenue = 0,
+    this.isActive = true,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -54,6 +56,7 @@ class Garage {
       driversCount: json['driversCount'] ?? json['drivers_count'] ?? 0,
       parcelsCount: json['parcelsCount'] ?? json['parcels_count'] ?? 0,
       revenue: json['revenue'] != null ? (json['revenue'] is double ? json['revenue'] : double.tryParse(json['revenue'].toString()) ?? 0) : 0,
+      isActive: (json['isActive'] ?? json['is_active']) != false,
       createdAt: parseDateTime(json['createdAt'] ?? json['created_at']) ?? DateTime.now(),
       updatedAt: parseDateTime(json['updatedAt'] ?? json['updated_at']) ?? DateTime.now(),
     );
@@ -71,6 +74,7 @@ class Garage {
     'drivers_count': driversCount,
     'parcels_count': parcelsCount,
     'revenue': revenue,
+    'is_active': isActive,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
   };

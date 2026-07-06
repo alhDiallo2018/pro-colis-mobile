@@ -2,11 +2,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/user.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/pc_components.dart';
 
 class UsersManagementScreen extends ConsumerStatefulWidget {
   const UsersManagementScreen({super.key});
@@ -335,14 +338,16 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
             ),
           ),
           actions: [
-            TextButton(
+            PcButton(
+              'Annuler',
+              variant: PcButtonVariant.ghost,
+              size: PcButtonSize.sm,
               onPressed: _isProcessing ? null : () => Navigator.pop(dialogContext),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.textSecondary,
-              ),
-              child: const Text('Annuler'),
             ),
-            ElevatedButton(
+            PcButton(
+              isEditing ? 'Modifier' : 'Créer',
+              size: PcButtonSize.sm,
+              loading: _isProcessing,
               onPressed: _isProcessing ? null : () async {
                 if (_formKey.currentState!.validate()) {
                   setDialogState(() => _isProcessing = true);
@@ -357,14 +362,6 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                   }
                 }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(isEditing ? 'Modifier' : 'Créer'),
             ),
           ],
         ),
@@ -561,23 +558,17 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
         backgroundColor: AppTheme.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         actions: [
-          TextButton(
+          PcButton(
+            'Annuler',
+            variant: PcButtonVariant.ghost,
+            size: PcButtonSize.sm,
             onPressed: () => Navigator.pop(dialogContext, false),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.textSecondary,
-            ),
-            child: const Text('Annuler'),
           ),
-          ElevatedButton(
+          PcButton(
+            'Supprimer',
+            variant: PcButtonVariant.danger,
+            size: PcButtonSize.sm,
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -635,15 +626,32 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
     }
   }
 
+  // Correspondance rôle -> ton du design system.
+  PcTone _roleTone(UserRole role) => switch (role) {
+        UserRole.client => PcTone.green,
+        UserRole.driver => PcTone.primary,
+        UserRole.admin => PcTone.amber,
+        UserRole.superAdmin => PcTone.red,
+      };
+
+  // Correspondance statut -> ton du design system.
+  PcTone _statusTone(UserStatus status) => switch (status) {
+        UserStatus.active => PcTone.green,
+        UserStatus.suspended => PcTone.amber,
+        UserStatus.deleted => PcTone.neutral,
+      };
+
   @override
   Widget build(BuildContext context) {
+    final total = _users.length;
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      bottomNavigationBar: const AppBottomNav(),
       appBar: AppBar(
-        title: const Text(
-          'Gestion des utilisateurs',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
+        title: Text(
+          'Utilisateurs${total > 0 ? ' · $total' : ''}',
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.w800,
             fontSize: 18,
             color: AppTheme.textPrimary,
           ),
@@ -652,53 +660,44 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: Icon(Icons.add, color: AppTheme.primaryBlue),
-            onPressed: _openCreateDialog,
-          ),
-          IconButton(
-            icon: Icon(Icons.refresh, color: AppTheme.primaryBlue),
-            onPressed: _loadUsers,
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Center(
+              child: PcIconButton(
+                Icons.refresh_rounded,
+                variant: PcIconButtonVariant.soft,
+                size: PcButtonSize.sm,
+                tooltip: 'Rafraîchir',
+                onPressed: _loadUsers,
+              ),
+            ),
           ),
         ],
+      ),
+      floatingActionButton: PcFab(
+        icon: Icons.person_add_alt_1_rounded,
+        label: 'Nouvel utilisateur',
+        onPressed: _openCreateDialog,
       ),
       body: Column(
         children: [
           // Barre de recherche et filtres
           Container(
             color: AppTheme.cardColor,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: Column(
               children: [
                 TextField(
                   decoration: InputDecoration(
                     hintText: 'Rechercher un utilisateur...',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary.withOpacity( 0.7)),
-                    prefixIcon: Icon(Icons.search, color: AppTheme.primaryBlue),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: AppTheme.primaryBlue.withOpacity( 0.3),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: AppTheme.primaryBlue.withOpacity( 0.2),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: AppTheme.primaryBlue,
-                        width: 2,
-                      ),
-                    ),
+                    prefixIcon: const Icon(Icons.search_rounded),
                     filled: true,
-                    fillColor: AppTheme.backgroundColor,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    fillColor: AppTheme.slate50,
                   ),
-                  style: const TextStyle(color: AppTheme.textPrimary),
+                  style: GoogleFonts.manrope(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
                   onChanged: (value) {
                     _searchQuery = value;
                     _applyFilters();
@@ -721,30 +720,35 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                         },
                       ),
                       const SizedBox(width: 8),
-                      ...UserRole.values.map((role) => _FilterChip(
-                        label: role.label,
-                        selected: _selectedRole == role,
-                        color: role.color,
-                        onSelected: () {
-                          setState(() {
-                            _selectedRole = _selectedRole == role ? null : role;
-                            _selectedStatus = null;
-                            _applyFilters();
-                          });
-                        },
+                      ...UserRole.values.map((role) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _FilterChip(
+                          label: role.label,
+                          selected: _selectedRole == role,
+                          tone: _roleTone(role),
+                          onSelected: () {
+                            setState(() {
+                              _selectedRole = _selectedRole == role ? null : role;
+                              _selectedStatus = null;
+                              _applyFilters();
+                            });
+                          },
+                        ),
                       )),
-                      const SizedBox(width: 8),
-                      ...UserStatus.values.map((status) => _FilterChip(
-                        label: status.label,
-                        selected: _selectedStatus == status,
-                        color: status.color,
-                        onSelected: () {
-                          setState(() {
-                            _selectedStatus = _selectedStatus == status ? null : status;
-                            _selectedRole = null;
-                            _applyFilters();
-                          });
-                        },
+                      ...UserStatus.values.map((status) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _FilterChip(
+                          label: status.label,
+                          selected: _selectedStatus == status,
+                          tone: _statusTone(status),
+                          onSelected: () {
+                            setState(() {
+                              _selectedStatus = _selectedStatus == status ? null : status;
+                              _selectedRole = null;
+                              _applyFilters();
+                            });
+                          },
+                        ),
                       )),
                     ],
                   ),
@@ -752,221 +756,179 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
               ],
             ),
           ),
-          
+          const PcDivider(),
+
           // Liste des utilisateurs
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
-                    ),
-                  )
+                ? const Center(child: CircularProgressIndicator())
                 : _filteredUsers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: 64,
-                              color: AppTheme.textSecondary.withOpacity( 0.3),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Aucun utilisateur trouvé',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _openCreateDialog,
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppTheme.primaryBlue,
-                              ),
-                              child: const Text('Ajouter un utilisateur'),
-                            ),
-                          ],
+                    ? PcEmptyState(
+                        icon: Icons.people_outline_rounded,
+                        title: 'Aucun utilisateur',
+                        message: 'Aucun utilisateur ne correspond à votre recherche.',
+                        action: PcButton(
+                          'Ajouter un utilisateur',
+                          icon: Icons.person_add_alt_1_rounded,
+                          size: PcButtonSize.sm,
+                          onPressed: _openCreateDialog,
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
                         itemCount: _filteredUsers.length,
                         itemBuilder: (context, index) {
                           final user = _filteredUsers[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            color: AppTheme.cardColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                color: AppTheme.primaryBlue.withOpacity( 0.1),
-                                width: 1,
-                              ),
-                            ),
-                            elevation: 2,
-                            child: ExpansionTile(
-                              leading: CircleAvatar(
-                                backgroundColor: user.role.color.withOpacity( 0.15),
-                                child: Icon(user.role.icon, color: user.role.color, size: 20),
-                              ),
-                              title: Text(
-                                user.fullName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimary,
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: PcCard(
+                              padding: EdgeInsets.zero,
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  dividerColor: Colors.transparent,
                                 ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    user.email,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.textSecondary,
+                                child: ExpansionTile(
+                                  tilePadding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 6),
+                                  childrenPadding: EdgeInsets.zero,
+                                  shape: const Border(),
+                                  collapsedShape: const Border(),
+                                  leading: PcAvatar(user.fullName, size: 44),
+                                  title: Text(
+                                    user.fullName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: AppTheme.textPrimary,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 8,
-                                        height: 8,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: user.status.color,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        user.status.label,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: user.status.color,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: user.role.color.withOpacity( 0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          user.role.label,
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            color: user.role.color,
-                                            fontWeight: FontWeight.w500,
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          user.email.isNotEmpty ? user.email : user.phone,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.manrope(
+                                            fontSize: 12,
+                                            color: AppTheme.slate500,
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.edit,
-                                      color: AppTheme.primaryBlue,
-                                      size: 20,
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: [
+                                            PcBadge(user.role.label,
+                                                tone: _roleTone(user.role)),
+                                            PcBadge(user.status.label,
+                                                tone: _statusTone(user.status)),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                    onPressed: () => _openEditDialog(user),
-                                    splashRadius: 20,
                                   ),
-                                  IconButton(
-                                    icon: Icon(
-                                      user.status == UserStatus.active ? Icons.block : Icons.check_circle,
-                                      color: user.status == UserStatus.active ? AppTheme.warningColor : AppTheme.successColor,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => _toggleUserStatus(user),
-                                    splashRadius: 20,
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: AppTheme.errorColor,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => _deleteUser(user),
-                                    splashRadius: 20,
-                                  ),
-                                ],
-                              ),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    children: [
-                                      _InfoRow(label: 'Téléphone', value: user.phone),
-                                      if (user.address != null && user.address!.isNotEmpty) 
-                                        _InfoRow(label: 'Adresse', value: user.address!),
-                                      if (user.city != null && user.city!.isNotEmpty) 
-                                        _InfoRow(label: 'Ville', value: user.city!),
-                                      if (user.region != null && user.region!.isNotEmpty) 
-                                        _InfoRow(label: 'Région', value: user.region!),
-                                      if (user.garageId != null && user.garageId!.isNotEmpty) 
-                                        _InfoRow(label: 'Garage ID', value: user.garageId!),
-                                      if (user.vehiclePlate != null && user.vehiclePlate!.isNotEmpty) 
-                                        _InfoRow(label: 'Plaque', value: user.vehiclePlate!),
-                                      if (user.vehicleModel != null && user.vehicleModel!.isNotEmpty) 
-                                        _InfoRow(label: 'Modèle', value: user.vehicleModel!),
-                                      if (user.driverStatus != null) 
-                                        _InfoRow(label: 'Statut chauffeur', value: user.driverStatus!.label),
-                                      _InfoRow(label: 'Email vérifié', value: user.isEmailVerified ? 'Oui' : 'Non'),
-                                      _InfoRow(label: 'Téléphone vérifié', value: user.isPhoneVerified ? 'Oui' : 'Non'),
-                                      _InfoRow(label: 'Inscription', value: _formatDate(user.createdAt)),
-                                      if (user.lastLogin != null) 
-                                        _InfoRow(label: 'Dernière connexion', value: _formatDate(user.lastLogin!)),
-                                      const SizedBox(height: 16),
-                                      Row(
+                                  // Parité sécurité avec le web : on masque les
+                                  // actions destructives (et la modification) pour
+                                  // les comptes super_admin.
+                                  trailing: user.role == UserRole.superAdmin
+                                      ? null
+                                      : Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            PcIconButton(
+                                              Icons.edit_outlined,
+                                              variant: PcIconButtonVariant.soft,
+                                              size: PcButtonSize.sm,
+                                              tooltip: 'Modifier',
+                                              onPressed: () => _openEditDialog(user),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            PcIconButton(
+                                              user.status == UserStatus.active
+                                                  ? Icons.block_rounded
+                                                  : Icons.check_circle_outline_rounded,
+                                              variant: user.status == UserStatus.active
+                                                  ? PcIconButtonVariant.danger
+                                                  : PcIconButtonVariant.soft,
+                                              size: PcButtonSize.sm,
+                                              tooltip: user.status == UserStatus.active
+                                                  ? 'Suspendre'
+                                                  : 'Réactiver',
+                                              onPressed: () => _toggleUserStatus(user),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            PcIconButton(
+                                              Icons.delete_outline_rounded,
+                                              variant: PcIconButtonVariant.danger,
+                                              size: PcButtonSize.sm,
+                                              tooltip: 'Supprimer',
+                                              onPressed: () => _deleteUser(user),
+                                            ),
+                                          ],
+                                        ),
+                                  children: [
+                                    const PcDivider(),
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
                                         children: [
-                                          Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () => _resetUserPin(user),
-                                              icon: Icon(Icons.refresh, size: 18, color: AppTheme.primaryBlue),
-                                              label: Text(
-                                                'Réinitialiser PIN',
-                                                style: TextStyle(color: AppTheme.primaryBlue),
-                                              ),
-                                              style: OutlinedButton.styleFrom(
-                                                side: BorderSide(color: AppTheme.primaryBlue),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(12),
+                                          _InfoRow(label: 'Téléphone', value: user.phone, mono: true),
+                                          if (user.address != null && user.address!.isNotEmpty)
+                                            _InfoRow(label: 'Adresse', value: user.address!),
+                                          if (user.city != null && user.city!.isNotEmpty)
+                                            _InfoRow(label: 'Ville', value: user.city!),
+                                          if (user.region != null && user.region!.isNotEmpty)
+                                            _InfoRow(label: 'Région', value: user.region!),
+                                          if (user.garageId != null && user.garageId!.isNotEmpty)
+                                            _InfoRow(label: 'ID zone', value: user.garageId!, mono: true),
+                                          if (user.vehiclePlate != null && user.vehiclePlate!.isNotEmpty)
+                                            _InfoRow(label: 'Plaque', value: user.vehiclePlate!, mono: true),
+                                          if (user.vehicleModel != null && user.vehicleModel!.isNotEmpty)
+                                            _InfoRow(label: 'Modèle', value: user.vehicleModel!),
+                                          if (user.driverStatus != null)
+                                            _InfoRow(label: 'Statut chauffeur', value: user.driverStatus!.label),
+                                          _InfoRow(label: 'Email vérifié', value: user.isEmailVerified ? 'Oui' : 'Non'),
+                                          _InfoRow(label: 'Téléphone vérifié', value: user.isPhoneVerified ? 'Oui' : 'Non'),
+                                          _InfoRow(label: 'Inscription', value: _formatDate(user.createdAt)),
+                                          if (user.lastLogin != null)
+                                            _InfoRow(label: 'Dernière connexion', value: _formatDate(user.lastLogin!)),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: PcButton(
+                                                  'Réinitialiser PIN',
+                                                  variant: PcButtonVariant.secondary,
+                                                  size: PcButtonSize.sm,
+                                                  icon: Icons.lock_reset_rounded,
+                                                  block: true,
+                                                  onPressed: () => _resetUserPin(user),
                                                 ),
                                               ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () {},
-                                              icon: Icon(Icons.history, size: 18, color: AppTheme.textSecondary),
-                                              label: Text(
-                                                'Historique',
-                                                style: TextStyle(color: AppTheme.textSecondary),
-                                              ),
-                                              style: OutlinedButton.styleFrom(
-                                                side: BorderSide(color: AppTheme.textSecondary.withOpacity( 0.3)),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(12),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: PcButton(
+                                                  'Historique',
+                                                  variant: PcButtonVariant.ghost,
+                                                  size: PcButtonSize.sm,
+                                                  icon: Icons.history_rounded,
+                                                  block: true,
+                                                  onPressed: () {},
                                                 ),
                                               ),
-                                            ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           );
                         },
@@ -986,37 +948,48 @@ class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onSelected;
-  final Color? color;
+  final PcTone tone;
 
   const _FilterChip({
     required this.label,
     required this.selected,
     required this.onSelected,
-    this.color,
+    this.tone = PcTone.primary,
   });
 
   @override
   Widget build(BuildContext context) {
-    return FilterChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: selected ? Colors.white : AppTheme.textSecondary,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-      backgroundColor: AppTheme.cardColor,
-      selectedColor: color ?? AppTheme.primaryBlue,
-      checkmarkColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: selected 
-              ? (color ?? AppTheme.primaryBlue) 
-              : AppTheme.textSecondary.withOpacity( 0.2),
-          width: 1,
+    final accent = switch (tone) {
+      PcTone.primary => AppTheme.primary,
+      PcTone.green => AppTheme.green600,
+      PcTone.amber => AppTheme.amber600,
+      PcTone.red => AppTheme.red400,
+      PcTone.neutral => AppTheme.slate600,
+    };
+    return Material(
+      color: selected ? accent : AppTheme.cardColor,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onSelected,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? accent : AppTheme.slate200,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              color: selected ? Colors.white : AppTheme.slate600,
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+            ),
+          ),
         ),
       ),
     );
@@ -1026,8 +999,9 @@ class _FilterChip extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
+  final bool mono;
 
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({required this.label, required this.value, this.mono = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1037,22 +1011,26 @@ class _InfoRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120, 
+            width: 120,
             child: Text(
               label,
-              style: TextStyle(
-                color: AppTheme.textSecondary,
+              style: GoogleFonts.manrope(
+                color: AppTheme.slate500,
                 fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textPrimary,
-              ),
+              style: mono
+                  ? AppTheme.mono(fontSize: 12, fontWeight: FontWeight.w600)
+                  : GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
             ),
           ),
         ],

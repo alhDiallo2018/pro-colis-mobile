@@ -1,13 +1,17 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/parcel.dart';
 import '../../../models/user.dart';
 import '../../../services/api_service.dart';
 import '../../../theme/app_theme.dart';
-import '../../../widgets/custom_button.dart';
+import '../../../widgets/app_bottom_nav.dart';
 import '../../../widgets/custom_text_field.dart';
-import '../../../widgets/procolis_design_system.dart';
+import '../../../widgets/pc_components.dart';
 
 class AdvertisementDetailScreen extends StatefulWidget {
   final Parcel? parcel;
@@ -31,25 +35,86 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   Map<String, dynamic>? _adData;
   List<Parcel> _userParcels = [];
   Map<String, dynamic>? _myOffer;
-  User? _currentUser;
 
   final _priceController = TextEditingController();
   final _messageController = TextEditingController();
   bool _isSubmittingOffer = false;
+
+  // Lecture de la note vocale attachee a l'annonce.
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlayingAudio = false;
 
   String get _adId => widget.adId ?? widget.parcel?.id ?? '';
 
   @override
   void initState() {
     super.initState();
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _isPlayingAudio = false);
+    });
     _loadAll();
   }
 
   @override
   void dispose() {
+    _audioPlayer.dispose();
     _priceController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  /// Resout une URL de media : les chemins relatifs `/uploads/...` sont
+  /// prefixes avec le backend, comme dans le reste de l'application.
+  String _mediaUrl(String url) => url.startsWith('http')
+      ? url
+      : 'https://procolis-backend.onrender.com$url';
+
+  Future<void> _toggleAdAudio(String url) async {
+    try {
+      if (_isPlayingAudio) {
+        await _audioPlayer.stop();
+        if (mounted) setState(() => _isPlayingAudio = false);
+        return;
+      }
+      await _audioPlayer.stop();
+      await _audioPlayer.play(UrlSource(_mediaUrl(url)));
+      if (mounted) setState(() => _isPlayingAudio = true);
+    } catch (_) {
+      if (mounted) setState(() => _isPlayingAudio = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Lecture audio impossible'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _callPhone(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    try {
+      final launched = await launchUrl(uri);
+      if (launched) return;
+    } catch (_) {}
+    // Repli : copie du numero dans le presse-papiers.
+    await Clipboard.setData(ClipboardData(text: phone));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Appel impossible. Numero copie : $phone'),
+        backgroundColor: AppTheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadAll() async {
@@ -87,7 +152,6 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
 
     if (mounted) {
       setState(() {
-        _currentUser = user;
         _adData = detail;
         _userParcels = parcels;
         _myOffer = myOffer;
@@ -100,88 +164,128 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: Text(
-          widget.parcel?.description ?? _adData?['description']?.toString() ?? 'Annonce',
-          style: const TextStyle(color: AppTheme.textPrimary),
-        ),
-        backgroundColor: AppTheme.cardColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildBottomBar(),
+          const AppBottomNav(),
+        ],
       ),
-      bottomNavigationBar: _buildBottomBar(),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-          : RefreshIndicator(
-              onRefresh: _loadAll,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDriverProfile(),
-                    const SizedBox(height: 20),
-                    _buildRouteDisplay(),
-                    const SizedBox(height: 20),
-                    _buildDetailsCard(),
-                    if (_myOffer != null) ...[
-                      const SizedBox(height: 20),
-                      _buildMyOfferCard(),
-                    ],
-                    if (_myOffer == null && widget.parcel != null) ...[
-                      const SizedBox(height: 20),
-                      _buildSenderInfo(),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+      body: Column(
+        children: [
+          _buildHero(),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppTheme.primary),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadAll,
+                    color: AppTheme.primary,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDriverProfile(),
+                          const SizedBox(height: 16),
+                          _buildDetailsCard(),
+                          if (_myOffer != null) ...[
+                            const SizedBox(height: 16),
+                            _buildMyOfferCard(),
+                          ],
+                          if (_myOffer == null && widget.parcel != null) ...[
+                            const SizedBox(height: 16),
+                            _buildSenderInfo(),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildBottomBar() {
-    if (_myOffer != null) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          child: Row(
+  // ============================================================
+  // Hero (bandeau brand : route depart -> arrivee)
+  // ============================================================
+
+  Widget _buildHero() {
+    final departure = widget.parcel?.departureGarageName ??
+        _adData?['departureCity']?.toString() ??
+        _adData?['departureGarageName']?.toString() ??
+        'Depart';
+    final arrival = widget.parcel?.arrivalGarageName ??
+        _adData?['arrivalCity']?.toString() ??
+        _adData?['arrivalGarageName']?.toString() ??
+        'Arrivee';
+
+    return PcGradientHeader(
+      padding: const EdgeInsets.fromLTRB(12, 52, 16, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
+              _HeroBackButton(onTap: () => Navigator.pop(context)),
+              const SizedBox(width: 4),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _openNegotiationChat,
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
-                  label: const Text('Negocier'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primary,
-                    side: const BorderSide(color: AppTheme.primary),
-                    minimumSize: const Size(0, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    ),
+                child: Text(
+                  'Detail de l\'annonce',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      );
-    }
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-        child: CustomButton(
-          text: 'Faire une offre',
-          icon: Icons.send_rounded,
-          onPressed: _showOfferSheet,
-        ),
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _HeroPlace(label: 'Depart', place: departure),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.local_shipping_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _HeroPlace(
+                    label: 'Arrivee',
+                    place: arrival,
+                    alignEnd: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  // ============================================================
+  // Carte chauffeur
+  // ============================================================
 
   Widget _buildDriverProfile() {
     final driverName = widget.parcel?.driverName ??
@@ -196,32 +300,19 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     final rating = (_adData?['driver']?['rating'] as num?)?.toDouble() ??
         (_adData?['rating'] as num?)?.toDouble();
 
-    final color = _avatarColor(driverName);
-    final initials = _initials(driverName);
-
-    return ProcolisCard(
+    return PcCard(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 32,
-            backgroundColor: color,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
+          PcAvatar(driverName, size: 56),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   driverName,
-                  style: const TextStyle(
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.textPrimary,
@@ -231,143 +322,70 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                   const SizedBox(height: 2),
                   Text(
                     garageName,
-                    style: const TextStyle(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
-                      color: AppTheme.textSecondary,
+                      color: AppTheme.slate500,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
                 if (driverPhone != null && driverPhone.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   InkWell(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(driverPhone),
-                          backgroundColor: AppTheme.primary,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                          ),
-                        ),
-                      );
-                    },
+                    onTap: () => _callPhone(driverPhone),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.phone_rounded, size: 14, color: AppTheme.primary),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 5),
                         Text(
                           driverPhone,
-                          style: const TextStyle(
+                          style: AppTheme.mono(
                             fontSize: 13,
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.teal600,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
-                if (rating != null) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ...List.generate(5, (i) {
-                        if (i < rating.floor()) {
-                          return const Icon(Icons.star_rounded, size: 16, color: AppTheme.secondary);
-                        } else if (i < rating.ceil() && rating - rating.floor() >= 0.5) {
-                          return const Icon(Icons.star_half_rounded, size: 16, color: AppTheme.secondary);
-                        } else {
-                          return const Icon(Icons.star_border_rounded, size: 16, color: AppTheme.slate300);
-                        }
-                      }),
-                      const SizedBox(width: 6),
-                      Text(
-                        rating.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRouteDisplay() {
-    final departure = widget.parcel?.departureGarageName ??
-        _adData?['departureCity']?.toString() ??
-        _adData?['departureGarageName']?.toString() ??
-        'Depart';
-    final arrival = widget.parcel?.arrivalGarageName ??
-        _adData?['arrivalCity']?.toString() ??
-        _adData?['arrivalGarageName']?.toString() ??
-        'Arrivee';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity( 0.06),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(
-          color: AppTheme.primary.withOpacity( 0.12),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              departure,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Container(
-              width: 36,
-              height: 36,
+          if (rating != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity( 0.12),
-                borderRadius: BorderRadius.circular(10),
+                color: AppTheme.amber50,
+                borderRadius: BorderRadius.circular(999),
               ),
-              child: const Icon(
-                Icons.arrow_forward_rounded,
-                color: AppTheme.primary,
-                size: 20,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star_rounded, size: 15, color: AppTheme.amber500),
+                  const SizedBox(width: 3),
+                  Text(
+                    rating.toStringAsFixed(1),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.amber700,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              arrival,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );
   }
+
+  // ============================================================
+  // Carte details
+  // ============================================================
 
   Widget _buildDetailsCard() {
     final price = widget.parcel?.proposedPrice ??
@@ -385,39 +403,36 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
             : null);
     final description = widget.parcel?.description ??
         _adData?['description']?.toString();
-    final audioUrls = widget.parcel?.audioUrls ?? <String>[];
     final adAudioUrl = _adData?['audioUrl']?.toString();
 
-    return ProcolisCard(
+    return PcCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Details',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 14),
-          if (departureDate != null) ...[
+          const PcSectionHeader('Details'),
+          if (departureDate != null)
             _detailRow(
               icon: Icons.calendar_today_rounded,
               label: 'Date de depart',
               value: DateFormat('dd MMMM yyyy', 'fr').format(departureDate),
+              valueStyle: AppTheme.mono(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
-            const SizedBox(height: 10),
-          ],
-          if (weight > 0) ...[
+          if (weight > 0)
             _detailRow(
               icon: Icons.monitor_weight_outlined,
               label: 'Poids disponible',
               value: '${weight.toStringAsFixed(1)} kg',
+              valueStyle: AppTheme.mono(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
-            const SizedBox(height: 10),
-          ],
-          if (price != null && price > 0) ...[
+          if (price != null && price > 0)
             _detailRow(
               icon: Icons.sell_outlined,
               label: 'Prix propose',
@@ -428,25 +443,20 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                 color: AppTheme.teal600,
               ),
             ),
-            const SizedBox(height: 10),
-          ],
-          if (createdAt != null) ...[
+          if (createdAt != null)
             _detailRow(
               icon: Icons.schedule_rounded,
-              label: 'Date de publication',
+              label: 'Publiee',
               value: _formatRelativeTime(createdAt),
             ),
-            const SizedBox(height: 10),
-          ],
           if (description != null && description.isNotEmpty) ...[
-            const Divider(height: 1, color: AppTheme.slate200),
-            const SizedBox(height: 12),
-            const Text(
+            const SizedBox(height: 14),
+            Text(
               'Description',
-              style: TextStyle(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textSecondary,
+                color: AppTheme.slate500,
               ),
             ),
             const SizedBox(height: 6),
@@ -459,7 +469,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               ),
               child: Text(
                 description,
-                style: const TextStyle(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   height: 1.5,
                   color: AppTheme.slate700,
@@ -468,43 +478,28 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
             ),
           ],
           if (adAudioUrl != null && adAudioUrl.isNotEmpty) ...[
-            const Divider(height: 1, color: AppTheme.slate200),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Row(
               children: [
-                const Icon(Icons.headphones_rounded, size: 18, color: AppTheme.textSecondary),
+                const Icon(Icons.headphones_rounded, size: 18, color: AppTheme.slate500),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Audio joint',
-                  style: TextStyle(
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textSecondary,
+                    color: AppTheme.slate500,
                   ),
                 ),
                 const Spacer(),
-                SizedBox(
-                  height: 36,
-                  child: ElevatedButton.tonalIcon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Lecture audio...'),
-                          backgroundColor: AppTheme.primary,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                    label: const Text('Ecouter'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.teal50,
-                      foregroundColor: AppTheme.teal700,
-                    ),
-                  ),
+                PcButton(
+                  _isPlayingAudio ? 'Arreter' : 'Ecouter',
+                  icon: _isPlayingAudio
+                      ? Icons.stop_rounded
+                      : Icons.play_arrow_rounded,
+                  variant: PcButtonVariant.secondary,
+                  size: PcButtonSize.sm,
+                  onPressed: () => _toggleAdAudio(adAudioUrl),
                 ),
               ],
             ),
@@ -520,32 +515,41 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     required String value,
     TextStyle? valueStyle,
   }) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppTheme.slate400),
-        const SizedBox(width: 10),
-        Text(
-          '$label  ',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textSecondary,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.slate400),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.slate500,
+            ),
           ),
-        ),
-        const Spacer(),
-        Text(
-          value,
-          textAlign: TextAlign.right,
-          style: valueStyle ??
-              const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-              ),
-        ),
-      ],
+          const Spacer(),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: valueStyle ??
+                  GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  // ============================================================
+  // Carte "Votre offre"
+  // ============================================================
 
   Widget _buildMyOfferCard() {
     if (_myOffer == null) return const SizedBox.shrink();
@@ -555,26 +559,26 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     final status = _myOffer!['status']?.toString() ?? 'pending';
     final isAccepted = status == 'accepted';
     final isRejected = status == 'rejected';
-    final isPending = status == 'pending';
 
-    Color statusColor;
+    PcTone tone;
     String statusText;
     IconData statusIcon;
     if (isAccepted) {
-      statusColor = AppTheme.successColor;
-      statusText = 'Offre acceptee';
+      tone = PcTone.green;
+      statusText = 'Acceptee';
       statusIcon = Icons.check_circle_rounded;
     } else if (isRejected) {
-      statusColor = AppTheme.errorColor;
-      statusText = 'Offre rejetee';
+      tone = PcTone.red;
+      statusText = 'Refusee';
       statusIcon = Icons.cancel_rounded;
     } else {
-      statusColor = AppTheme.warningColor;
+      tone = PcTone.amber;
       statusText = 'En attente';
       statusIcon = Icons.hourglass_empty_rounded;
     }
 
-    return ProcolisCard(
+    return PcCard(
+      color: AppTheme.teal50,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -584,40 +588,26 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity( 0.1),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(statusIcon, color: statusColor, size: 22),
+                child: Icon(statusIcon, color: AppTheme.teal600, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Votre offre',
-                      style: TextStyle(
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
                       ),
                     ),
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity( 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 4),
+                    PcBadge(statusText, tone: tone),
                   ],
                 ),
               ),
@@ -626,7 +616,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                 style: AppTheme.mono(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.teal600,
+                  color: AppTheme.teal700,
                 ),
               ),
             ],
@@ -637,12 +627,12 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.slate50,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               ),
               child: Text(
                 message,
-                style: const TextStyle(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   height: 1.45,
                   color: AppTheme.slate700,
@@ -652,58 +642,90 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
             ),
           ],
           const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _openDiscussion,
-              icon: const Icon(Icons.chat_outlined, size: 18),
-              label: const Text('Voir la discussion'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primary,
-                side: const BorderSide(color: AppTheme.slate200),
-                minimumSize: const Size(0, 44),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                ),
-              ),
-            ),
+          PcButton(
+            'Voir la discussion',
+            icon: Icons.forum_outlined,
+            variant: PcButtonVariant.secondary,
+            block: true,
+            onPressed: _openDiscussion,
           ),
         ],
       ),
     );
   }
 
+  // ============================================================
+  // Carte expediteur
+  // ============================================================
+
   Widget _buildSenderInfo() {
     if (widget.parcel == null) return const SizedBox.shrink();
 
-    return ProcolisCard(
+    return PcCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Expediteur',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const PcSectionHeader('Expediteur'),
           _detailRow(
             icon: Icons.person_outline_rounded,
             label: 'Nom',
             value: widget.parcel!.senderName,
           ),
-          const SizedBox(height: 8),
           _detailRow(
             icon: Icons.phone_rounded,
             label: 'Telephone',
             value: widget.parcel!.senderPhone,
+            valueStyle: AppTheme.mono(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
           ),
         ],
       ),
     );
   }
+
+  // ============================================================
+  // Barre d'action
+  // ============================================================
+
+  Widget _buildBottomBar() {
+    if (_isLoading) return const SizedBox.shrink();
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border(top: BorderSide(color: AppTheme.slate200)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: _myOffer != null
+              ? PcButton(
+                  'Negocier',
+                  icon: Icons.chat_bubble_outline_rounded,
+                  variant: PcButtonVariant.secondary,
+                  size: PcButtonSize.lg,
+                  block: true,
+                  onPressed: _openNegotiationChat,
+                )
+              : PcButton(
+                  'Faire une offre',
+                  icon: Icons.gavel_rounded,
+                  size: PcButtonSize.lg,
+                  block: true,
+                  onPressed: _showOfferSheet,
+                ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // Feuille "Faire une offre"
+  // ============================================================
 
   void _showOfferSheet() {
     _priceController.clear();
@@ -748,9 +770,9 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Votre offre',
-                          style: TextStyle(
+                          style: GoogleFonts.plusJakartaSans(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.textPrimary,
@@ -758,12 +780,12 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                         ),
                         const SizedBox(height: 20),
                         if (_userParcels.isNotEmpty) ...[
-                          const Text(
+                          Text(
                             'Selectionner un colis',
-                            style: TextStyle(
+                            style: GoogleFonts.plusJakartaSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: AppTheme.textSecondary,
+                              color: AppTheme.slate500,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -855,10 +877,12 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                           ),
                         ],
                         const SizedBox(height: 20),
-                        CustomButton(
-                          text: 'Envoyer l\'offre',
+                        PcButton(
+                          'Envoyer l\'offre',
                           icon: Icons.send_rounded,
-                          isLoading: _isSubmittingOffer,
+                          size: PcButtonSize.lg,
+                          block: true,
+                          loading: _isSubmittingOffer,
                           onPressed: _isSubmittingOffer
                               ? null
                               : () => _submitOffer(ctx, selectedParcel),
@@ -970,28 +994,6 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     _openDiscussion();
   }
 
-  static Color _avatarColor(String name) {
-    final colors = [
-      AppTheme.teal500,
-      AppTheme.green500,
-      const Color(0xFF2563EB),
-      const Color(0xFF7C3AED),
-      const Color(0xFFDB2777),
-      const Color(0xFFEA580C),
-      AppTheme.amber500,
-      AppTheme.red400,
-    ];
-    final hash = name.isEmpty ? 0 : name.codeUnits.fold(0, (sum, c) => sum + c);
-    return colors[hash.abs() % colors.length];
-  }
-
-  static String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
-  }
-
   static String _formatMoney(num value) {
     final rounded = value.round().toString();
     final buffer = StringBuffer();
@@ -1010,5 +1012,75 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
     if (diff.inDays < 7) return 'il y a ${diff.inDays} j';
     return DateFormat('dd/MM/yyyy', 'fr').format(date);
+  }
+}
+
+// ============================================================
+// Sous-widgets du bandeau hero
+// ============================================================
+
+class _HeroBackButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _HeroBackButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(0.18),
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        child: const SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroPlace extends StatelessWidget {
+  final String label;
+  final String place;
+  final bool alignEnd;
+
+  const _HeroPlace({
+    required this.label,
+    required this.place,
+    this.alignEnd = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.manrope(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+            color: Colors.white.withOpacity(0.75),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          place,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            height: 1.2,
+          ),
+        ),
+      ],
+    );
   }
 }

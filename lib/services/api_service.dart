@@ -818,6 +818,75 @@ class ApiService {
     }
   }
 
+  // ==================== NOTATION CHAUFFEUR ====================
+
+  /// Le client note un chauffeur (1 à 5 étoiles) — POST /ratings.
+  Future<Map<String, dynamic>> rateDriver({
+    required String driverId,
+    required int rating,
+    String? parcelId,
+    String? comment,
+  }) async {
+    try {
+      final response = await _dio.post('/ratings', data: {
+        'driverId': driverId,
+        'rating': rating,
+        if (parcelId != null) 'parcelId': parcelId,
+        if (comment != null && comment.trim().isNotEmpty)
+          'comment': comment.trim(),
+      });
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Liste des notes reçues par un chauffeur — GET /ratings/driver/:id.
+  Future<List<Map<String, dynamic>>> getDriverRatings(String driverId) async {
+    try {
+      final response = await _dio.get('/ratings/driver/$driverId');
+      final responseData = _handleResponse(response);
+      final List<dynamic> data = responseData['ratings'] ?? [];
+      return data.map((json) => json as Map<String, dynamic>).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ==================== DOCUMENTS / IDENTITÉ ====================
+
+  /// Enregistre l'URL d'un document (recto/verso) — POST /identity/upload.
+  /// [documentType] ex: 'driver_license', 'vehicle_registration', 'insurance',
+  /// 'id_card', 'vehicle_photo'. [side] : 'front' ou 'back'.
+  Future<Map<String, dynamic>> uploadIdentityDocument({
+    required String documentType,
+    required String side,
+    required String url,
+    String? identityId,
+  }) async {
+    try {
+      final response = await _dio.post('/identity/upload', data: {
+        'documentType': documentType,
+        'side': side,
+        'url': url,
+        if (identityId != null) 'identityId': identityId,
+      });
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Statut / dernier document d'identité du chauffeur — GET /identity/status.
+  Future<Map<String, dynamic>?> getIdentityStatus() async {
+    try {
+      final response = await _dio.get('/identity/status');
+      return _handleResponse(response);
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ==================== MESSAGES ====================
 
   Future<List<Map<String, dynamic>>> getMessagesThread(

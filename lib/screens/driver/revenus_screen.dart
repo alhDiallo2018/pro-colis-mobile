@@ -1,13 +1,16 @@
 // mobile/lib/screens/driver/revenus_screen.dart
-// Écran Revenus du chauffeur - aligné Web
+// Écran Revenus du chauffeur - aligné Web (StatBox · Panel · BarChart · Badge)
 
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 
 class DriverRevenusScreen extends ConsumerStatefulWidget {
   const DriverRevenusScreen({super.key});
@@ -36,6 +39,8 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
     22300,
     9400,
   ];
+
+  static const List<String> _dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
   @override
   void initState() {
@@ -102,142 +107,124 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
     return _filteredPayments.take(_visiblePaymentsCount).toList();
   }
 
+  String _fcfa(num value) => '${value.toStringAsFixed(0)} FCFA';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: AppTheme.cardColor,
-        title: const Text('Mes revenus',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text('Mes revenus'),
       ),
+      bottomNavigationBar: const AppBottomNav(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadData,
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 children: [
-                  _buildStatRow(),
+                  _buildStatGrid(),
                   const SizedBox(height: 20),
-                  _buildBarChart(),
-                  const SizedBox(height: 24),
-                  _buildPaymentFilter(),
-                  const SizedBox(height: 16),
-                  const Text('Historique des paiements',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary)),
-                  const SizedBox(height: 12),
-                  if (_payments.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        children: [
-                          Icon(Icons.receipt_long_outlined,
-                              size: 48, color: AppTheme.slate300),
-                          const SizedBox(height: 8),
-                          Text('Aucun paiement',
-                              style: TextStyle(color: AppTheme.slate500)),
-                        ],
-                      ),
-                    )
-                  else ...[
-                    ..._visiblePayments.map((payment) => _buildPaymentCard(payment)),
-                    if (_filteredPayments.length > _visiblePaymentsCount)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: TextButton.icon(
-                          onPressed: () => setState(
-                              () => _visiblePaymentsCount += 10),
-                          icon: const Icon(Icons.expand_more, size: 20),
-                          label: Text(
-                              'Voir plus (${_filteredPayments.length - _visiblePaymentsCount} restants)'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.primary,
-                          ),
-                        ),
-                      ),
-                  ],
+                  _buildRevenuePanel(),
+                  const SizedBox(height: 20),
+                  _buildHistoryPanel(),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildStatRow() {
+  // ---------------------------------------------------------------
+  // Bandeau statistiques (3 tuiles)
+  // ---------------------------------------------------------------
+  Widget _buildStatGrid() {
     final isPositive = _weekComparison.startsWith('+');
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: _buildStatBox(
-            '${_totalRevenue.toStringAsFixed(0)} FCFA',
-            'Total encaissé',
-            AppTheme.successColor,
-            Icons.account_balance_wallet_outlined,
+          child: _statTile(
+            icon: Icons.payments_outlined,
+            value: _fcfa(_totalRevenue),
+            label: 'Revenus encaissés',
+            bg: AppTheme.green50,
+            fg: AppTheme.green700,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
-          child: _buildStatBox(
-            '${_payments.length}',
-            'Nb de paiements',
-            AppTheme.primary,
-            Icons.receipt_long_outlined,
+          child: _statTile(
+            icon: Icons.receipt_long_outlined,
+            value: '${_payments.length}',
+            label: 'Paiements',
+            bg: AppTheme.teal50,
+            fg: AppTheme.teal500,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
-          child: _buildStatBox(
-            _weekComparison,
-            'Évolution hebdo',
-            AppTheme.warningColor,
-            isPositive ? Icons.trending_up : Icons.trending_down,
+          child: _statTile(
+            icon: isPositive ? Icons.trending_up : Icons.trending_down,
+            value: _weekComparison,
+            label: 'vs semaine dern.',
+            bg: AppTheme.amber50,
+            fg: AppTheme.amber600,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatBox(String value, String label, Color accent, IconData icon) {
+  Widget _statTile({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color bg,
+    required Color fg,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.slate200),
-        boxShadow: AppTheme.softShadow(),
+        boxShadow: AppTheme.shadowXs(),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: accent.withOpacity( 0.12),
-              borderRadius: BorderRadius.circular(12),
+              color: bg,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: Icon(icon, color: accent, size: 22),
+            child: Icon(icon, size: 20, color: fg),
           ),
           const SizedBox(height: 10),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTheme.mono(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.textPrimary,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: AppTheme.mono(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
           Text(
             label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 11,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppTheme.slate500,
             ),
@@ -247,98 +234,139 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
     );
   }
 
-  Widget _buildBarChart() {
-    final maxRevenue = _dailyRevenue.reduce(max);
-    final days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.slate200),
-        boxShadow: AppTheme.softShadow(),
-      ),
-      child: Column(
+  // ---------------------------------------------------------------
+  // Panneau revenus (total + graphique 7 jours)
+  // ---------------------------------------------------------------
+  Widget _buildRevenuePanel() {
+    return _panel(
+      title: 'Revenus · 7 jours',
+      action: PcBadge(_weekComparison, tone: PcTone.green),
+      body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Revenus des 7 derniers jours',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          Text(
+            _fcfa(_totalRevenue),
+            style: AppTheme.mono(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
               color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 16),
-          ...List.generate(7, (index) {
-            final isToday = index == 6;
-            final fraction = maxRevenue > 0 ? _dailyRevenue[index] / maxRevenue : 0.0;
-            final barColor = isToday
-                ? AppTheme.warningColor
-                : Color.lerp(AppTheme.teal500, AppTheme.successColor, index / 6.0)!;
+          _buildBarChart(),
+        ],
+      ),
+    );
+  }
 
-            return Padding(
-              padding: EdgeInsets.only(bottom: index < 6 ? 6 : 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 36,
-                        child: Text(
-                          days[index],
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
-                            color: isToday ? AppTheme.warningColor : AppTheme.slate500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Container(
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: AppTheme.slate100,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: fraction.clamp(0.02, 1.0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: isToday
-                                      ? [AppTheme.amber400, AppTheme.warningColor]
-                                      : [barColor, barColor.withOpacity( 0.7)],
+  Widget _buildBarChart() {
+    final maxRevenue = _dailyRevenue.reduce(max);
+    return Column(
+      children: [
+        SizedBox(
+          height: 120,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(_dailyRevenue.length, (i) {
+              final isLast = i == _dailyRevenue.length - 1;
+              final fraction =
+                  maxRevenue > 0 ? _dailyRevenue[i] / maxRevenue : 0.0;
+              final opacity = isLast
+                  ? 1.0
+                  : (0.55 + (i / _dailyRevenue.length) * 0.45).clamp(0.0, 1.0);
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                      left: i == 0 ? 0 : 4,
+                      right: isLast ? 0 : 4),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.bottomCenter,
+                    heightFactor: fraction.clamp(0.04, 1.0),
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: isLast
+                              ? null
+                              : const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [AppTheme.teal400, AppTheme.teal600],
                                 ),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                          ),
+                          color: isLast ? AppTheme.amber400 : null,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(5)),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 72,
-                        child: Text(
-                          '${_dailyRevenue[index].toStringAsFixed(0)} FCFA',
-                          textAlign: TextAlign.right,
-                          style: AppTheme.mono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: isToday ? AppTheme.warningColor : AppTheme.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ],
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(_dayLabels.length, (i) {
+            return Expanded(
+              child: Text(
+                _dayLabels[i],
+                textAlign: TextAlign.center,
+                style: AppTheme.mono(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.slate400,
+                ),
               ),
             );
           }),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // Panneau historique des paiements (flush)
+  // ---------------------------------------------------------------
+  Widget _buildHistoryPanel() {
+    return _panel(
+      title: 'Historique des paiements',
+      flush: true,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+            child: _buildPaymentFilter(),
+          ),
+          if (_payments.isEmpty)
+            const PcEmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: 'Aucun paiement',
+              message:
+                  'Vos paiements apparaîtront ici une fois vos livraisons réglées.',
+            )
+          else ...[
+            for (int i = 0; i < _visiblePayments.length; i++) ...[
+              if (i > 0) const PcDivider(),
+              _buildPaymentRow(_visiblePayments[i]),
+            ],
+            if (_filteredPayments.length > _visiblePaymentsCount)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+                child: TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _visiblePaymentsCount += 10),
+                  icon: const Icon(Icons.expand_more, size: 20),
+                  label: Text(
+                      'Voir plus (${_filteredPayments.length - _visiblePaymentsCount} restants)'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -374,7 +402,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
               ),
               child: Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: isActive ? Colors.white : AppTheme.slate500,
@@ -387,36 +415,31 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
     );
   }
 
-  Widget _buildPaymentCard(Map<String, dynamic> payment) {
+  Widget _buildPaymentRow(Map<String, dynamic> payment) {
     final amount = (payment['amount'] ?? 0).toDouble();
     final date = payment['createdAt']?.toString() ?? '';
-    final method = payment['method']?.toString() ?? 'N/A';
+    final method = payment['method']?.toString() ?? '';
     final status = payment['status']?.toString() ?? 'pending';
     final tracking = payment['trackingNumber']?.toString() ?? '';
-    final isCompleted = status == 'completed';
+    final isCompleted = status == 'completed' || status == 'confirmed';
+    final subtitle =
+        [_formatDate(date), if (method.isNotEmpty) method].join(' · ');
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.slate200),
-        boxShadow: AppTheme.softShadow(alpha: 0.04),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: isCompleted ? AppTheme.green50 : AppTheme.amber50,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
             child: Icon(
-              isCompleted ? Icons.check_circle_outline : Icons.schedule_outlined,
-              color: isCompleted ? AppTheme.successColor : AppTheme.warningColor,
-              size: 22,
+              isCompleted ? Icons.payments_outlined : Icons.schedule_outlined,
+              color: isCompleted ? AppTheme.green700 : AppTheme.amber600,
+              size: 20,
             ),
           ),
           const SizedBox(width: 14),
@@ -424,85 +447,93 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        '$amount FCFA',
-                        style: AppTheme.mono(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                    ),
-                    if (tracking.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          '#$tracking',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.slate400,
-                            fontFamily: 'monospace',
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today_outlined, size: 12, color: AppTheme.slate400),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDate(date),
-                      style: TextStyle(fontSize: 12, color: AppTheme.slate400),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.payment_outlined, size: 12, color: AppTheme.slate400),
-                    const SizedBox(width: 4),
-                    Text(
-                      method,
-                      style: TextStyle(fontSize: 12, color: AppTheme.slate400),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isCompleted ? AppTheme.green50 : AppTheme.amber50,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: isCompleted ? AppTheme.successColor : AppTheme.warningColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 5),
                 Text(
-                  isCompleted ? 'Réglé' : 'En attente',
-                  style: TextStyle(
-                    fontSize: 11,
+                  tracking.isNotEmpty ? tracking : '—',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.mono(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: isCompleted ? AppTheme.successColor : AppTheme.warningColor,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.slate500,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 10),
+          Text(
+            _fcfa(amount),
+            style: AppTheme.mono(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.teal600,
+            ),
+          ),
+          const SizedBox(width: 10),
+          PcBadge(
+            isCompleted ? 'Réglé' : 'En attente',
+            tone: isCompleted ? PcTone.green : PcTone.amber,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // Panel générique (surface + entête titre/action, aligné Web)
+  // ---------------------------------------------------------------
+  Widget _panel({
+    required String title,
+    Widget? action,
+    required Widget body,
+    bool flush = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.slate200),
+        boxShadow: AppTheme.shadowXs(),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                if (action != null) action,
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: AppTheme.slate200),
+          if (flush)
+            body
+          else
+            Padding(padding: const EdgeInsets.all(16), child: body),
         ],
       ),
     );

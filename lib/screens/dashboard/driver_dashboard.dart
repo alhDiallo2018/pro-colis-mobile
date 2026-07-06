@@ -3,10 +3,13 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -16,22 +19,28 @@ import 'package:procolis/models/user.dart';
 import 'package:procolis/models/voice_message.dart';
 import 'package:procolis/screens/dashboard/notifications/notifications_screen.dart';
 import 'package:procolis/services/api_service.dart';
+import 'package:procolis/services/notification_service.dart';
 import 'package:procolis/theme/app_theme.dart';
 import 'package:procolis/widgets/score_display_widget.dart';
 import 'package:record/record.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
-import '../driver/publish_trip_screen.dart';
+import '../driver/create_annonce_sheet.dart';
 import '../driver/revenus_screen.dart';
 import '../driver/mes_annonces_screen.dart';
 import '../driver/parametres_screen.dart';
+import '../driver/points_screen.dart';
+import '../driver/garage_screen.dart';
+import '../driver/historique_screen.dart';
+import '../driver/vehicle_documents_screen.dart';
 import '../shared/messages_screen.dart';
 import '../parcel/free_parcels_screen.dart';
 import '../parcel/confirm_delivery_screen.dart';
-import '../parcel/new_parcel_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
 import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
@@ -1506,13 +1515,28 @@ class DriverDashboard extends ConsumerStatefulWidget {
 class _DriverDashboardState extends ConsumerState<DriverDashboard> {
   int _selectedIndex = 0;
   int _unreadNotificationsCount = 0;
+  int _unreadMessagesCount = 0;
   bool _isUpdatingStatus = false;
+  final ApiService _dashApi = ApiService();
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _loadNotificationsCount();
+    _loadMessagesUnread();
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted) return;
+      _loadNotificationsCount();
+      _loadMessagesUnread();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   void _loadData() {
@@ -1522,14 +1546,44 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
     });
   }
 
-  void _loadNotificationsCount() {
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _unreadNotificationsCount = 2;
-        });
+  Future<void> _loadNotificationsCount() async {
+    try {
+      final c = await _dashApi.getUnreadNotificationsCount();
+      if (mounted) setState(() => _unreadNotificationsCount = c);
+    } catch (_) {}
+  }
+
+  /// Messages non-lus (conversations où je suis destinataire) + notification
+  /// locale à la réception d'un nouveau message.
+  Future<void> _loadMessagesUnread() async {
+    final myId = ref.read(authProvider).user?.id;
+    if (myId == null) return;
+    try {
+      final convs = await _dashApi.getConversations();
+      int count = 0;
+      Map<String, dynamic>? latest;
+      for (final conv in convs) {
+        final receiver = conv['receiver'] as Map<String, dynamic>?;
+        final isRead = conv['isRead'] == true;
+        if (receiver?['id']?.toString() == myId && !isRead) {
+          count++;
+          latest ??= conv;
+        }
       }
-    });
+      if (!mounted) return;
+      final increased = count > _unreadMessagesCount;
+      setState(() => _unreadMessagesCount = count);
+      if (increased && latest != null) {
+        final sender =
+            latest['sender']?['fullName']?.toString() ?? 'Nouveau message';
+        final body = latest['body']?.toString() ?? '';
+        NotificationService.showNotification(
+          id: 'procolis-drv-msg'.hashCode,
+          title: '💬 $sender',
+          body: body.isNotEmpty ? body : 'Vous avez reçu un nouveau message',
+        );
+      }
+    } catch (_) {}
   }
 
   void _onNotificationsTap() {
@@ -1546,13 +1600,8 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
   }
 
   void _openPublishTrip() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PublishTripScreen(),
-      ),
-    ).then((result) {
-      if (result == true) {
+    showCreateAnnonceSheet(context).then((created) {
+      if (created == true) {
         _loadData();
         setState(() => _selectedIndex = 1);
       }
@@ -1568,112 +1617,28 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
     if (mounted) setState(() => _isUpdatingStatus = false);
   }
 
-  Widget _buildAvailabilityToggle(User? user) {
-    final available = user?.isDriverAvailable ?? false;
-    return Container(
-      color: AppTheme.cardColor,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: available ? AppTheme.green500 : AppTheme.slate400,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            available ? 'Disponible' : 'Indisponible',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: available ? AppTheme.green600 : AppTheme.slate500,
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            height: 28,
-            child: Switch(
-              value: available,
-              activeColor: AppTheme.green500,
-              activeTrackColor: AppTheme.green100,
-              inactiveThumbColor: AppTheme.slate400,
-              inactiveTrackColor: AppTheme.slate200,
-              onChanged:
-                  _isUpdatingStatus ? null : (_) => _toggleAvailability(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
     final parcelState = ref.watch(parcelProvider);
 
+    // Synchronise l'onglet avec la barre de navigation persistante (AppBottomNav)
+    ref.listen<int>(dashboardTabProvider, (prev, next) {
+      if (next != _selectedIndex && next >= 0 && next < 5) {
+        setState(() => _selectedIndex = next);
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppTheme.cardColor,
-        elevation: 0,
-        title: Row(
-          children: [
-            const AppLogo(size: 24, isWhite: false),
-            const SizedBox(width: 8),
-            const Text('PRO COLIS', style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.chat_rounded),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const MessagesScreen())),
-          ),
-          IconButton(
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.notifications_outlined),
-                if (_unreadNotificationsCount > 0)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppTheme.red400,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        _unreadNotificationsCount > 9 ? '9+' : '$_unreadNotificationsCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            onPressed: _onNotificationsTap,
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: _buildAvailabilityToggle(user),
-        ),
-      ),
       body: _getScreen(_selectedIndex, user, parcelState),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+          ref.read(dashboardTabProvider.notifier).state = index;
+        },
         items: [
           const ProcolisTabItem(
             icon: Icons.dashboard_rounded,
@@ -1688,6 +1653,10 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
             icon: Icons.local_shipping_rounded,
             label: 'Missions',
             badge: parcelState.parcels.length,
+          ),
+          const ProcolisTabItem(
+            icon: Icons.campaign_rounded,
+            label: 'Annonces',
           ),
           const ProcolisTabItem(
             icon: Icons.person_rounded,
@@ -1706,9 +1675,12 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
           user: user,
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
+          unreadMessagesCount: _unreadMessagesCount,
           onViewMissions: () => setState(() => _selectedIndex = 2),
           onViewPool: () => setState(() => _selectedIndex = 1),
           onPublishTrip: _openPublishTrip,
+          isUpdatingStatus: _isUpdatingStatus,
+          onToggleAvailability: _toggleAvailability,
         );
       case 1:
         return _DriverPoolTabScreen(
@@ -1722,6 +1694,8 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
           onRefresh: _loadData,
         );
       case 3:
+        return const DriverMesAnnoncesScreen(embedded: true);
+      case 4:
         return _DriverProfileTabScreen(
           user: user,
           activeMissionsCount: parcelState.parcels
@@ -1739,23 +1713,64 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
   }
 }
 
+/// Action de cycle de vie côté chauffeur : un seul bouton contextuel qui fait
+/// avancer la mission (aligné sur le web MissionsScreen). L'étape `deliver`
+/// bascule vers le flux OTP (ConfirmDeliveryScreen).
+class _DriverStepAction {
+  final String step;
+  final String label;
+  final IconData icon;
+  const _DriverStepAction(this.step, this.label, this.icon);
+}
+
+_DriverStepAction? _driverNextStep(ParcelStatus status) {
+  switch (status) {
+    case ParcelStatus.pending:
+      return const _DriverStepAction(
+          'confirm', 'Confirmer la prise en charge', Icons.check_circle_rounded);
+    case ParcelStatus.confirmed:
+      return const _DriverStepAction(
+          'pickup', 'Marquer ramassé', Icons.inventory_2_rounded);
+    case ParcelStatus.pickedUp:
+      return const _DriverStepAction(
+          'transit', 'Marquer en transit', Icons.local_shipping_rounded);
+    case ParcelStatus.inTransit:
+      return const _DriverStepAction(
+          'arrived', 'Marquer arrivé', Icons.pin_drop_rounded);
+    case ParcelStatus.arrived:
+      return const _DriverStepAction(
+          'out-for-delivery', 'En livraison', Icons.delivery_dining_rounded);
+    case ParcelStatus.outForDelivery:
+      return const _DriverStepAction(
+          'deliver', 'Confirmer livraison', Icons.task_alt_rounded);
+    default:
+      return null;
+  }
+}
+
 class _DriverTableauScreen extends StatefulWidget {
   final ParcelState parcelState;
   final User? user;
   final VoidCallback onNotificationsTap;
   final int unreadNotificationsCount;
+  final int unreadMessagesCount;
   final VoidCallback onViewMissions;
   final VoidCallback onViewPool;
   final VoidCallback onPublishTrip;
+  final bool isUpdatingStatus;
+  final Future<void> Function() onToggleAvailability;
 
   const _DriverTableauScreen({
     required this.parcelState,
     required this.user,
     required this.onNotificationsTap,
     required this.unreadNotificationsCount,
+    required this.unreadMessagesCount,
     required this.onViewMissions,
     required this.onViewPool,
     required this.onPublishTrip,
+    required this.isUpdatingStatus,
+    required this.onToggleAvailability,
   });
 
   @override
@@ -1763,7 +1778,66 @@ class _DriverTableauScreen extends StatefulWidget {
 }
 
 class _DriverTableauScreenState extends State<_DriverTableauScreen> {
-  bool _online = true;
+  final ApiService _api = ApiService();
+  double? _pointsBalance;
+  List<Map<String, dynamic>> _bidsSent = [];
+  List<Map<String, dynamic>> _ads = [];
+  double _weekRevenue = 0;
+  List<double> _revenueBars = List<double>.filled(7, 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    final results = await Future.wait([
+      _api.getScoreBalance(),
+      _api.getDriverBidsSent(),
+      _api.getMyAdvertisements(),
+      _api.getPaymentHistory(),
+    ]);
+    if (!mounted) return;
+    final payments = results[3] as List<Map<String, dynamic>>;
+    final now = DateTime.now();
+    final weekStart =
+        DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final bars = List<double>.filled(7, 0);
+    double weekTotal = 0;
+    for (final p in payments) {
+      final amount = (p['amount'] ?? 0).toDouble();
+      try {
+        final date = DateTime.parse(p['createdAt']?.toString() ?? '');
+        final dayIndex = date.difference(weekStart).inDays;
+        if (dayIndex >= 0 && dayIndex < 7) {
+          bars[dayIndex] += amount;
+          weekTotal += amount;
+        }
+      } catch (_) {}
+    }
+    setState(() {
+      _pointsBalance = results[0] as double;
+      _bidsSent = results[1] as List<Map<String, dynamic>>;
+      _ads = results[2] as List<Map<String, dynamic>>;
+      _revenueBars = bars;
+      _weekRevenue = weekTotal;
+    });
+  }
+
+  void _openItinerary(Parcel parcel) {
+    context.push('/driver/itinerary', extra: {
+      'departureName': parcel.departureGarageName,
+      'arrivalName': parcel.arrivalGarageName ?? '',
+    });
+  }
+
+  String _fcfa(num value) {
+    return value.toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+$)'),
+          (match) => '${match[1]} ',
+        );
+  }
 
   List<Parcel> get _activeMissions {
     final missions = widget.parcelState.parcels
@@ -1784,7 +1858,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
         : null;
     final deliveries = user?.completedDeliveries ?? user?.totalDeliveries ?? 0;
     final activeCount = _activeMissions.length;
-    final points = deliveries > 0 ? deliveries * 45 : 6180;
+    final points =
+        _pointsBalance != null ? _fcfa(_pointsBalance!) : '—';
     final rating =
         (user?.rating ?? 4.9).toStringAsFixed(1).replaceAll('.', ',');
 
@@ -1804,41 +1879,37 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                 mainAxisSpacing: 16,
                 childAspectRatio: 1.24,
                 children: [
-                  _DriverStatCard(
+                  PcStatBox(
                     icon: Icons.account_balance_wallet_rounded,
                     value: '$points',
                     label: 'Points gagnés',
-                    tone: AppTheme.amber500,
-                    background: AppTheme.amber50,
+                    tone: PcTone.amber,
                   ),
-                  _DriverStatCard(
+                  PcStatBox(
                     icon: Icons.local_shipping_rounded,
                     value: '$activeCount',
                     label: 'Missions actives',
-                    tone: AppTheme.primary,
-                    background: AppTheme.primaryLight,
+                    tone: PcTone.primary,
                   ),
-                  _DriverStatCard(
+                  PcStatBox(
                     icon: Icons.task_alt_rounded,
                     value: '$deliveries',
                     label: 'Livraisons',
-                    tone: AppTheme.successColor,
-                    background: AppTheme.green50,
+                    tone: PcTone.green,
                   ),
-                  _DriverStatCard(
+                  PcStatBox(
                     icon: Icons.star_rounded,
                     value: rating,
                     label: 'Note moyenne',
-                    tone: AppTheme.amber500,
-                    background: AppTheme.amber50,
+                    tone: PcTone.amber,
                   ),
                 ],
               ),
               const SizedBox(height: 14),
               _PublishTripShortcut(onTap: widget.onPublishTrip),
               const SizedBox(height: 28),
-              ProcolisSectionHeader(
-                title: 'Mission en cours',
+              PcSectionHeader(
+                'Mission en cours',
                 action: 'Voir tout',
                 onAction: widget.onViewMissions,
               ),
@@ -1848,16 +1919,39 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                   primaryActionLabel: 'Continuer la livraison',
                   primaryActionIcon: Icons.arrow_forward_rounded,
                   onPrimaryAction: widget.onViewMissions,
+                  customFooter: Row(
+                    children: [
+                      Expanded(
+                        child: PcButton(
+                          'Itinéraire',
+                          icon: Icons.navigation_rounded,
+                          variant: PcButtonVariant.secondary,
+                          block: true,
+                          onPressed: () => _openItinerary(activeMission),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: PcButton(
+                          'Gérer',
+                          icon: Icons.checklist_rounded,
+                          block: true,
+                          onPressed: widget.onViewMissions,
+                        ),
+                      ),
+                    ],
+                  ),
                 )
               else
-                const _DriverEmptyCard(
+                const PcEmptyState(
                   icon: Icons.local_shipping_rounded,
                   title: 'Aucune mission en cours',
                   message: 'Les missions acceptées apparaîtront ici.',
+                  tone: PcTone.primary,
                 ),
               const SizedBox(height: 28),
-              ProcolisSectionHeader(
-                title: 'Colis à prendre',
+              PcSectionHeader(
+                'Colis à prendre',
                 action: 'Tout voir',
                 onAction: widget.onViewPool,
               ),
@@ -1870,11 +1964,18 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                   onPrimaryAction: widget.onViewPool,
                 )
               else
-                const _DriverEmptyCard(
+                const PcEmptyState(
                   icon: Icons.sell_rounded,
                   title: 'Aucun colis disponible',
                   message: 'Les colis en libre service apparaîtront ici.',
+                  tone: PcTone.amber,
                 ),
+              const SizedBox(height: 28),
+              _buildRevenuePanel(),
+              const SizedBox(height: 28),
+              _buildBidsPanel(),
+              const SizedBox(height: 28),
+              _buildAdsPanel(),
             ],
           ),
         ),
@@ -1882,7 +1983,179 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
     );
   }
 
+  // ---- Revenus · 7 jours (mini graphique, logique de revenus_screen) ----
+  Widget _buildRevenuePanel() {
+    return PcCard(
+      radius: AppTheme.radiusLg,
+      shadow: AppTheme.shadowSm(),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Revenus · 7 jours',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const DriverRevenusScreen()),
+                ),
+                child: const Text(
+                  'Voir tout',
+                  style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${_fcfa(_weekRevenue)} FCFA',
+            style: AppTheme.mono(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _RevenueMiniChart(bars: _revenueBars),
+        ],
+      ),
+    );
+  }
+
+  // ---- Mes offres (offres envoyées par le chauffeur) ----
+  Widget _buildBidsPanel() {
+    final top = _bidsSent.take(3).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const PcSectionHeader('Mes offres'),
+        PcCard(
+          padding: EdgeInsets.zero,
+          child: top.isEmpty
+              ? const PcEmptyState(
+                  icon: Icons.gavel_rounded,
+                  title: 'Aucune offre envoyée',
+                  message: 'Vos offres sur les annonces apparaîtront ici.',
+                  tone: PcTone.amber,
+                )
+              : Column(
+                  children: [
+                    for (var i = 0; i < top.length; i++) ...[
+                      if (i > 0) const PcDivider(),
+                      _buildBidRow(top[i]),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBidRow(Map<String, dynamic> bid) {
+    final status = bid['status']?.toString() ?? 'pending';
+    final price = (bid['price'] ?? 0).toDouble();
+    final parcelId = bid['parcelId']?.toString() ?? '';
+    final tracking = bid['parcel']?['trackingNumber']?.toString() ??
+        (parcelId.length > 8 ? '${parcelId.substring(0, 8)}…' : parcelId);
+    late final String statusLabel;
+    late final PcTone statusTone;
+    switch (status) {
+      case 'accepted':
+        statusLabel = 'Acceptée';
+        statusTone = PcTone.green;
+        break;
+      case 'rejected':
+        statusLabel = 'Refusée';
+        statusTone = PcTone.red;
+        break;
+      default:
+        statusLabel = 'En attente';
+        statusTone = PcTone.amber;
+    }
+    return PcListRow(
+      icon: Icons.gavel_rounded,
+      iconTone: PcTone.primary,
+      title: tracking,
+      subtitle: '${_fcfa(price)} FCFA proposés',
+      trailing: PcBadge(statusLabel, tone: statusTone),
+    );
+  }
+
+  // ---- Mes annonces (trajets publiés par le chauffeur) ----
+  Widget _buildAdsPanel() {
+    final top = _ads.take(3).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PcSectionHeader(
+          'Mes annonces',
+          action: 'Voir tout',
+          onAction: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const DriverMesAnnoncesScreen()),
+          ),
+        ),
+        PcCard(
+          padding: EdgeInsets.zero,
+          child: top.isEmpty
+              ? const PcEmptyState(
+                  icon: Icons.campaign_rounded,
+                  title: 'Aucune annonce',
+                  message: 'Publiez un trajet pour recevoir des colis.',
+                  tone: PcTone.primary,
+                )
+              : Column(
+                  children: [
+                    for (var i = 0; i < top.length; i++) ...[
+                      if (i > 0) const PcDivider(),
+                      _buildAdRow(top[i]),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdRow(Map<String, dynamic> ad) {
+    final departure = ad['departureCity']?.toString() ?? '—';
+    final arrival = ad['arrivalCity']?.toString() ?? '—';
+    final proposedPrice = ad['proposedPrice'];
+    return PcListRow(
+      icon: Icons.local_shipping_rounded,
+      iconTone: PcTone.primary,
+      title: '$departure → $arrival',
+      subtitle: 'Trajet publié',
+      trailing: proposedPrice != null
+          ? Text(
+              '${_fcfa((proposedPrice as num).toDouble())} FCFA',
+              style: AppTheme.mono(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.teal600,
+              ),
+            )
+          : null,
+    );
+  }
+
   Widget _buildHero(User? user) {
+    final available = user?.isDriverAvailable ?? false;
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(gradient: AppTheme.brandGradient),
@@ -1916,8 +2189,9 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                           width: 18,
                           height: 18,
                           decoration: BoxDecoration(
-                            color:
-                                _online ? AppTheme.green500 : AppTheme.slate400,
+                            color: available
+                                ? AppTheme.green500
+                                : AppTheme.slate400,
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 3),
                           ),
@@ -1930,9 +2204,9 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Chauffeur',
-                          style: TextStyle(
+                          style: GoogleFonts.manrope(
                             color: Colors.white,
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -1942,13 +2216,49 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                           user?.fullName ?? 'Chauffeur',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: GoogleFonts.plusJakartaSans(
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             height: 1.18,
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const MessagesScreen()),
+                    ),
+                    color: Colors.white,
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.chat_rounded, size: 26),
+                        if (widget.unreadMessagesCount > 0)
+                          Positioned(
+                            right: -2,
+                            top: -2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppTheme.amber400,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                widget.unreadMessagesCount > 9
+                                    ? '9+'
+                                    : '${widget.unreadMessagesCount}',
+                                style: const TextStyle(
+                                    color: Color(0xFF3A2600),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -2002,7 +2312,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       child: Icon(
-                        _online ? Icons.bolt_rounded : Icons.bedtime_rounded,
+                        available ? Icons.bolt_rounded : Icons.bedtime_rounded,
                         color: Colors.white,
                         size: 26,
                       ),
@@ -2013,8 +2323,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _online ? 'Vous êtes en ligne' : 'Hors ligne',
-                            style: const TextStyle(
+                            available ? 'Vous êtes en ligne' : 'Hors ligne',
+                            style: GoogleFonts.plusJakartaSans(
                               color: Colors.white,
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
@@ -2022,12 +2332,12 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            _online
+                            available
                                 ? 'Vous recevez les colis disponibles'
                                 : 'Vous ne recevez pas de colis',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: GoogleFonts.manrope(
                               color: Colors.white70,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -2036,78 +2346,36 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                         ],
                       ),
                     ),
-                    Switch(
-                      value: _online,
-                      activeColor: Colors.white,
-                      activeTrackColor: AppTheme.deep500,
-                      inactiveThumbColor: Colors.white,
-                      inactiveTrackColor: Colors.white24,
-                      onChanged: (value) => setState(() => _online = value),
-                    ),
+                    widget.isUpdatingStatus
+                        ? const SizedBox(
+                            width: 40,
+                            height: 24,
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation(Colors.white),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Switch(
+                            value: available,
+                            activeColor: Colors.white,
+                            activeTrackColor: AppTheme.deep500,
+                            inactiveThumbColor: Colors.white,
+                            inactiveTrackColor: Colors.white24,
+                            onChanged: (_) => widget.onToggleAvailability(),
+                          ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _DriverStatCard extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color tone;
-  final Color background;
-
-  const _DriverStatCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.tone,
-    required this.background,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ProcolisCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-            child: Icon(icon, color: tone, size: 22),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 29,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2148,7 +2416,7 @@ class _PublishTripShortcut extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -2156,18 +2424,18 @@ class _PublishTripShortcut extends StatelessWidget {
                       'Publier un voyage',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: GoogleFonts.plusJakartaSans(
                         color: Colors.white,
                         fontSize: 15.5,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(height: 3),
+                    const SizedBox(height: 3),
                     Text(
                       'Annoncez votre trajet aux clients',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: GoogleFonts.manrope(
                         color: Colors.white70,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
@@ -2237,8 +2505,10 @@ class _DriverRouteCard extends StatelessWidget {
         ? parcel.arrivalGarageName!
         : 'Arrivée';
 
-    return ProcolisCard(
+    return PcCard(
       onTap: onTap,
+      radius: AppTheme.radiusLg,
+      shadow: AppTheme.shadowSm(),
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
       child: Column(
         children: [
@@ -2339,86 +2609,25 @@ class _DriverRouteCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                _DriverCardAction(
+                PcButton(
+                  primaryActionLabel,
                   icon: primaryActionIcon,
-                  label: primaryActionLabel,
-                  onTap: onPrimaryAction,
+                  size: PcButtonSize.sm,
+                  onPressed: onPrimaryAction,
                 ),
               ],
             ),
           ] else if (showPrimaryAction) ...[
             const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: onPrimaryAction,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.deep500,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      primaryActionLabel,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(primaryActionIcon, color: Colors.white),
-                  ],
-                ),
-              ),
+            PcButton(
+              primaryActionLabel,
+              iconTrailing: primaryActionIcon,
+              block: true,
+              size: PcButtonSize.lg,
+              onPressed: onPrimaryAction,
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _DriverCardAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _DriverCardAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, color: Colors.white, size: 20),
-      label: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 15,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppTheme.deep500,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        minimumSize: const Size(0, 44),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        ),
       ),
     );
   }
@@ -2500,42 +2709,76 @@ class _RouteMeta extends StatelessWidget {
   }
 }
 
-class _DriverEmptyCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
+// Mini graphique à barres 7 jours (dessiné à la main, calé sur revenus_screen).
+class _RevenueMiniChart extends StatelessWidget {
+  final List<double> bars;
 
-  const _DriverEmptyCard({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
+  const _RevenueMiniChart({required this.bars});
+
+  static const List<String> _dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
   @override
   Widget build(BuildContext context) {
-    return ProcolisCard(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryLight,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            ),
-            child: Icon(icon, color: AppTheme.primary, size: 30),
+    final maxValue = bars.isEmpty ? 0.0 : bars.reduce(max);
+    return Column(
+      children: [
+        SizedBox(
+          height: 96,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(bars.length, (i) {
+              final isLast = i == bars.length - 1;
+              final fraction = maxValue > 0 ? bars[i] / maxValue : 0.0;
+              final opacity = isLast
+                  ? 1.0
+                  : (0.55 + (i / bars.length) * 0.45).clamp(0.0, 1.0);
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                      left: i == 0 ? 0 : 4, right: isLast ? 0 : 4),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.bottomCenter,
+                    heightFactor: fraction.clamp(0.04, 1.0),
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: isLast
+                              ? null
+                              : const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [AppTheme.teal400, AppTheme.teal600],
+                                ),
+                          color: isLast ? AppTheme.amber400 : null,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(5)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
           ),
-          const SizedBox(height: 14),
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppTheme.textSecondary),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(_dayLabels.length, (i) {
+            return Expanded(
+              child: Text(
+                _dayLabels[i],
+                textAlign: TextAlign.center,
+                style: AppTheme.mono(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.slate400,
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 }
@@ -2659,11 +2902,12 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
                     ? ListView(
                         padding: const EdgeInsets.fromLTRB(24, 90, 24, 120),
                         children: const [
-                          _DriverEmptyCard(
+                          PcEmptyState(
                             icon: Icons.inventory_2_rounded,
                             title: 'Aucun colis à prendre',
                             message:
                                 'Les demandes clients en libre service apparaîtront ici.',
+                            tone: PcTone.amber,
                           ),
                         ],
                       )
@@ -2707,6 +2951,31 @@ class _DriverMissionsTabScreen extends StatefulWidget {
 
 class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
   int _tabIndex = 0;
+  final ApiService _api = ApiService();
+  String? _advancingId;
+
+  Future<void> _advanceMission(Parcel mission, String step) async {
+    setState(() => _advancingId = mission.id);
+    try {
+      final res = await _api.advanceParcel(mission.id, step);
+      if (res['success'] == false) {
+        _snack(res['message']?.toString() ?? 'Action impossible');
+      } else {
+        widget.onRefresh();
+      }
+    } catch (_) {
+      _snack('Action impossible');
+    } finally {
+      if (mounted) setState(() => _advancingId = null);
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
 
   List<Parcel> get _activeMissions => widget.parcelState.parcels
       .where((parcel) =>
@@ -2777,21 +3046,23 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
             ),
           ],
         ),
-        if (mission.status == ParcelStatus.outForDelivery) ...[
+        if (_driverNextStep(mission.status) != null) ...[
           const SizedBox(height: 10),
-          ElevatedButton.icon(
-            onPressed: () => _openConfirmDelivery(mission),
-            icon: const Icon(Icons.lock_open_rounded, size: 18),
-            label: const Text('Confirmer la livraison'),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(0, 44),
-              backgroundColor: AppTheme.successColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-            ),
-          ),
+          Builder(builder: (_) {
+            final next = _driverNextStep(mission.status)!;
+            final loading = _advancingId == mission.id;
+            return PcButton(
+              next.label,
+              icon: next.icon,
+              block: true,
+              loading: loading,
+              onPressed: loading
+                  ? null
+                  : () => next.step == 'deliver'
+                      ? _openConfirmDelivery(mission)
+                      : _advanceMission(mission, next.step),
+            );
+          }),
         ],
       ],
     );
@@ -2848,7 +3119,7 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
                     ? ListView(
                         padding: const EdgeInsets.fromLTRB(24, 90, 24, 120),
                         children: [
-                          _DriverEmptyCard(
+                          PcEmptyState(
                             icon: _tabIndex == 0
                                 ? Icons.route_rounded
                                 : Icons.task_alt_rounded,
@@ -2858,6 +3129,9 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
                             message: _tabIndex == 0
                                 ? 'Acceptez un colis à prendre pour démarrer une mission.'
                                 : 'Vos livraisons complétées seront visibles ici.',
+                            tone: _tabIndex == 0
+                                ? PcTone.primary
+                                : PcTone.green,
                           ),
                         ],
                       )
@@ -3061,8 +3335,11 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                   children: [
                     _DriverProfileRow(
                       icon: Icons.garage_rounded,
-                      title: 'Garage',
-                      subtitle: user?.garageName ?? 'Garage non renseigné',
+                      title: 'Ma zone',
+                      subtitle: user?.garageName ?? 'Zone non renseignée',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(
+                              builder: (_) => const DriverGarageScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -3081,11 +3358,19 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
-                      icon: Icons.account_balance_wallet_rounded,
-                      title: 'Points & Revenus',
-                      subtitle: 'Solde, historique et gains',
+                      icon: Icons.payments_rounded,
+                      title: 'Revenus',
+                      subtitle: 'Gains et historique des paiements',
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const DriverRevenusScreen())),
+                    ),
+                    const Divider(height: 1),
+                    _DriverProfileRow(
+                      icon: Icons.account_balance_wallet_rounded,
+                      title: 'Points & paiements',
+                      subtitle: 'Solde de points et recharge',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const DriverPointsScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -3094,6 +3379,31 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                       subtitle: 'Gérer mes trajets publiés',
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const DriverMesAnnoncesScreen())),
+                    ),
+                    const Divider(height: 1),
+                    _DriverProfileRow(
+                      icon: Icons.badge_rounded,
+                      title: 'Documents & véhicule',
+                      subtitle: 'Photos et papiers du véhicule',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const VehicleDocumentsScreen())),
+                    ),
+                    const Divider(height: 1),
+                    _DriverProfileRow(
+                      icon: Icons.forum_rounded,
+                      title: 'Messages',
+                      subtitle: 'Discussions avec les clients',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const MessagesScreen())),
+                    ),
+                    const Divider(height: 1),
+                    _DriverProfileRow(
+                      icon: Icons.history_rounded,
+                      title: 'Historique',
+                      subtitle: 'Courses terminées et annulées',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(
+                              builder: (_) => const DriverHistoriqueScreen())),
                     ),
                   ],
                 ),
@@ -4199,13 +4509,8 @@ class _DriverAdvertisementsScreenState
   }
 
   void _createNewAd() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PublishTripScreen(),
-      ),
-    ).then((result) {
-      if (result == true) {
+    showCreateAnnonceSheet(context).then((created) {
+      if (created == true) {
         _loadAdvertisements();
       }
     });
@@ -5332,7 +5637,7 @@ class _ParcelCardState extends State<_ParcelCard> {
     } else if (parcel.status == ParcelStatus.inTransit) {
       return _buildActionButton(
         icon: Icons.location_on,
-        label: 'Arrivé garage',
+        label: 'Arrivé zone',
         color: Colors.orange,
         onTap: () => _updateStatus('arrived'),
       );

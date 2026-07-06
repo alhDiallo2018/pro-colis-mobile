@@ -5,24 +5,31 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/models/user.dart';
 import 'package:procolis/screens/dashboard/notifications/notifications_screen.dart';
 import 'package:procolis/services/api_service.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/parcel_card.dart';
+import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
+import '../../widgets/segmented_control.dart';
 // IMPORTANT: Importer le nouvel écran d'annonces
 import '../parcel/ads/advertisements_screen.dart'; // <-- NOUVEAU CHEMIN
-import '../parcel/new_parcel_screen.dart';
+import '../parcel/create_colis_sheet.dart';
+import '../parcel/offres_recues_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
 import '../parcel/track_parcel_screen.dart';
 import '../profile/profile_screen.dart';
 import '../shared/messages_screen.dart';
 import '../wallet/wallet_screen.dart';
+import '../../services/notification_service.dart';
 
 class ClientDashboard extends ConsumerStatefulWidget {
   const ClientDashboard({super.key});
@@ -34,6 +41,7 @@ class ClientDashboard extends ConsumerStatefulWidget {
 class _ClientDashboardState extends ConsumerState<ClientDashboard> {
   int _selectedIndex = 0;
   int _unreadNotificationsCount = 0;
+  int _unreadMessagesCount = 0;
   final ApiService _apiService = ApiService();
   Timer? _refreshTimer;
 
@@ -42,10 +50,12 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
     super.initState();
     _loadData();
     _loadNotificationsCount();
+    _loadMessagesUnread();
 
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (mounted) {
         _loadNotificationsCount();
+        _loadMessagesUnread();
       } else {
         timer.cancel();
       }
@@ -82,66 +92,60 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
     }
   }
 
+  /// Compte les messages non-lus (conversations où je suis destinataire) et
+  /// déclenche une notification locale quand un nouveau message arrive.
+  Future<void> _loadMessagesUnread() async {
+    final myId = ref.read(authProvider).user?.id;
+    if (myId == null) return;
+    try {
+      final convs = await _apiService.getConversations();
+      int count = 0;
+      Map<String, dynamic>? latest;
+      for (final c in convs) {
+        final receiver = c['receiver'] as Map<String, dynamic>?;
+        final isRead = c['isRead'] == true;
+        if (receiver?['id']?.toString() == myId && !isRead) {
+          count++;
+          latest ??= c;
+        }
+      }
+      if (!mounted) return;
+      final increased = count > _unreadMessagesCount;
+      setState(() => _unreadMessagesCount = count);
+      if (increased && latest != null) {
+        final sender =
+            latest['sender']?['fullName']?.toString() ?? 'Nouveau message';
+        final body = latest['body']?.toString() ?? '';
+        NotificationService.showNotification(
+          id: 'procolis-msg'.hashCode,
+          title: '💬 $sender',
+          body: body.isNotEmpty ? body : 'Vous avez reçu un nouveau message',
+        );
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
     final parcelState = ref.watch(parcelProvider);
 
+    // Synchronise l'onglet avec la barre de navigation persistante (AppBottomNav)
+    ref.listen<int>(dashboardTabProvider, (prev, next) {
+      if (next != _selectedIndex && next >= 0 && next < 5) {
+        setState(() => _selectedIndex = next);
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppTheme.cardColor,
-        elevation: 0,
-        title: Row(
-          children: [
-            const AppLogo(size: 24, isWhite: false),
-            const SizedBox(width: 8),
-            const Text('PRO COLIS', style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.chat_rounded),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const MessagesScreen())),
-          ),
-          IconButton(
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.notifications_outlined),
-                if (_unreadNotificationsCount > 0)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppTheme.red400,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        _unreadNotificationsCount > 9 ? '9+' : '$_unreadNotificationsCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            onPressed: _onNotificationsTap,
-          ),
-        ],
-      ),
       body: _getScreen(_selectedIndex, user, parcelState),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() => _selectedIndex = index);
+          ref.read(dashboardTabProvider.notifier).state = index;
           if (index == 1) {
             _loadData();
           }
@@ -174,11 +178,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
           ? FloatingActionButton(
               heroTag: 'client-new-parcel',
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const NewParcelScreen()),
-                );
+                showCreateColisSheet(context);
               },
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
@@ -196,8 +196,10 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
           user: user,
           parcelState: parcelState,
           onRefresh: _loadData,
+          onNavigateToTab: (i) => setState(() => _selectedIndex = i),
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
+          unreadMessagesCount: _unreadMessagesCount,
         );
       case 1:
         return _MesColisTab(
@@ -217,6 +219,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
           onRefresh: _loadData,
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
+          unreadMessagesCount: _unreadMessagesCount,
         );
     }
   }
@@ -310,8 +313,29 @@ class _MesColisTab extends StatefulWidget {
 }
 
 class _MesColisTabState extends State<_MesColisTab> {
-  String _tab = 'cours';
+  int _groupIndex = 0;
   String _searchQuery = '';
+
+  // Groupes de statut alignés sur le web (Tous / En attente / En transit /
+  // Livrés / Annulés), chacun couvrant plusieurs statuts bruts.
+  static const List<(String, List<ParcelStatus>)> _statusGroups = [
+    ('Tous', <ParcelStatus>[]),
+    (
+      'Attente',
+      [ParcelStatus.pending, ParcelStatus.free, ParcelStatus.confirmed]
+    ),
+    (
+      'Transit',
+      [
+        ParcelStatus.pickedUp,
+        ParcelStatus.inTransit,
+        ParcelStatus.arrived,
+        ParcelStatus.outForDelivery
+      ]
+    ),
+    ('Livrés', [ParcelStatus.delivered]),
+    ('Annulés', [ParcelStatus.cancelled]),
+  ];
   String _selectedSort = 'recent';
   String _selectedTypeFilter = '';
   final TextEditingController _searchController = TextEditingController();
@@ -384,11 +408,12 @@ class _MesColisTabState extends State<_MesColisTab> {
       .toList();
 
   List<Parcel> get _visibleParcels {
-    final base = switch (_tab) {
-      'livres' => _deliveredParcels,
-      'annules' => _cancelledParcels,
-      _ => _inProgressParcels,
-    };
+    final match = _statusGroups[_groupIndex].$2;
+    final base = match.isEmpty
+        ? widget.parcelState.parcels
+        : widget.parcelState.parcels
+            .where((p) => match.contains(p.status))
+            .toList();
     return _applyFilters(base);
   }
 
@@ -513,21 +538,15 @@ class _MesColisTabState extends State<_MesColisTab> {
           ),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Mes colis',
-                  style: TextStyle(
+                  style: GoogleFonts.plusJakartaSans(
                     color: AppTheme.textPrimary,
                     fontSize: 20,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.tune_rounded),
-                color: AppTheme.slate700,
-                tooltip: 'Filtres',
               ),
             ],
           ),
@@ -539,90 +558,78 @@ class _MesColisTabState extends State<_MesColisTab> {
             color: AppTheme.cardColor,
             border: Border(bottom: BorderSide(color: AppTheme.slate200)),
           ),
-          child: _MesColisSegmentedTabs(
-            value: _tab,
-            counts: {
-              'cours': _inProgressParcels.length,
-              'livres': _deliveredParcels.length,
-              'annules': _cancelledParcels.length,
-            },
-            onChanged: (value) => setState(() => _tab = value),
+          child: SegmentedControl(
+            options: _statusGroups.map((g) => g.$1).toList(),
+            selectedIndex: _groupIndex,
+            onChanged: (i) => setState(() => _groupIndex = i),
           ),
-          ),
+        ),
         if (widget.parcelState.parcels.isNotEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            decoration: const BoxDecoration(
-              color: AppTheme.cardColor,
-              border: Border(bottom: BorderSide(color: AppTheme.slate200)),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: PcCard(
+              radius: AppTheme.radiusLg,
+              padding: const EdgeInsets.all(14),
+              shadow: AppTheme.shadowXs(),
+              child: Column(
                 children: [
-                  _buildTypeChip('', 'Tous'),
-                  const SizedBox(width: 8),
-                  _buildTypeChip('document', 'Documents'),
-                  const SizedBox(width: 8),
-                  _buildTypeChip('package', 'Colis standard'),
-                  const SizedBox(width: 8),
-                  _buildTypeChip('fragile', 'Fragiles'),
-                  const SizedBox(width: 8),
-                  _buildTypeChip('perishable', 'Périssables'),
-                  const SizedBox(width: 8),
-                  _buildTypeChip('valuable', 'Précieux'),
-                ],
-              ),
-            ),
-          ),
-        if (widget.parcelState.parcels.isNotEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            decoration: const BoxDecoration(
-              color: AppTheme.cardColor,
-              border: Border(bottom: BorderSide(color: AppTheme.slate200)),
-            ),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _searchQuery = value),
-                  decoration: InputDecoration(
-                    hintText: 'Rechercher un colis...',
-                    hintStyle: const TextStyle(fontSize: 14, color: AppTheme.slate400),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: AppTheme.slate50,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      borderSide: BorderSide.none,
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher (suivi, ville, destinataire…)',
+                      hintStyle: const TextStyle(fontSize: 14, color: AppTheme.slate400),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: AppTheme.slate50,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                      ),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildTypeChip('', 'Tous'),
+                        const SizedBox(width: 8),
+                        _buildTypeChip('document', 'Documents'),
+                        const SizedBox(width: 8),
+                        _buildTypeChip('package', 'Colis standard'),
+                        const SizedBox(width: 8),
+                        _buildTypeChip('fragile', 'Fragiles'),
+                        const SizedBox(width: 8),
+                        _buildTypeChip('perishable', 'Périssables'),
+                        const SizedBox(width: 8),
+                        _buildTypeChip('valuable', 'Précieux'),
+                      ],
                     ),
                   ),
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 10),
-                _buildSortSelector(),
-              ],
+                  const SizedBox(height: 10),
+                  _buildSortSelector(),
+                ],
+              ),
             ),
           ),
         Expanded(
@@ -636,12 +643,7 @@ class _MesColisTabState extends State<_MesColisTab> {
                         padding: const EdgeInsets.fromLTRB(20, 56, 20, 120),
                         children: [
                           _MesColisEmptyState(
-                            onNew: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const NewParcelScreen(),
-                              ),
-                            ),
+                            onNew: () => showCreateColisSheet(context),
                           ),
                         ],
                       )
@@ -651,7 +653,7 @@ class _MesColisTabState extends State<_MesColisTab> {
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final parcel = parcels[index];
-                          return _ClientRecentParcelCard(
+                          return ParcelCard(
                             parcel: parcel,
                             onTap: () {
                               Navigator.push(
@@ -1092,16 +1094,20 @@ class HomeScreen extends StatelessWidget {
   final User? user;
   final ParcelState parcelState;
   final VoidCallback onRefresh;
+  final ValueChanged<int>? onNavigateToTab;
   final VoidCallback onNotificationsTap;
   final int unreadNotificationsCount;
+  final int unreadMessagesCount;
 
   const HomeScreen({
     super.key,
     required this.user,
     required this.parcelState,
     required this.onRefresh,
+    this.onNavigateToTab,
     required this.onNotificationsTap,
     this.unreadNotificationsCount = 0,
+    this.unreadMessagesCount = 0,
   });
 
   List<Parcel> get _visibleParcels {
@@ -1130,11 +1136,21 @@ class HomeScreen extends StatelessWidget {
     }
 
     final parcels = _visibleParcels;
-    final recentParcels = parcels.take(2).toList();
+    final recentParcels = parcels.take(5).toList();
     final inProgressCount =
         parcels.where((parcel) => parcel.isInProgress).length;
     final deliveredCount = parcels.where((parcel) => parcel.isDelivered).length;
+    final libreCount = parcels.where((parcel) => parcel.isFree).length;
     final points = deliveredCount > 0 ? deliveredCount * 90 : 2450;
+
+    // Agrège toutes les offres (bids) en attente reçues sur les colis du client.
+    final pendingOffers = <_OfferPreview>[];
+    for (final parcel in parcels) {
+      for (final bid in parcel.pendingBids) {
+        pendingOffers.add(_OfferPreview(parcel: parcel, bid: bid));
+      }
+    }
+    pendingOffers.sort((a, b) => b.bid.createdAt.compareTo(a.bid.createdAt));
 
     return RefreshIndicator(
       color: AppTheme.primary,
@@ -1146,7 +1162,12 @@ class HomeScreen extends StatelessWidget {
             user: currentUser,
             points: points,
             unreadNotificationsCount: unreadNotificationsCount,
+            unreadMessagesCount: unreadMessagesCount,
             onNotificationsTap: onNotificationsTap,
+            onChatTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MessagesScreen()),
+            ),
             onWalletTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const WalletScreen()),
@@ -1158,12 +1179,7 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _ClientQuickActions(
-                  onNew: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NewParcelScreen(),
-                    ),
-                  ),
+                  onNew: () => showCreateColisSheet(context),
                   onLibre: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -1178,7 +1194,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  onHistory: onRefresh,
+                  onOffers: () => _openOffers(context),
                 ),
                 const SizedBox(height: 22),
                 Row(
@@ -1202,13 +1218,28 @@ class HomeScreen extends StatelessWidget {
                         background: AppTheme.green50,
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _DesignStatBox(
+                        icon: Icons.sell_rounded,
+                        value: '$libreCount',
+                        label: 'Annonces',
+                        tone: AppTheme.amber500,
+                        background: AppTheme.amber50,
+                      ),
+                    ),
                   ],
+                ),
+                const SizedBox(height: 22),
+                _ClientOffersPanel(
+                  offers: pendingOffers,
+                  onSeeAll: () => _openOffers(context),
                 ),
                 const SizedBox(height: 22),
                 ProcolisSectionHeader(
                   title: 'Mes colis récents',
                   action: 'Tout voir',
-                  onAction: onRefresh,
+                  onAction: () => onNavigateToTab?.call(1),
                 ),
                 if (parcelState.isLoading)
                   const Padding(
@@ -1217,12 +1248,7 @@ class HomeScreen extends StatelessWidget {
                   )
                 else if (recentParcels.isEmpty)
                   _ClientEmptyRecent(onNew: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NewParcelScreen(),
-                      ),
-                    );
+                    showCreateColisSheet(context);
                   })
                 else
                   Column(
@@ -1255,6 +1281,15 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  void _openOffers(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const OffresRecuesScreen(),
+      ),
+    );
+  }
+
   void _showComingSoon(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1269,14 +1304,18 @@ class _ClientHomeHero extends StatelessWidget {
   final User user;
   final int points;
   final int unreadNotificationsCount;
+  final int unreadMessagesCount;
   final VoidCallback onNotificationsTap;
+  final VoidCallback onChatTap;
   final VoidCallback onWalletTap;
 
   const _ClientHomeHero({
     required this.user,
     required this.points,
     required this.unreadNotificationsCount,
+    required this.unreadMessagesCount,
     required this.onNotificationsTap,
+    required this.onChatTap,
     required this.onWalletTap,
   });
 
@@ -1352,16 +1391,16 @@ class _ClientHomeHero extends StatelessWidget {
                   const _HomeGhostIconButton(icon: Icons.search_rounded),
                   const SizedBox(width: 4),
                   _HomeNotificationButton(
+                    unread: unreadMessagesCount,
+                    onTap: onChatTap,
+                    icon: Icons.chat_rounded,
+                  ),
+                  const SizedBox(width: 4),
+                  _HomeNotificationButton(
                     unread: unreadNotificationsCount,
                     onTap: onNotificationsTap,
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              _ClientPointsCard(
-                points: points,
-                inverse: true,
-                onTap: onWalletTap,
               ),
             ],
           ),
@@ -1452,20 +1491,10 @@ class _ClientPointsCard extends StatelessWidget {
                   ],
                 ),
               ),
-              ElevatedButton.icon(
+              IconButton(
                 onPressed: onTap,
-                icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text('Recharger'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.amber400,
-                  foregroundColor: const Color(0xFF3A2600),
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  textStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                icon: Icon(Icons.chevron_right_rounded, color: foreground),
+                tooltip: 'Voir mes points',
               ),
             ],
           ),
@@ -1486,13 +1515,13 @@ class _ClientQuickActions extends StatelessWidget {
   final VoidCallback onNew;
   final VoidCallback onLibre;
   final VoidCallback onTrack;
-  final VoidCallback onHistory;
+  final VoidCallback onOffers;
 
   const _ClientQuickActions({
     required this.onNew,
     required this.onLibre,
     required this.onTrack,
-    required this.onHistory,
+    required this.onOffers,
   });
 
   @override
@@ -1525,9 +1554,9 @@ class _ClientQuickActions extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: ProcolisQuickAction(
-            icon: Icons.history_rounded,
-            label: 'Historique',
-            onTap: onHistory,
+            icon: Icons.local_offer_rounded,
+            label: 'Offres',
+            onTap: onOffers,
           ),
         ),
       ],
@@ -1562,10 +1591,12 @@ class _HomeGhostIconButton extends StatelessWidget {
 class _HomeNotificationButton extends StatelessWidget {
   final int unread;
   final VoidCallback onTap;
+  final IconData icon;
 
   const _HomeNotificationButton({
     required this.unread,
     required this.onTap,
+    this.icon = Icons.notifications_rounded,
   });
 
   @override
@@ -1573,7 +1604,7 @@ class _HomeNotificationButton extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        _HomeGhostIconButton(icon: Icons.notifications_rounded, onTap: onTap),
+        _HomeGhostIconButton(icon: icon, onTap: onTap),
         if (unread > 0)
           Positioned(
             top: 6,
@@ -1642,6 +1673,148 @@ class _ClientEmptyRecent extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Prévisualisation d'une offre (bid) rattachée à son colis, pour le tableau
+/// de bord.
+class _OfferPreview {
+  final Parcel parcel;
+  final Bid bid;
+
+  const _OfferPreview({required this.parcel, required this.bid});
+}
+
+/// Panneau "Offres reçues" du tableau de bord client : les 3 offres en attente
+/// les plus récentes + un bouton "Voir toutes les offres". Parité web
+/// (ClientDashboard.tsx).
+class _ClientOffersPanel extends StatelessWidget {
+  final List<_OfferPreview> offers;
+  final VoidCallback onSeeAll;
+
+  const _ClientOffersPanel({required this.offers, required this.onSeeAll});
+
+  @override
+  Widget build(BuildContext context) {
+    final top = offers.take(3).toList();
+    return PcCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Offres reçues',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+              if (offers.isNotEmpty)
+                PcBadge('${offers.length}', tone: PcTone.primary),
+            ],
+          ),
+          if (top.isEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Aucune offre reçue pour le moment.',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 10),
+            ...top.map((offer) => _OfferPreviewRow(offer: offer)),
+            const SizedBox(height: 12),
+            PcButton(
+              'Voir toutes les offres',
+              variant: PcButtonVariant.secondary,
+              size: PcButtonSize.sm,
+              block: true,
+              iconTrailing: Icons.chevron_right_rounded,
+              onPressed: onSeeAll,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OfferPreviewRow extends StatelessWidget {
+  final _OfferPreview offer;
+
+  const _OfferPreviewRow({required this.offer});
+
+  @override
+  Widget build(BuildContext context) {
+    final bid = offer.bid;
+    final driverName = bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName;
+    final subtitle = bid.message?.trim().isNotEmpty == true
+        ? bid.message!.trim()
+        : offer.parcel.trackingNumber;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          PcAvatar(driverName, size: 38, status: PcAvatarStatus.online),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  driverName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                if (subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 11.5,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${_formatMoney(bid.price)} FCFA',
+            style: AppTheme.mono(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.teal600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatMoney(double value) {
+    final str = value.toStringAsFixed(0);
+    final buffer = StringBuffer();
+    for (int i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) buffer.write(' ');
+      buffer.write(str[i]);
+    }
+    return buffer.toString();
   }
 }
 

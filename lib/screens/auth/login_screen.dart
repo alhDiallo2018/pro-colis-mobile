@@ -1,15 +1,16 @@
 // mobile/lib/screens/auth/login_screen.dart
-// Écran de connexion simplifié - PIN direct (aligné Web)
+// Écran de connexion — restyle ProColis design system (PIN direct, aligné Web).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
-import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/pc_components.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'register_page.dart';
 
@@ -84,6 +85,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loginWithPin() async {
+    if (_isLoading) return;
     final phoneNumber = _getFullPhoneNumber();
     final pin = _pinController.text.trim();
 
@@ -146,226 +148,292 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const AppLogo(size: 28),
-            const SizedBox(width: 10),
-            const Text(
-              'PRO COLIS',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: AppTheme.textPrimary),
-            ),
-          ],
-        ),
-        backgroundColor: AppTheme.cardColor,
-        foregroundColor: AppTheme.textPrimary,
-        elevation: 0,
-      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Hero
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0FA958), Color(0xFF018982), Color(0xFF0C6E7D)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
+            _AuthHero(topPadding: MediaQuery.of(context).padding.top),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(30),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.local_shipping,
-                        size: 46, color: Colors.white),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'Pilotez vos colis\ndepuis votre mobile.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    'Connectez-vous pour créer des colis, comparer les offres et suivre vos livraisons.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: Colors.white.withAlpha(210), fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            const Text(
-              'Connexion',
-              style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Entrez votre identifiant et votre code PIN.',
-              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 24),
-
-            // Téléphone
-            const Text(
-              'Numéro de téléphone',
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 52,
-                  decoration: BoxDecoration(
-                    border:
-                        Border.all(color: Colors.grey.withAlpha(60)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedCountryCode,
-                      isExpanded: false,
-                      icon: const Icon(Icons.arrow_drop_down, size: 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      style: const TextStyle(
-                          fontSize: 13, color: AppTheme.textPrimary),
-                      items: _countryCodes.map((c) {
-                        return DropdownMenuItem(
-                          value: c['code'],
-                          child: Text('${c['flag']} ${c['code']}',
-                              style: const TextStyle(fontSize: 12)),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedCountryCode = value);
-                          _savePhoneNumber(_phoneController.text.trim());
-                        }
-                      },
+                    'Connexion',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                      letterSpacing: -0.3,
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _phoneController,
-                    label: 'Numéro de téléphone',
-                    prefixIcon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
-                    onChanged: (value) {
-                      if (value != null) _savePhoneNumber(value);
-                    },
+                  const SizedBox(height: 6),
+                  Text(
+                    'Entrez votre identifiant et votre code PIN.',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14.5,
+                      color: AppTheme.slate500,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                  const SizedBox(height: 26),
 
-            // PIN
-            CustomTextField(
-              controller: _pinController,
-              label: 'Code PIN (6 chiffres)',
-              prefixIcon: Icons.lock,
-              suffixIcon: _obscurePin
-                  ? Icons.visibility_off
-                  : Icons.visibility,
-              onSuffixPressed: () =>
-                  setState(() => _obscurePin = !_obscurePin),
-              obscureText: _obscurePin,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-            ),
-            const SizedBox(height: 8),
-
-            // Remember me
-            Row(
-              children: [
-                Checkbox(
-                  value: _rememberMe,
-                  onChanged: (value) async {
-                    setState(() => _rememberMe = value ?? false);
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('remember_me', _rememberMe);
-                    if (!_rememberMe) {
-                      await prefs.remove('saved_phone');
-                    }
-                  },
-                  activeColor: AppTheme.primaryBlue,
-                  shape:
-                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                ),
-                Text(
-                  'Se souvenir de mon numéro',
-                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            CustomButton(
-              text: 'Se connecter',
-              onPressed: _loginWithPin,
-              isLoading: _isLoading,
-            ),
-            const SizedBox(height: 24),
-
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const RegisterPage()),
-                  );
-                },
-                child: RichText(
-                  text: TextSpan(
-                    style: TextStyle(
-                        fontSize: 14, color: AppTheme.textSecondary),
+                  // Téléphone
+                  _fieldLabel('Numéro de téléphone'),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const TextSpan(text: 'Pas encore de compte ? '),
-                      TextSpan(
-                        text: 'S\'inscrire',
-                        style: TextStyle(
-                          color: AppTheme.primaryBlue,
-                          fontWeight: FontWeight.w700,
+                      Container(
+                        height: 54,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardColor,
+                          border: Border.all(color: AppTheme.slate200),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusMd),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedCountryCode,
+                            isExpanded: false,
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusMd),
+                            icon: const Icon(Icons.arrow_drop_down,
+                                size: 20, color: AppTheme.slate500),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 8),
+                            style: AppTheme.mono(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary),
+                            items: _countryCodes.map((c) {
+                              return DropdownMenuItem(
+                                value: c['code'],
+                                child: Text(
+                                  '${c['flag']} ${c['code']}',
+                                  style: AppTheme.mono(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => _selectedCountryCode = value);
+                                _savePhoneNumber(_phoneController.text.trim());
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: CustomTextField(
+                          controller: _phoneController,
+                          label: 'Numéro de téléphone',
+                          prefixIcon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                          style: AppTheme.mono(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary),
+                          onChanged: (value) {
+                            _savePhoneNumber(value);
+                          },
                         ),
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+
+                  // PIN
+                  _fieldLabel('Code PIN'),
+                  const SizedBox(height: 8),
+                  CustomTextField(
+                    controller: _pinController,
+                    label: 'Code PIN (6 chiffres)',
+                    prefixIcon: Icons.lock_outline,
+                    suffixIcon: _obscurePin
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    onSuffixPressed: () =>
+                        setState(() => _obscurePin = !_obscurePin),
+                    obscureText: _obscurePin,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _loginWithPin(),
+                    onChanged: (value) {
+                      // Connexion automatique dès que le PIN complet (6 chiffres) est saisi
+                      if (value.trim().length == 6 && !_isLoading) {
+                        FocusScope.of(context).unfocus();
+                        _loginWithPin();
+                      }
+                    },
+                    style: AppTheme.mono(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Remember me
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _rememberMe,
+                        onChanged: (value) async {
+                          setState(() => _rememberMe = value ?? false);
+                          final prefs =
+                              await SharedPreferences.getInstance();
+                          await prefs.setBool('remember_me', _rememberMe);
+                          if (!_rememberMe) {
+                            await prefs.remove('saved_phone');
+                          }
+                        },
+                        activeColor: AppTheme.primary,
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusXs)),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Se souvenir de mon numéro',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.slate500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  PcButton(
+                    'Se connecter',
+                    size: PcButtonSize.lg,
+                    block: true,
+                    loading: _isLoading,
+                    iconTrailing: Icons.arrow_forward_rounded,
+                    onPressed: _loginWithPin,
+                  ),
+                  const SizedBox(height: 26),
+
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const RegisterPage()),
+                        );
+                      },
+                      child: RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            color: AppTheme.slate500,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Pas encore de compte ? '),
+                            TextSpan(
+                              text: 'Créer un compte',
+                              style: GoogleFonts.manrope(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _fieldLabel(String text) => Text(
+        text,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          color: AppTheme.slate700,
+        ),
+      );
+}
+
+// ============================================================
+// AuthHero — bandeau brand gradient (logo + wordmark + tagline)
+// ============================================================
+
+class _AuthHero extends StatelessWidget {
+  final double topPadding;
+  const _AuthHero({required this.topPadding});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(24, topPadding + 36, 24, 40),
+      decoration: const BoxDecoration(
+        gradient: AppTheme.brandGradient,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const AppLogo(size: 30, isWhite: true),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'PRO COLIS',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 30),
+          Text(
+            'Pilotez vos colis\ndepuis votre mobile.',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              height: 1.18,
+              letterSpacing: -0.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Connectez-vous pour créer des colis, comparer les offres et suivre vos livraisons.',
+            style: GoogleFonts.manrope(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }

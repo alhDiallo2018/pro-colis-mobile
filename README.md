@@ -13,7 +13,7 @@ docker compose up --build
 Par défaut :
 
 - App web : http://localhost:8081
-- API backend attendue par l'app : http://localhost:8080
+- API backend attendue par l'app : http://localhost:18081
 
 Variables utiles :
 

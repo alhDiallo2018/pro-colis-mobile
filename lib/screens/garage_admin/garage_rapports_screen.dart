@@ -1,13 +1,17 @@
 // mobile/lib/screens/garage_admin/garage_rapports_screen.dart
 // Rapports / Statistiques pour Admin Garage
+// Aligné Web (StatBox · Panel · BarChart · Badge)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/parcel.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pc_components.dart';
 
 class GarageRapportsScreen extends ConsumerStatefulWidget {
   const GarageRapportsScreen({super.key});
@@ -59,9 +63,8 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
       _parcels.where((p) => p.status == ParcelStatus.delivered).length;
   int get _cancelledCount =>
       _parcels.where((p) => p.status == ParcelStatus.cancelled).length;
-  double get _successRate => _totalParcels > 0
-      ? (_deliveredCount / _totalParcels) * 100
-      : 0;
+  double get _successRate =>
+      _totalParcels > 0 ? (_deliveredCount / _totalParcels) * 100 : 0;
 
   // 7-day activity
   List<Map<String, dynamic>> get _sevenDayActivity {
@@ -98,13 +101,14 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: AppTheme.cardColor,
-        title: const Text('Rapports',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text('Rapports'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
+          PcIconButton(
+            Icons.refresh_rounded,
+            tooltip: 'Actualiser',
             onPressed: _loadData,
           ),
+          const SizedBox(width: 6),
         ],
       ),
       body: _isLoading
@@ -113,348 +117,323 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
               ? _buildErrorView()
               : RefreshIndicator(
                   onRefresh: _loadData,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        _buildStatBoxes(),
-                        const SizedBox(height: 24),
-                        _buildSevenDayChart(),
-                        const SizedBox(height: 24),
-                        _buildStatusDistributionChart(),
-                      ],
-                    ),
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _buildStatGrid(),
+                      const SizedBox(height: 20),
+                      _buildSevenDayPanel(),
+                      const SizedBox(height: 20),
+                      _buildStatusDistributionPanel(),
+                    ],
                   ),
                 ),
+      bottomNavigationBar: const AppBottomNav(),
     );
   }
 
   Widget _buildErrorView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-          const SizedBox(height: 16),
-          Text('Erreur: $_error',
-              style: const TextStyle(color: AppTheme.slate500),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _loadData,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Réessayer'),
-          ),
-        ],
+    return PcEmptyState(
+      icon: Icons.error_outline_rounded,
+      tone: PcTone.red,
+      title: 'Impossible de charger',
+      message: _error,
+      action: PcButton(
+        'Réessayer',
+        icon: Icons.refresh_rounded,
+        onPressed: _loadData,
       ),
     );
   }
 
-  // ---- 2x2 Stat Boxes ----
+  // ---- Stat Boxes (2x2) ----
 
-  Widget _buildStatBoxes() {
-    return GridView(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.3,
-      ),
+  Widget _buildStatGrid() {
+    return Column(
       children: [
-        _StatBox(
-          icon: Icons.inventory,
-          value: _totalParcels.toString(),
-          label: 'Colis traités',
-          accent: AppTheme.teal500,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: PcStatBox(
+                icon: Icons.inventory_2_outlined,
+                value: _totalParcels.toString(),
+                label: 'Colis traités',
+                tone: PcTone.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: PcStatBox(
+                icon: Icons.task_alt_rounded,
+                value: _deliveredCount.toString(),
+                label: 'Livrés',
+                tone: PcTone.green,
+              ),
+            ),
+          ],
         ),
-        _StatBox(
-          icon: Icons.check_circle,
-          value: _deliveredCount.toString(),
-          label: 'Colis livrés',
-          accent: AppTheme.green600,
-        ),
-        _StatBox(
-          icon: Icons.cancel,
-          value: _cancelledCount.toString(),
-          label: 'Colis annulés',
-          accent: AppTheme.red400,
-        ),
-        _StatBox(
-          icon: Icons.trending_up,
-          value: '${_successRate.toStringAsFixed(1)}%',
-          label: 'Taux de réussite',
-          accent: AppTheme.amber400,
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: PcStatBox(
+                icon: Icons.cancel_outlined,
+                value: _cancelledCount.toString(),
+                label: 'Annulés',
+                tone: PcTone.red,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: PcStatBox(
+                icon: Icons.verified_outlined,
+                value: '${_successRate.toStringAsFixed(0)}%',
+                label: 'Taux de livraison',
+                tone: PcTone.amber,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  // ---- 7-Day Activity Bar Chart ----
+  // ---- 7-Day Activity Vertical Bar Chart ----
 
-  Widget _buildSevenDayChart() {
+  Widget _buildSevenDayPanel() {
     final days = _sevenDayActivity;
-    final maxCount =
-        days.fold<int>(0, (max, d) => (d['count'] as int) > max ? d['count'] as int : max);
-    final effectiveMax = maxCount > 0 ? maxCount : 1;
+    final total = days.fold<int>(0, (s, d) => s + (d['count'] as int));
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.slate200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Activité des 7 derniers jours',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...days.map((day) {
-            final count = day['count'] as int;
-            final fraction = count / effectiveMax;
-            final label = day['label'] as String;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 36,
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.slate600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Container(
-                      height: 32,
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusXs),
-                        gradient: const LinearGradient(
-                          colors: [AppTheme.teal500, AppTheme.green600],
-                        ),
-                      ),
-                      alignment: Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: fraction,
-                        child: Container(
-                          height: 32,
-                          decoration: BoxDecoration(
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusXs),
-                            gradient: const LinearGradient(
-                              colors: [AppTheme.teal500, AppTheme.green600],
-                            ),
-                          ),
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 8),
-                          child: count > 0
-                              ? Text(
-                                  '$count',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
+    return _panel(
+      title: 'Activité · 7 jours',
+      action: PcBadge('$total colis', tone: PcTone.green),
+      body: _buildBarChart(days),
     );
   }
 
-  // ---- Status Distribution Chart ----
+  Widget _buildBarChart(List<Map<String, dynamic>> days) {
+    final maxCount =
+        days.fold<int>(0, (m, d) => (d['count'] as int) > m ? d['count'] as int : m);
+    final effectiveMax = maxCount > 0 ? maxCount : 1;
 
-  Widget _buildStatusDistributionChart() {
-    final distribution = _statusDistribution;
-    final entries = distribution.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    if (entries.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final maxValue =
-        entries.fold<int>(0, (max, e) => e.value > max ? e.value : max);
-    final effectiveMax = maxValue > 0 ? maxValue : 1;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.slate200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Répartition par statut',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...entries.map((entry) {
-            final status = entry.key;
-            final count = entry.value;
-            final fraction = count / effectiveMax;
-            final statusColors = AppTheme.statusColors(status);
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      children: [
+        SizedBox(
+          height: 140,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(days.length, (i) {
+              final count = days[i]['count'] as int;
+              final isLast = i == days.length - 1;
+              final fraction = count / effectiveMax;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: i == 0 ? 0 : 4,
+                    right: isLast ? 0 : 4,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
+                      if (count > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '$count',
+                            style: AppTheme.mono(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: isLast
+                                  ? AppTheme.amber600
+                                  : AppTheme.teal600,
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: FractionallySizedBox(
+                          alignment: Alignment.bottomCenter,
+                          heightFactor: fraction.clamp(0.04, 1.0),
+                          child: Container(
                             decoration: BoxDecoration(
-                              color: statusColors.dot,
-                              shape: BoxShape.circle,
+                              gradient: isLast
+                                  ? null
+                                  : const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        AppTheme.teal400,
+                                        AppTheme.teal600
+                                      ],
+                                    ),
+                              color: isLast ? AppTheme.amber400 : null,
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(5)),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            status.label,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        '$count',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.slate600,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 28,
-                    decoration: BoxDecoration(
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusXs),
-                      color: AppTheme.slate100,
-                    ),
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: fraction,
-                      child: Container(
-                        height: 28,
-                        decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusXs),
-                          color: statusColors.dot,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(days.length, (i) {
+            return Expanded(
+              child: Text(
+                (days[i]['label'] as String).toUpperCase(),
+                textAlign: TextAlign.center,
+                style: AppTheme.mono(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.slate400,
+                ),
               ),
             );
           }),
-        ],
-      ),
+        ),
+      ],
     );
   }
-}
 
-// ==================== STAT BOX WIDGET ====================
+  // ---- Status Distribution ----
 
-class _StatBox extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color accent;
+  Widget _buildStatusDistributionPanel() {
+    final distribution = _statusDistribution;
+    final entries = distribution.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
-  const _StatBox({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.accent,
-  });
+    final maxValue =
+        entries.fold<int>(0, (m, e) => e.value > m ? e.value : m);
+    final effectiveMax = maxValue > 0 ? maxValue : 1;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: accent.withOpacity( 0.08),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: accent.withOpacity( 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
+    return _panel(
+      title: 'Répartition par statut',
+      body: entries.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Aucune donnée.',
+                style: GoogleFonts.manrope(
+                  fontSize: 13.5,
+                  color: AppTheme.slate500,
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                for (int i = 0; i < entries.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 14),
+                  _buildStatusRow(entries[i], effectiveMax),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _buildStatusRow(MapEntry<ParcelStatus, int> entry, int effectiveMax) {
+    final status = entry.key;
+    final count = entry.value;
+    final fraction = count / effectiveMax;
+    final colors = AppTheme.statusColors(status);
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 104,
+          child: Text(
+            status.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.slate700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            height: 10,
             decoration: BoxDecoration(
-              color: accent.withOpacity( 0.15),
-              borderRadius: BorderRadius.circular(10),
+              color: AppTheme.slate100,
+              borderRadius: BorderRadius.circular(999),
             ),
-            child: Icon(icon, color: accent, size: 20),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: accent,
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: fraction.clamp(0.0, 1.0),
+              child: Container(
+                height: 10,
+                decoration: BoxDecoration(
+                  color: colors.dot,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.slate500,
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 28,
+          child: Text(
+            '$count',
+            textAlign: TextAlign.right,
+            style: AppTheme.mono(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
+        ),
+      ],
+    );
+  }
+
+  // ---- Panel générique (surface + entête titre/action, aligné Web) ----
+
+  Widget _panel({
+    required String title,
+    Widget? action,
+    required Widget body,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.slate200),
+        boxShadow: AppTheme.shadowXs(),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                if (action != null) action,
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: AppTheme.slate200),
+          Padding(padding: const EdgeInsets.all(16), child: body),
         ],
       ),
     );

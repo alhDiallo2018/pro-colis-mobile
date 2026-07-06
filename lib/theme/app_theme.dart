@@ -12,21 +12,30 @@ class AppTheme {
   static const Color green700 = Color(0xFF07803E);
   static const Color green800 = Color(0xFF0A6334);
 
+  static const Color green300 = Color(0xFF4FC684);
+
   static const Color teal50 = Color(0xFFE4F4F2);
   static const Color teal100 = Color(0xFFBFE6E2);
+  static const Color teal400 = Color(0xFF199A92);
   static const Color teal500 = Color(0xFF018982);
   static const Color teal600 = Color(0xFF066E68);
   static const Color teal700 = Color(0xFF0B5650);
   static const Color teal800 = Color(0xFF0C453F);
 
   static const Color deep500 = Color(0xFF0C6E7D);
+  static const Color deep700 = Color(0xFF0B4853);
   static const Color amber50 = Color(0xFFFFF6E2);
+  static const Color amber100 = Color(0xFFFDE9B8);
   static const Color amber400 = Color(0xFFFCA202);
   static const Color amber500 = Color(0xFFE98C00);
+  static const Color amber600 = Color(0xFFC77600);
   static const Color amber700 = Color(0xFF9A5B00);
+  static const Color amberOnFg = Color(0xFF3A2600); // texte sur fond ambre
   static const Color red50 = Color(0xFFFDEAE6);
+  static const Color red100 = Color(0xFFFACABF);
   static const Color red400 = Color(0xFFE5240F);
   static const Color red500 = Color(0xFFC81C08);
+  static const Color infoSoft = Color(0xFFE4F1F4);
 
   static const Color slate0 = Color(0xFFFFFFFF);
   static const Color slate50 = Color(0xFFF6F8F8);
@@ -90,6 +99,31 @@ class AppTheme {
           color: primary.withOpacity( 0.28),
           blurRadius: 22,
           offset: const Offset(0, 8),
+        ),
+      ];
+
+  static List<BoxShadow> amberShadow() => [
+        BoxShadow(
+          color: amber400.withOpacity( 0.30),
+          blurRadius: 22,
+          offset: const Offset(0, 8),
+        ),
+      ];
+
+  // Ombres discrètes (spec design : xs / sm).
+  static List<BoxShadow> shadowXs() => [
+        BoxShadow(
+          color: const Color(0xFF0B464F).withOpacity( 0.06),
+          blurRadius: 2,
+          offset: const Offset(0, 1),
+        ),
+      ];
+
+  static List<BoxShadow> shadowSm() => [
+        BoxShadow(
+          color: const Color(0xFF0B464F).withOpacity( 0.08),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
         ),
       ];
 
