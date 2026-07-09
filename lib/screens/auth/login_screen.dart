@@ -396,7 +396,7 @@ class _AuthHero extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
+                  color: Colors.white.withOpacity( 0.16),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const AppLogo(size: 30, isWhite: true),
@@ -428,7 +428,7 @@ class _AuthHero extends StatelessWidget {
           Text(
             'Connectez-vous pour créer des colis, comparer les offres et suivre vos livraisons.',
             style: GoogleFonts.manrope(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: Colors.white.withOpacity( 0.9),
               fontSize: 14,
               height: 1.5,
             ),

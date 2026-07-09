@@ -142,7 +142,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.1),
+                color: AppTheme.primary.withOpacity( 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.local_shipping_rounded,
@@ -296,11 +296,11 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: FilledButton.icon(
+              child: ElevatedButton.icon(
                 onPressed: _contact,
                 icon: const Icon(Icons.chat_rounded),
                 label: const Text('Contacter'),
-                style: FilledButton.styleFrom(
+                style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(

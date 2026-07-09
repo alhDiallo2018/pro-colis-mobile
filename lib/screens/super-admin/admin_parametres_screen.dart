@@ -223,7 +223,6 @@ class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      bottomNavigationBar: const AppBottomNav(),
       appBar: AppBar(
         backgroundColor: AppTheme.cardColor,
         title: const Text('Paramètres système',

@@ -19,14 +19,15 @@ import 'package:procolis/models/user.dart';
 import 'package:procolis/models/voice_message.dart';
 import 'package:procolis/screens/dashboard/notifications/notifications_screen.dart';
 import 'package:procolis/services/api_service.dart';
+import 'package:procolis/services/commission_service.dart';
 import 'package:procolis/services/notification_service.dart';
 import 'package:procolis/theme/app_theme.dart';
-import 'package:procolis/widgets/score_display_widget.dart';
 import 'package:record/record.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
@@ -1779,7 +1780,7 @@ class _DriverTableauScreen extends StatefulWidget {
 
 class _DriverTableauScreenState extends State<_DriverTableauScreen> {
   final ApiService _api = ApiService();
-  double? _pointsBalance;
+  double? _walletBalance;
   List<Map<String, dynamic>> _bidsSent = [];
   List<Map<String, dynamic>> _ads = [];
   double _weekRevenue = 0;
@@ -1793,7 +1794,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
 
   Future<void> _loadDashboardData() async {
     final results = await Future.wait([
-      _api.getScoreBalance(),
+      _api.getWalletBalance(widget.user?.id ?? ''),
       _api.getDriverBidsSent(),
       _api.getMyAdvertisements(),
       _api.getPaymentHistory(),
@@ -1817,7 +1818,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
       } catch (_) {}
     }
     setState(() {
-      _pointsBalance = results[0] as double;
+      _walletBalance = results[0] as double;
       _bidsSent = results[1] as List<Map<String, dynamic>>;
       _ads = results[2] as List<Map<String, dynamic>>;
       _revenueBars = bars;
@@ -1858,8 +1859,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
         : null;
     final deliveries = user?.completedDeliveries ?? user?.totalDeliveries ?? 0;
     final activeCount = _activeMissions.length;
-    final points =
-        _pointsBalance != null ? _fcfa(_pointsBalance!) : '—';
+    final wallet =
+        _walletBalance != null ? '${_fcfa(_walletBalance!)}' : '—';
     final rating =
         (user?.rating ?? 4.9).toStringAsFixed(1).replaceAll('.', ',');
 
@@ -1879,11 +1880,14 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                 mainAxisSpacing: 16,
                 childAspectRatio: 1.24,
                 children: [
-                  PcStatBox(
-                    icon: Icons.account_balance_wallet_rounded,
-                    value: '$points',
-                    label: 'Points gagnés',
-                    tone: PcTone.amber,
+                  GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverPointsScreen())),
+                    child: PcStatBox(
+                      icon: Icons.account_balance_wallet_rounded,
+                      value: '$wallet FCFA',
+                      label: 'Portefeuille',
+                      tone: PcTone.amber,
+                    ),
                   ),
                   PcStatBox(
                     icon: Icons.local_shipping_rounded,
@@ -1906,6 +1910,27 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                 ],
               ),
               const SizedBox(height: 14),
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverPointsScreen())),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.amberGradient,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.add_circle_rounded, color: AppTheme.amberOnFg, size: 22),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('Recharger mon portefeuille', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.amberOnFg)),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: AppTheme.amberOnFg),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               _PublishTripShortcut(onTap: widget.onPublishTrip),
               const SizedBox(height: 28),
               PcSectionHeader(
@@ -3013,7 +3038,10 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
   }
 
   Widget _buildMissionFooter(Parcel mission) {
-    final points = mission.status.isCompleted ? '+45 pts' : '+90 pts';
+    final commissionEstimate =
+        mission.price != null ? CommissionService.calculate(mission.price!) : 0;
+    final commissionLabel =
+        mission.status.isCompleted ? 'Commission: ${commissionEstimate.toStringAsFixed(0)} FCFA' : 'Commission est.: ${commissionEstimate.toStringAsFixed(0)} FCFA';
     final client =
         mission.senderName.isNotEmpty ? mission.senderName : 'Client Procolis';
 
@@ -3023,11 +3051,11 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
         Row(
           children: [
             Text(
-              points,
+              commissionLabel,
               style: AppTheme.mono(
-                color: AppTheme.amber500,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
+                color: AppTheme.slate500,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const Spacer(),
@@ -3173,7 +3201,7 @@ class _DriverProfileTabScreen extends ConsumerWidget {
   int get _deliveries =>
       user?.completedDeliveries ?? user?.totalDeliveries ?? 0;
 
-  int get _points => _deliveries > 0 ? _deliveries * 45 : 6180;
+  double get _walletBalance => user?.walletBalance ?? 0;
 
   String get _rating =>
       (user?.rating ?? 4.9).toStringAsFixed(1).replaceAll('.', ',');
@@ -3310,8 +3338,8 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                   Expanded(
                     child: _DriverProfileStat(
                       icon: Icons.account_balance_wallet_rounded,
-                      value: '$_points',
-                      label: 'Points',
+                      value: '${_walletBalance.toStringAsFixed(0)} FCFA',
+                      label: 'Solde',
                       tone: AppTheme.amber500,
                       background: AppTheme.amber50,
                     ),
@@ -3367,8 +3395,8 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.account_balance_wallet_rounded,
-                      title: 'Points & paiements',
-                      subtitle: 'Solde de points et recharge',
+                      title: 'Portefeuille & crédits',
+                      subtitle: 'Solde FCFA et recharge',
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const DriverPointsScreen())),
                     ),
@@ -5064,7 +5092,54 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                         ],
                       ),
                     ),
-                    const ScoreDisplayWidget(),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final walletState = ref.watch(walletProvider);
+                        final walletBalance = walletState.balance;
+                        return GestureDetector(
+                          onTap: () => context.push('/driver/points'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF0B6E3A), Color(0xFF0D8C46)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      const Color(0xFF0B6E3A).withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.account_balance_wallet_rounded,
+                                  color: Colors.amber,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${walletBalance.toStringAsFixed(0)} FCFA',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     SizedBox(width: 8),
                     // PAS DE NOTIFICATION ICI - elle est dans l'AppBar du DriverDashboard
                   ],

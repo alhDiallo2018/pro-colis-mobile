@@ -64,7 +64,6 @@ class _DriverHistoriqueScreenState
         surfaceTintColor: Colors.transparent,
         shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
-      bottomNavigationBar: const AppBottomNav(),
       body: RefreshIndicator(
         color: AppTheme.primary,
         onRefresh: _load,

@@ -224,7 +224,6 @@ class _GarageAssignationsScreenState
                 ],
               ),
             ),
-      bottomNavigationBar: const AppBottomNav(),
     );
   }
 

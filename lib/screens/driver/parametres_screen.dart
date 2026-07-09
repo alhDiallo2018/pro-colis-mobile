@@ -219,7 +219,6 @@ class _DriverParametresScreenState
         title: const Text('Paramètres'),
         shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
-      bottomNavigationBar: const AppBottomNav(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

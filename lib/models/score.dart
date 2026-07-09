@@ -1,3 +1,7 @@
+// LEGACY — Remplacé par wallet.dart
+// Ce modèle est conservé pour compatibilité temporaire.
+// Nouveau code → utiliser Wallet, WalletTransaction, WalletTransactionType.
+// Les anciennes méthodes score continuent de fonctionner via le provider legacy.
 // lib/models/score.dart
 class Score {
   final String userId;

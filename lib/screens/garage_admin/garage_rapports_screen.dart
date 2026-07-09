@@ -128,7 +128,6 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
                     ],
                   ),
                 ),
-      bottomNavigationBar: const AppBottomNav(),
     );
   }
 

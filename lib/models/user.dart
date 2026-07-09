@@ -101,6 +101,10 @@ class User {
   final int? completedDeliveries;
   final int? cancelledDeliveries;
   
+  // Wallet / Commission
+  final double walletBalance;
+  final double totalCommissionPaid;
+  
   // Vérifications
   final bool isEmailVerified;
   final bool isPhoneVerified;
@@ -140,6 +144,8 @@ class User {
     this.totalDeliveries,
     this.completedDeliveries,
     this.cancelledDeliveries,
+    this.walletBalance = 0,
+    this.totalCommissionPaid = 0,
     required this.createdAt,
     this.updatedAt,
     this.lastLogin,
@@ -216,6 +222,8 @@ class User {
       totalDeliveries: parseInt(json['totalDeliveries']) ?? parseInt(json['total_deliveries']),
       completedDeliveries: parseInt(json['completedDeliveries']) ?? parseInt(json['completed_deliveries']),
       cancelledDeliveries: parseInt(json['cancelledDeliveries']) ?? parseInt(json['cancelled_deliveries']),
+      walletBalance: (json['walletBalance'] as num?)?.toDouble() ?? 0,
+      totalCommissionPaid: (json['totalCommissionPaid'] as num?)?.toDouble() ?? 0,
       createdAt: parseDateTime(json['createdAt']) ?? parseDateTime(json['created_at']) ?? DateTime.now(),
       updatedAt: parseDateTime(json['updatedAt']) ?? parseDateTime(json['updated_at']),
       lastLogin: parseDateTime(json['lastLogin']) ?? parseDateTime(json['last_login']),
@@ -251,6 +259,8 @@ class User {
     'totalDeliveries': totalDeliveries,
     'completedDeliveries': completedDeliveries,
     'cancelledDeliveries': cancelledDeliveries,
+    'walletBalance': walletBalance,
+    'totalCommissionPaid': totalCommissionPaid,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt?.toIso8601String(),
     'lastLogin': lastLogin?.toIso8601String(),
@@ -296,6 +306,10 @@ class User {
   String get formattedRating => rating?.toStringAsFixed(1) ?? 'N/A';
   String get formattedTotalDeliveries => totalDeliveries?.toString() ?? '0';
   String get formattedSuccessRate => '${(successRate * 100).toStringAsFixed(0)}%';
+  
+  // Wallet
+  bool get hasEnoughCredit => walletBalance > 0;
+  bool get canReceiveDelivery => walletBalance >= 100; // Commission minimum
   
   // Affichage
   String get displayName => fullName;
@@ -406,6 +420,8 @@ class User {
     int? totalDeliveries,
     int? completedDeliveries,
     int? cancelledDeliveries,
+    double? walletBalance,
+    double? totalCommissionPaid,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? lastLogin,
@@ -438,6 +454,8 @@ class User {
       totalDeliveries: totalDeliveries ?? this.totalDeliveries,
       completedDeliveries: completedDeliveries ?? this.completedDeliveries,
       cancelledDeliveries: cancelledDeliveries ?? this.cancelledDeliveries,
+      walletBalance: walletBalance ?? this.walletBalance,
+      totalCommissionPaid: totalCommissionPaid ?? this.totalCommissionPaid,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastLogin: lastLogin ?? this.lastLogin,

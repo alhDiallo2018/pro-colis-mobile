@@ -7,7 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/wallet.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/commission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
@@ -24,7 +27,7 @@ class DriverPointsScreen extends ConsumerStatefulWidget {
 class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
   final ApiService _apiService = ApiService();
   double _balance = 0;
-  List<Map<String, dynamic>> _transactions = [];
+  List<WalletTransaction> _transactions = [];
   bool _isLoading = true;
 
   @override
@@ -36,12 +39,14 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final balance = await _apiService.getScoreBalance();
-      final history = await _apiService.getScoreHistory();
+      final authState = ref.read(authProvider);
+      final userId = authState.user?.id ?? '';
+      final balance = await _apiService.getWalletBalance(userId);
+      final wallet = await _apiService.getWallet(userId);
       if (mounted) {
         setState(() {
           _balance = balance;
-          _transactions = history;
+          _transactions = wallet.transactions;
           _isLoading = false;
         });
       }
@@ -70,10 +75,9 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: AppTheme.cardColor,
-        title: const Text('Mes Points',
+        title: const Text('Mon Portefeuille',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
       ),
-      bottomNavigationBar: const AppBottomNav(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -83,10 +87,10 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                 children: [
                   _buildBalanceCard(),
                   const SizedBox(height: 20),
-                  const PcSectionHeader('Comment gagner des points'),
+                  const PcSectionHeader('Comment gérer mon portefeuille'),
                   _buildHowItWorks(),
                   const SizedBox(height: 22),
-                  const PcSectionHeader('Historique des points'),
+                  const PcSectionHeader('Historique du portefeuille'),
                   _buildTransactionHistory(),
                 ],
               ),
@@ -124,7 +128,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'SOLDE DE POINTS',
+                      'PORTEFEUILLE PRO-COLIS',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -147,7 +151,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          'pts',
+                          'FCFA',
                           style: AppTheme.mono(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -155,6 +159,15 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Commission: ${CommissionService.percentage.toStringAsFixed(0)}% (min ${CommissionService.minimum.toStringAsFixed(0)} FCFA, max ${CommissionService.maximum.toStringAsFixed(0)} FCFA)',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.amberOnFg.withOpacity(0.6),
+                      ),
                     ),
                   ],
                 ),
@@ -212,11 +225,11 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
       child: Column(
         children: [
           row(Icons.local_shipping_rounded, PcTone.green,
-              'Effectuez des livraisons', 'Gagnez des points à chaque colis livré'),
-          row(Icons.add_circle_rounded, PcTone.amber, 'Rechargez votre solde',
-              '1 point = 1 FCFA'),
+              'Des commissions sont automatiquement déduites', 'À chaque livraison acceptée'),
+          row(Icons.add_circle_rounded, PcTone.amber, 'Rechargez votre portefeuille',
+              '1 FCFA = 1 crédit. Rechargez en Wave, OM, CB...'),
           row(Icons.rocket_launch_rounded, PcTone.primary,
-              'Boostez vos annonces', 'Utilisez vos points pour plus de visibilité',
+              'Maintenez un solde suffisant', 'Pour accepter des livraisons',
               divider: false),
         ],
       ),
@@ -230,7 +243,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
         child: const PcEmptyState(
           icon: Icons.savings_rounded,
           title: 'Aucun mouvement',
-          message: 'Vos crédits et débits de points apparaîtront ici.',
+          message: 'Vos crédits et débits apparaîtront ici.',
         ),
       );
     }
@@ -238,13 +251,12 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
     final rows = <Widget>[];
     for (var i = 0; i < _transactions.length; i++) {
       final tx = _transactions[i];
-      final amount = (tx['amount'] ?? 0).toInt();
-      final isPositive = amount >= 0;
-      final description = tx['description']?.toString() ?? '';
-      final type = tx['type']?.toString() ?? '';
-      final date =
-          tx['createdAt']?.toString() ?? tx['timestamp']?.toString() ?? '';
-      final title = description.isNotEmpty ? description : type;
+      final amount = tx.amount;
+      final isPositive = amount > 0 && tx.type == WalletTransactionType.deposit;
+      final description = tx.description;
+      final typeLabel = tx.type.label;
+      final date = tx.createdAt.toIso8601String();
+      final title = description.isNotEmpty ? description : typeLabel;
 
       rows.add(
         PcListRow(
@@ -264,7 +276,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
           title: title.isNotEmpty ? title : 'Mouvement',
           subtitle: date.isNotEmpty ? _formatDate(date) : null,
           trailing: Text(
-            '${isPositive ? '+' : ''}${_formatFcfa(amount)} pts',
+            '${amount > 0 ? '+' : ''}${_formatFcfa(amount)} FCFA',
             style: AppTheme.mono(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -285,11 +297,13 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
   // ------ Recharge Bottom Sheet ------
 
   void _showRechargeSheet() {
+    final authState = ref.read(authProvider);
+    final userId = authState.user?.id ?? '';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _RechargeSheetContent(),
+      builder: (_) => _RechargeSheetContent(userId: userId),
     ).then((_) => _loadData());
   }
 }
@@ -343,7 +357,8 @@ class _GhostButton extends StatelessWidget {
 // ==================== RECHARGE BOTTOM SHEET ====================
 
 class _RechargeSheetContent extends StatefulWidget {
-  const _RechargeSheetContent();
+  final String userId;
+  const _RechargeSheetContent({required this.userId});
 
   @override
   State<_RechargeSheetContent> createState() => _RechargeSheetContentState();
@@ -421,11 +436,14 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
 
     setState(() => _isSubmitting = true);
     try {
-      final result = await _apiService.purchasePoints({
-        'amount': _amount,
-        'method': _selectedMethod,
-        if (_needsPhone) 'phone': _phoneController.text.trim(),
-      });
+      final result = await _apiService.depositWallet(
+        widget.userId,
+        {
+          'amount': _amount,
+          'method': _selectedMethod,
+          if (_needsPhone) 'phone': _phoneController.text.trim(),
+        },
+      );
 
       if (mounted) {
         if (result['success'] == true) {
@@ -480,7 +498,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Recharger mes points',
+            'Recharger mon portefeuille',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -489,7 +507,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
           ),
           const SizedBox(height: 6),
           const Text(
-            '1 point = 1 FCFA',
+            '1 FCFA = 1 crédit. Les crédits sont utilisés pour payer les commissions.',
             style: TextStyle(fontSize: 13, color: AppTheme.slate500),
           ),
           const SizedBox(height: 16),
@@ -547,22 +565,21 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                '${pack['points']} pts',
+                                '${pack['points']}',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w800,
                                   color: selected
                                       ? AppTheme.amber700
                                       : AppTheme.textPrimary,
                                 ),
                               ),
-                              Text(
-                                '${pack['price']} FCFA',
+                              const Text(
+                                'FCFA',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  color: selected
-                                      ? AppTheme.amber500
-                                      : AppTheme.slate500,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.slate500,
                                 ),
                               ),
                             ],

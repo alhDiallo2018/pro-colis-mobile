@@ -97,7 +97,6 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
               : _drivers.isEmpty
                   ? _buildEmptyView()
                   : _buildDriversList(),
-      bottomNavigationBar: const AppBottomNav(),
     );
   }
 

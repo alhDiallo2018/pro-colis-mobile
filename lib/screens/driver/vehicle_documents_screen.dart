@@ -268,7 +268,6 @@ class _VehicleDocumentsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      bottomNavigationBar: const AppBottomNav(),
       body: SafeArea(
         bottom: false,
         child: Column(

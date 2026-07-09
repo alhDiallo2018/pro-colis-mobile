@@ -100,7 +100,6 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(title: const Text('Ma Zone')),
-      bottomNavigationBar: const AppBottomNav(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildContent(user),

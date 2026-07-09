@@ -122,7 +122,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 Text(
                   'Quelques informations et vous êtes prêt.',
                   style: GoogleFonts.manrope(
-                    color: Colors.white.withValues(alpha: 0.88),
+                    color: Colors.white.withOpacity( 0.88),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -346,7 +346,7 @@ class _TranslucentBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.16),
+      color: Colors.white.withOpacity( 0.16),
       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
       child: InkWell(
         onTap: onTap,

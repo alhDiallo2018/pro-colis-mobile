@@ -117,7 +117,6 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
         backgroundColor: AppTheme.cardColor,
         title: const Text('Mes revenus'),
       ),
-      bottomNavigationBar: const AppBottomNav(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

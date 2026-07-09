@@ -8,4 +8,5 @@ export 'score.dart';
 export 'user.dart';
 export 'vehicle.dart';
 export 'voice_message.dart';
+export 'wallet.dart';
 

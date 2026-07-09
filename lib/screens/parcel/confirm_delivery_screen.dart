@@ -581,9 +581,9 @@ class _Keypad extends StatelessWidget {
         final key = keys[index];
         if (key.isEmpty) return const SizedBox.shrink();
 
-        return FilledButton.tonal(
+        return OutlinedButton(
           onPressed: () => onKey(key),
-          style: FilledButton.styleFrom(
+          style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.cardColor,
             foregroundColor: AppTheme.textPrimary,
             shape: RoundedRectangleBorder(

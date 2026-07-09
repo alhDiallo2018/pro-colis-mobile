@@ -333,7 +333,6 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const AppBottomNav(),
       body: Stack(
         children: [
           if (_sameLocation)

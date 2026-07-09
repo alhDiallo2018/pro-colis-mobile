@@ -1148,7 +1148,7 @@ class _Waveform extends StatelessWidget {
                 height: height,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.38),
+                  color: AppTheme.primary.withOpacity( 0.38),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),

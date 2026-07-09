@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/garage.dart';
 import '../models/parcel.dart';
 import '../models/user.dart';
+import '../models/wallet.dart';
 import 'mock_data.dart';
 
 class ApiService {
@@ -1012,6 +1013,113 @@ class ApiService {
       Map<String, dynamic> data) async {
     try {
       final response = await _dio.post('/score/purchase', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ==================== WALLET ====================
+
+  Future<Wallet> getWallet(String userId) async {
+    try {
+      if (isMockMode) {
+        return Wallet(
+          id: 'wallet-$userId',
+          userId: userId,
+          balance: 5000,
+          totalDeposited: 10000,
+          totalConsumed: 750,
+          totalRefunded: 0,
+          isActive: true,
+          createdAt: DateTime.now().subtract(const Duration(days: 30)),
+          updatedAt: DateTime.now(),
+          transactions: [
+            WalletTransaction(
+              id: 'wtx-1',
+              userId: userId,
+              walletId: 'wallet-$userId',
+              amount: 5000,
+              type: WalletTransactionType.deposit,
+              parcelId: null,
+              trackingNumber: null,
+              description: 'Recharge wallet',
+              createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+            ),
+            WalletTransaction(
+              id: 'wtx-2',
+              userId: userId,
+              walletId: 'wallet-$userId',
+              amount: -250,
+              type: WalletTransactionType.commission,
+              parcelId: 'parcel-1',
+              trackingNumber: 'PC-1234-5678',
+              description: 'Commission livraison #PC-1234-5678',
+              createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+            ),
+          ],
+        );
+      }
+      final response = await _dio.get('/wallet/$userId');
+      final data = _handleResponse(response);
+      return Wallet.fromJson(data['wallet'] as Map<String, dynamic>);
+    } catch (e) {
+      // Fallback: wallet vide
+      return Wallet(
+        id: 'wallet-$userId',
+        userId: userId,
+        balance: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }
+  }
+
+  Future<double> getWalletBalance(String userId) async {
+    try {
+      final wallet = await getWallet(userId);
+      return wallet.balance;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<Map<String, dynamic>> depositWallet(
+      String userId, Map<String, dynamic> data) async {
+    try {
+      if (isMockMode) {
+        final depositAmount = (data['amount'] as num?)?.toDouble() ?? 0;
+        return {
+          'success': true,
+          'message': 'Recharge de $depositAmount FCFA effectuée',
+          'newBalance': 5000 + depositAmount,
+        };
+      }
+      final response =
+          await _dio.post('/wallet/$userId/deposit', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> consumeDeliveryCommission({
+    required String driverId,
+    required String parcelId,
+    required double deliveryAmount,
+  }) async {
+    try {
+      if (isMockMode) {
+        return {
+          'success': true,
+          'message': 'Commission déduite',
+          'newBalance': 4750,
+        };
+      }
+      final response = await _dio.post('/wallet/$driverId/consume', data: {
+        'parcelId': parcelId,
+        'deliveryAmount': deliveryAmount,
+      });
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};

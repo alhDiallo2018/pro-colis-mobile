@@ -468,7 +468,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: DraggableScrollableSheet(
