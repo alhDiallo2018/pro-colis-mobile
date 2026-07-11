@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/user.dart';
@@ -205,7 +206,7 @@ class _DriverParametresScreenState
     if (confirm != true) return;
     await ref.read(authProvider.notifier).logout();
     if (!mounted) return;
-    Navigator.popUntil(context, (route) => route.isFirst);
+    GoRouter.of(context).go('/login');
   }
 
   @override

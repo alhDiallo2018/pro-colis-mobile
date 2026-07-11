@@ -2198,14 +2198,27 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                       CircleAvatar(
                         radius: 31,
                         backgroundColor: const Color(0xFFC9F3EE),
-                        child: Text(
-                          user?.initials ?? 'PC',
-                          style: const TextStyle(
-                            color: AppTheme.teal700,
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                        backgroundImage: user != null &&
+                                user.profilePhoto != null &&
+                                user.profilePhoto!.isNotEmpty
+                            ? NetworkImage(
+                                user.profilePhoto!.startsWith('http')
+                                    ? user.profilePhoto!
+                                    : 'https://procolis-backend.onrender.com${user.profilePhoto!}',
+                              )
+                            : null,
+                        child: user != null &&
+                                user.profilePhoto != null &&
+                                user.profilePhoto!.isNotEmpty
+                            ? null
+                            : Text(
+                                user?.initials ?? 'PC',
+                                style: const TextStyle(
+                                  color: AppTheme.teal700,
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                       ),
                       Positioned(
                         right: -1,
@@ -3213,14 +3226,18 @@ class _DriverProfileTabScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _logout(WidgetRef ref) async {
+  Future<void> _logout(BuildContext context, WidgetRef ref) async {
     await ref.read(authProvider.notifier).logout();
+    if (!context.mounted) return;
+    GoRouter.of(context).go('/login');
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final displayName = user?.fullName ?? 'Chauffeur';
     final status = user?.driverStatus ?? DriverStatus.available;
+    final photoUrl = user?.profilePhoto;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
     return Column(
       children: [
@@ -3245,14 +3262,23 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                         CircleAvatar(
                           radius: 42,
                           backgroundColor: AppTheme.primaryLight,
-                          child: Text(
-                            user?.initials ?? 'PC',
-                            style: const TextStyle(
-                              color: AppTheme.teal700,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
+                          backgroundImage: hasPhoto
+                              ? NetworkImage(
+                                  photoUrl!.startsWith('http')
+                                      ? photoUrl!
+                                      : 'https://procolis-backend.onrender.com$photoUrl',
+                                )
+                              : null,
+                          child: hasPhoto
+                              ? null
+                              : Text(
+                                  user?.initials ?? 'PC',
+                                  style: const TextStyle(
+                                    color: AppTheme.teal700,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
                         ),
                         Positioned(
                           right: -2,
@@ -3461,7 +3487,7 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                       subtitle: 'Quitter la session',
                       destructive: true,
                       trailing: const SizedBox.shrink(),
-                      onTap: () => _logout(ref),
+                      onTap: () => _logout(context, ref),
                     ),
                   ],
                 ),

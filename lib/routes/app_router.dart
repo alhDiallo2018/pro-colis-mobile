@@ -26,16 +26,30 @@ import '../screens/parcel/ads/advertisement_detail_screen.dart';
 import '../screens/parcel/ads/advertisements_screen.dart';
 import '../screens/parcel/confirm_delivery_screen.dart';
 import '../screens/parcel/free_parcels_screen.dart';
+import '../screens/parcel/offres_recues_screen.dart';
 import '../screens/parcel/parcel_detail_screen.dart';
 import '../screens/parcel/track_parcel_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/shared/messages_screen.dart';
+import '../screens/client/client_libre_service_screen.dart';
+import '../screens/super-admin/add_points_dialog.dart';
+import '../screens/super-admin/remove_points_dialog.dart';
 import '../screens/super-admin/admin_parametres_screen.dart';
+import '../screens/super-admin/classement_screen.dart';
+import '../screens/super-admin/commission_config_screen.dart';
+import '../screens/super-admin/driver_detail_screen.dart';
+import '../screens/super-admin/finance_dashboard_screen.dart';
 import '../screens/super-admin/garage_drivers_screen.dart';
 import '../screens/super-admin/garages_management_screen.dart';
+import '../screens/super-admin/payments_screen.dart';
+import '../screens/super-admin/reputation_dashboard_screen.dart';
+import '../screens/super-admin/score_detail_screen.dart';
+import '../screens/super-admin/scores_screen.dart';
 import '../screens/super-admin/stats_screen.dart';
 import '../screens/super-admin/users_management_screen.dart';
+import '../screens/super-admin/wallet_detail_screen.dart';
+import '../screens/super-admin/wallets_screen.dart';
 import '../screens/wallet/wallet_screen.dart';
 import '../services/auth_notifier.dart';
 
@@ -117,6 +131,17 @@ class AppRouter {
           path: '/free-parcels',
           name: 'free-parcels',
           builder: (context, state) => const FreeParcelsScreen(),
+        ),
+
+        GoRoute(
+          path: '/client/libre',
+          name: 'client-libre',
+          builder: (context, state) => const ClientLibreServiceScreen(),
+        ),
+        GoRoute(
+          path: '/client/offres',
+          name: 'client-offres',
+          builder: (context, state) => const OffresRecuesScreen(),
         ),
 
         GoRoute(
@@ -283,6 +308,69 @@ class AppRouter {
             final extra = state.extra;
             if (extra is Garage) return GarageDriversScreen(garage: extra);
             return const Scaffold(body: Center(child: Text('Garage introuvable')));
+          },
+        ),
+
+        // --- Super Admin Finance ---
+        GoRoute(
+          path: '/admin/finance',
+          name: 'admin-finance',
+          builder: (context, state) => const FinanceDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/admin/wallets',
+          name: 'admin-wallets',
+          builder: (context, state) => const WalletsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/wallets/:userId',
+          name: 'admin-wallet-detail',
+          builder: (context, state) {
+            final userId = state.pathParameters['userId'] ?? '';
+            return WalletDetailScreen(userId: userId);
+          },
+        ),
+        GoRoute(
+          path: '/admin/payments',
+          name: 'admin-payments',
+          builder: (context, state) => const PaymentsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/commissions',
+          name: 'admin-commissions',
+          builder: (context, state) => const CommissionConfigScreen(),
+        ),
+
+        // --- Super Admin Reputation ---
+        GoRoute(
+          path: '/admin/reputation',
+          name: 'admin-reputation',
+          builder: (context, state) => const ReputationDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/admin/scores',
+          name: 'admin-scores',
+          builder: (context, state) => const ScoresScreen(),
+        ),
+        GoRoute(
+          path: '/admin/scores/:userId',
+          name: 'admin-score-detail',
+          builder: (context, state) {
+            final userId = state.pathParameters['userId'] ?? '';
+            return ScoreDetailScreen(userId: userId);
+          },
+        ),
+        GoRoute(
+          path: '/admin/classement',
+          name: 'admin-classement',
+          builder: (context, state) => const ClassementScreen(),
+        ),
+        GoRoute(
+          path: '/admin/drivers/:userId',
+          name: 'admin-driver-detail',
+          builder: (context, state) {
+            final userId = state.pathParameters['userId'] ?? '';
+            return DriverDetailScreen(userId: userId);
           },
         ),
       ],

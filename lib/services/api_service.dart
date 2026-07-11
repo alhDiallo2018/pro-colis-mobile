@@ -1060,11 +1060,23 @@ class ApiService {
           ],
         );
       }
-      final response = await _dio.get('/wallet/$userId');
+      final response = await _dio.get('/driver/wallet');
       final data = _handleResponse(response);
-      return Wallet.fromJson(data['wallet'] as Map<String, dynamic>);
+      final walletData = data['wallet'] as Map<String, dynamic>? ?? data;
+      final txData = data['transactions'] as List<dynamic>?;
+      final transactions = txData?.map((t) => WalletTransaction.fromJson(t as Map<String, dynamic>)).toList() ?? [];
+      return Wallet(
+        id: walletData['id']?.toString() ?? 'wallet-$userId',
+        userId: walletData['userId']?.toString() ?? userId,
+        balance: (walletData['balance'] as num?)?.toDouble() ?? 0,
+        totalDeposited: (walletData['totalDeposited'] as num?)?.toDouble() ?? 0,
+        totalConsumed: (walletData['totalSpent'] as num?)?.toDouble() ?? 0,
+        isActive: walletData['status'] == 'active',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        transactions: transactions,
+      );
     } catch (e) {
-      // Fallback: wallet vide
       return Wallet(
         id: 'wallet-$userId',
         userId: userId,
@@ -1095,8 +1107,11 @@ class ApiService {
           'newBalance': 5000 + depositAmount,
         };
       }
-      final response =
-          await _dio.post('/wallet/$userId/deposit', data: data);
+      final response = await _dio.post('/score/purchase', data: {
+        'points': data['amount'],
+        'method': data['method'] ?? 'cash',
+        if (data['phone'] != null) 'phoneNumber': data['phone'],
+      });
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -1116,7 +1131,7 @@ class ApiService {
           'newBalance': 4750,
         };
       }
-      final response = await _dio.post('/wallet/$driverId/consume', data: {
+      final response = await _dio.post('/driver/wallet/consume', data: {
         'parcelId': parcelId,
         'deliveryAmount': deliveryAmount,
       });
@@ -1441,6 +1456,267 @@ class ApiService {
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ==================== ADMIN FINANCE ====================
+
+  Future<Map<String, dynamic>> financeDashboard() async {
+    try {
+      final response = await _dio.get('/super-admin/finance/dashboard');
+      final responseData = _handleResponse(response);
+      return responseData['dashboard'] ?? responseData['data'] ?? responseData;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> adminWallets({Map<String, dynamic>? params}) async {
+    try {
+      final response = await _dio.get('/super-admin/wallets', queryParameters: params);
+      final responseData = _handleResponse(response);
+      final list = responseData['wallets'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> adminWalletDetail(String userId) async {
+    try {
+      final response = await _dio.get('/super-admin/wallets/$userId');
+      final responseData = _handleResponse(response);
+      return responseData['wallet'] ?? responseData['data'] ?? responseData;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> adminWalletTransactions(String userId, {Map<String, dynamic>? params}) async {
+    try {
+      final response = await _dio.get('/super-admin/wallets/$userId/transactions', queryParameters: params);
+      final responseData = _handleResponse(response);
+      final list = responseData['transactions'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> adminRechargeWallet(String userId, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/super-admin/wallets/$userId/recharge', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> adminDebitWallet(String userId, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/super-admin/wallets/$userId/debit', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> adminCommissionConfig() async {
+    try {
+      final response = await _dio.get('/super-admin/commissions/config');
+      final responseData = _handleResponse(response);
+      final list = responseData['configs'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> adminUpdateCommissionConfig(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put('/super-admin/commissions/config', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> adminSimulateCommission(double amount) async {
+    try {
+      final response = await _dio.post('/super-admin/commissions/simulate', data: {'amount': amount});
+      final responseData = _handleResponse(response);
+      final list = responseData['simulations'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> adminPayments({Map<String, dynamic>? params}) async {
+    try {
+      final response = await _dio.get('/super-admin/payments', queryParameters: params);
+      final responseData = _handleResponse(response);
+      final list = responseData['payments'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ==================== ADMIN REPUTATION ====================
+
+  Future<Map<String, dynamic>> reputationDashboard() async {
+    try {
+      final response = await _dio.get('/super-admin/reputation/dashboard');
+      return _handleResponse(response);
+    } catch (e) {
+      return {};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> adminScores({Map<String, dynamic>? params}) async {
+    try {
+      final response = await _dio.get('/super-admin/scores', queryParameters: params);
+      final responseData = _handleResponse(response);
+      final list = responseData['scores'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> adminScoreDetail(String userId) async {
+    try {
+      final response = await _dio.get('/super-admin/scores/$userId');
+      final responseData = _handleResponse(response);
+      return responseData['score'] ?? responseData['data'] ?? responseData;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> adminScoreHistory(String userId, {Map<String, dynamic>? params}) async {
+    try {
+      final response = await _dio.get('/super-admin/scores/$userId/history', queryParameters: params);
+      final responseData = _handleResponse(response);
+      final list = responseData['transactions'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> adminAddPoints(String userId, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/super-admin/scores/$userId/add', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> adminRemovePoints(String userId, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/super-admin/scores/$userId/remove', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> adminDriverRanking() async {
+    try {
+      final response = await _dio.get('/super-admin/scores/ranking');
+      final responseData = _handleResponse(response);
+      final list = responseData['rankings'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> adminDriverDetail(String userId) async {
+    try {
+      final response = await _dio.get('/super-admin/drivers/$userId');
+      final responseData = _handleResponse(response);
+      return responseData['driver'] ?? responseData['data'] ?? responseData;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ==================== PAYDUNYA ====================
+
+  Future<Map<String, dynamic>> createPaydunyaPayment(
+      String type, {String? parcelId, int? points, double? amount}) async {
+    try {
+      final data = <String, dynamic>{'type': type};
+      if (parcelId != null) data['parcelId'] = parcelId;
+      if (points != null) data['points'] = points;
+      if (amount != null) data['amount'] = amount;
+      final response = await _dio.post('/payments/paydunya/create', data: data);
+      final responseData = _handleResponse(response);
+      return responseData['data'] ?? responseData;
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> confirmPaydunyaPayment(String token) async {
+    try {
+      final response = await _dio.get('/payments/paydunya/confirm/$token');
+      final responseData = _handleResponse(response);
+      return responseData['data'] ?? responseData;
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ==================== MISSING MIRRORED FUNCTIONS ====================
+
+  Future<Map<String, dynamic>> confirmCashPayment(String parcelId) async {
+    try {
+      final response = await _dio.post('/super-admin/parcels/$parcelId/confirm-cash');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>?> getPaymentDetail(String paymentId) async {
+    try {
+      final response = await _dio.get('/super-admin/payments/$paymentId');
+      final responseData = _handleResponse(response);
+      return responseData['payment'] ?? responseData['data'] ?? responseData;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> purchasePointsWithWallet(int points) async {
+    try {
+      final response = await _dio.post('/score/purchase/wallet', data: {'points': points});
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> withdrawWallet(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/driver/wallet/withdraw', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<double> getDriverWalletBalance() async {
+    try {
+      final wallet = await getWallet('');
+      return wallet.balance;
+    } catch (e) {
+      return 0;
     }
   }
 }

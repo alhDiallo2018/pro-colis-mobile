@@ -8,6 +8,7 @@ class Advertisement {
   final String driverId;
   final String driverName;
   final String? driverPhone;
+  final String? driverProfilePhoto;
   final String? departureCity;
   final String? arrivalCity;
   final DateTime? departureAt;
@@ -24,6 +25,7 @@ class Advertisement {
     required this.driverId,
     required this.driverName,
     this.driverPhone,
+    this.driverProfilePhoto,
     this.departureCity,
     this.arrivalCity,
     this.departureAt,
@@ -60,6 +62,7 @@ class Advertisement {
           asString(driver?['fullName']) ??
           'Chauffeur',
       driverPhone: asString(json['driverPhone']) ?? asString(driver?['phone']),
+      driverProfilePhoto: asString(json['driverProfilePhoto']) ?? asString(driver?['profilePhoto']),
       departureCity: asString(json['departureCity']),
       arrivalCity: asString(json['arrivalCity']),
       departureAt: asDate(json['departureAt']),

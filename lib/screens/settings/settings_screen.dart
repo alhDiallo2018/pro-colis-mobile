@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:google_fonts/google_fonts.dart';
@@ -186,7 +187,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _logout() async {
     await ref.read(authProvider.notifier).logout();
     if (!mounted) return;
-    Navigator.popUntil(context, (route) => route.isFirst);
+    GoRouter.of(context).go('/login');
   }
 
   @override

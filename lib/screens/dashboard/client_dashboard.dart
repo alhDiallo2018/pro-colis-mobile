@@ -211,7 +211,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
       case 3:
         return const AdvertisementsScreen(embedded: true);
       case 4:
-        return const ProfileScreen();
+        return const ProfileScreen(embedded: true);
       default:
         return HomeScreen(
           user: user,
@@ -1337,15 +1337,24 @@ class _ClientHomeHero extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundColor: Colors.white.withOpacity( 0.18),
-                        child: Text(
-                          user.initials,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                        backgroundColor: Colors.white.withOpacity(0.18),
+                        backgroundImage: user.profilePhoto != null && user.profilePhoto!.isNotEmpty
+                            ? NetworkImage(
+                                user.profilePhoto!.startsWith('http')
+                                    ? user.profilePhoto!
+                                    : 'https://procolis-backend.onrender.com${user.profilePhoto!}',
+                              )
+                            : null,
+                        child: user.profilePhoto != null && user.profilePhoto!.isNotEmpty
+                            ? null
+                            : Text(
+                                user.initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
                       ),
                       Positioned(
                         right: 0,
@@ -1388,8 +1397,6 @@ class _ClientHomeHero extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const _HomeGhostIconButton(icon: Icons.search_rounded),
-                  const SizedBox(width: 4),
                   _HomeNotificationButton(
                     unread: unreadMessagesCount,
                     onTap: onChatTap,

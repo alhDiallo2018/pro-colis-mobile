@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
@@ -26,7 +27,7 @@ class AppBottomNav extends ConsumerWidget {
       currentIndex: safeIndex,
       onTap: (index) {
         ref.read(dashboardTabProvider.notifier).state = index;
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        GoRouter.of(context).go('/dashboard');
       },
     );
   }

@@ -1,8 +1,19 @@
+export 'add_points_dialog.dart';
 export 'admin_parametres_screen.dart';
 export 'chauffeurs_management_screen.dart';
+export 'classement_screen.dart';
 export 'colis_management_screen.dart';
+export 'commission_config_screen.dart';
+export 'driver_detail_screen.dart';
+export 'finance_dashboard_screen.dart';
 export 'garage_drivers_screen.dart';
 export 'garages_management_screen.dart';
+export 'payments_screen.dart';
+export 'remove_points_dialog.dart';
+export 'reputation_dashboard_screen.dart';
+export 'score_detail_screen.dart';
+export 'scores_screen.dart';
 export 'stats_screen.dart';
 export 'users_management_screen.dart';
-
+export 'wallet_detail_screen.dart';
+export 'wallets_screen.dart';

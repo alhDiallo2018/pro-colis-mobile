@@ -1016,7 +1016,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      bottomNavigationBar: const AppBottomNav(),
+      bottomNavigationBar: widget.embedded ? null : const AppBottomNav(),
       body: Column(
         children: [
           _buildDesignAppBar(),

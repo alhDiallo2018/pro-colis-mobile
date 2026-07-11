@@ -576,6 +576,7 @@ class PcAvatar extends StatelessWidget {
   final double size;
   final PcAvatarStatus status;
   final bool square;
+  final String? imageUrl;
 
   const PcAvatar(
     this.name, {
@@ -583,6 +584,7 @@ class PcAvatar extends StatelessWidget {
     this.size = 44,
     this.status = PcAvatarStatus.none,
     this.square = false,
+    this.imageUrl,
   });
 
   String get _initials {
@@ -618,14 +620,33 @@ class PcAvatar extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(color: pal.bg, borderRadius: radius),
-            alignment: Alignment.center,
-            child: Text(_initials,
-                style: _display(size: size * 0.38, weight: FontWeight.w700, color: pal.fg)),
-          ),
+          if (imageUrl != null && imageUrl!.isNotEmpty)
+            ClipRRect(
+              borderRadius: radius,
+              child: Image.network(
+                imageUrl!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(color: pal.bg, borderRadius: radius),
+                  alignment: Alignment.center,
+                  child: Text(_initials,
+                      style: _display(size: size * 0.38, weight: FontWeight.w700, color: pal.fg)),
+                ),
+              ),
+            )
+          else
+            Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(color: pal.bg, borderRadius: radius),
+              alignment: Alignment.center,
+              child: Text(_initials,
+                  style: _display(size: size * 0.38, weight: FontWeight.w700, color: pal.fg)),
+            ),
           if (dotColor != null)
             Positioned(
               right: -1,

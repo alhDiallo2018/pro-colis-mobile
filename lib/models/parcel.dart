@@ -226,6 +226,7 @@ class Parcel {
   final String? driverId;
   final String? driverName;
   final String? driverPhone;
+  final String? driverProfilePhoto;
   
   // Prix et options
   final double? price;
@@ -301,6 +302,7 @@ class Parcel {
     this.driverId,
     this.driverName,
     this.driverPhone,
+    this.driverProfilePhoto,
     this.price,
     this.proposedPrice,
     this.negotiatedPrice,
@@ -418,6 +420,7 @@ class Parcel {
       driverId: parseString(json['driverId']),
       driverName: parseString(json['driverName']),
       driverPhone: parseString(json['driverPhone']),
+      driverProfilePhoto: parseString(json['driver']?['profilePhoto']) ?? parseString(json['driverProfilePhoto']),
       price: parseDouble(json['price']),
       proposedPrice: parseDouble(json['proposedPrice'] ?? json['proposed_price']),
       negotiatedPrice: parseDouble(json['negotiatedPrice'] ?? json['negotiated_price']),
@@ -654,6 +657,7 @@ class Parcel {
     String? driverId,
     String? driverName,
     String? driverPhone,
+    String? driverProfilePhoto,
     double? price,
     double? proposedPrice,
     double? negotiatedPrice,
@@ -711,6 +715,7 @@ class Parcel {
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
       driverPhone: driverPhone ?? this.driverPhone,
+      driverProfilePhoto: driverProfilePhoto ?? this.driverProfilePhoto,
       price: price ?? this.price,
       proposedPrice: proposedPrice ?? this.proposedPrice,
       negotiatedPrice: negotiatedPrice ?? this.negotiatedPrice,

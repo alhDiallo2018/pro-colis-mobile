@@ -12,7 +12,9 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
 
 class UsersManagementScreen extends ConsumerStatefulWidget {
-  const UsersManagementScreen({super.key});
+  final bool embedded;
+
+  const UsersManagementScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<UsersManagementScreen> createState() => _UsersManagementScreenState();
@@ -646,7 +648,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
     final total = _users.length;
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      bottomNavigationBar: const AppBottomNav(),
+      bottomNavigationBar: widget.embedded ? null : const AppBottomNav(),
       appBar: AppBar(
         title: Text(
           'Utilisateurs${total > 0 ? ' · $total' : ''}',

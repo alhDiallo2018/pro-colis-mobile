@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/wallet.dart';
 import '../../providers/auth_provider.dart';
@@ -395,6 +396,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
       'icon': Icons.phone_android
     },
     {'value': 'card', 'label': 'Carte bancaire', 'icon': Icons.credit_card},
+    {'value': 'paydunya', 'label': 'PayDunya', 'icon': Icons.payment},
     {'value': 'cash', 'label': 'Espèces', 'icon': Icons.money},
   ];
 
@@ -436,30 +438,69 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
 
     setState(() => _isSubmitting = true);
     try {
-      final result = await _apiService.depositWallet(
-        widget.userId,
-        {
-          'amount': _amount,
-          'method': _selectedMethod,
-          if (_needsPhone) 'phone': _phoneController.text.trim(),
-        },
-      );
-
-      if (mounted) {
-        if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Recharge effectuée avec succès'),
-                backgroundColor: AppTheme.green600),
-          );
-          Navigator.pop(context);
+      if (_selectedMethod == 'paydunya') {
+        final payment = await _apiService.createPaydunyaPayment(
+          'wallet',
+          amount: _amount.toDouble(),
+        );
+        final paymentUrl = payment['paymentUrl']?.toString();
+        if (paymentUrl != null && paymentUrl.isNotEmpty) {
+          await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
+          final token = payment['token']?.toString() ?? '';
+          final confirm = await _apiService.confirmPaydunyaPayment(token);
+          if (confirm['status'] == 'completed') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Paiement confirmé via PayDunya'),
+                    backgroundColor: AppTheme.green600),
+              );
+              Navigator.pop(context);
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Paiement en attente de confirmation'),
+                    backgroundColor: AppTheme.amber600),
+              );
+            }
+          }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    result['message']?.toString() ?? 'Erreur de recharge'),
-                backgroundColor: AppTheme.error),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Erreur: impossible de créer le paiement PayDunya'),
+                  backgroundColor: AppTheme.error),
+            );
+          }
+        }
+      } else {
+        final result = await _apiService.depositWallet(
+          widget.userId,
+          {
+            'amount': _amount,
+            'method': _selectedMethod,
+            if (_needsPhone) 'phone': _phoneController.text.trim(),
+          },
+        );
+
+        if (mounted) {
+          if (result['success'] == true) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Recharge effectuée avec succès'),
+                  backgroundColor: AppTheme.green600),
+            );
+            Navigator.pop(context);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      result['message']?.toString() ?? 'Erreur de recharge'),
+                  backgroundColor: AppTheme.error),
+            );
+          }
         }
       }
     } catch (e) {

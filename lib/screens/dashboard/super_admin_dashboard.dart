@@ -21,6 +21,13 @@ import '../../providers/parcel_provider.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../profile/profile_screen.dart';
+import '../super-admin/finance_dashboard_screen.dart';
+import '../super-admin/wallets_screen.dart';
+import '../super-admin/payments_screen.dart';
+import '../super-admin/commission_config_screen.dart';
+import '../super-admin/reputation_dashboard_screen.dart';
+import '../super-admin/scores_screen.dart';
+import '../super-admin/classement_screen.dart';
 
 // Provider pour les utilisateurs
 final userProvider = StateNotifierProvider<UserNotifier, List<User>>((ref) {
@@ -203,9 +210,9 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
           unreadNotificationsCount: _unreadNotificationsCount,
         );
       case 1:
-        return const UsersManagementScreen();
+        return const UsersManagementScreen(embedded: true);
       case 2:
-        return const GaragesManagementScreen();
+        return const GaragesManagementScreen(embedded: true);
       case 3:
         return NotificationsScreen(
           onNotificationsRead: () {
@@ -215,7 +222,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
           },
         );
       case 4:
-        return const ProfileScreen();
+        return const ProfileScreen(embedded: true);
       default:
         return _SuperAdminHomeScreen(
           user: user,
@@ -322,6 +329,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   Widget _buildHero() {
+    final photoUrl = user?.profilePhoto;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(gradient: AppTheme.brandGradient),
@@ -337,14 +346,23 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                   CircleAvatar(
                     radius: 26,
                     backgroundColor: const Color(0xFFC9F3EE),
-                    child: Text(
-                      user?.initials ?? 'SA',
-                      style: const TextStyle(
-                        color: AppTheme.teal700,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    backgroundImage: hasPhoto
+                        ? NetworkImage(
+                            photoUrl!.startsWith('http')
+                                ? photoUrl!
+                                : 'https://procolis-backend.onrender.com$photoUrl',
+                          )
+                        : null,
+                    child: hasPhoto
+                        ? null
+                        : Text(
+                            user?.initials ?? 'SA',
+                            style: const TextStyle(
+                              color: AppTheme.teal700,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -640,6 +658,96 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                     MaterialPageRoute(
                         builder: (context) => const AdminParametresScreen()),
                   );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Finance',
+                tone: PcTone.primary,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const FinanceDashboardScreen(),
+                  ));
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.emoji_events_rounded,
+                label: 'Réputation',
+                tone: PcTone.amber,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const ReputationDashboardScreen(),
+                  ));
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.receipt_long_rounded,
+                label: 'Wallets',
+                tone: PcTone.green,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const WalletsScreen(),
+                  ));
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.receipt_long_rounded,
+                label: 'Paiements',
+                tone: PcTone.neutral,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const PaymentsScreen(),
+                  ));
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.percent_rounded,
+                label: 'Commissions',
+                tone: PcTone.amber,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const CommissionConfigScreen(),
+                  ));
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.format_list_numbered_rounded,
+                label: 'Classement',
+                tone: PcTone.primary,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const ClassementScreen(),
+                  ));
                 },
               ),
             ),

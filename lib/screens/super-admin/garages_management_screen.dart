@@ -12,7 +12,9 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
 
 class GaragesManagementScreen extends ConsumerStatefulWidget {
-  const GaragesManagementScreen({super.key});
+  final bool embedded;
+
+  const GaragesManagementScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<GaragesManagementScreen> createState() => _GaragesManagementScreenState();
@@ -201,7 +203,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      bottomNavigationBar: const AppBottomNav(),
+      bottomNavigationBar: widget.embedded ? null : const AppBottomNav(),
       appBar: AppBar(
         title: const Text('Gestion des zones'),
         leading: IconButton(

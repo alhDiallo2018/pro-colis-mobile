@@ -21,7 +21,9 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  final bool embedded;
+
+  const ProfileScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
@@ -387,14 +389,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final authState = ref.watch(authProvider);
 
     if (!_isInitialized || authState.user == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppTheme.backgroundColor,
-        body: Center(
+        body: const Center(
           child: CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
           ),
         ),
-        bottomNavigationBar: AppBottomNav(),
+        bottomNavigationBar: widget.embedded ? null : const AppBottomNav(),
       );
     }
 
@@ -442,7 +444,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const AppBottomNav(),
+      bottomNavigationBar: widget.embedded ? null : const AppBottomNav(),
     );
   }
 
