@@ -8,6 +8,7 @@ import 'package:procolis/providers/parcel_provider.dart';
 import 'package:procolis/services/api_service.dart';
 import 'package:procolis/theme/app_theme.dart';
 import 'package:procolis/widgets/app_bottom_nav.dart';
+import 'package:procolis/widgets/negotiation_chat_widget.dart';
 import 'package:procolis/widgets/pc_components.dart';
 
 /// Écran "Offres reçues" côté client.
@@ -224,71 +225,21 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
   }
 
   Future<void> _showNegotiateSheet(Bid bid) async {
-    final priceController =
-        TextEditingController(text: bid.price.toStringAsFixed(0));
-    final messageController = TextEditingController();
+    final driverId = bid.driverId;
+    final driverName = bid.driverName.isNotEmpty ? bid.driverName : 'Chauffeur';
+    final parcelId = bid.parcelId;
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: _NegotiateSheet(
-            bid: bid,
-            priceController: priceController,
-            messageController: messageController,
-            onSubmit: () async {
-              final price =
-                  double.tryParse(priceController.text.replaceAll(' ', ''));
-              if (price == null || price <= 0) {
-                _showSnack('Prix de contre-offre invalide', isError: true);
-                return;
-              }
-              Navigator.pop(context);
-              await _negotiateBid(
-                bid,
-                price,
-                messageController.text.trim().isEmpty
-                    ? null
-                    : messageController.text.trim(),
-              );
-            },
-          ),
-        );
-      },
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NegotiationChatScreen(
+          peerId: driverId,
+          peerName: driverName,
+          parcelId: parcelId,
+          bidId: bid.id,
+          onChanged: _load,
+        ),
+      ),
     );
-
-    await Future<void>.delayed(const Duration(milliseconds: 350));
-    priceController.dispose();
-    messageController.dispose();
-  }
-
-  Future<void> _negotiateBid(Bid bid, double price, String? message) async {
-    if (_isSubmitting) return;
-    setState(() => _isSubmitting = true);
-    try {
-      final result =
-          await _apiService.negotiateBid(bid.id, {'price': price, 'message': message});
-      if (!mounted) return;
-      if (result['success'] == true) {
-        _showSnack('Contre-offre envoyée');
-        await _load();
-      } else {
-        _showSnack(
-          result['message']?.toString() ?? 'Négociation impossible',
-          isError: true,
-        );
-      }
-    } catch (e) {
-      debugPrint('Erreur négociation offre: $e');
-      if (mounted) _showSnack('Erreur lors de la négociation', isError: true);
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
   }
 
   void _showSnack(String message, {bool isError = false}) {

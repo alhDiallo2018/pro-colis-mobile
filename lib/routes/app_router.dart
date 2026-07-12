@@ -204,6 +204,10 @@ class AppRouter {
           name: 'driver-itinerary',
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
+            final garagesRaw = extra?['garages'] as List<dynamic>?;
+            final garages = garagesRaw
+                ?.whereType<Garage>()
+                .toList();
             return ItineraryMapScreen(
               departureLat: extra?['departureLat'] as double?,
               departureLng: extra?['departureLng'] as double?,
@@ -211,6 +215,7 @@ class AppRouter {
               arrivalLng: extra?['arrivalLng'] as double?,
               departureName: extra?['departureName']?.toString() ?? '',
               arrivalName: extra?['arrivalName']?.toString() ?? '',
+              garages: garages,
             );
           },
         ),

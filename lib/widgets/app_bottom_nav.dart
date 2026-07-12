@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,8 +27,23 @@ class AppBottomNav extends ConsumerWidget {
       items: items,
       currentIndex: safeIndex,
       onTap: (index) {
-        ref.read(dashboardTabProvider.notifier).state = index;
-        GoRouter.of(context).go('/dashboard');
+        try {
+          ref.read(dashboardTabProvider.notifier).state = index;
+          // If this screen was pushed via Navigator.push (not GoRouter),
+          // pop it first so GoRouter navigation can work properly.
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) {
+            navigator.pop();
+          }
+          final router = GoRouter.maybeOf(context);
+          if (router != null) {
+            router.go('/dashboard');
+          } else {
+            debugPrint('❌ [AppBottomNav] GoRouter not found');
+          }
+        } catch (e) {
+          debugPrint('❌ [AppBottomNav] Navigation error: $e');
+        }
       },
     );
   }

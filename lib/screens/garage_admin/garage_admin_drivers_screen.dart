@@ -119,7 +119,7 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
       icon: Icons.people_outline_rounded,
       tone: PcTone.primary,
       title: 'Aucun chauffeur',
-      message: "Aucun chauffeur n'est rattaché à votre garage.",
+      message: "Aucun chauffeur n'est rattaché à votre zone.",
       action: PcButton(
         'Actualiser',
         variant: PcButtonVariant.secondary,

@@ -22,6 +22,27 @@ class ApiService {
     defaultValue: 'http://localhost:18081/api/v1',
   );
 
+  static String get mediaBaseUrl {
+    if (baseUrl.endsWith('/api/v1')) {
+      return baseUrl.substring(0, baseUrl.length - '/api/v1'.length);
+    }
+    if (baseUrl.endsWith('/api/v1/')) {
+      return baseUrl.substring(0, baseUrl.length - '/api/v1/'.length);
+    }
+    if (baseUrl.endsWith('/api')) {
+      return baseUrl.substring(0, baseUrl.length - '/api'.length);
+    }
+    return baseUrl;
+  }
+
+  static String resolveMediaUrl(String url) {
+    if (url.startsWith('http')) return url;
+    final base = mediaBaseUrl;
+    if (url.startsWith('/')) return '$base$url';
+    return '$base/$url';
+  }
+
+  String mediaUrl(String url) => ApiService.resolveMediaUrl(url);
   final Dio _dio = Dio();
   final _storage = const FlutterSecureStorage();
 
@@ -254,7 +275,7 @@ class ApiService {
           .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      return [];
+      debugPrint("❌ [API] getMyParcels failed: $e"); return [];
     }
   }
 
@@ -313,7 +334,7 @@ class ApiService {
           .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      return [];
+      debugPrint("❌ [API] getFreeParcels failed: $e"); return [];
     }
   }
 
@@ -741,7 +762,7 @@ class ApiService {
           .map((json) => Garage.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      return [];
+      debugPrint("❌ [API] getAllGarages failed: $e"); return [];
     }
   }
 
@@ -1068,15 +1089,16 @@ class ApiService {
       return Wallet(
         id: walletData['id']?.toString() ?? 'wallet-$userId',
         userId: walletData['userId']?.toString() ?? userId,
-        balance: (walletData['balance'] as num?)?.toDouble() ?? 0,
-        totalDeposited: (walletData['totalDeposited'] as num?)?.toDouble() ?? 0,
-        totalConsumed: (walletData['totalSpent'] as num?)?.toDouble() ?? 0,
+        balance: _toDouble(walletData['balance']),
+        totalDeposited: _toDouble(walletData['totalDeposited']),
+        totalConsumed: _toDouble(walletData['totalSpent']),
         isActive: walletData['status'] == 'active',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         transactions: transactions,
       );
     } catch (e) {
+      debugPrint("❌ [API] getWallet failed: $e");
       return Wallet(
         id: 'wallet-$userId',
         userId: userId,
@@ -1085,6 +1107,19 @@ class ApiService {
         updatedAt: DateTime.now(),
       );
     }
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0;
+  }
+
+  static int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
   }
 
   Future<double> getWalletBalance(String userId) async {
@@ -1100,7 +1135,7 @@ class ApiService {
       String userId, Map<String, dynamic> data) async {
     try {
       if (isMockMode) {
-        final depositAmount = (data['amount'] as num?)?.toDouble() ?? 0;
+        final depositAmount = _toDouble(data['amount']);
         return {
           'success': true,
           'message': 'Recharge de $depositAmount FCFA effectuée',
@@ -1716,7 +1751,16 @@ class ApiService {
       final wallet = await getWallet('');
       return wallet.balance;
     } catch (e) {
-      return 0;
+      debugPrint("❌ [API] getDriverWalletBalance failed: $e"); return 0;
     }
   }
+}
+
+class ApiException implements Exception {
+  final String message;
+  final int statusCode;
+  const ApiException(this.message, this.statusCode);
+
+  @override
+  String toString() => message;
 }

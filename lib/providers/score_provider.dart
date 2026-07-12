@@ -59,9 +59,7 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
           .map((t) => ScoreTransaction(
                 id: t['id']?.toString() ?? '',
                 userId: userId,
-                amount: (t['amount'] ?? 0) is int
-                    ? t['amount'] as int
-                    : (t['amount'] as num).toInt(),
+                amount: int.tryParse(t['amount']?.toString() ?? '') ?? 0,
                 type: t['type']?.toString() ?? '',
                 parcelId: t['parcelId']?.toString(),
                 timestamp: t['createdAt'] != null

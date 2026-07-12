@@ -11,6 +11,7 @@ import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/video_player_widget.dart';
@@ -139,13 +140,19 @@ class _DriverMesAnnoncesScreenState
         (offer['clientId'] ?? client?['id'])?.toString();
     final peerName = client?['fullName']?.toString() ?? 'Client';
     final parcelId = offer['parcelId']?.toString();
+    final adId = ad['id']?.toString();
+    final offerId = offer['id']?.toString();
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MessagesScreen(
-          initialPeerId: peerId,
-          initialPeerName: peerName,
-          initialParcelId: parcelId,
+        builder: (_) => NegotiationChatScreen(
+          peerId: peerId ?? '',
+          peerName: peerName,
+          parcelId: parcelId,
+          advertisementId: adId,
+          offerId: offerId,
+          onChanged: _loadAds,
         ),
       ),
     );
@@ -692,7 +699,7 @@ class _ParcelSheetState extends State<_ParcelSheet> {
   /// préfixés avec le backend, comme dans le reste de l'application.
   String _mediaUrl(String url) => url.startsWith('http')
       ? url
-      : 'https://procolis-backend.onrender.com$url';
+      : ApiService.resolveMediaUrl(url);
 
   List<String> _urlList(dynamic value) => value is List
       ? value.map((e) => e.toString()).where((e) => e.isNotEmpty).toList()

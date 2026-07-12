@@ -1,6 +1,7 @@
 // mobile/lib/widgets/video_player_widget.dart
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import '../services/api_service.dart';
 
 class VideoPlayerWidget extends StatefulWidget {
   final String videoUrl;
@@ -26,7 +27,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     try {
       String fullUrl = widget.videoUrl;
       if (!fullUrl.startsWith('http') && fullUrl.startsWith('/uploads/')) {
-        fullUrl = 'https://procolis-backend.onrender.com$fullUrl';
+        fullUrl = ApiService.resolveMediaUrl(fullUrl);
       }
       
       debugPrint('🎬 Chargement vidéo: $fullUrl');

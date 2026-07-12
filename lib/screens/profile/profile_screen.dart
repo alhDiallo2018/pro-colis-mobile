@@ -41,10 +41,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _profileSaved = false;
   String? _profileError;
 
-  // API base URL
-  static const String baseUrl = 'https://procolis-backend.onrender.com';
-
-  // Contrôleurs
+  String _getFullImageUrl(String? imagePath) {
+    if (imagePath == null || imagePath.isEmpty) return '';
+    return ApiService.resolveMediaUrl(imagePath);
+  }
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -128,13 +128,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.dispose();
   }
 
-  // ==================== GESTION PHOTO ====================
-
-  String _getFullImageUrl(String? imagePath) {
-    if (imagePath == null || imagePath.isEmpty) return '';
-    if (imagePath.startsWith('http')) return imagePath;
-    return '$baseUrl$imagePath';
-  }
 
   Future<void> _pickImage() async {
     try {

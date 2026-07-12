@@ -15,9 +15,9 @@ class CommissionConfig {
   factory CommissionConfig.fromMap(Map<String, dynamic>? map) {
     if (map == null) return const CommissionConfig();
     return CommissionConfig(
-      percentage: (map['commissionPercentage'] as num?)?.toDouble() ?? 5,
-      minimum: (map['commissionMinimum'] as num?)?.toDouble() ?? 100,
-      maximum: (map['commissionMaximum'] as num?)?.toDouble() ?? 500,
+      percentage: double.tryParse(map['commissionPercentage']?.toString() ?? '') ?? 5,
+      minimum: double.tryParse(map['commissionMinimum']?.toString() ?? '') ?? 100,
+      maximum: double.tryParse(map['commissionMaximum']?.toString() ?? '') ?? 500,
     );
   }
 

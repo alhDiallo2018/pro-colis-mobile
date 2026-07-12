@@ -11,6 +11,7 @@ import '../../../services/api_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/app_bottom_nav.dart';
 import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/negotiation_chat_widget.dart';
 import '../../../widgets/pc_components.dart';
 
 class AdvertisementDetailScreen extends StatefulWidget {
@@ -67,7 +68,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   /// prefixes avec le backend, comme dans le reste de l'application.
   String _mediaUrl(String url) => url.startsWith('http')
       ? url
-      : 'https://procolis-backend.onrender.com$url';
+      : ApiService.resolveMediaUrl(url);
 
   Future<void> _toggleAdAudio(String url) async {
     try {
@@ -935,15 +936,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
 
       if (result['success'] == true || result['id'] != null || result['offer'] != null) {
         Navigator.pop(sheetContext);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Offre envoyee avec succes'),
-            backgroundColor: AppTheme.successColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
-          ),
-        );
         await _loadAll();
+        _openDiscussion();
       } else {
         final errorMsg = result['message']?.toString() ?? 'Erreur lors de l\'envoi de l\'offre';
         ScaffoldMessenger.of(sheetContext).showSnackBar(
@@ -976,17 +970,24 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
         _adData?['driverId']?.toString() ??
         _adData?['driver']?['id']?.toString() ??
         '';
+    final driverName = widget.parcel?.driverName ??
+        _adData?['driver']?['fullName']?.toString() ??
+        'Chauffeur';
+    final offerId = _myOffer?['id']?.toString();
+    final adId = _adData?['id']?.toString() ?? _adId;
 
-    Navigator.pushNamed(
+    Navigator.push(
       context,
-      '/messages',
-      arguments: {
-        'peerId': driverId,
-        'peerName': widget.parcel?.driverName ??
-            _adData?['driver']?['fullName']?.toString() ??
-            'Chauffeur',
-        'parcelId': _adId,
-      },
+      MaterialPageRoute(
+        builder: (_) => NegotiationChatScreen(
+          peerId: driverId,
+          peerName: driverName,
+          parcelId: _adId,
+          advertisementId: adId,
+          offerId: offerId,
+          onChanged: _loadAll,
+        ),
+      ),
     );
   }
 

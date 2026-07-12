@@ -99,7 +99,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
       );
       if (result['success'] == true) {
         state = state.copyWith(
-          balance: (result['newBalance'] as num?)?.toDouble() ?? state.balance,
+          balance: double.tryParse(result['newBalance']?.toString() ?? '') ?? state.balance,
         );
         return true;
       }

@@ -16,7 +16,7 @@ class VoiceMessage {
   factory VoiceMessage.fromJson(Map<String, dynamic> json) {
     return VoiceMessage(
       path: json['path']?.toString() ?? '',
-      duration: (json['duration'] as num?)?.toInt() ?? 0,
+      duration: int.tryParse(json['duration']?.toString() ?? '') ?? 0,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'].toString()) 
           : DateTime.now(),

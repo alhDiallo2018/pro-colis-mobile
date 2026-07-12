@@ -1,6 +1,11 @@
 import 'dart:convert';
 
-/// Types de transaction wallet
+double _toDouble(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString()) ?? 0;
+}
+
 enum WalletTransactionType {
   deposit('DEPOSIT', 'Recharge'),
   commission('COMMISSION', 'Commission'),
@@ -53,7 +58,7 @@ class WalletTransaction {
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
       walletId: json['walletId']?.toString() ?? '',
-      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      amount: _toDouble(json['amount']),
       type: json['type'] != null
           ? WalletTransactionType.fromString(json['type'].toString())
           : WalletTransactionType.adjustment,
@@ -148,10 +153,10 @@ class Wallet {
     return Wallet(
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
-      balance: (json['balance'] as num?)?.toDouble() ?? 0,
-      totalDeposited: (json['totalDeposited'] as num?)?.toDouble() ?? 0,
-      totalConsumed: (json['totalConsumed'] as num?)?.toDouble() ?? 0,
-      totalRefunded: (json['totalRefunded'] as num?)?.toDouble() ?? 0,
+      balance: _toDouble(json['balance']),
+      totalDeposited: _toDouble(json['totalDeposited']),
+      totalConsumed: _toDouble(json['totalConsumed']),
+      totalRefunded: _toDouble(json['totalRefunded']),
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())

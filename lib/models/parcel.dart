@@ -9,6 +9,13 @@ import 'package:flutter/material.dart';
 import 'payment.dart';
 import 'voice_message.dart';
 
+// --- helpers ---
+double _toDouble(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString()) ?? 0;
+}
+
 // ==================== ENUM PARCEL STATUS ====================
 enum ParcelStatus {
   pending('pending', 'En attente', Colors.orange),
@@ -122,7 +129,7 @@ class Bid {
       driverId: json['driverId']?.toString() ?? json['driver_id']?.toString() ?? '',
       driverName: json['driverName']?.toString() ?? json['driver_name']?.toString() ?? '',
       driverPhone: json['driverPhone']?.toString() ?? json['driver_phone']?.toString() ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0,
+      price: _toDouble(json['price']),
       message: json['message']?.toString(),
       status: json['status'] != null ? BidStatus.fromString(json['status'].toString()) : BidStatus.pending,
       createdAt: json['createdAt'] != null 

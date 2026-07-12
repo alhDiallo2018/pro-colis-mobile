@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -246,7 +247,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 
   Future<void> _shareTracking() async {
-    final trackingUrl = 'https://procolis.sn/track/${_parcel.trackingNumber}';
+    final trackingUrl = 'https://sendprocolis.com/track/${_parcel.trackingNumber}';
     try {
       await Share.share(
         '📦 Suivi de colis PRO COLIS\n\n'
@@ -386,7 +387,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           File('${tempDir.path}/receipt_${_parcel.trackingNumber}.png');
       await file.writeAsBytes(pngBytes);
 
-      final trackingUrl = 'https://procolis.sn/track/${_parcel.trackingNumber}';
+      final trackingUrl = 'https://sendprocolis.com/track/${_parcel.trackingNumber}';
       await Share.shareXFiles(
         [XFile(file.path)],
         text: '📦 Suivi de colis PRO COLIS\n\n'
@@ -408,7 +409,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   Widget _buildReceiptWidget() {
     final parcel = _parcel;
     final isDelivered = parcel.status.value == 'delivered';
-    final trackingUrl = 'https://procolis.sn/track/${parcel.trackingNumber}';
+    final trackingUrl = 'https://sendprocolis.com/track/${parcel.trackingNumber}';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -622,7 +623,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   /// préfixés avec le backend, comme dans le reste de l'application.
   String _mediaUrl(String url) => url.startsWith('http')
       ? url
-      : 'https://procolis-backend.onrender.com$url';
+      : ApiService.resolveMediaUrl(url);
 
   bool get _hasMedia =>
       _parcel.photoUrls.isNotEmpty ||
@@ -1216,6 +1217,17 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 ],
               ),
             ),
+            if (_parcel.price != null &&
+                _parcel.price! > 0 &&
+                (_parcel.paymentStatus != 'completed' &&
+                    _parcel.paymentStatus != 'paid'))
+              _PaydunyaPayCard(
+                parcelId: _parcel.id,
+                amount: _parcel.price!,
+                trackingNumber: _parcel.trackingNumber,
+                apiService: _apiService,
+                onDone: _loadDetailData,
+              ),
             ..._buildMediaSection(),
             if (_parcel.status.isInProgress && _otpCode != null) ...[
               const SizedBox(height: 18),
@@ -2625,6 +2637,115 @@ class _MediaTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PaydunyaPayCard extends StatefulWidget {
+  final String parcelId;
+  final double amount;
+  final String trackingNumber;
+  final ApiService apiService;
+  final VoidCallback onDone;
+
+  const _PaydunyaPayCard({
+    required this.parcelId,
+    required this.amount,
+    required this.trackingNumber,
+    required this.apiService,
+    required this.onDone,
+  });
+
+  @override
+  State<_PaydunyaPayCard> createState() => _PaydunyaPayCardState();
+}
+
+class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
+  bool _loading = false;
+  String? _error;
+
+  String _fcfa(double v) {
+    final n = v.toInt();
+    final s = n.toString();
+    final b = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
+      b.write(s[i]);
+    }
+    return '${b.toString()} FCFA';
+  }
+
+  Future<void> _pay() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final result = await widget.apiService.createPaydunyaPayment(
+        'parcel',
+        parcelId: widget.parcelId,
+        amount: widget.amount,
+      );
+      final paymentUrl = result['paymentUrl']?.toString() ?? '';
+      if (paymentUrl.isNotEmpty) {
+        await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
+        widget.onDone();
+      } else {
+        setState(() => _error = 'URL de paiement introuvable');
+      }
+    } catch (e) {
+      setState(() => _error = 'Erreur lors de la création du paiement');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PcCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.amber50,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                ),
+                child: const Icon(Icons.payments_rounded, color: AppTheme.amber600, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Paiement',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16, fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Paiement de ${_fcfa(widget.amount)} pour le colis ${widget.trackingNumber}',
+            style: GoogleFonts.manrope(
+              fontSize: 13, fontWeight: FontWeight.w500,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: AppTheme.red500, fontSize: 12)),
+          ],
+          const SizedBox(height: 14),
+          PcButton(
+            _loading ? 'Redirection...' : 'Payer ${_fcfa(widget.amount)} avec PayDunya',
+            icon: Icons.payments_rounded,
+            block: true,
+            loading: _loading,
+            onPressed: _loading ? null : _pay,
+          ),
+        ],
       ),
     );
   }

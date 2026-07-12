@@ -1,42 +1,74 @@
 // mobile/lib/screens/super-admin/admin_parametres_screen.dart
-// Paramètres système pour Super Admin — refonte alignée sur le web ProColis.
+// Paramètres système pour Super Admin — sections dédiées alignées sur le web.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/pc_components.dart';
 
-/// Définition d'un groupe de paramètres (carte) et de ses mots-clés.
-class _ParamGroup {
+class _ConfigSection {
   final String title;
   final IconData icon;
   final PcTone tone;
-  final List<String> keywords;
-  final List<Map<String, dynamic>> items = [];
+  final List<_ConfigField> fields;
 
-  _ParamGroup(this.title, this.icon, this.tone, this.keywords);
+  const _ConfigSection(this.title, this.icon, this.tone, this.fields);
 }
 
-class AdminParametresScreen extends ConsumerStatefulWidget {
+class _ConfigField {
+  final String key;
+  final String label;
+  final _ConfigFieldType type;
+  final String defaultValue;
+
+  const _ConfigField(this.key, this.label, this.type, this.defaultValue);
+}
+
+enum _ConfigFieldType { string, number, boolean }
+
+const _sections = <_ConfigSection>[
+  _ConfigSection('Tarification', Icons.payments_rounded, PcTone.amber, [
+    _ConfigField('pricing.baseFee', 'Frais de base (FCFA)', _ConfigFieldType.number, '1000'),
+    _ConfigField('pricing.pricePerKg', 'Prix par kg (FCFA)', _ConfigFieldType.number, '500'),
+    _ConfigField('pricing.urgentFee', 'Frais urgence (FCFA)', _ConfigFieldType.number, '1000'),
+    _ConfigField('pricing.insuranceFee', 'Frais assurance (FCFA)', _ConfigFieldType.number, '1000'),
+  ]),
+  _ConfigSection('Score & Réputation', Icons.stars_rounded, PcTone.primary, [
+    _ConfigField('score.deliveryCompleted', 'Points par livraison réussie', _ConfigFieldType.number, '50'),
+    _ConfigField('score.signupBonus', 'Points bonus inscription', _ConfigFieldType.number, '100'),
+  ]),
+  _ConfigSection('Uploads', Icons.cloud_upload_rounded, PcTone.green, [
+    _ConfigField('uploads.maxPhotoMb', 'Taille max photo (Mo)', _ConfigFieldType.number, '10'),
+  ]),
+  _ConfigSection('Maintenance', Icons.engineering_rounded, PcTone.red, [
+    _ConfigField('maintenance.enabled', 'Mode maintenance', _ConfigFieldType.boolean, 'false'),
+  ]),
+  _ConfigSection('PayDunya', Icons.account_balance_wallet_rounded, PcTone.primary, [
+    _ConfigField('paydunya.masterKey', 'Clé principale (Master Key)', _ConfigFieldType.string, ''),
+    _ConfigField('paydunya.privateKey', 'Clé privée (Private Key)', _ConfigFieldType.string, ''),
+    _ConfigField('paydunya.publicKey', 'Clé publique (Public Key)', _ConfigFieldType.string, ''),
+    _ConfigField('paydunya.token', 'Token', _ConfigFieldType.string, ''),
+    _ConfigField('paydunya.mode', 'Mode (test ou live)', _ConfigFieldType.string, 'test'),
+  ]),
+];
+
+class AdminParametresScreen extends StatefulWidget {
   const AdminParametresScreen({super.key});
 
   @override
-  ConsumerState<AdminParametresScreen> createState() =>
-      _AdminParametresScreenState();
+  State<AdminParametresScreen> createState() => _AdminParametresScreenState();
 }
 
-class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
+class _AdminParametresScreenState extends State<AdminParametresScreen> {
   final ApiService _apiService = ApiService();
-  List<Map<String, dynamic>> _configItems = [];
-  final Map<String, dynamic> _formValues = {};
-  final Map<String, TextEditingController> _controllers = {};
+  final Map<String, TextEditingController> _textControllers = {};
+  final Map<String, bool> _boolValues = {};
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _saved = false;
   String? _error;
 
   @override
@@ -47,176 +79,100 @@ class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
 
   @override
   void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
+    for (final c in _textControllers.values) { c.dispose(); }
     super.dispose();
   }
 
   Future<void> _loadConfig() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+    setState(() { _isLoading = true; _error = null; _saved = false; });
     try {
       final result = await _apiService.getAdminConfig();
+      final Map<String, dynamic> apiConfig = {};
+
       final List<dynamic> configList = [];
       if (result['config'] is List) {
         configList.addAll(result['config'] as List);
       } else if (result['data'] is List) {
         configList.addAll(result['data'] as List);
       }
+      for (final item in configList) {
+        final m = Map<String, dynamic>.from(item as Map);
+        apiConfig[m['key']?.toString() ?? ''] = m['value'];
+      }
 
       if (mounted) {
-        // Dispose old controllers
-        for (final c in _controllers.values) {
-          c.dispose();
-        }
-        _controllers.clear();
-        _formValues.clear();
+        for (final c in _textControllers.values) { c.dispose(); }
+        _textControllers.clear();
+        _boolValues.clear();
 
-        final items = configList
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-
-        for (final item in items) {
-          final key = item['key']?.toString() ?? '';
-          final value = item['value'];
-          final type = item['type']?.toString() ?? 'string';
-
-          _formValues[key] = value;
-
-          if (type == 'string' || type == 'number') {
-            _controllers[key] = TextEditingController(
-              text: value?.toString() ?? '',
-            );
+        for (final section in _sections) {
+          for (final field in section.fields) {
+            final apiVal = apiConfig[field.key];
+            if (field.type == _ConfigFieldType.boolean) {
+              _boolValues[field.key] = apiVal == true;
+            } else {
+              final text = apiVal?.toString() ?? field.defaultValue;
+              _textControllers[field.key] = TextEditingController(text: text);
+            }
           }
         }
 
-        setState(() {
-          _configItems = items;
-          _isLoading = false;
-        });
+        setState(() { _isLoading = false; });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
     }
   }
 
   Map<String, dynamic> _collectFormValues() {
     final result = <String, dynamic>{};
-    for (final item in _configItems) {
-      final key = item['key']?.toString() ?? '';
-      final type = item['type']?.toString() ?? 'string';
-
-      switch (type) {
-        case 'boolean':
-          result[key] = _formValues[key] ?? false;
-          break;
-        case 'number':
-          final raw = _controllers[key]?.text.trim() ?? '';
-          final parsed = num.tryParse(raw);
-          result[key] = parsed ?? 0;
-          break;
-        case 'string':
-        default:
-          result[key] = _controllers[key]?.text.trim() ?? '';
-          break;
+    for (final section in _sections) {
+      for (final field in section.fields) {
+        switch (field.type) {
+          case _ConfigFieldType.boolean:
+            result[field.key] = _boolValues[field.key] ?? false;
+            break;
+          case _ConfigFieldType.number:
+            final raw = _textControllers[field.key]?.text.trim() ?? '';
+            final parsed = num.tryParse(raw);
+            result[field.key] = parsed ?? 0;
+            break;
+          case _ConfigFieldType.string:
+            result[field.key] = _textControllers[field.key]?.text.trim() ?? '';
+            break;
+        }
       }
     }
     return result;
   }
 
   Future<void> _saveConfig() async {
-    setState(() => _isSaving = true);
+    setState(() { _isSaving = true; _saved = false; });
     try {
       final config = _collectFormValues();
       final result = await _apiService.updateAdminConfig(config);
-
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Configuration enregistrée avec succès'),
-                backgroundColor: AppTheme.green600),
-          );
+          setState(() => _saved = true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(
-                    result['message']?.toString() ?? 'Erreur lors de l\'enregistrement'),
-                backgroundColor: AppTheme.error),
+              content: Text(
+                  result['message']?.toString() ?? 'Erreur lors de l\'enregistrement'),
+              backgroundColor: AppTheme.error,
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Erreur: $e'),
-              backgroundColor: AppTheme.error),
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
         );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
-  }
-
-  /// Répartit les paramètres dans des groupes thématiques (cartes).
-  List<_ParamGroup> _buildGroups() {
-    final tarifs = _ParamGroup(
-      'Tarifs & commissions',
-      Icons.payments_rounded,
-      PcTone.amber,
-      const [
-        'tarif', 'prix', 'price', 'commission', 'montant', 'fee', 'frais',
-        'taux', 'rate', 'seuil', 'cout', 'coût', 'wallet', 'solde', 'devise',
-      ],
-    );
-    final notifs = _ParamGroup(
-      'Notifications',
-      Icons.notifications_rounded,
-      PcTone.primary,
-      const ['notif', 'email', 'mail', 'sms', 'push', 'alerte'],
-    );
-    final securite = _ParamGroup(
-      'Sécurité',
-      Icons.shield_rounded,
-      PcTone.red,
-      const [
-        'secur', 'sécur', 'password', 'mot_de_passe', 'token', 'auth',
-        'session', 'otp', '2fa', 'verif', 'vérif',
-      ],
-    );
-    final general = _ParamGroup(
-      'Général',
-      Icons.tune_rounded,
-      PcTone.neutral,
-      const [],
-    );
-
-    // Groupes spécifiques testés avant le repli "Général".
-    final specific = [tarifs, notifs, securite];
-
-    for (final item in _configItems) {
-      final key = item['key']?.toString() ?? '';
-      final label = item['label']?.toString() ?? '';
-      final hay = '$key $label'.toLowerCase();
-      final match = specific.firstWhere(
-        (g) => g.keywords.any(hay.contains),
-        orElse: () => general,
-      );
-      match.items.add(item);
-    }
-
-    // Ordre d'affichage : Général en tête, puis les groupes spécifiques.
-    return [general, ...specific].where((g) => g.items.isNotEmpty).toList();
   }
 
   @override
@@ -228,11 +184,8 @@ class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
         title: const Text('Paramètres système',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         actions: [
-          PcIconButton(
-            Icons.refresh_rounded,
-            tooltip: 'Recharger',
-            onPressed: _loadConfig,
-          ),
+          PcIconButton(Icons.refresh_rounded,
+              tooltip: 'Recharger', onPressed: _loadConfig),
           const SizedBox(width: 4),
         ],
       ),
@@ -240,26 +193,24 @@ class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _buildErrorView()
-              : _configItems.isEmpty
-                  ? _buildEmptyView()
-                  : Column(
-                      children: [
-                        Expanded(
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-                            children: [
-                              _buildIntro(),
-                              const SizedBox(height: 18),
-                              for (final group in _buildGroups()) ...[
-                                _buildGroupCard(group),
-                                const SizedBox(height: 16),
-                              ],
-                            ],
-                          ),
-                        ),
-                        _buildSaveButton(),
-                      ],
+              : Column(
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+                        children: [
+                          _buildIntro(),
+                          const SizedBox(height: 18),
+                          for (final section in _sections) ...[
+                            _buildSectionCard(section),
+                            const SizedBox(height: 16),
+                          ],
+                        ],
+                      ),
                     ),
+                    _buildSaveBar(),
+                  ],
+                ),
     );
   }
 
@@ -268,38 +219,27 @@ class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: 44, height: 44,
           decoration: BoxDecoration(
             color: AppTheme.teal50,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
-          child: const Icon(Icons.settings_rounded,
-              size: 24, color: AppTheme.primary),
+          child: const Icon(Icons.settings_rounded, size: 24, color: AppTheme.primary),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Configuration système',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
+              Text('Configuration système',
+                  style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18, fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary)),
               const SizedBox(height: 3),
-              Text(
-                'Ajustez les paramètres de la plateforme puis enregistrez.',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.slate500,
-                  height: 1.4,
-                ),
-              ),
+              Text('Ajustez les paramètres de la plateforme puis enregistrez.',
+                  style: GoogleFonts.manrope(
+                      fontSize: 13, fontWeight: FontWeight.w500,
+                      color: AppTheme.slate500, height: 1.4)),
             ],
           ),
         ),
@@ -307,144 +247,125 @@ class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
     );
   }
 
-  Widget _buildGroupCard(_ParamGroup group) {
+  Widget _buildSectionCard(_ConfigSection section) {
+    final (bg, fg) = _toneColors(section.tone);
     return PcCard(
       padding: const EdgeInsets.all(18),
       shadow: AppTheme.shadowXs(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildGroupHeader(group),
+          Row(
+            children: [
+              Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                ),
+                child: Icon(section.icon, size: 19, color: fg),
+              ),
+              const SizedBox(width: 10),
+              Text(section.title,
+                  style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15.5, fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary)),
+              const Spacer(),
+              PcBadge('${section.fields.length}', tone: section.tone),
+            ],
+          ),
           const SizedBox(height: 16),
-          for (int i = 0; i < group.items.length; i++) ...[
+          for (int i = 0; i < section.fields.length; i++) ...[
             if (i > 0) const SizedBox(height: 18),
-            _buildConfigField(group.items[i]),
+            _buildField(section.fields[i]),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildGroupHeader(_ParamGroup group) {
-    final chip = _toneColors(group.tone);
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: chip.$1,
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+  Widget _buildField(_ConfigField field) {
+    if (field.type == _ConfigFieldType.boolean) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(field.label,
+                style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5, fontWeight: FontWeight.w600,
+                    color: AppTheme.slate700)),
           ),
-          child: Icon(group.icon, size: 19, color: chip.$2),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          group.title,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 15.5,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
+          const SizedBox(width: 12),
+          Switch(
+            value: _boolValues[field.key] ?? false,
+            onChanged: (val) => setState(() => _boolValues[field.key] = val),
+            activeThumbColor: Colors.white,
+            activeTrackColor: AppTheme.primary,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: AppTheme.slate300,
+            trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
           ),
-        ),
-        const Spacer(),
-        PcBadge('${group.items.length}', tone: group.tone),
-      ],
-    );
-  }
-
-  Widget _buildConfigField(Map<String, dynamic> item) {
-    final key = item['key']?.toString() ?? '';
-    final label = item['label']?.toString() ?? _prettyKey(key);
-    final type = item['type']?.toString() ?? 'string';
-
-    if (type == 'boolean') {
-      return _buildBooleanField(key, label);
+        ],
+      );
     }
 
+    final isNumber = field.type == _ConfigFieldType.number;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.slate700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _buildTextInput(key, type),
-      ],
-    );
-  }
-
-  Widget _buildBooleanField(String key, String label) {
-    final active = _formValues[key] == true;
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
+        Text(field.label,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.slate700,
-            ),
+                fontSize: 13.5, fontWeight: FontWeight.w600,
+                color: AppTheme.slate700)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _textControllers[field.key],
+          keyboardType: isNumber
+              ? const TextInputType.numberWithOptions(decimal: true)
+              : TextInputType.text,
+          inputFormatters: isNumber
+              ? [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))]
+              : null,
+          style: isNumber
+              ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
+              : GoogleFonts.manrope(
+                  fontSize: 14, fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary),
+          decoration: InputDecoration(
+            hintText: isNumber ? 'Saisir une valeur numérique' : 'Saisir une valeur',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
-        ),
-        const SizedBox(width: 12),
-        Switch(
-          value: active,
-          onChanged: (val) => setState(() => _formValues[key] = val),
-          activeThumbColor: Colors.white,
-          activeTrackColor: AppTheme.primary,
-          inactiveThumbColor: Colors.white,
-          inactiveTrackColor: AppTheme.slate300,
-          trackOutlineColor:
-              const WidgetStatePropertyAll(Colors.transparent),
         ),
       ],
     );
   }
 
-  Widget _buildTextInput(String key, String type) {
-    final isNumber = type == 'number';
-    return TextField(
-      controller: _controllers[key],
-      keyboardType: isNumber
-          ? const TextInputType.numberWithOptions(decimal: true)
-          : TextInputType.text,
-      inputFormatters: isNumber
-          ? [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))]
-          : null,
-      style: isNumber
-          ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
-          : GoogleFonts.manrope(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textPrimary,
-            ),
-      decoration: InputDecoration(
-        hintText:
-            isNumber ? 'Saisir une valeur numérique' : 'Saisir une valeur',
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  Widget _buildSaveBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: const Border(top: BorderSide(color: AppTheme.slate200)),
+        boxShadow: AppTheme.softShadow(alpha: 0.06),
       ),
-    );
-  }
-
-  Widget _buildEmptyView() {
-    return PcEmptyState(
-      icon: Icons.tune_rounded,
-      title: 'Aucun paramètre',
-      message:
-          'La configuration système ne contient aucun paramètre modifiable.',
-      action: PcButton(
-        'Réessayer',
-        variant: PcButtonVariant.secondary,
-        icon: Icons.refresh_rounded,
-        onPressed: _loadConfig,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_saved)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('✓ Configuration enregistrée.',
+                  style: TextStyle(
+                      color: AppTheme.green600,
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          PcButton(
+            _isSaving ? 'Enregistrement...' : 'Enregistrer',
+            icon: Icons.save_rounded,
+            block: true,
+            loading: _isSaving,
+            onPressed: _isSaving ? null : _saveConfig,
+          ),
+        ],
       ),
     );
   }
@@ -455,46 +376,11 @@ class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
       tone: PcTone.red,
       title: 'Erreur de chargement',
       message: _error,
-      action: PcButton(
-        'Réessayer',
-        icon: Icons.refresh_rounded,
-        onPressed: _loadConfig,
-      ),
+      action: PcButton('Réessayer', icon: Icons.refresh_rounded,
+          onPressed: _loadConfig),
     );
   }
 
-  Widget _buildSaveButton() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: const Border(top: BorderSide(color: AppTheme.slate200)),
-        boxShadow: AppTheme.softShadow(alpha: 0.06),
-      ),
-      child: PcButton(
-        _isSaving ? 'Enregistrement...' : 'Enregistrer',
-        icon: Icons.save_rounded,
-        block: true,
-        loading: _isSaving,
-        onPressed: _isSaving ? null : _saveConfig,
-      ),
-    );
-  }
-
-  // ---- Helpers présentation -------------------------------------------------
-
-  /// Convertit une clé technique en libellé lisible (fallback si pas de label).
-  String _prettyKey(String key) {
-    if (key.isEmpty) return key;
-    final spaced = key
-        .replaceAll(RegExp(r'[_-]'), ' ')
-        .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
-        .trim();
-    if (spaced.isEmpty) return key;
-    return spaced[0].toUpperCase() + spaced.substring(1);
-  }
-
-  /// Couleurs (fond, texte) associées à un ton, pour les pastilles d'entête.
   (Color, Color) _toneColors(PcTone tone) {
     switch (tone) {
       case PcTone.primary:

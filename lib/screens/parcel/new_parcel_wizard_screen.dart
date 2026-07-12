@@ -16,6 +16,7 @@ import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/procolis_design_system.dart';
+import '../../widgets/route_picker.dart';
 
 final _apiService = ApiService();
 
@@ -438,48 +439,23 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       children: [
         _sectionHeader('Trajet', Icons.route_rounded),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          value: _departureGarageId,
-          decoration: const InputDecoration(
-            labelText: 'Garage de départ *',
-            prefixIcon: Icon(Icons.trip_origin_rounded),
-          ),
-          items: _garages.map((g) => DropdownMenuItem(value: g.id, child: Text(g.name))).toList(),
-          onChanged: (v) {
+        RoutePicker(
+          garages: _garages,
+          initialDeparture: _garageById(_departureGarageId),
+          initialArrival: _garageById(_arrivalGarageId),
+          departureLabel: 'Zone de départ',
+          arrivalLabel: "Zone d'arrivée",
+          onDepartureChanged: (g) {
             setState(() {
-              _departureGarageId = v;
+              _departureGarageId = g?.id;
               _selectedDriver = null;
             });
-            if (v != null) _loadDriversForGarage(garageId: v);
+            if (g != null) _loadDriversForGarage(garageId: g.id);
+          },
+          onArrivalChanged: (g) {
+            setState(() => _arrivalGarageId = g?.id);
           },
         ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          value: _arrivalGarageId,
-          decoration: const InputDecoration(
-            labelText: 'Garage d\'arrivée *',
-            prefixIcon: Icon(Icons.location_on_rounded),
-          ),
-          items: _garages
-              .where((g) => g.id != _departureGarageId)
-              .map((g) => DropdownMenuItem(value: g.id, child: Text(g.name)))
-              .toList(),
-          onChanged: (v) => setState(() => _arrivalGarageId = v),
-        ),
-        if (_departureGarageId != null && _arrivalGarageId != null) ...[
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(_garageById(_departureGarageId)?.name ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(Icons.arrow_forward_rounded, size: 18, color: AppTheme.primary),
-              ),
-              Text(_garageById(_arrivalGarageId)?.name ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ],
         const SizedBox(height: 20),
         _sectionHeader('Mode de livraison', Icons.settings_rounded),
         const SizedBox(height: 12),
@@ -506,7 +482,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Aucun chauffeur disponible pour ce garage', textAlign: TextAlign.center),
+                child: Text('Aucun chauffeur disponible pour cette zone', textAlign: TextAlign.center),
               ),
             )
           else

@@ -350,7 +350,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                         ? NetworkImage(
                             photoUrl!.startsWith('http')
                                 ? photoUrl!
-                                : 'https://procolis-backend.onrender.com$photoUrl',
+                                : ApiService.resolveMediaUrl(photoUrl),
                           )
                         : null,
                     child: hasPhoto

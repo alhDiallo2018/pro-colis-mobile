@@ -642,7 +642,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
     if (confirm == true) {
       setState(() => _processingParcelId = parcel.id);
       try {
-        await _apiService.cancelParcel(parcel.id, reason: 'Annulé par le garage admin');
+        await _apiService.cancelParcel(parcel.id, reason: "Annulé par l'admin zone");
         if (mounted) {
           _showSnackBar('Colis annulé', AppTheme.green600);
           await widget.onRefresh();
@@ -692,10 +692,9 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
           final driverExists = driverName != null && driverName != 'Chauffeur inconnu';
 
           return PcCard(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => ParcelDetailScreen(parcel: parcel))
-            ).then((_) => widget.onRefresh()),
+            onTap: () => context
+                .push('/parcel/${parcel.id}', extra: parcel)
+                .then((_) => widget.onRefresh()),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1124,10 +1123,9 @@ class _InProgressTab extends StatelessWidget {
             children: [
               ParcelCard(
                 parcel: parcel,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ParcelDetailScreen(parcel: parcel))
-                ).then((_) => onRefresh()),
+                onTap: () => context
+                    .push('/parcel/${parcel.id}', extra: parcel)
+                    .then((_) => onRefresh()),
               ),
               if (parcel.driverName != null)
                 Padding(

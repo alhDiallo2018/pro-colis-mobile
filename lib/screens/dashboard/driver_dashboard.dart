@@ -1827,9 +1827,13 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
   }
 
   void _openItinerary(Parcel parcel) {
-    context.push('/driver/itinerary', extra: {
-      'departureName': parcel.departureGarageName,
-      'arrivalName': parcel.arrivalGarageName ?? '',
+    _api.getAllGarages().then((garages) {
+      if (!mounted) return;
+      context.push('/driver/itinerary', extra: {
+        'departureName': parcel.departureGarageName,
+        'arrivalName': parcel.arrivalGarageName ?? '',
+        'garages': garages,
+      });
     });
   }
 
@@ -2168,7 +2172,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
       subtitle: 'Trajet publié',
       trailing: proposedPrice != null
           ? Text(
-              '${_fcfa((proposedPrice as num).toDouble())} FCFA',
+              '${_fcfa(double.tryParse(proposedPrice?.toString() ?? '') ?? 0)} FCFA',
               style: AppTheme.mono(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w800,
@@ -2204,7 +2208,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                             ? NetworkImage(
                                 user.profilePhoto!.startsWith('http')
                                     ? user.profilePhoto!
-                                    : 'https://procolis-backend.onrender.com${user.profilePhoto!}',
+                                    : ApiService.resolveMediaUrl(user.profilePhoto!),
                               )
                             : null,
                         child: user != null &&
@@ -3032,11 +3036,9 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
   Future<void> _refresh() async => widget.onRefresh();
 
   void _openMission(Parcel parcel) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => ParcelDetailScreen(parcel: parcel)),
-    ).then((_) => widget.onRefresh());
+    context
+        .push('/parcel/${parcel.id}', extra: parcel)
+        .then((_) => widget.onRefresh());
   }
 
   void _openConfirmDelivery(Parcel parcel) {
@@ -3266,7 +3268,7 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                               ? NetworkImage(
                                   photoUrl!.startsWith('http')
                                       ? photoUrl!
-                                      : 'https://procolis-backend.onrender.com$photoUrl',
+                                      : ApiService.resolveMediaUrl(photoUrl),
                                 )
                               : null,
                           child: hasPhoto
@@ -4571,12 +4573,9 @@ class _DriverAdvertisementsScreenState
   }
 
   void _editAd(Parcel parcel) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ParcelDetailScreen(parcel: parcel),
-      ),
-    ).then((result) {
+    context
+        .push('/parcel/${parcel.id}', extra: parcel)
+        .then((result) {
       if (result == true) {
         _loadAdvertisements();
       }
@@ -4988,11 +4987,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
 
   String _getFullImageUrl(String? url) {
     if (url == null || url.isEmpty) return '';
-    if (url.startsWith('http')) return url;
-    if (url.startsWith('/uploads/')) {
-      return 'https://procolis-backend.onrender.com$url';
-    }
-    return url;
+    return ApiService.resolveMediaUrl(url);
   }
 
   String _getDriverStatusText(String? status) {

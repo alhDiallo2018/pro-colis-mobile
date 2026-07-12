@@ -11,6 +11,7 @@ import '../../models/garage.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
+import '../../widgets/route_picker.dart';
 
 /// Ouvre le modal de création d'annonce. Renvoie `true` si une annonce a été
 /// publiée (le parent peut alors rafraîchir sa liste).
@@ -262,20 +263,17 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _stepBar(),
-        _fieldLabel('Départ'),
-        _garageDropdown(
-          value: _departureId,
-          hint: 'Zone de départ',
-          icon: Icons.garage_rounded,
-          onChanged: (v) => setState(() => _departureId = v),
-        ),
-        const SizedBox(height: 14),
-        _fieldLabel('Arrivée'),
-        _garageDropdown(
-          value: _arrivalId,
-          hint: 'Zone d’arrivée',
-          icon: Icons.pin_drop_rounded,
-          onChanged: (v) => setState(() => _arrivalId = v),
+        const SizedBox(height: 8),
+        RoutePicker(
+          garages: _garages,
+          initialDeparture: _garageById(_departureId),
+          initialArrival: _garageById(_arrivalId),
+          onDepartureChanged: (g) {
+            setState(() => _departureId = g?.id);
+          },
+          onArrivalChanged: (g) {
+            setState(() => _arrivalId = g?.id);
+          },
         ),
         const SizedBox(height: 14),
         _fieldLabel('Date et heure de départ'),
@@ -433,31 +431,6 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
         borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
       ),
       counterText: '',
-    );
-  }
-
-  Widget _garageDropdown({
-    required String? value,
-    required String hint,
-    required IconData icon,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      isExpanded: true,
-      icon: const Icon(Icons.expand_more_rounded, color: AppTheme.slate500),
-      decoration: _inputDecoration(hint, icon),
-      style: GoogleFonts.manrope(fontSize: 14, color: AppTheme.textPrimary),
-      hint: Text(hint,
-          style: GoogleFonts.manrope(fontSize: 14, color: AppTheme.slate400)),
-      items: _garages
-          .map((g) => DropdownMenuItem(
-                value: g.id,
-                child: Text('${g.name} — ${g.city}',
-                    overflow: TextOverflow.ellipsis),
-              ))
-          .toList(),
-      onChanged: onChanged,
     );
   }
 

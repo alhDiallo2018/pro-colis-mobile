@@ -19,6 +19,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/pc_components.dart';
 import '../driver/itinerary_map_screen.dart';
@@ -1006,10 +1007,10 @@ class _OfferSuccessScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MessagesScreen(
-          initialPeerId: parcel.senderId,
-          initialPeerName: parcel.senderName,
-          initialParcelId: parcel.id,
+        builder: (_) => NegotiationChatScreen(
+          peerId: parcel.senderId,
+          peerName: parcel.senderName,
+          parcelId: parcel.id,
         ),
       ),
     );

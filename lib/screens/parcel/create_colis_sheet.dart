@@ -22,6 +22,7 @@ import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
+import '../../widgets/route_picker.dart';
 
 /// Ouvre le modal de création de colis. Renvoie `true` si le colis a été publié.
 Future<bool?> showCreateColisSheet(BuildContext context) {
@@ -597,38 +598,17 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _stepBar(),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _label('Départ'),
-                  _garageDropdown(
-                    value: _departureId,
-                    hint: 'Zone',
-                    icon: Icons.trip_origin_rounded,
-                    onChanged: (v) => setState(() => _departureId = v),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _label('Arrivée'),
-                  _garageDropdown(
-                    value: _arrivalId,
-                    hint: 'Zone',
-                    icon: Icons.pin_drop_rounded,
-                    onChanged: (v) => setState(() => _arrivalId = v),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        const SizedBox(height: 8),
+        RoutePicker(
+          garages: _garages,
+          initialDeparture: _garageById(_departureId),
+          initialArrival: _garageById(_arrivalId),
+          onDepartureChanged: (g) {
+            setState(() => _departureId = g?.id);
+          },
+          onArrivalChanged: (g) {
+            setState(() => _arrivalId = g?.id);
+          },
         ),
         if (_departureId != null && _departureId == _arrivalId) ...[
           const SizedBox(height: 12),
@@ -1577,28 +1557,6 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
           : GoogleFonts.manrope(fontSize: 14),
       decoration: _dec(hint, icon),
-    );
-  }
-
-  Widget _garageDropdown({
-    required String? value,
-    required String hint,
-    required IconData icon,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      isExpanded: true,
-      icon: const Icon(Icons.expand_more_rounded, color: AppTheme.slate500),
-      decoration: _dec(hint, icon),
-      style: GoogleFonts.manrope(fontSize: 13.5, color: AppTheme.textPrimary),
-      items: _garages
-          .map((g) => DropdownMenuItem(
-                value: g.id,
-                child: Text(g.city, overflow: TextOverflow.ellipsis),
-              ))
-          .toList(),
-      onChanged: onChanged,
     );
   }
 

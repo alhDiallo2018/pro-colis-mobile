@@ -3,6 +3,12 @@
 
 import 'package:flutter/material.dart';
 
+double _toDouble(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString()) ?? 0;
+}
+
 enum UserRole {
   client('client', 'Client', Icons.person, Colors.green),
   driver('driver', 'Chauffeur', Icons.delivery_dining, Colors.blue),
@@ -222,8 +228,8 @@ class User {
       totalDeliveries: parseInt(json['totalDeliveries']) ?? parseInt(json['total_deliveries']),
       completedDeliveries: parseInt(json['completedDeliveries']) ?? parseInt(json['completed_deliveries']),
       cancelledDeliveries: parseInt(json['cancelledDeliveries']) ?? parseInt(json['cancelled_deliveries']),
-      walletBalance: (json['walletBalance'] as num?)?.toDouble() ?? 0,
-      totalCommissionPaid: (json['totalCommissionPaid'] as num?)?.toDouble() ?? 0,
+      walletBalance: _toDouble(json['walletBalance']),
+      totalCommissionPaid: _toDouble(json['totalCommissionPaid']),
       createdAt: parseDateTime(json['createdAt']) ?? parseDateTime(json['created_at']) ?? DateTime.now(),
       updatedAt: parseDateTime(json['updatedAt']) ?? parseDateTime(json['updated_at']),
       lastLogin: parseDateTime(json['lastLogin']) ?? parseDateTime(json['last_login']),

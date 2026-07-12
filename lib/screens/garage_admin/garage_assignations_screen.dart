@@ -422,7 +422,7 @@ class _GarageAssignationsScreenState
   /// préfixés avec le backend, comme dans le reste de l'application.
   String _mediaUrl(String url) => url.startsWith('http')
       ? url
-      : 'https://procolis-backend.onrender.com$url';
+      : ApiService.resolveMediaUrl(url);
 
   void _openPhotoViewer(String url) {
     showDialog(
