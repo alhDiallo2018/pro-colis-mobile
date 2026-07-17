@@ -20,9 +20,11 @@ import '../../models/user.dart';
 import '../../models/voice_message.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/route_picker.dart';
+import '../../widgets/location_autocomplete.dart';
 
 /// Ouvre le modal de création de colis. Renvoie `true` si le colis a été publié.
 Future<bool?> showCreateColisSheet(BuildContext context) {
@@ -622,8 +624,13 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         _textField(_receiverPhone, 'Ex : 77 000 00 00', Icons.call_rounded,
             mono: true, phone: true),
         const SizedBox(height: 14),
-        _label('Adresse de livraison (optionnel)'),
-        _textField(_receiverAddress, 'Quartier, repère…', Icons.home_rounded),
+        LocationAutocomplete(
+          controller: _receiverAddress,
+          label: 'Adresse de livraison (optionnel)',
+          prefixIcon: Icons.home_rounded,
+          hint: 'Quartier, repère…',
+          googleApiKey: PlacesService.googleApiKey,
+        ),
         const SizedBox(height: 18),
         _label('Mode de livraison'),
         _modeTile(

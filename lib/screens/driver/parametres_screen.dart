@@ -13,6 +13,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/availability_toggle.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/segmented_control.dart';
 
@@ -263,6 +264,11 @@ class _DriverParametresScreenState
 
                 // ==================== DISPONIBILITÉ ====================
                 const PcSectionHeader('Disponibilité'),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                  child: AvailabilityToggle(),
+                ),
+                const SizedBox(height: 8),
                 PcCard(
                   padding: const EdgeInsets.all(18),
                   child: Column(
@@ -323,7 +329,7 @@ class _DriverParametresScreenState
                         icon: Icons.campaign_rounded,
                         tone: PcTone.amber,
                         title: 'Promotions',
-                        subtitle: 'Offres et actualités ProColis',
+                        subtitle: 'Offres et actualités SendProcolis',
                         value: _notifPromos,
                         onChanged: (v) => setState(() => _notifPromos = v),
                       ),
@@ -431,7 +437,7 @@ class _DriverParametresScreenState
                       const SizedBox(height: 14),
                       const PcDivider(),
                       const SizedBox(height: 14),
-                      _infoRow('Application', 'PRO COLIS'),
+                      _infoRow('Application', 'SENDPROCOLIS'),
                       const SizedBox(height: 14),
                       const PcDivider(),
                       const SizedBox(height: 14),

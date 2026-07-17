@@ -505,12 +505,12 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '📞 +221 33 123 45 67 | 📧 contact@procolis.sn',
+                  '📞 +221 33 123 45 67 | 📧 contact@sendprocolis.com',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '📱 www.procolis.sn',
+                  '📱 www.sendprocolis.com',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                 ),
               ],

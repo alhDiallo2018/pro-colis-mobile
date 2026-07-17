@@ -20,8 +20,8 @@ class NotificationService {
     String? payload,
   }) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'procolis_channel',
-      'PRO COLIS Notifications',
+      'sendprocolis_channel',
+      'SENDPROCOLIS Notifications',
       channelDescription: 'Notifications des colis',
       importance: Importance.high,
       priority: Priority.high,

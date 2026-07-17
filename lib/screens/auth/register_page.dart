@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../data/country_data.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/location_autocomplete.dart';
 import '../../widgets/pc_components.dart';
 import '../dashboard/dashboard_screen.dart';
 
@@ -28,16 +31,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   bool _isLoading = false;
 
   String _selectedCountryCode = '+221';
-  final List<Map<String, String>> _countryCodes = [
-    {'code': '+221', 'flag': '🇸🇳', 'name': 'Sénégal'},
-    {'code': '+223', 'flag': '🇲🇱', 'name': 'Mali'},
-    {'code': '+224', 'flag': '🇬🇳', 'name': 'Guinée'},
-    {'code': '+225', 'flag': '🇨🇮', 'name': 'Côte d\'Ivoire'},
-    {'code': '+226', 'flag': '🇧🇫', 'name': 'Burkina Faso'},
-    {'code': '+229', 'flag': '🇧🇯', 'name': 'Bénin'},
-    {'code': '+220', 'flag': '🇬🇲', 'name': 'Gambie'},
-    {'code': '+33', 'flag': '🇫🇷', 'name': 'France'},
-  ];
+  CountryInfo? _selectedCountry;
+  String _countrySearchQuery = '';
+  final _countrySearchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCountry = allCountries.firstWhere(
+      (c) => c.dialCode == '+221',
+      orElse: () => allCountries.first,
+    );
+    _selectedCountryCode = _selectedCountry?.dialCode ?? '+221';
+  }
 
   @override
   void dispose() {
@@ -45,6 +51,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _cityController.dispose();
     _phoneController.dispose();
     _pinController.dispose();
+    _countrySearchController.dispose();
     super.dispose();
   }
 
@@ -184,11 +191,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   const SizedBox(height: 16),
 
                   // Ville
-                  CustomTextField(
+                  LocationAutocomplete(
                     controller: _cityController,
                     label: 'Ville',
                     prefixIcon: Icons.location_on_outlined,
-                    hint: 'Douala',
+                    hint: 'Rechercher votre ville...',
+                    googleApiKey: PlacesService.googleApiKey,
                   ),
                   const SizedBox(height: 16),
 
@@ -213,9 +221,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             _PhoneField(
                               controller: _phoneController,
                               countryCode: _selectedCountryCode,
-                              countryCodes: _countryCodes,
-                              onCountryChanged: (v) =>
-                                  setState(() => _selectedCountryCode = v),
+                              selectedCountry: _selectedCountry,
+                              onCountryChanged: (c) {
+                                setState(() {
+                                  _selectedCountryCode = c.dialCode;
+                                  _selectedCountry = c;
+                                });
+                              },
                               onChanged: () => setState(() {}),
                             ),
                           ],
@@ -423,71 +435,174 @@ class _RoleTile extends StatelessWidget {
 }
 
 // ============================================================
-// Champ téléphone avec préfixe pays
+// Champ téléphone avec préfixe pays (searchable)
 // ============================================================
 
-class _PhoneField extends StatelessWidget {
+class _PhoneField extends StatefulWidget {
   final TextEditingController controller;
   final String countryCode;
-  final List<Map<String, String>> countryCodes;
-  final ValueChanged<String> onCountryChanged;
+  final CountryInfo? selectedCountry;
+  final ValueChanged<CountryInfo> onCountryChanged;
   final VoidCallback onChanged;
 
   const _PhoneField({
     required this.controller,
     required this.countryCode,
-    required this.countryCodes,
+    required this.selectedCountry,
     required this.onCountryChanged,
     required this.onChanged,
   });
 
   @override
+  State<_PhoneField> createState() => _PhoneFieldState();
+}
+
+class _PhoneFieldState extends State<_PhoneField> {
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  void _showPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = searchCountries(_searchQuery);
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.slate300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un pays...',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setModalState(() => _searchQuery = '');
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: AppTheme.slate100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (v) => setModalState(() => _searchQuery = v),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollController,
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final country = filtered[index];
+                          final isSelected = widget.selectedCountry?.code == country.code;
+                          return ListTile(
+                            leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
+                            title: Text(country.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            trailing: Text(country.dialCode, style: AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.slate600)),
+                            selected: isSelected,
+                            selectedTileColor: AppTheme.teal50,
+                            onTap: () {
+                              widget.onCountryChanged(country);
+                              _searchQuery = '';
+                              _searchController.clear();
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          height: 52,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(
-            color: AppTheme.cardColor,
-            border: Border.all(color: AppTheme.slate200),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: countryCode,
-              icon: const Icon(Icons.arrow_drop_down,
-                  size: 18, color: AppTheme.slate500),
-              style: AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w600),
-              items: countryCodes.map((c) {
-                return DropdownMenuItem(
-                  value: c['code'],
-                  child: Text('${c['flag']} ${c['code']}'),
-                );
-              }).toList(),
-              onChanged: (v) {
-                if (v != null) onCountryChanged(v);
-              },
+        GestureDetector(
+          onTap: _showPicker,
+          child: Container(
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.cardColor,
+              border: Border.all(color: AppTheme.slate200),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.selectedCountry?.flag ?? '🇸🇳',
+                  style: const TextStyle(fontSize: 18),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  widget.countryCode,
+                  style: AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.slate500),
+              ],
             ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: TextField(
-            controller: controller,
+            controller: widget.controller,
             keyboardType: TextInputType.phone,
-            onChanged: (_) => onChanged(),
+            onChanged: (_) => widget.onChanged(),
             style: AppTheme.mono(fontSize: 15, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               hintText: '77 123 45 67',
               filled: true,
               fillColor: AppTheme.cardColor,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             ),
           ),
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }

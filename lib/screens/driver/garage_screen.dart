@@ -138,7 +138,7 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
         onPressed: () {
           final uri = Uri(
             scheme: 'mailto',
-            path: 'support@procolis.com',
+            path: 'support@sendprocolis.com',
             query: 'subject=Aide - Rattachement à une zone',
           );
           launchUrl(uri);

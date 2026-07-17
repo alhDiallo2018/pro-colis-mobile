@@ -1,6 +1,7 @@
 // mobile/lib/screens/dashboard/super_admin_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:procolis/models/garage.dart';
 import 'package:procolis/models/parcel.dart';
@@ -18,6 +19,7 @@ import 'package:procolis/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
+import '../../widgets/bar_chart.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../profile/profile_screen.dart';
@@ -548,7 +550,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _MiniBarChart(bars: _volume, labels: _months, height: 120),
+          PcBarChart(bars: _volume.map((v) => v.toDouble()).toList(), labels: _months, height: 120, highlightLast: true),
         ],
       ),
     );
@@ -751,6 +753,20 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 },
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.email_rounded,
+                label: 'Configuration Brevo',
+                tone: PcTone.primary,
+                onTap: () => context.go('/admin/notifications/brevo'),
+              ),
+            ),
+            const Spacer(),
           ],
         ),
       ],
@@ -1029,69 +1045,6 @@ class _StatusMini extends StatelessWidget {
               color: AppTheme.slate500,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniBarChart extends StatelessWidget {
-  final List<int> bars;
-  final List<String> labels;
-  final double height;
-
-  const _MiniBarChart({
-    required this.bars,
-    required this.labels,
-    this.height = 120,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final maxVal = bars.isEmpty ? 1 : bars.reduce((a, b) => a > b ? a : b);
-    return SizedBox(
-      height: height,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (int i = 0; i < bars.length; i++)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: FractionallySizedBox(
-                        alignment: Alignment.bottomCenter,
-                        heightFactor: (bars[i] / maxVal).clamp(0.06, 1.0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: i == bars.length - 1
-                                  ? const [AppTheme.amber400, AppTheme.amber500]
-                                  : const [AppTheme.teal400, AppTheme.teal600],
-                            ),
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      i < labels.length ? labels[i] : '',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.slate400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
     );

@@ -1,6 +1,6 @@
 {
-    "name": "pro_colis_clean",
-    "short_name": "pro_colis_clean",
+    "name": "sendprocolis",
+    "short_name": "sendprocolis",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0B6E3A",

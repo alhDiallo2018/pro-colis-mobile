@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../models/garage.dart';
 import '../theme/app_theme.dart';
@@ -55,6 +56,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
   final _scrollCtrl = ScrollController();
   String _query = '';
   Garage? _selected;
+  bool _locating = false;
 
   List<Garage> get _filtered {
     var list = widget.garages;
@@ -84,6 +86,52 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
 
   void _confirm() {
     if (_selected != null) Navigator.pop(context, _selected);
+  }
+
+  Future<void> _findNearest() async {
+    setState(() => _locating = true);
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (!mounted) return;
+
+      Garage? nearest;
+      double? nearestDist;
+
+      for (final g in widget.garages) {
+        if (widget.exclude != null && g.id == widget.exclude!.id) continue;
+        if (g.latitude == null || g.longitude == null) continue;
+        final dist = Geolocator.distanceBetween(
+          position.latitude, position.longitude,
+          g.latitude!, g.longitude!,
+        );
+        if (nearestDist == null || dist < nearestDist) {
+          nearestDist = dist;
+          nearest = g;
+        }
+      }
+
+      if (nearest != null) {
+        setState(() => _selected = nearest);
+        final controller = _searchCtrl;
+        if (controller.text.isEmpty) {
+          _confirm();
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Aucune zone avec coordonnées trouvée à proximité.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Géolocalisation: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
   }
 
   @override
@@ -139,6 +187,28 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                                 fontSize: 18, fontWeight: FontWeight.w800,
                                 color: AppTheme.textPrimary)),
                       ),
+                      if (_locating)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 12),
+                          child: SizedBox(
+                            width: 18, height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      if (!_locating)
+                        GestureDetector(
+                          onTap: _findNearest,
+                          child: Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              color: AppTheme.teal50,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.my_location_rounded,
+                                size: 18, color: AppTheme.primary),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
                       if (_selected != null)
                         PcButton('Valider',
                             icon: Icons.check_rounded,

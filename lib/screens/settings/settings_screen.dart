@@ -236,7 +236,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   icon: Icons.language_rounded,
                   iconTone: PcTone.neutral,
                   title: 'Langue',
-                  subtitle: 'Langue de l’application',
+                  subtitle: 'Langue de l\'application',
                   trailing: Text(
                     'Français',
                     style: GoogleFonts.plusJakartaSans(
@@ -259,6 +259,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
+                PcListRow(
+                  icon: Icons.tune_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Préférences de notification',
+                  subtitle: 'Gérer les types de notifications',
+                  chevron: true,
+                  onTap: () => context.go('/settings/notifications'),
+                ),
+                const PcDivider(),
                 _switchRow(
                   icon: Icons.notifications_rounded,
                   tone: PcTone.primary,
@@ -358,7 +367,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 18),
           Center(
             child: Text(
-              'PRO COLIS · v1.0.0',
+              'SENDPROCOLIS · v1.0.0',
               style: AppTheme.mono(
                 color: AppTheme.slate400,
                 fontSize: 11.5,

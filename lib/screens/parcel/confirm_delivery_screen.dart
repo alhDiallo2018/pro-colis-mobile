@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../models/parcel.dart';
+import '../../models/payment.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pay_commission_dialog.dart';
 
 class ConfirmDeliveryScreen extends ConsumerStatefulWidget {
   final Parcel parcel;
@@ -110,6 +112,12 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
       }
 
       setState(() => _done = true);
+
+      if (widget.parcel.paymentMethod == PaymentMethod.cash &&
+          widget.parcel.price != null &&
+          widget.parcel.price! > 0) {
+        Future.microtask(() => _showCommissionDialog());
+      }
     } catch (error) {
       debugPrint('Erreur confirmation livraison: $error');
       if (mounted) _showSnack('Erreur lors de la confirmation');
@@ -121,6 +129,18 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  void _showCommissionDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => PayCommissionDialog(
+        parcelId: widget.parcel.id,
+        deliveryAmount: widget.parcel.price ?? 0,
+        trackingNumber: widget.parcel.trackingNumber,
+      ),
     );
   }
 

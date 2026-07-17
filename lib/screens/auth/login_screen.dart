@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../data/country_data.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
@@ -23,74 +24,80 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _pinController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _identifierController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePin = true;
   bool _rememberMe = true;
 
-  String _selectedCountryCode = '+221';
-  final List<Map<String, String>> _countryCodes = [
-    {'code': '+221', 'flag': '🇸🇳', 'name': 'Sénégal'},
-    {'code': '+223', 'flag': '🇲🇱', 'name': 'Mali'},
-    {'code': '+224', 'flag': '🇬🇳', 'name': 'Guinée'},
-    {'code': '+225', 'flag': '🇨🇮', 'name': 'Côte d\'Ivoire'},
-    {'code': '+226', 'flag': '🇧🇫', 'name': 'Burkina Faso'},
-    {'code': '+229', 'flag': '🇧🇯', 'name': 'Bénin'},
-    {'code': '+220', 'flag': '🇬🇲', 'name': 'Gambie'},
-    {'code': '+33', 'flag': '🇫🇷', 'name': 'France'},
-  ];
+  CountryInfo? _selectedCountry;
+  String _countrySearchQuery = '';
+  final _countrySearchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _selectedCountry = allCountries.firstWhere(
+      (c) => c.dialCode == '+221',
+      orElse: () => allCountries.first,
+    );
     _loadSavedData();
   }
 
   @override
   void dispose() {
     _pinController.dispose();
-    _phoneController.dispose();
+    _identifierController.dispose();
+    _countrySearchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedPhone = prefs.getString('saved_phone');
+    final savedIdentifier = prefs.getString('saved_identifier');
     final savedCountryCode = prefs.getString('saved_country_code');
     final rememberMe = prefs.getBool('remember_me') ?? true;
     if (mounted) {
       setState(() {
         _rememberMe = rememberMe;
-        if (savedCountryCode != null) _selectedCountryCode = savedCountryCode;
-        if (rememberMe && savedPhone != null && savedPhone.isNotEmpty) {
-          _phoneController.text = savedPhone;
+        if (savedCountryCode != null) {
+          _selectedCountry = allCountries.firstWhere(
+            (c) => c.dialCode == savedCountryCode,
+            orElse: () => _selectedCountry ?? allCountries.first,
+          );
+        }
+        if (rememberMe && savedIdentifier != null && savedIdentifier.isNotEmpty) {
+          _identifierController.text = savedIdentifier;
         }
       });
     }
   }
 
-  Future<void> _savePhoneNumber(String phoneNumber) async {
+  Future<void> _saveIdentifier(String identifier) async {
     if (!_rememberMe) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('saved_phone', phoneNumber);
-    await prefs.setString('saved_country_code', _selectedCountryCode);
+    await prefs.setString('saved_identifier', identifier);
+    if (_selectedCountry != null) {
+      await prefs.setString('saved_country_code', _selectedCountry!.dialCode);
+    }
     await prefs.setBool('remember_me', _rememberMe);
   }
 
   String _getFullPhoneNumber() {
-    final phoneNumber = _phoneController.text.trim();
-    if (phoneNumber.isEmpty) return '';
-    final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
-    return '$_selectedCountryCode$cleanNumber';
+    final identifier = _identifierController.text.trim();
+    if (identifier.isEmpty) return '';
+    if (identifier.contains('@')) return identifier;
+    final cleanNumber = identifier.replaceAll(RegExp(r'[^0-9]'), '');
+    final dialCode = _selectedCountry?.dialCode ?? '+221';
+    return '$dialCode$cleanNumber';
   }
 
   Future<void> _loginWithPin() async {
     if (_isLoading) return;
-    final phoneNumber = _getFullPhoneNumber();
+    final identifier = _getFullPhoneNumber();
     final pin = _pinController.text.trim();
 
-    if (phoneNumber.isEmpty) {
-      _showSnack('Veuillez entrer votre numéro de téléphone',
+    if (identifier.isEmpty) {
+      _showSnack('Veuillez entrer votre email ou numéro de téléphone',
           AppTheme.warningColor);
       return;
     }
@@ -104,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final result = await ref.read(authProvider.notifier).loginWithPin(
           pin,
-          phoneNumber,
+          identifier,
         );
 
     if (!mounted) return;
@@ -132,6 +139,96 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ),
+    );
+  }
+
+  void _showCountryPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = searchCountries(_countrySearchQuery);
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.slate300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: TextField(
+                        controller: _countrySearchController,
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un pays...',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _countrySearchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _countrySearchController.clear();
+                                    setModalState(() => _countrySearchQuery = '');
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: AppTheme.slate100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (v) {
+                          setModalState(() => _countrySearchQuery = v);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollController,
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final country = filtered[index];
+                          final isSelected = _selectedCountry?.code == country.code;
+                          return ListTile(
+                            leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
+                            title: Text(country.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            trailing: Text(country.dialCode, style: AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.slate600)),
+                            selected: isSelected,
+                            selectedTileColor: AppTheme.teal50,
+                            onTap: () {
+                              setState(() => _selectedCountry = country);
+                              _saveIdentifier(_identifierController.text.trim());
+                              _countrySearchController.clear();
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -178,68 +275,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 26),
 
-                  // Téléphone
-                  _fieldLabel('Numéro de téléphone'),
+                  // Identifiant (email ou téléphone)
+                  _fieldLabel('Email ou téléphone'),
                   const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        height: 54,
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.cardColor,
-                          border: Border.all(color: AppTheme.slate200),
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusMd),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedCountryCode,
-                            isExpanded: false,
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusMd),
-                            icon: const Icon(Icons.arrow_drop_down,
-                                size: 20, color: AppTheme.slate500),
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8),
-                            style: AppTheme.mono(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.textPrimary),
-                            items: _countryCodes.map((c) {
-                              return DropdownMenuItem(
-                                value: c['code'],
-                                child: Text(
-                                  '${c['flag']} ${c['code']}',
-                                  style: AppTheme.mono(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700),
+                      GestureDetector(
+                        onTap: () => _showCountryPicker(),
+                        child: Container(
+                          height: 54,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardColor,
+                            border: Border.all(color: AppTheme.slate200),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _selectedCountry?.flag ?? '🇸🇳',
+                                style: const TextStyle(fontSize: 20),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _selectedCountry?.dialCode ?? '+221',
+                                style: AppTheme.mono(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textPrimary,
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _selectedCountryCode = value);
-                                _savePhoneNumber(_phoneController.text.trim());
-                              }
-                            },
+                              ),
+                              const Icon(Icons.arrow_drop_down,
+                                  size: 18, color: AppTheme.slate500),
+                            ],
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: CustomTextField(
-                          controller: _phoneController,
-                          label: 'Numéro de téléphone',
-                          prefixIcon: Icons.phone_outlined,
-                          keyboardType: TextInputType.phone,
+                          controller: _identifierController,
+                          label: 'Email ou téléphone',
+                          prefixIcon: Icons.alternate_email,
+                          keyboardType: TextInputType.text,
                           style: AppTheme.mono(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: AppTheme.textPrimary),
                           onChanged: (value) {
-                            _savePhoneNumber(value);
+                            _saveIdentifier(value);
                           },
                         ),
                       ),
@@ -289,7 +376,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               await SharedPreferences.getInstance();
                           await prefs.setBool('remember_me', _rememberMe);
                           if (!_rememberMe) {
-                            await prefs.remove('saved_phone');
+                            await prefs.remove('saved_identifier');
                           }
                         },
                         activeColor: AppTheme.primary,
@@ -302,7 +389,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Se souvenir de mon numéro',
+                        'Se souvenir de mon identifiant',
                         style: GoogleFonts.manrope(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w500,
@@ -403,7 +490,7 @@ class _AuthHero extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                'PRO COLIS',
+                'SENDPROCOLIS',
                 style: GoogleFonts.plusJakartaSans(
                   color: Colors.white,
                   fontSize: 21,

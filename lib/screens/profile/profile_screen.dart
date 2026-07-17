@@ -13,6 +13,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../screens/help/help_screen.dart';
+import '../../services/places_service.dart';
+import '../../widgets/location_autocomplete.dart';
 import '../../services/api_service.dart';
 import '../../screens/settings/settings_screen.dart';
 import '../../theme/app_theme.dart';
@@ -427,7 +429,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 18),
           Center(
             child: Text(
-              'PRO COLIS · v1.0.0',
+              'SENDPROCOLIS · v1.0.0',
               style: AppTheme.mono(
                 color: AppTheme.slate400,
                 fontSize: 11.5,
@@ -657,18 +659,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _formField(
+                child: LocationAutocomplete(
                   controller: _cityController,
                   label: 'Ville',
-                  icon: Icons.location_on_rounded,
+                  prefixIcon: Icons.location_on_rounded,
+                  hint: 'Rechercher votre ville...',
+                  googleApiKey: PlacesService.googleApiKey,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _formField(
+                child: LocationAutocomplete(
                   controller: _addressController,
                   label: 'Adresse',
-                  icon: Icons.home_rounded,
+                  prefixIcon: Icons.home_rounded,
+                  hint: 'Rechercher votre adresse...',
+                  googleApiKey: PlacesService.googleApiKey,
                 ),
               ),
             ],

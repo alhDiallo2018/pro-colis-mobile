@@ -10,7 +10,7 @@ void main() {
     test('parses user from JSON correctly', () {
       final json = {
         'id': 'user-001',
-        'email': 'test@procolis.test',
+        'email': 'test@sendprocolis.test',
         'phone': '+221771234567',
         'fullName': 'John Doe',
         'role': 'client',
@@ -26,7 +26,7 @@ void main() {
       final user = User.fromJson(json);
 
       expect(user.id, 'user-001');
-      expect(user.email, 'test@procolis.test');
+      expect(user.email, 'test@sendprocolis.test');
       expect(user.phone, '+221771234567');
       expect(user.fullName, 'John Doe');
       expect(user.role, UserRole.client);

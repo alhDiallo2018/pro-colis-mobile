@@ -29,6 +29,8 @@ import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/availability_toggle.dart';
+import '../../widgets/bar_chart.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../driver/create_annonce_sheet.dart';
@@ -41,6 +43,7 @@ import '../driver/historique_screen.dart';
 import '../driver/vehicle_documents_screen.dart';
 import '../shared/messages_screen.dart';
 import '../parcel/free_parcels_screen.dart';
+import '../parcel/track_parcel_screen.dart';
 import '../parcel/confirm_delivery_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
 import '../profile/profile_screen.dart';
@@ -698,780 +701,204 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
                     const SizedBox(height: 32),
                   ],
                 ),
-              ),
-            ),
+        ),
+      ),
     );
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: primaryBlue.withOpacity( 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.local_shipping,
-              color: primaryBlue,
-              size: 28,
-            ),
+          child: const Icon(Icons.local_shipping, color: AppTheme.primary, size: 28),
+        ),
+        const SizedBox(width: 16),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Annonce de voyage', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+              Text('Proposez un trajet pour transporter des colis', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Annonce de voyage',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
-                ),
-                Text(
-                  'Proposez un trajet pour transporter des colis',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildTripSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
+    return Column(
+      children: [
+        TextField(
+          controller: _departureController,
+          decoration: InputDecoration(
+            labelText: 'Ville de départ',
+            prefixIcon: const Icon(Icons.trip_origin),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '📍 Trajet',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: textPrimary,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _arrivalController,
+          decoration: InputDecoration(
+            labelText: "Ville d'arrivée",
+            prefixIcon: const Icon(Icons.location_on),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _departureDateController,
+                decoration: InputDecoration(
+                  labelText: 'Date de départ',
+                  prefixIcon: const Icon(Icons.calendar_today),
+                  hintText: 'JJ/MM/AAAA',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          // Lieu de départ avec autocomplétion
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                controller: _departureController,
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _departureTimeController,
                 decoration: InputDecoration(
-                  labelText: 'Lieu de départ *',
-                  hintText: 'Ex: Dakar, Plateau',
-                  prefixIcon:
-                      const Icon(Icons.departure_board, color: Colors.grey),
-                  suffixIcon: _isLoadingLocations
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: primaryBlue, width: 1.5),
-                  ),
+                  labelText: 'Heure',
+                  prefixIcon: const Icon(Icons.access_time),
+                  hintText: 'HH:MM',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Champ requis' : null,
-                onChanged: _updateDepartureSuggestions,
               ),
-              if (_departureSuggestions.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity( 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: _departureSuggestions.length,
-                    itemBuilder: (context, index) {
-                      final location = _departureSuggestions[index];
-                      return ListTile(
-                        title: Text(
-                          location,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        leading: const Icon(Icons.location_on,
-                            size: 16, color: Colors.grey),
-                        onTap: () {
-                          setState(() {
-                            _departureController.text = location;
-                            _departureSuggestions = [];
-                          });
-                        },
-                      );
-                    },
-                  ),
-                ),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _descriptionController,
+          maxLines: 2,
+          decoration: InputDecoration(
+            labelText: 'Description du trajet (optionnel)',
+            prefixIcon: const Icon(Icons.description),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          const SizedBox(height: 12),
-          // Lieu d'arrivée avec autocomplétion
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                controller: _arrivalController,
-                decoration: InputDecoration(
-                  labelText: 'Lieu d\'arrivée *',
-                  hintText: 'Ex: Dakar, Grand Dakar',
-                  prefixIcon: const Icon(Icons.location_on, color: Colors.grey),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: primaryBlue, width: 1.5),
-                  ),
-                ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Champ requis' : null,
-                onChanged: _updateArrivalSuggestions,
-              ),
-              if (_arrivalSuggestions.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity( 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: _arrivalSuggestions.length,
-                    itemBuilder: (context, index) {
-                      final location = _arrivalSuggestions[index];
-                      return ListTile(
-                        title: Text(
-                          location,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        leading: const Icon(Icons.location_on,
-                            size: 16, color: Colors.grey),
-                        onTap: () {
-                          setState(() {
-                            _arrivalController.text = location;
-                            _arrivalSuggestions = [];
-                          });
-                        },
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _selectDate(context),
-                  child: AbsorbPointer(
-                    child: TextFormField(
-                      controller: _departureDateController,
-                      decoration: InputDecoration(
-                        labelText: 'Date de départ *',
-                        hintText: 'JJ/MM/AAAA',
-                        prefixIcon: const Icon(Icons.calendar_today,
-                            color: Colors.grey),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: primaryBlue, width: 1.5),
-                        ),
-                      ),
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Champ requis'
-                          : null,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _selectTime(context),
-                  child: AbsorbPointer(
-                    child: TextFormField(
-                      controller: _departureTimeController,
-                      decoration: InputDecoration(
-                        labelText: 'Heure de départ *',
-                        hintText: 'HH:MM',
-                        prefixIcon:
-                            const Icon(Icons.access_time, color: Colors.grey),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: primaryBlue, width: 1.5),
-                        ),
-                      ),
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Champ requis'
-                          : null,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildVehicleSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Informations du colis', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _maxWeightController,
+          decoration: InputDecoration(
+            labelText: 'Poids max (kg)',
+            prefixIcon: const Icon(Icons.scale),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '📦 Capacité de chargement',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _maxWeightController,
-            decoration: InputDecoration(
-              labelText: 'Poids max (kg) *',
-              hintText: 'Ex: 50',
-              prefixIcon: const Icon(Icons.fitness_center, color: Colors.grey),
-              suffixText: 'kg',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: primaryBlue, width: 1.5),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _maxLengthController,
+                decoration: InputDecoration(labelText: 'Long. (cm)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                keyboardType: TextInputType.number,
               ),
             ),
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              if (value == null || value.isEmpty) return 'Champ requis';
-              if (double.tryParse(value) == null) return 'Valeur invalide';
-              if (double.parse(value) <= 0)
-                return 'Le poids doit être supérieur à 0';
-              return null;
-            },
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _maxLengthController,
-                  decoration: InputDecoration(
-                    labelText: 'Longueur max (cm)',
-                    hintText: 'Ex: 100',
-                    prefixIcon:
-                        const Icon(Icons.straighten, color: Colors.grey),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: primaryBlue, width: 1.5),
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _maxWidthController,
-                  decoration: InputDecoration(
-                    labelText: 'Largeur max (cm)',
-                    hintText: 'Ex: 60',
-                    prefixIcon:
-                        const Icon(Icons.straighten, color: Colors.grey),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: primaryBlue, width: 1.5),
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _maxHeightController,
-            decoration: InputDecoration(
-              labelText: 'Hauteur max (cm)',
-              hintText: 'Ex: 40',
-              prefixIcon: const Icon(Icons.height, color: Colors.grey),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: primaryBlue, width: 1.5),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _maxWidthController,
+                decoration: InputDecoration(labelText: 'Larg. (cm)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                keyboardType: TextInputType.number,
               ),
             ),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<ParcelType>(
-            value: _parcelType,
-            decoration: InputDecoration(
-              labelText: 'Type de colis accepté',
-              prefixIcon: const Icon(Icons.category, color: Colors.grey),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: primaryBlue, width: 1.5),
-              ),
-            ),
-            items: ParcelType.values.map((type) {
-              return DropdownMenuItem(
-                value: type,
-                child: Text(type.value),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _parcelType = value);
-              }
-            },
-          ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _maxHeightController,
+          decoration: InputDecoration(labelText: 'Haut. (cm)', prefixIcon: const Icon(Icons.height), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+          keyboardType: TextInputType.number,
+        ),
+      ],
     );
   }
 
   Widget _buildVoiceSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '🎤 Message vocal (optionnel)',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.mic, color: primaryBlue),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Ajoutez un message vocal',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      const Spacer(),
-                      if (_voiceMessages.isNotEmpty)
-                        Text(
-                          '${_voiceMessages.length} message(s)',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600),
-                        ),
-                    ],
-                  ),
-                ),
-                if (_voiceMessages.isNotEmpty)
-                  ..._voiceMessages.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final voiceMsg = entry.value;
-                    return _buildVoiceMessageTile(voiceMsg, index);
-                  }),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _isRecording
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: Colors.red.shade200),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 12,
-                                      height: 12,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Enregistrement... ${_formatDuration(_recordingDuration)}',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation(Colors.red),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ElevatedButton.icon(
-                                onPressed: _startRecording,
-                                icon: const Icon(Icons.mic, size: 20),
-                                label:
-                                    const Text('Enregistrer un message vocal'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryBlue,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                      ),
-                      if (_isRecording) const SizedBox(width: 12),
-                      if (_isRecording)
-                        ElevatedButton(
-                          onPressed: _stopRecording,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('Arrêter'),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVoiceMessageTile(VoiceMessage message, int index) {
-    final isPlaying = _currentlyPlayingPath == message.path;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(
-              isPlaying ? Icons.stop : Icons.play_arrow,
-              color: primaryBlue,
-            ),
-            onPressed: () => _playVoiceMessage(message.path),
-            iconSize: 20,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Message vocal ${_formatDuration(message.duration)}',
-                  style: TextStyle(fontSize: 12, color: textPrimary),
-                ),
-                Text(
-                  '${_formatDateTime(message.createdAt)}',
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            onPressed: () => _removeVoiceMessage(index),
-            color: Colors.grey.shade600,
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.mic, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Text('Message vocal (optionnel)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Text('Enregistrez un message vocal pour donner plus de détails', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+      ],
     );
   }
 
   Widget _buildNotesSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '📝 Informations complémentaires',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _notesController,
-            decoration: InputDecoration(
-              hintText:
-                  'Ajoutez des informations supplémentaires (conditions, restrictions, etc.)...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: primaryBlue, width: 1.5),
-              ),
-            ),
-            maxLines: 3,
-          ),
-        ],
+    return TextField(
+      controller: _notesController,
+      maxLines: 3,
+      decoration: InputDecoration(
+        labelText: 'Instructions de livraison',
+        hintText: "Ex: Appeler à l'arrivée, laisser au gardien...",
+        prefixIcon: const Icon(Icons.notes),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 
   Widget _buildSummarySection() {
-    // Récupération des valeurs en temps réel
     final departure = _departureController.text;
     final arrival = _arrivalController.text;
     final date = _departureDateController.text;
     final time = _departureTimeController.text;
     final weight = _maxWeightController.text;
-    final hasData =
-        departure.isNotEmpty || arrival.isNotEmpty || date.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: primaryBlue.withOpacity( 0.05),
+        color: AppTheme.primary.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryBlue.withOpacity( 0.2)),
+        border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.info_outline, color: primaryBlue),
-              const SizedBox(width: 8),
-              const Text(
-                'Résumé de l\'annonce',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: primaryBlue,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
           if (departure.isNotEmpty && arrival.isNotEmpty)
-            Text(
-              '📍 $departure → $arrival',
-              style: TextStyle(fontSize: 13, color: textPrimary),
-            )
-          else
-            Text(
-              '📍 Trajet non défini',
-              style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade500,
-                  fontStyle: FontStyle.italic),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(children: [const Icon(Icons.trip_origin, size: 16), const SizedBox(width: 8), Text('$departure  →  $arrival', style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary))]),
             ),
-          if (date.isNotEmpty && time.isNotEmpty)
-            Text(
-              '📅 $date à $time',
-              style: TextStyle(fontSize: 13, color: textPrimary),
-            )
-          else if (date.isNotEmpty)
-            Text(
-              '📅 $date',
-              style: TextStyle(fontSize: 13, color: textPrimary),
-            )
-          else
-            Text(
-              '📅 Date non définie',
-              style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade500,
-                  fontStyle: FontStyle.italic),
+          if (date.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(children: [const Icon(Icons.calendar_today, size: 16), const SizedBox(width: 8), Text('$date ${time.isNotEmpty ? 'à $time' : ''}', style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary))]),
             ),
           if (weight.isNotEmpty)
-            Text(
-              '📦 Capacité: ${weight} kg',
-              style: TextStyle(fontSize: 13, color: textPrimary),
-            )
-          else
-            Text(
-              '📦 Capacité: Non définie',
-              style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade500,
-                  fontStyle: FontStyle.italic),
-            ),
-          Text(
-            '📏 Dims: ${_getDimensionsText()}',
-            style: TextStyle(fontSize: 13, color: textPrimary),
-          ),
-          Text(
-            '📦 Type: ${_parcelType.value}',
-            style: TextStyle(fontSize: 13, color: textPrimary),
-          ),
-          if (_notesController.text.isNotEmpty)
-            Text(
-              '📝 ${_notesController.text}',
-              style: TextStyle(fontSize: 13, color: textPrimary),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          if (_voiceMessages.isNotEmpty)
-            Text(
-              '🎤 ${_voiceMessages.length} message(s) vocal(aux)',
-              style: TextStyle(fontSize: 13, color: primaryBlue),
-            ),
-          if (!hasData &&
-              _voiceMessages.isEmpty &&
-              _notesController.text.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'Remplissez les champs ci-dessus pour voir l\'aperçu',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade500,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(children: [const Icon(Icons.scale, size: 16), const SizedBox(width: 8), Text('Poids max: $weight kg', style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary))]),
             ),
         ],
       ),
@@ -1481,24 +908,99 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
   Widget _buildPublishButton() {
     return SizedBox(
       width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
+      height: 50,
+      child: ElevatedButton.icon(
         onPressed: _createAd,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryBlue,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 4,
+        icon: const Icon(Icons.publish),
+        label: const Text('Publier'),
+      ),
+    );
+  }
+}
+
+class _SearchBar extends StatelessWidget {
+  final void Function(String query) onSearch;
+
+  const _SearchBar({required this.onSearch});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        showSearch(
+          context: context,
+          delegate: _DriverSearchDelegate(onSearch: onSearch),
+        );
+      },
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(color: AppTheme.slate200),
         ),
-        child: const Text(
-          'Publier l\'annonce',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+        child: Row(
+          children: [
+            const Icon(Icons.search, size: 20, color: AppTheme.slate400),
+            const SizedBox(width: 10),
+            Text(
+              'Rechercher un colis, un chauffeur…',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.slate400,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _DriverSearchDelegate extends SearchDelegate<String> {
+  final void Function(String query) onSearch;
+
+  _DriverSearchDelegate({required this.onSearch}) : super(
+    searchFieldLabel: 'Rechercher un colis, un chauffeur…',
+  );
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    if (query.isNotEmpty) {
+      return [
+        IconButton(
+          icon: const Icon(Icons.clear),
+          onPressed: () => query = '',
+        ),
+      ];
+    }
+    return null;
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => close(context, ''),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    if (query.trim().isNotEmpty) {
+      onSearch(query.trim());
+      close(context, query.trim());
+    }
+    return const SizedBox.shrink();
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return const Center(
+      child: Text('Entrez un numéro de suivi de colis.',
+        style: TextStyle(color: AppTheme.slate500),
       ),
     );
   }
@@ -1579,7 +1081,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
             latest['sender']?['fullName']?.toString() ?? 'Nouveau message';
         final body = latest['body']?.toString() ?? '';
         NotificationService.showNotification(
-          id: 'procolis-drv-msg'.hashCode,
+          id: 'sendprocolis-drv-msg'.hashCode,
           title: '💬 $sender',
           body: body.isNotEmpty ? body : 'Vous avez reçu un nouveau message',
         );
@@ -1871,6 +1373,22 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
     return Column(
       children: [
         _buildHero(user),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: _SearchBar(onSearch: (query) {
+            if (query.trim().isNotEmpty) {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => TrackParcelScreen(trackingNumber: query.trim()),
+              ));
+            }
+          }),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24),
+          child: AvailabilityToggle(),
+        ),
+        const SizedBox(height: 8),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
@@ -2060,7 +1578,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          _RevenueMiniChart(bars: _revenueBars),
+          PcBarChart(bars: _revenueBars, labels: const ['L', 'M', 'M', 'J', 'V', 'S', 'D'], height: 96),
         ],
       ),
     );
@@ -2751,80 +2269,6 @@ class _RouteMeta extends StatelessWidget {
   }
 }
 
-// Mini graphique à barres 7 jours (dessiné à la main, calé sur revenus_screen).
-class _RevenueMiniChart extends StatelessWidget {
-  final List<double> bars;
-
-  const _RevenueMiniChart({required this.bars});
-
-  static const List<String> _dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-
-  @override
-  Widget build(BuildContext context) {
-    final maxValue = bars.isEmpty ? 0.0 : bars.reduce(max);
-    return Column(
-      children: [
-        SizedBox(
-          height: 96,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(bars.length, (i) {
-              final isLast = i == bars.length - 1;
-              final fraction = maxValue > 0 ? bars[i] / maxValue : 0.0;
-              final opacity = isLast
-                  ? 1.0
-                  : (0.55 + (i / bars.length) * 0.45).clamp(0.0, 1.0);
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                      left: i == 0 ? 0 : 4, right: isLast ? 0 : 4),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.bottomCenter,
-                    heightFactor: fraction.clamp(0.04, 1.0),
-                    child: Opacity(
-                      opacity: opacity,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: isLast
-                              ? null
-                              : const LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [AppTheme.teal400, AppTheme.teal600],
-                                ),
-                          color: isLast ? AppTheme.amber400 : null,
-                          borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(5)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: List.generate(_dayLabels.length, (i) {
-            return Expanded(
-              child: Text(
-                _dayLabels[i],
-                textAlign: TextAlign.center,
-                style: AppTheme.mono(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.slate400,
-                ),
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-}
-
 // ==================== TAB À PRENDRE ====================
 
 class _DriverPoolTabScreen extends StatefulWidget {
@@ -3058,7 +2502,7 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     final commissionLabel =
         mission.status.isCompleted ? 'Commission: ${commissionEstimate.toStringAsFixed(0)} FCFA' : 'Commission est.: ${commissionEstimate.toStringAsFixed(0)} FCFA';
     final client =
-        mission.senderName.isNotEmpty ? mission.senderName : 'Client Procolis';
+        mission.senderName.isNotEmpty ? mission.senderName : 'Client SendProcolis';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3497,7 +2941,7 @@ class _DriverProfileTabScreen extends ConsumerWidget {
               const SizedBox(height: 18),
               Center(
                 child: Text(
-                  'PRO COLIS · Chauffeur',
+                  'SENDPROCOLIS · Chauffeur',
                   style: AppTheme.mono(
                     fontSize: 12,
                     color: AppTheme.slate400,

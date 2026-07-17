@@ -14,6 +14,7 @@ import '../models/garage.dart';
 import '../models/parcel.dart';
 import '../models/user.dart';
 import '../models/wallet.dart';
+import 'api/api.dart';
 import 'mock_data.dart';
 
 class ApiService {
@@ -47,6 +48,21 @@ class ApiService {
   final _storage = const FlutterSecureStorage();
 
   static const bool isMockMode = MockData.enabled;
+
+  // Modular API delegates (shared ApiClient)
+  ApiClient? _apiClient;
+  AuthApi? _authApi;
+  ParcelsApi? _parcelsApi;
+  WalletApi? _walletApi;
+  PaydunyaApi? _paydunyaApi;
+  CommissionApi? _commissionApi;
+
+  ApiClient get _client => _apiClient ??= ApiClient(dioOverride: _dio);
+  AuthApi get _modularAuth => _authApi ??= AuthApi(_client);
+  ParcelsApi get _modularParcels => _parcelsApi ??= ParcelsApi(_client);
+  WalletApi get _modularWallet => _walletApi ??= WalletApi(_client);
+  PaydunyaApi get _modularPaydunya => _paydunyaApi ??= PaydunyaApi(_client);
+  CommissionApi get _modularCommission => _commissionApi ??= CommissionApi(_client);
 
   ApiService() {
     _dio.options.baseUrl = baseUrl;
@@ -992,6 +1008,26 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getNotificationPreferences() async {
+    try {
+      final response = await _dio.get('/notifications/preferences');
+      final responseData = _handleResponse(response);
+      final List<dynamic> prefs = responseData['preferences'] ?? [];
+      return prefs.map((json) => json as Map<String, dynamic>).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> updateNotificationPreferences(List<Map<String, dynamic>> prefs) async {
+    try {
+      final response = await _dio.put('/notifications/preferences', data: {'preferences': prefs});
+      return _handleResponse(response)['success'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // ==================== PAYMENTS ====================
 
   Future<List<Map<String, dynamic>>> getPaymentHistory() async {
@@ -1685,13 +1721,10 @@ class ApiService {
   Future<Map<String, dynamic>> createPaydunyaPayment(
       String type, {String? parcelId, int? points, double? amount}) async {
     try {
-      final data = <String, dynamic>{'type': type};
-      if (parcelId != null) data['parcelId'] = parcelId;
-      if (points != null) data['points'] = points;
-      if (amount != null) data['amount'] = amount;
-      final response = await _dio.post('/payments/paydunya/create', data: data);
-      final responseData = _handleResponse(response);
-      return responseData['data'] ?? responseData;
+      if (isMockMode) {
+        return {'token': 'mock-paydunya-token', 'paymentUrl': 'https://paydunya.com/mock'};
+      }
+      return _modularPaydunya.createPayment(type, parcelId: parcelId, points: points, amount: amount);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -1699,12 +1732,35 @@ class ApiService {
 
   Future<Map<String, dynamic>> confirmPaydunyaPayment(String token) async {
     try {
-      final response = await _dio.get('/payments/paydunya/confirm/$token');
-      final responseData = _handleResponse(response);
-      return responseData['data'] ?? responseData;
+      if (isMockMode) {
+        return {'token': token, 'status': 'completed', 'amount': 5000.0};
+      }
+      return _modularPaydunya.confirmPayment(token);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
+  }
+
+  // ==================== COMMISSION ====================
+
+  Future<Map<String, dynamic>> estimateCommission(double amount) async {
+    if (isMockMode) {
+      final commission = (amount * 0.05).clamp(100.0, 500.0);
+      return {'amount': amount, 'commission': commission, 'netAmount': amount - commission, 'percentage': 5, 'minAmount': 100, 'maxAmount': 500, 'profile': 'local'};
+    }
+    return _modularCommission.estimate(amount);
+  }
+
+  Future<Map<String, dynamic>> estimateParcelCommission(String parcelId) async {
+    return _modularCommission.estimateForParcel(parcelId);
+  }
+
+  Future<Map<String, dynamic>> payCashCommission(String parcelId, String source, {double? amount}) async {
+    if (isMockMode) {
+      final commission = (amount ?? 5000) * 0.05;
+      return {'success': true, 'commission': commission, 'newWalletBalance': 5000 - commission};
+    }
+    return _modularCommission.payCashCommission(parcelId, source, amount: amount);
   }
 
   // ==================== MISSING MIRRORED FUNCTIONS ====================

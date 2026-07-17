@@ -14,9 +14,11 @@ import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../../widgets/route_picker.dart';
+import '../../widgets/location_autocomplete.dart';
 
 final _apiService = ApiService();
 
@@ -57,7 +59,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   List<XFile> _videos = [];
   List<VoiceMessageData> _voiceMessages = [];
 
-  final AudioRecorder _recorder = AudioRecorder();
+  final Record _recorder = Record();
   final AudioPlayer _player = AudioPlayer();
   bool _isRecording = false;
   int _recordDuration = 0;
@@ -192,7 +194,11 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       if (await _recorder.hasPermission()) {
         final dir = await getTemporaryDirectory();
         final filePath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        await _recorder.start(const RecordConfig(), path: filePath);
+        await _recorder.start(
+          path: filePath,
+          encoder: AudioEncoder.aacLc,
+          samplingRate: 44100,
+        );
         setState(() {
           _isRecording = true;
           _recordDuration = 0;
@@ -421,13 +427,12 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        TextField(
+        LocationAutocomplete(
           controller: _receiverAddressCtrl,
-          maxLines: 2,
-          decoration: InputDecoration(
-            labelText: 'Adresse (optionnel)',
-            prefixIcon: const Icon(Icons.location_on_rounded),
-          ),
+          label: 'Adresse (optionnel)',
+          prefixIcon: Icons.location_on_rounded,
+          hint: 'Rechercher une adresse...',
+          googleApiKey: PlacesService.googleApiKey,
         ),
       ],
     );

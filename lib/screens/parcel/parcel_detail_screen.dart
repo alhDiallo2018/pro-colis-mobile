@@ -263,7 +263,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       // Repli : copie du numéro de suivi si le partage natif échoue.
       debugPrint('❌ [SHARE] $e\n$s');
       await Clipboard.setData(
-        ClipboardData(text: 'Suivi Procolis ${_parcel.trackingNumber}'),
+        ClipboardData(text: 'Suivi SendProcolis ${_parcel.trackingNumber}'),
       );
       _showSnack('Partage indisponible ($e)');
     }
@@ -580,7 +580,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '📞 +221 33 123 45 67 | 📧 contact@procolis.sn',
+                  '📞 +221 33 123 45 67 | 📧 contact@sendprocolis.com',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                 ),
               ],
@@ -2664,6 +2664,36 @@ class _PaydunyaPayCard extends StatefulWidget {
 class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
   bool _loading = false;
   String? _error;
+  double _commission = 0;
+  double _netAmount = 0;
+  double _percentage = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCommission();
+  }
+
+  Future<void> _loadCommission() async {
+    if (widget.amount <= 0) return;
+    try {
+      final estimate = await widget.apiService.estimateCommission(widget.amount);
+      if (mounted) {
+        setState(() {
+          _commission = (estimate['commission'] as num?)?.toDouble() ?? (widget.amount * 0.05).clamp(100.0, 500.0);
+          _netAmount = (estimate['netAmount'] as num?)?.toDouble() ?? widget.amount - _commission;
+          _percentage = (estimate['percentage'] as num?)?.toDouble() ?? 5;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _commission = (widget.amount * 0.05).clamp(100.0, 500.0);
+          _netAmount = widget.amount - _commission;
+        });
+      }
+    }
+  }
 
   String _fcfa(double v) {
     final n = v.toInt();
@@ -2674,6 +2704,16 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
       b.write(s[i]);
     }
     return '${b.toString()} FCFA';
+  }
+
+  Widget _detailRow(String label, String value, Color valueColor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: GoogleFonts.manrope(fontSize: 12.5, color: AppTheme.textSecondary)),
+        Text(value, style: AppTheme.mono(fontSize: 12.5, fontWeight: FontWeight.w700, color: valueColor)),
+      ],
+    );
   }
 
   Future<void> _pay() async {
@@ -2733,6 +2773,27 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
               color: AppTheme.textSecondary,
             ),
           ),
+          if (_commission > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.amber50,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: AppTheme.amber100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _detailRow('Commission plateforme (${_percentage.toInt()}%)', '- ${_fcfa(_commission)}', AppTheme.red500),
+                  const SizedBox(height: 4),
+                  Container(height: 1, color: AppTheme.amber200),
+                  const SizedBox(height: 4),
+                  _detailRow('Montant reversé au chauffeur', _fcfa(_netAmount), AppTheme.green700),
+                ],
+              ),
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(_error!, style: const TextStyle(color: AppTheme.red500, fontSize: 12)),

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-class BarChart extends StatelessWidget {
+class PcBarChart extends StatelessWidget {
   final List<double> bars;
   final List<String>? labels;
   final double height;
   final bool highlightLast;
 
-  const BarChart({
+  const PcBarChart({
     super.key,
     required this.bars,
     this.labels,
@@ -29,41 +29,24 @@ class BarChart extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(bars.length, (i) {
               final isLast = i == bars.length - 1;
-              final isAmber = highlightLast && isLast;
-              final ratio = ((bars[i] / max) * 100).clamp(4, 100);
+              final useAmber = highlightLast && isLast;
+              final pct = ((bars[i] / (max == 0 ? 1 : max)) * 100).clamp(4, 100);
 
               return Expanded(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeOutCubic,
-                    height: double.infinity,
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      height: '${ratio}%',
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            const BorderRadius.vertical(top: Radius.circular(5)),
-                        gradient: isAmber
-                            ? const LinearGradient(
-                                colors: [AppTheme.amber400, AppTheme.amber500],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              )
-                            : LinearGradient(
-                                colors: [
-                                  AppTheme.teal400.withOpacity(0.55 +
-                                      (i / (bars.length > 1 ? bars.length : 1)) *
-                                          0.45),
-                                  AppTheme.teal600.withOpacity(0.55 +
-                                      (i / (bars.length > 1 ? bars.length : 1)) *
-                                          0.45),
-                                ],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                      ),
+                  padding: EdgeInsets.only(left: i == 0 ? 0 : 4, right: isLast ? 0 : 4),
+                  child: Container(
+                    height: pct / 100 * height,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                      gradient: useAmber
+                          ? null
+                          : const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [AppTheme.teal400, AppTheme.teal600],
+                            ),
+                      color: useAmber ? AppTheme.amber400 : null,
                     ),
                   ),
                 ),
@@ -75,19 +58,16 @@ class BarChart extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: labels!
-                .map((l) => Expanded(
-                      child: Text(
-                        l,
-                        textAlign: TextAlign.center,
-                        style: AppTheme.mono(
-                          fontSize: 10.5,
-                          color: AppTheme.slate500,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ))
-                .toList(),
+            children: labels!.map((l) {
+              return SizedBox(
+                width: 24,
+                child: Text(
+                  l,
+                  textAlign: TextAlign.center,
+                  style: AppTheme.mono(fontSize: 10.5, color: AppTheme.slate400, fontWeight: FontWeight.w600),
+                ),
+              );
+            }).toList(),
           ),
         ],
       ],

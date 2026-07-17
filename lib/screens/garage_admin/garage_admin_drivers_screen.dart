@@ -61,7 +61,7 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
             const AppLogo(size: 24, isWhite: false),
             const SizedBox(width: 8),
             Text(
-              'PRO COLIS',
+              'SENDPROCOLIS',
               style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w800,
                 fontSize: 18,

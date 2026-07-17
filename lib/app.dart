@@ -29,7 +29,7 @@ class _ProColisAppState extends ConsumerState<ProColisApp> {
     });
 
     return MaterialApp.router(
-      title: 'PRO COLIS',
+      title: 'SENDPROCOLIS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

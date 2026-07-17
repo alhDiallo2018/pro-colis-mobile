@@ -118,7 +118,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
             latest['sender']?['fullName']?.toString() ?? 'Nouveau message';
         final body = latest['body']?.toString() ?? '';
         NotificationService.showNotification(
-          id: 'procolis-msg'.hashCode,
+          id: 'sendprocolis-msg'.hashCode,
           title: '💬 $sender',
           body: body.isNotEmpty ? body : 'Vous avez reçu un nouveau message',
         );
@@ -245,7 +245,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
           const AppLogo(size: 28),
           const SizedBox(width: 10),
           const Text(
-            'PRO COLIS',
+            'SENDPROCOLIS',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,

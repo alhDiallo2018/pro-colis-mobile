@@ -300,11 +300,12 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
   void _showRechargeSheet() {
     final authState = ref.read(authProvider);
     final userId = authState.user?.id ?? '';
+    final userPhone = authState.user?.phone ?? '';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _RechargeSheetContent(userId: userId),
+      builder: (_) => _RechargeSheetContent(userId: userId, userPhone: userPhone),
     ).then((_) => _loadData());
   }
 }
@@ -359,7 +360,8 @@ class _GhostButton extends StatelessWidget {
 
 class _RechargeSheetContent extends StatefulWidget {
   final String userId;
-  const _RechargeSheetContent({required this.userId});
+  final String userPhone;
+  const _RechargeSheetContent({required this.userId, required this.userPhone});
 
   @override
   State<_RechargeSheetContent> createState() => _RechargeSheetContentState();
@@ -367,7 +369,7 @@ class _RechargeSheetContent extends StatefulWidget {
 
 class _RechargeSheetContentState extends State<_RechargeSheetContent> {
   final ApiService _apiService = ApiService();
-  final _phoneController = TextEditingController();
+  late final _phoneController = TextEditingController(text: widget.userPhone);
   final _customAmountController = TextEditingController();
 
   int? _selectedPack;
@@ -427,14 +429,17 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
   Future<void> _submit() async {
     if (!_canSubmit) return;
 
-    if (_needsPhone && _phoneController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Veuillez entrer le numéro de téléphone'),
-            backgroundColor: AppTheme.error),
-      );
-      return;
-    }
+        if (_needsPhone && _phoneController.text.trim().isEmpty) {
+          _phoneController.text = widget.userPhone;
+          if (widget.userPhone.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Veuillez entrer le numéro de téléphone'),
+                  backgroundColor: AppTheme.error),
+            );
+            return;
+          }
+        }
 
     setState(() => _isSubmitting = true);
     try {
@@ -481,7 +486,9 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
           {
             'amount': _amount,
             'method': _selectedMethod,
-            if (_needsPhone) 'phone': _phoneController.text.trim(),
+            if (_needsPhone) 'phone': _phoneController.text.trim().isNotEmpty
+                ? _phoneController.text.trim()
+                : widget.userPhone,
           },
         );
 
@@ -766,13 +773,12 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                     TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        hintText: 'Numéro de téléphone',
-                        prefixIcon: const Icon(Icons.phone),
-                        border: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusMd)),
-                      ),
+                    decoration: InputDecoration(
+                      hintText: widget.userPhone.isNotEmpty ? widget.userPhone : 'Numéro de téléphone',
+                      prefixIcon: const Icon(Icons.phone),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                    ),
                     ),
                   ],
                   const SizedBox(height: 24),

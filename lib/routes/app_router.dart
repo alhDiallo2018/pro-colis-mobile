@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../models/advertisement.dart';
 import '../models/garage.dart';
 import '../models/parcel.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
+import '../screens/accueil/landing_screen.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/settings/notification_preferences_screen.dart';
+import '../screens/super-admin/brevo_config_screen.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/dashboard/notifications/notifications_screen.dart';
 import '../screens/driver/garage_screen.dart';
+import '../screens/driver/historique_screen.dart';
 import '../screens/driver/mes_annonces_screen.dart';
 import '../screens/driver/parametres_screen.dart';
 import '../screens/driver/points_screen.dart';
@@ -22,8 +27,22 @@ import '../screens/garage_admin/garage_admin_parcel_detail.dart';
 import '../screens/garage_admin/garage_assignations_screen.dart';
 import '../screens/garage_admin/garage_rapports_screen.dart';
 import '../screens/help/help_screen.dart';
+import '../screens/legal/mentions_legales_page.dart';
+import '../screens/legal/conditions_transport_page.dart';
+import '../screens/legal/confidentialite_page.dart';
+import '../screens/legal/cgu_page.dart';
+import '../screens/legal/a_propos_page.dart';
+import '../screens/legal/contact_page.dart';
+import '../screens/legal/paiement_page.dart';
+import '../screens/legal/remboursement_page.dart';
+import '../screens/legal/reclamations_page.dart';
+import '../screens/legal/colis_interdits_page.dart';
 import '../screens/parcel/ads/advertisement_detail_screen.dart';
 import '../screens/parcel/ads/advertisements_screen.dart';
+import '../screens/parcel/new_parcel_wizard_screen.dart';
+import '../screens/parcel/trip_detail_screen.dart';
+import '../screens/super-admin/colis_management_screen.dart';
+import '../screens/super-admin/chauffeurs_management_screen.dart';
 import '../screens/parcel/confirm_delivery_screen.dart';
 import '../screens/parcel/free_parcels_screen.dart';
 import '../screens/parcel/offres_recues_screen.dart';
@@ -64,13 +83,15 @@ class AppRouter {
         final location = state.matchedLocation;
         final isLogin = location == '/login';
         final isRegister = location == '/register';
+        final isLanding = location == '/landing';
         final isTrack = location.startsWith('/track');
         final isSplash = location == '/splash';
-        final isPublic = isLogin || isRegister || isTrack;
+        final isLegal = location.startsWith('/a-propos') || location.startsWith('/contact') || location.startsWith('/mentions-legales') || location.startsWith('/confidentialite') || location.startsWith('/cgu') || location.startsWith('/conditions-transport') || location.startsWith('/paiement') || location.startsWith('/remboursement') || location.startsWith('/reclamations') || location.startsWith('/colis-interdits');
+        final isPublic = isLogin || isRegister || isTrack || isLanding || isLegal;
 
         if (isSplash) {
           if (authState.isLoading) return null;
-          return authState.isAuthenticated ? '/dashboard' : '/login';
+          return authState.isAuthenticated ? '/dashboard' : '/landing';
         }
 
         if (authState.isLoading) return null;
@@ -79,6 +100,11 @@ class AppRouter {
         return null;
       },
       routes: [
+        GoRoute(
+          path: '/landing',
+          name: 'landing',
+          builder: (context, state) => const LandingScreen(),
+        ),
         GoRoute(
           path: '/splash',
           builder: (context, state) => const Scaffold(
@@ -113,6 +139,12 @@ class AppRouter {
           path: '/dashboard',
           name: 'dashboard',
           builder: (context, state) => const DashboardScreen(),
+        ),
+
+        GoRoute(
+          path: '/parcel/new',
+          name: 'new-parcel',
+          builder: (context, state) => const NewParcelWizardScreen(),
         ),
 
         GoRoute(
@@ -170,6 +202,18 @@ class AppRouter {
         ),
 
         GoRoute(
+          path: '/trip/:tripId',
+          name: 'trip-detail',
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is Advertisement) {
+              return TripDetailScreen(trip: extra);
+            }
+            return const Scaffold(body: Center(child: Text('Voyage introuvable')));
+          },
+        ),
+
+        GoRoute(
           path: '/confirm-delivery',
           name: 'confirm-delivery',
           builder: (context, state) {
@@ -220,6 +264,11 @@ class AppRouter {
           },
         ),
         GoRoute(
+          path: '/driver/historique',
+          name: 'driver-historique',
+          builder: (context, state) => const DriverHistoriqueScreen(),
+        ),
+        GoRoute(
           path: '/driver/garage',
           name: 'driver-garage',
           builder: (context, state) => const DriverGarageScreen(),
@@ -251,10 +300,25 @@ class AppRouter {
           builder: (context, state) => const SettingsScreen(),
         ),
         GoRoute(
+          path: '/settings/notifications',
+          name: 'notification-preferences',
+          builder: (context, state) => const NotificationPreferencesScreen(),
+        ),
+        GoRoute(
           path: '/help',
           name: 'help',
           builder: (context, state) => const HelpScreen(),
         ),
+        GoRoute(path: '/a-propos', name: 'a-propos', builder: (context, state) => const AProposPage()),
+        GoRoute(path: '/contact', name: 'contact', builder: (context, state) => const ContactPage()),
+        GoRoute(path: '/mentions-legales', name: 'mentions-legales', builder: (context, state) => const MentionsLegalesPage()),
+        GoRoute(path: '/confidentialite', name: 'confidentialite', builder: (context, state) => const ConfidentialitePage()),
+        GoRoute(path: '/cgu', name: 'cgu', builder: (context, state) => const CGUPage()),
+        GoRoute(path: '/conditions-transport', name: 'conditions-transport', builder: (context, state) => const ConditionsTransportPage()),
+        GoRoute(path: '/paiement', name: 'paiement', builder: (context, state) => const PaiementPage()),
+        GoRoute(path: '/remboursement', name: 'remboursement', builder: (context, state) => const RemboursementPage()),
+        GoRoute(path: '/reclamations', name: 'reclamations', builder: (context, state) => const ReclamationsPage()),
+        GoRoute(path: '/colis-interdits', name: 'colis-interdits', builder: (context, state) => const ColisInterditsPage()),
         GoRoute(
           path: '/notifications',
           name: 'notifications',
@@ -290,6 +354,16 @@ class AppRouter {
           path: '/admin/users',
           name: 'admin-users',
           builder: (context, state) => const UsersManagementScreen(),
+        ),
+        GoRoute(
+          path: '/admin/colis',
+          name: 'admin-colis',
+          builder: (context, state) => const ColisManagementScreen(),
+        ),
+        GoRoute(
+          path: '/admin/chauffeurs',
+          name: 'admin-chauffeurs',
+          builder: (context, state) => const ChauffeursManagementScreen(),
         ),
         GoRoute(
           path: '/admin/garages',
@@ -377,6 +451,11 @@ class AppRouter {
             final userId = state.pathParameters['userId'] ?? '';
             return DriverDetailScreen(userId: userId);
           },
+        ),
+        GoRoute(
+          path: '/admin/notifications/brevo',
+          name: 'admin-brevo-config',
+          builder: (context, state) => const BrevoConfigScreen(),
         ),
       ],
     );

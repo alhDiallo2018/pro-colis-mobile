@@ -1,5 +1,5 @@
 services:
-  procolis-web:
+  sendprocolis-web:
     build:
       context: .
       args:

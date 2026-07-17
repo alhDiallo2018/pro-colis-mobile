@@ -285,7 +285,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     if (await _audioRecorder.hasPermission()) {
       try {
         final tempDir = Directory.systemTemp;
-        final filePath = '${tempDir.path}/procolis_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        final filePath = '${tempDir.path}/sendprocolis_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         _recordingFilePath = filePath;
         await _audioRecorder.start(
           path: filePath,

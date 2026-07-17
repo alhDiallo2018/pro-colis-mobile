@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/parcel.dart';
 
 class AppTheme {
-  // Palette extraite du Procolis Design System.
+  // Palette extraite du SendProcolis Design System.
   static const Color green50 = Color(0xFFE7F7EE);
   static const Color green100 = Color(0xFFC5ECD6);
   static const Color green500 = Color(0xFF0FA958);
