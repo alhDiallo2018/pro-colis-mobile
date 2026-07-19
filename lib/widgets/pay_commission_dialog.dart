@@ -49,7 +49,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
     try {
       final estimate = await _api.estimateCommission(widget.deliveryAmount);
       final wallet = await _api.getWallet('');
-      final score = await _api.getWalletBalance('');
+      final scoreBalanceData = await _api.getScoreBalance();
 
       if (mounted) {
         setState(() {
@@ -57,6 +57,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
           _netAmount = (estimate['netAmount'] as num?)?.toDouble() ?? widget.deliveryAmount - _commission;
           _percentage = (estimate['percentage'] as num?)?.toDouble() ?? 5;
           _walletBalance = wallet.balance;
+          _scoreBalance = scoreBalanceData;
           _error = null;
           _loading = false;
         });
@@ -74,6 +75,14 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
 
   bool get _canPayWallet => _walletBalance >= _commission;
   bool get _canPayScore => _scoreBalance >= _commission;
+  bool get _canPayCombined => (_walletBalance + _scoreBalance) >= _commission;
+  bool get _needsCombined => !_canPayWallet && !_canPayScore && _canPayCombined;
+  
+  double get _walletPart => _walletBalance < _commission ? _walletBalance : _commission;
+  double get _scorePart {
+    final remainder = _commission - _walletPart;
+    return remainder < _scoreBalance ? remainder : _scoreBalance;
+  }
 
   String _fcfa(double v) {
     final s = NumberFormat('#,##0', 'fr').format(v.toInt());
@@ -83,12 +92,18 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
   Future<void> _pay() async {
     setState(() => _paying = true);
     try {
-      final result = await _api.payCashCommission(widget.parcelId, _source, amount: widget.deliveryAmount);
+      final source = (_canPayWallet && _source != 'score') ? 'wallet' : (_canPayScore ? 'score' : 'auto');
+      final result = await _api.payCashCommission(widget.parcelId, source, amount: widget.deliveryAmount);
       if (mounted) {
         if (result['success'] == true) {
+          final walletUsed = (result['walletDebited'] as num?)?.toDouble() ?? (_source == 'wallet' ? _commission : _walletPart);
+          final ptsUsed = (result['pointsDebited'] as num?)?.toDouble() ?? (_source == 'score' ? _commission : _scorePart);
+          final parts = <String>[];
+          if (walletUsed > 0) parts.add('${_fcfa(walletUsed)} portefeuille');
+          if (ptsUsed > 0) parts.add('${ptsUsed.toInt()} pts');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Commission de ${_fcfa(_commission)} payée via ${_source == 'wallet' ? 'portefeuille' : 'points'}'),
+              content: Text('Commission de ${_fcfa(_commission)} payée via ${parts.join(' + ')}'),
               backgroundColor: AppTheme.green600,
             ),
           );
@@ -213,6 +228,55 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                       ),
                     ],
                   ),
+                  if (_needsCombined || (!_canPayWallet && !_canPayScore)) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppTheme.teal50,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        border: Border.all(color: AppTheme.teal500),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.join_full_rounded, size: 16, color: AppTheme.teal600),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Portefeuille + Points',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.teal700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Portefeuille: ${_fcfa(_walletPart)} + Points: ${_scorePart.toInt()} pts = ${_fcfa(_commission)}',
+                            style: AppTheme.mono(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _canPayCombined
+                                ? 'Le paiement combiné est possible'
+                                : 'Solde total insuffisant (${_fcfa(_walletBalance + _scoreBalance)})',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _canPayCombined ? AppTheme.textSecondary : AppTheme.red500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   if (_error != null) ...[
                     const SizedBox(height: 12),
@@ -238,7 +302,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                           variant: PcButtonVariant.primary,
                           block: true,
                           loading: _paying,
-                          onPressed: (_source == 'wallet' ? _canPayWallet : _canPayScore) && !_paying ? _pay : null,
+                          onPressed: (_canPayWallet || _canPayScore || _canPayCombined) && !_paying ? _pay : null,
                         ),
                       ),
                     ],

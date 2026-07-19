@@ -26,6 +26,8 @@ import '../profile/profile_screen.dart';
 import '../super-admin/finance_dashboard_screen.dart';
 import '../super-admin/wallets_screen.dart';
 import '../super-admin/payments_screen.dart';
+import '../super-admin/payment_notifications_screen.dart';
+import '../super-admin/withdrawals_screen.dart';
 import '../super-admin/commission_config_screen.dart';
 import '../super-admin/reputation_dashboard_screen.dart';
 import '../super-admin/scores_screen.dart';
@@ -764,6 +766,36 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Configuration Brevo',
                 tone: PcTone.primary,
                 onTap: () => context.go('/admin/notifications/brevo'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.savings_rounded,
+                label: 'Retraits',
+                tone: PcTone.green,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const WithdrawalsScreen(),
+                  ));
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.notifications_active_rounded,
+                label: 'Alertes paiements',
+                tone: PcTone.amber,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const PaymentNotificationsScreen(),
+                  ));
+                },
               ),
             ),
             const Spacer(),

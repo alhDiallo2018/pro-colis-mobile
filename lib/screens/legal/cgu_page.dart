@@ -39,7 +39,7 @@ class CGUPage extends StatelessWidget {
           ),
           _bodyText(
             '• Mise en relation entre expéditeurs et chauffeurs pour le transport '
-            'interurbain de colis.',
+            'de colis au Sénégal et à l\'international.',
           ),
           _bodyText(
             '• Publication d\'annonces de colis (mode libre-service).',
@@ -67,7 +67,7 @@ class CGUPage extends StatelessWidget {
           const SizedBox(height: 12),
           _bodyText(
             'L\'inscription sur ProColis est gratuite et ouverte à toute personne '
-            'majeure résidant au Sénégal.',
+            'majeure résidant au Sénégal ou dans tout pays desservi par la plateforme.',
           ),
           _bodyText(
             'L\'utilisateur s\'engage à :',
@@ -95,7 +95,8 @@ class CGUPage extends StatelessWidget {
             'Chaque utilisateur s\'engage à :',
           ),
           _bodyText(
-            '• Respecter les lois et règlements en vigueur au Sénégal.',
+            '• Respecter les lois et règlements en vigueur au Sénégal ainsi que '
+            'ceux des pays de destination.',
           ),
           _bodyText(
             '• Utiliser la plateforme de manière loyale et de bonne foi.',

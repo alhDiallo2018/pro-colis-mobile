@@ -120,7 +120,7 @@ class _HeroSection extends StatelessWidget {
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(
-                      '» Livraison interurbaine',
+                      '» Livraison interurbaine & internationale',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -131,7 +131,7 @@ class _HeroSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 22),
                   Text(
-                    'Vos colis,\nde ville en ville.',
+                    'Vos colis,\nde ville en ville,\npartout en Afrique.',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 40,
                       fontWeight: FontWeight.w800,
@@ -142,7 +142,7 @@ class _HeroSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Déclarez un colis, fixez votre trajet et votre prix, publiez-le en annonce et laissez nos chauffeurs vérifiés vous faire leurs meilleures offres. Suivi en temps réel jusqu\'à la livraison.',
+                    'Déclarez un colis, fixez votre trajet et votre prix, publiez-le en annonce et laissez nos chauffeurs vérifiés vous faire leurs meilleures offres. Livraison au Sénégal et à l\'international, avec suivi en temps réel.',
                     style: GoogleFonts.manrope(
                       fontSize: 16,
                       height: 1.55,
@@ -283,7 +283,7 @@ class _TrackingCard extends StatelessWidget {
 
 class _StatsBand extends StatelessWidget {
   static const stats = [
-    {'value': '14 régions', 'label': 'desservies au Sénégal', 'accent': false},
+    {'value': '14 régions', 'label': "au Sénégal et à l'international", 'accent': false},
     {'value': '1 200+', 'label': 'chauffeurs vérifiés', 'accent': false},
     {'value': '45 min', 'label': "délai moyen avant 1ʳᵉ offre", 'accent': true},
     {'value': '98,4 %', 'label': 'colis livrés à temps', 'accent': false},
@@ -491,7 +491,7 @@ class _Footer extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              "La plateforme qui connecte expéditeurs et chauffeurs pour le transport de colis entre les villes du Sénégal.",
+              "La plateforme qui connecte expéditeurs et chauffeurs pour le transport de colis au Sénégal, partout en Afrique et à l'international.",
               style: GoogleFonts.manrope(fontSize: 13.5, height: 1.6, color: Colors.white.withOpacity(0.7)),
             ),
             const SizedBox(height: 28),

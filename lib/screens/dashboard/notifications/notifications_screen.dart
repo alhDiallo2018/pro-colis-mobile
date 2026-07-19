@@ -21,6 +21,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
+  String? _error;
   List<_NotificationItem> _notifications = [];
 
   @override
@@ -30,7 +31,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   Future<void> _loadNotifications() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final data = await _apiService.getNotifications();
       if (!mounted) return;
@@ -42,7 +46,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       debugPrint('Erreur chargement notifications: $error');
       if (mounted) {
         setState(() {
-          _notifications = _NotificationItem.mock();
+          _notifications = [];
+          _error = 'Impossible de charger les notifications.';
           _isLoading = false;
         });
       }
@@ -111,9 +116,27 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         onRefresh: _loadNotifications,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _notifications.isEmpty
-                ? const _EmptyNotifications()
-                : ListView.separated(
+            : _error != null
+                ? ListView(
+                    padding: const EdgeInsets.fromLTRB(24, 80, 24, 120),
+                    children: [
+                      PcEmptyState(
+                        icon: Icons.error_outline_rounded,
+                        tone: PcTone.red,
+                        title: 'Erreur de chargement',
+                        message: _error,
+                        action: PcButton(
+                          'Réessayer',
+                          icon: Icons.refresh_rounded,
+                          size: PcButtonSize.sm,
+                          onPressed: _loadNotifications,
+                        ),
+                      ),
+                    ],
+                  )
+                : _notifications.isEmpty
+                    ? const _EmptyNotifications()
+                    : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
                     itemCount: _notifications.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -294,56 +317,6 @@ class _NotificationItem {
       when: when,
       isRead: isRead ?? this.isRead,
     );
-  }
-
-  static List<_NotificationItem> mock() {
-    return const [
-      _NotificationItem(
-        id: 'n1',
-        icon: Icons.sell_rounded,
-        tone: _NotificationTone.primary(),
-        title: 'Nouvelle offre reçue',
-        body: 'Koffi A. propose 11 000 FCFA pour PC-2M9X-7740.',
-        when: '8 min',
-        isRead: false,
-      ),
-      _NotificationItem(
-        id: 'n2',
-        icon: Icons.local_shipping_rounded,
-        tone: _NotificationTone.green(),
-        title: 'Colis en transit',
-        body: 'PC-7F3K-2291 part vers Bouaké.',
-        when: '1 h',
-        isRead: false,
-      ),
-      _NotificationItem(
-        id: 'n3',
-        icon: Icons.account_balance_wallet_rounded,
-        tone: _NotificationTone.amber(),
-        title: 'Points crédités',
-        body: '+150 pts pour votre dernière livraison.',
-        when: '3 h',
-        isRead: true,
-      ),
-      _NotificationItem(
-        id: 'n4',
-        icon: Icons.task_alt_rounded,
-        tone: _NotificationTone.green(),
-        title: 'Colis livré',
-        body: 'PC-5J1B-3382 a été livré à San-Pédro.',
-        when: 'hier',
-        isRead: true,
-      ),
-      _NotificationItem(
-        id: 'n5',
-        icon: Icons.verified_rounded,
-        tone: _NotificationTone.primary(),
-        title: 'Compte vérifié',
-        body: 'Votre identité a été confirmée. Bienvenue !',
-        when: '2 j',
-        isRead: true,
-      ),
-    ];
   }
 
   static IconData _iconFor(String type) {

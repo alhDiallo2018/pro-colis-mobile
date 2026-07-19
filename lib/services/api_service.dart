@@ -2,10 +2,8 @@
 // Aligné sur l'API Web ProColis (React/TypeScript)
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -51,16 +49,10 @@ class ApiService {
 
   // Modular API delegates (shared ApiClient)
   ApiClient? _apiClient;
-  AuthApi? _authApi;
-  ParcelsApi? _parcelsApi;
-  WalletApi? _walletApi;
   PaydunyaApi? _paydunyaApi;
   CommissionApi? _commissionApi;
 
   ApiClient get _client => _apiClient ??= ApiClient(dioOverride: _dio);
-  AuthApi get _modularAuth => _authApi ??= AuthApi(_client);
-  ParcelsApi get _modularParcels => _parcelsApi ??= ParcelsApi(_client);
-  WalletApi get _modularWallet => _walletApi ??= WalletApi(_client);
   PaydunyaApi get _modularPaydunya => _paydunyaApi ??= PaydunyaApi(_client);
   CommissionApi get _modularCommission => _commissionApi ??= CommissionApi(_client);
 
@@ -105,7 +97,7 @@ class ApiService {
         }
         return handler.next(response);
       },
-      onError: (DioError error, handler) async {
+      onError: (DioException error, handler) async {
         final statusCode = error.response?.statusCode;
         final path = error.requestOptions.path;
         if (statusCode == 401 && !_isPublicRoute(path)) {
@@ -705,7 +697,8 @@ class ApiService {
     try {
       final response = await _dio.get('/super-admin/garages');
       final responseData = _handleResponse(response);
-      final List<dynamic> garagesData = responseData['garages'] ?? [];
+      final List<dynamic> garagesData =
+          responseData['garages'] ?? responseData['data'] ?? [];
       return garagesData
           .map((json) => Garage.fromJson(json as Map<String, dynamic>))
           .toList();
@@ -773,7 +766,8 @@ class ApiService {
     try {
       final response = await _dio.get('/public/garages');
       final responseData = _handleResponse(response);
-      final List<dynamic> garagesData = responseData['garages'] ?? [];
+      final List<dynamic> garagesData =
+          responseData['garages'] ?? responseData['data'] ?? [];
       return garagesData
           .map((json) => Garage.fromJson(json as Map<String, dynamic>))
           .toList();
@@ -1151,13 +1145,6 @@ class ApiService {
     return double.tryParse(value.toString()) ?? 0;
   }
 
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return int.tryParse(value.toString()) ?? 0;
-  }
-
   Future<double> getWalletBalance(String userId) async {
     try {
       final wallet = await getWallet(userId);
@@ -1412,22 +1399,26 @@ class ApiService {
 
   Future<Map<String, dynamic>> createGarageSuperAdmin({
     required String name,
+    String country = 'Sénégal',
     required String city,
     required String region,
     String? address,
     String? phone,
     double? latitude,
     double? longitude,
+    bool isActive = true,
   }) async {
     try {
       final response = await _dio.post('/super-admin/garages', data: {
         'name': name,
+        'country': country,
         'city': city,
         'region': region,
         'address': address,
         'phone': phone,
         'latitude': latitude,
         'longitude': longitude,
+        'isActive': isActive,
       });
       return _handleResponse(response);
     } catch (e) {
@@ -1437,25 +1428,30 @@ class ApiService {
 
   Future<Map<String, dynamic>> updateGarageSuperAdmin({
     required String garageId,
-    required String name,
-    required String city,
-    required String region,
+    String? name,
+    String? country,
+    String? city,
+    String? region,
     String? address,
     String? phone,
     double? latitude,
     double? longitude,
+    bool? isActive,
   }) async {
     try {
+      final data = <String, dynamic>{
+        if (name != null) 'name': name,
+        if (country != null) 'country': country,
+        if (city != null) 'city': city,
+        if (region != null) 'region': region,
+        if (address != null) 'address': address,
+        if (phone != null) 'phone': phone,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        if (isActive != null) 'isActive': isActive,
+      };
       final response =
-          await _dio.put('/super-admin/garages/$garageId', data: {
-        'name': name,
-        'city': city,
-        'region': region,
-        'address': address,
-        'phone': phone,
-        'latitude': latitude,
-        'longitude': longitude,
-      });
+          await _dio.put('/super-admin/garages/$garageId', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -1466,6 +1462,113 @@ class ApiService {
       String garageId) async {
     try {
       final response = await _dio.delete('/super-admin/garages/$garageId');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // --- Zones ---
+
+  Future<List<Map<String, dynamic>>> getAllZones() async {
+    try {
+      final response = await _dio.get('/super-admin/zones');
+      final data = _handleResponse(response);
+      final zones = data['data'] as List?;
+      return zones?.cast<Map<String, dynamic>>() ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getPublicZones() async {
+    try {
+      final response = await _dio.get('/public/zones');
+      final data = _handleResponse(response);
+      final zones = data['data'] as List?;
+      return zones?.cast<Map<String, dynamic>>() ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> createZone(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/super-admin/zones', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateZone(
+      String zoneId, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put('/super-admin/zones/$zoneId', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteZone(String zoneId) async {
+    try {
+      final response = await _dio.delete('/super-admin/zones/$zoneId');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getZone(String zoneId) async {
+    try {
+      final response = await _dio.get('/super-admin/zones/$zoneId');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getZoneDrivers(String zoneId) async {
+    try {
+      final response = await _dio.get('/super-admin/zones/$zoneId/drivers');
+      final data = _handleResponse(response);
+      final drivers = data['data'] as List?;
+      return drivers?.cast<Map<String, dynamic>>() ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> assignDriverToZone(
+      String zoneId, String driverId, {bool isPrimary = false}) async {
+    try {
+      final response = await _dio.post(
+        '/super-admin/zones/$zoneId/drivers',
+        data: {'driverId': driverId, 'isPrimary': isPrimary},
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> removeDriverFromZone(
+      String zoneId, String driverId) async {
+    try {
+      final response = await _dio.delete(
+        '/super-admin/zones/$zoneId/drivers',
+        data: {'driverId': driverId},
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> migrateGaragesToZones() async {
+    try {
+      final response = await _dio.post('/super-admin/zones/migrate');
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -1634,6 +1737,59 @@ class ApiService {
     }
   }
 
+  // ==================== ADMIN WITHDRAWALS ====================
+
+  Future<List<Map<String, dynamic>>> adminWithdrawals({
+    int page = 1,
+    int limit = 50,
+    String? status,
+  }) async {
+    try {
+      final response = await _dio.get('/super-admin/withdrawals', queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (status != null && status.isNotEmpty) 'status': status,
+      });
+      final responseData = _handleResponse(response);
+      final list = responseData['withdrawals'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> adminApproveWithdrawal(String withdrawalId) async {
+    try {
+      final response =
+          await _dio.post('/super-admin/withdrawals/$withdrawalId/approve');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> adminRejectWithdrawal(
+      String withdrawalId, String reason) async {
+    try {
+      final response = await _dio.post(
+          '/super-admin/withdrawals/$withdrawalId/reject',
+          data: {'reason': reason});
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> adminCompleteWithdrawal(String withdrawalId) async {
+    try {
+      final response =
+          await _dio.post('/super-admin/withdrawals/$withdrawalId/complete');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ==================== ADMIN REPUTATION ====================
 
   Future<Map<String, dynamic>> reputationDashboard() async {
@@ -1796,6 +1952,27 @@ class ApiService {
   Future<Map<String, dynamic>> withdrawWallet(Map<String, dynamic> data) async {
     try {
       final response = await _dio.post('/driver/wallet/withdraw', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMyWithdrawals() async {
+    try {
+      final response = await _dio.get('/driver/wallet/withdrawals');
+      final responseData = _handleResponse(response);
+      final list = responseData['withdrawals'] ?? responseData['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> cancelWithdrawal(String withdrawalId) async {
+    try {
+      final response =
+          await _dio.delete('/driver/wallet/withdrawals/$withdrawalId');
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};

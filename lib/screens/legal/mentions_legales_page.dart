@@ -31,7 +31,7 @@ class MentionsLegalesPage extends StatelessWidget {
             'NINEA : SP170720267_fictif — RCCM : SP0123456789_fictif.',
           ),
           _bodyText(
-            'Email : contact@sendprocolis.com.',
+            'Email : support-commercial@sendprocolis.com.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('2. Directeur de la publication'),
@@ -53,8 +53,8 @@ class MentionsLegalesPage extends StatelessWidget {
           const SizedBox(height: 12),
           _bodyText(
             'ProColis est une plateforme de mise en relation entre expéditeurs '
-            'et chauffeurs professionnels pour le transport interurbain de colis '
-            'au Sénégal.',
+            'et chauffeurs professionnels pour le transport de colis au Sénégal, '
+            'en Afrique et à l\'international.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('5. Fonctionnement'),
@@ -145,7 +145,7 @@ class MentionsLegalesPage extends StatelessWidget {
             'd\'opposition et de suppression de vos données.',
           ),
           _bodyText(
-            'Pour exercer vos droits, contactez-nous à : contact@sendprocolis.com.',
+            'Pour exercer vos droits, contactez-nous à : support-commercial@sendprocolis.com.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('10. Comptes utilisateurs'),
@@ -209,7 +209,7 @@ class MentionsLegalesPage extends StatelessWidget {
           _sectionTitle('15. Réclamations'),
           const SizedBox(height: 12),
           _bodyText(
-            'Toute réclamation doit être adressée à contact@sendprocolis.com ou '
+            'Toute réclamation doit être adressée à support-commercial@sendprocolis.com ou '
             'via le formulaire de contact de l\'application.',
           ),
           _bodyText(

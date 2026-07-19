@@ -6,18 +6,18 @@ class CommissionApi {
 
   Future<Map<String, dynamic>> estimate(double amount) async {
     try {
-      final res = await client.dio.post('/super-admin/commissions/simulate', data: {'amount': amount});
+      final res = await client.dio.post('/commissions/estimate', data: {'amount': amount});
       final rd = client.handle(res);
-      final simulations = (rd['simulations'] as List?) ?? [];
-      if (simulations.isNotEmpty) {
-        return Map<String, dynamic>.from(simulations.first);
+      final result = rd['commission'] ?? rd;
+      if (result is Map<String, dynamic> && result.containsKey('commission')) {
+        return Map<String, dynamic>.from(result);
       }
-      final defaultCommission = _default(amount);
+      final c = _default(amount);
       return {
         'amount': amount,
-        'commission': defaultCommission['commission'],
-        'netAmount': defaultCommission['netAmount'],
-        'percentage': defaultCommission['percentage'],
+        'commission': c['commission'],
+        'netAmount': c['netAmount'],
+        'percentage': c['percentage'],
         'minAmount': 100,
         'maxAmount': 500,
         'profile': 'local',
@@ -48,8 +48,10 @@ class CommissionApi {
 
   Future<Map<String, dynamic>> payCashCommission(String parcelId, String source, {double? amount}) async {
     try {
-      final data = <String, dynamic>{'source': source};
-      if (amount != null) data['amount'] = amount;
+      final data = <String, dynamic>{
+        'source': source,
+        if (amount != null) 'amount': amount,
+      };
       final res = await client.dio.post('/driver/parcels/$parcelId/pay-commission', data: data);
       final rd = client.handle(res);
       return Map<String, dynamic>.from(rd['result'] ?? rd);

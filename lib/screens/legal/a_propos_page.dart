@@ -73,12 +73,13 @@ class AProposPage extends StatelessWidget {
           const SizedBox(height: 12),
           _bodyText(
             'ProColis est une plateforme de mise en relation entre expéditeurs '
-            'et chauffeurs professionnels pour le transport interurbain de colis '
-            'au Sénégal.',
+            'et chauffeurs professionnels pour le transport de colis au Sénégal, '
+            'en Afrique et à l\'international.',
           ),
           _bodyText(
             'Fondée par Serigne Fallou, notre plateforme répond au besoin de '
-            'transport rapide et fiable de colis entre les villes sénégalaises.',
+            'transport rapide et fiable de colis entre les villes sénégalaises, '
+            'africaines et au-delà des frontières.',
           ),
           _bodyText(
             'Basée à Dakar, notre équipe travaille chaque jour pour simplifier '
@@ -89,8 +90,8 @@ class AProposPage extends StatelessWidget {
           _sectionTitle('Notre mission'),
           const SizedBox(height: 12),
           _bodyText(
-            'Rendre le transport de colis interurbain aussi simple que l\'envoi '
-            'd\'un message.',
+            'Rendre le transport de colis, au niveau national comme international, '
+            'aussi simple que l\'envoi d\'un message.',
           ),
           _bodyText(
             'Nous connectons les personnes qui ont besoin d\'envoyer un colis '
@@ -133,8 +134,8 @@ class AProposPage extends StatelessWidget {
           const SizedBox(height: 24),
           _sectionTitle('Nous contacter'),
           const SizedBox(height: 12),
-          _bodyText('Email : contact@sendprocolis.com'),
-          _bodyText('Téléphone : +221 XX XXX XX XX'),
+          _bodyText('Email : support-commercial@sendprocolis.com'),
+          _bodyText('Téléphone : +221 76 516 27 96'),
           _bodyText('Adresse : Sacré-Cœur 3, Dakar, Sénégal'),
           _bodyText('Horaires : Lundi - Samedi, 8h - 20h'),
           const SizedBox(height: 32),

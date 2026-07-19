@@ -35,11 +35,21 @@ class CommissionConfig {
 ///   Si commission > maximum → maximum
 class CommissionService {
   static CommissionConfig _config = const CommissionConfig();
+  static String _insufficientPolicy = 'warn'; // block | warn | debt
 
   /// Met à jour la configuration (appelé au démarrage ou depuis admin)
   static void configure(CommissionConfig config) {
     _config = config;
   }
+
+  /// Met à jour la politique d'insuffisance
+  static void setInsufficientPolicy(String policy) {
+    if (['block', 'warn', 'debt'].contains(policy)) {
+      _insufficientPolicy = policy;
+    }
+  }
+
+  static String get insufficientPolicy => _insufficientPolicy;
 
   /// Calcule la commission pour un montant de livraison donné
   static double calculate(double deliveryAmount) {
@@ -65,14 +75,37 @@ class CommissionService {
     return commission;
   }
 
-  /// Vérifie si un chauffeur peut accepter une livraison (solde suffisant)
+  /// Vérifie si un chauffeur peut accepter une livraison (solde suffisant pour la commission)
   static bool canAcceptDelivery({
     required double walletBalance,
+    required double scoreBalance,
     required double deliveryAmount,
   }) {
-    if (walletBalance <= 0) return false;
     final commission = calculate(deliveryAmount);
-    return walletBalance >= commission;
+    return (walletBalance + scoreBalance) >= commission;
+  }
+
+  /// Vérifie si wallet ET points sont nécessaires
+  static bool requiresBothSources({
+    required double walletBalance,
+    required double scoreBalance,
+    required double deliveryAmount,
+  }) {
+    final commission = calculate(deliveryAmount);
+    return walletBalance < commission && (walletBalance + scoreBalance) >= commission;
+  }
+
+  /// Calcule la répartition du paiement entre wallet et points
+  static Map<String, double> splitPayment({
+    required double walletBalance,
+    required double scoreBalance,
+    required double deliveryAmount,
+  }) {
+    final commission = calculate(deliveryAmount);
+    final fromWallet = walletBalance < commission ? walletBalance : commission;
+    final remainder = commission - fromWallet;
+    final fromPoints = remainder < scoreBalance ? remainder : scoreBalance;
+    return {'fromWallet': fromWallet, 'fromPoints': fromPoints};
   }
 
   /// Calcule le nouveau solde après commission
@@ -84,10 +117,21 @@ class CommissionService {
     return currentBalance - commission;
   }
 
-  /// Message d'erreur si solde insuffisant
-  static String get insufficientFundsMessage =>
-      'Votre solde Pro-Colis est insuffisant. '
-      'Rechargez votre portefeuille pour continuer.';
+  /// Politique configurée en cas d'insuffisance
+  static String get insufficientFundsMessage {
+    switch (_insufficientPolicy) {
+      case 'block':
+        return 'Solde insuffisant. Rechargez votre portefeuille ou vos points pour continuer.';
+      case 'debt':
+        return 'Attention : votre solde est insuffisant. La commission sera due.';
+      default:
+        return 'Solde insuffisant. Pensez à recharger votre portefeuille.';
+    }
+  }
+
+  /// La livraison est-elle bloquée par la politique ?
+  static bool get isDeliveryBlocked =>
+      _insufficientPolicy == 'block';
 
   /// Configuration actuelle (lecture seule)
   static CommissionConfig get config => _config;

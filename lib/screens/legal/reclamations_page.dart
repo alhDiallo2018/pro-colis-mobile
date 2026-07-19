@@ -27,7 +27,7 @@ class ReclamationsPage extends StatelessWidget {
           _bodyText(
             '• Directement depuis l\'application : Menu > Support > Réclamations.',
           ),
-          _bodyText('• Par email : reclamations@sendprocolis.com.'),
+          _bodyText('• Par email : support-commercial@sendprocolis.com.'),
           _bodyText(
             '• Par téléphone : via le chat support dans l\'application.',
           ),

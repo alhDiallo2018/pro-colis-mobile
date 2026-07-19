@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:procolis/screens/super-admin/garage_drivers_screen.dart';
 
+import '../../data/country_data.dart';
 import '../../models/garage.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
@@ -10,6 +11,13 @@ import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
+
+String _flagOfCountry(String country) {
+  final match = allCountries.where(
+    (c) => c.name.toLowerCase() == country.toLowerCase(),
+  );
+  return match.isEmpty ? '🌍' : match.first.flag;
+}
 
 class GaragesManagementScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -25,6 +33,8 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   final TextEditingController _searchController = TextEditingController();
   List<Garage> _garages = [];
   String _searchQuery = '';
+  String _countryFilter = '';
+  String _statusFilter = '';
   bool _isLoading = true;
   bool _isProcessing = false;
   String? _error;
@@ -41,14 +51,41 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
     super.dispose();
   }
 
+  List<String> get _countries {
+    final set = <String>{};
+    for (final g in _garages) {
+      if (g.country.trim().isNotEmpty) set.add(g.country);
+    }
+    final list = set.toList()..sort((a, b) => a.compareTo(b));
+    return list;
+  }
+
   List<Garage> get _filteredGarages {
     final q = _searchQuery.trim().toLowerCase();
-    if (q.isEmpty) return _garages;
     return _garages.where((g) {
+      if (_countryFilter.isNotEmpty && g.country != _countryFilter) return false;
+      if (_statusFilter == 'active' && !g.isActive) return false;
+      if (_statusFilter == 'inactive' && g.isActive) return false;
+      if (q.isEmpty) return true;
       return g.name.toLowerCase().contains(q) ||
+          g.country.toLowerCase().contains(q) ||
           g.city.toLowerCase().contains(q) ||
-          g.region.toLowerCase().contains(q);
+          g.region.toLowerCase().contains(q) ||
+          (g.address ?? '').toLowerCase().contains(q) ||
+          (g.phone ?? '').toLowerCase().contains(q);
     }).toList();
+  }
+
+  /// Zones groupées par pays, pays triés alphabétiquement.
+  List<MapEntry<String, List<Garage>>> get _groupedGarages {
+    final map = <String, List<Garage>>{};
+    for (final g in _filteredGarages) {
+      final key = g.country.trim().isEmpty ? 'Autre' : g.country;
+      map.putIfAbsent(key, () => []).add(g);
+    }
+    final entries = map.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return entries;
   }
 
   Future<void> _loadGarages() async {
@@ -122,6 +159,38 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
     }
   }
 
+  Future<void> _toggleActive(Garage garage) async {
+    setState(() => _isProcessing = true);
+    try {
+      final result = await _apiService.updateGarageSuperAdmin(
+        garageId: garage.id,
+        isActive: !garage.isActive,
+      );
+      if (result['success'] == true) {
+        await _loadGarages();
+        if (mounted) {
+          _showSnack(
+            garage.isActive ? 'Zone désactivée' : 'Zone activée',
+            AppTheme.successColor,
+          );
+        }
+      } else {
+        if (mounted) {
+          _showSnack(result['message'] ?? 'Erreur lors du changement de statut',
+              AppTheme.errorColor);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnack('Erreur: $e', AppTheme.errorColor);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
   Future<void> _viewDrivers(Garage garage) async {
     await Navigator.push(
       context,
@@ -152,7 +221,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
           ],
         ),
         content: Text(
-          'Voulez-vous vraiment supprimer la zone "${garage.name}" ?',
+          'Voulez-vous vraiment supprimer la zone "${garage.name}" ? Elle ne sera plus proposée dans les trajets.',
           style: GoogleFonts.manrope(color: AppTheme.slate600),
         ),
         actions: [
@@ -220,7 +289,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
           Padding(
             padding: const EdgeInsets.only(right: 8, left: 2),
             child: PcIconButton(
-              Icons.add_rounded,
+              Icons.add_location_alt_rounded,
               variant: PcIconButtonVariant.soft,
               tooltip: 'Ajouter une zone',
               onPressed: _addGarage,
@@ -241,15 +310,18 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   }
 
   Widget _buildContent() {
-    final filtered = _filteredGarages;
+    final grouped = _groupedGarages;
+    final filteredCount = _filteredGarages.length;
+    final countries = _countries;
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
           child: _buildSearchField(),
         ),
+        _buildFilters(countries),
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 2, 18, 8),
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
           child: Row(
             children: [
               Text(
@@ -262,13 +334,24 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
               ),
               const SizedBox(width: 8),
               Text(
-                '·  ${filtered.length}',
+                '·  $filteredCount',
                 style: AppTheme.mono(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.slate500,
                 ),
               ),
+              if (countries.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '·  ${countries.length} pays',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.slate400,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -281,7 +364,8 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
                       icon: Icons.garage_rounded,
                       tone: PcTone.primary,
                       title: 'Aucune zone',
-                      message: 'Aucune zone enregistrée pour le moment.',
+                      message:
+                          'Aucune zone enregistrée pour le moment. Créez la première zone, n\'importe où dans le monde.',
                       action: PcButton(
                         'Ajouter une zone',
                         icon: Icons.add_rounded,
@@ -291,36 +375,91 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
                     ),
                   ],
                 )
-              : filtered.isEmpty
+              : grouped.isEmpty
                   ? ListView(
                       children: const [
                         SizedBox(height: 40),
                         PcEmptyState(
                           icon: Icons.search_off_rounded,
                           title: 'Aucun résultat',
-                          message: 'Aucune zone ne correspond à votre recherche.',
+                          message: 'Aucune zone ne correspond à ces filtres.',
                         ),
                       ],
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: filtered.length,
+                      itemCount: grouped.length,
                       itemBuilder: (context, index) {
-                        final garage = filtered[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _GarageCard(
-                            garage: garage,
-                            isProcessing: _isProcessing,
-                            onEdit: () => _editGarage(garage),
-                            onDrivers: () => _viewDrivers(garage),
-                            onDelete: () => _deleteGarage(garage),
-                          ),
+                        final entry = grouped[index];
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _CountryHeader(
+                              country: entry.key,
+                              count: entry.value.length,
+                            ),
+                            ...entry.value.map((garage) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _GarageCard(
+                                    garage: garage,
+                                    isProcessing: _isProcessing,
+                                    onEdit: () => _editGarage(garage),
+                                    onDrivers: () => _viewDrivers(garage),
+                                    onDelete: () => _deleteGarage(garage),
+                                    onToggleActive: () => _toggleActive(garage),
+                                  ),
+                                )),
+                          ],
                         );
                       },
                     ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFilters(List<String> countries) {
+    return SizedBox(
+      height: 38,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          _FilterChip(
+            label: 'Tous les pays',
+            emoji: '🌍',
+            selected: _countryFilter.isEmpty,
+            onTap: () => setState(() => _countryFilter = ''),
+          ),
+          ...countries.map((c) => Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: _FilterChip(
+                  label: c,
+                  emoji: _flagOfCountry(c),
+                  selected: _countryFilter == c,
+                  onTap: () => setState(
+                      () => _countryFilter = _countryFilter == c ? '' : c),
+                ),
+              )),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: VerticalDivider(width: 1, color: AppTheme.slate200),
+          ),
+          _FilterChip(
+            label: 'Actives',
+            selected: _statusFilter == 'active',
+            onTap: () => setState(() =>
+                _statusFilter = _statusFilter == 'active' ? '' : 'active'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: 'Inactives',
+            selected: _statusFilter == 'inactive',
+            onTap: () => setState(() =>
+                _statusFilter = _statusFilter == 'inactive' ? '' : 'inactive'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -341,7 +480,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
           color: AppTheme.textPrimary,
         ),
         decoration: InputDecoration(
-          hintText: 'Rechercher une zone, une ville…',
+          hintText: 'Rechercher une zone, ville, pays…',
           hintStyle: GoogleFonts.manrope(
             fontSize: 14,
             color: AppTheme.slate400,
@@ -392,6 +531,103 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
 }
 
 // ============================================================
+// Chip de filtre (pays / statut)
+// ============================================================
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final String? emoji;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    this.emoji,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.teal50 : AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+          border: Border.all(
+            color: selected ? AppTheme.primary : AppTheme.slate200,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (emoji != null) ...[
+              Text(emoji!, style: const TextStyle(fontSize: 15)),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppTheme.primary : AppTheme.slate600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// En-tête de groupe pays
+// ============================================================
+
+class _CountryHeader extends StatelessWidget {
+  final String country;
+  final int count;
+
+  const _CountryHeader({required this.country, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 6, 2, 10),
+      child: Row(
+        children: [
+          Text(_flagOfCountry(country), style: const TextStyle(fontSize: 17)),
+          const SizedBox(width: 8),
+          Text(
+            country.toUpperCase(),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: AppTheme.slate500,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '· $count',
+            style: AppTheme.mono(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.slate400,
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(child: PcDivider()),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
 // Carte garage extensible (design system ProColis)
 // ============================================================
 
@@ -401,6 +637,7 @@ class _GarageCard extends StatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback onDrivers;
   final VoidCallback onDelete;
+  final VoidCallback onToggleActive;
 
   const _GarageCard({
     required this.garage,
@@ -408,6 +645,7 @@ class _GarageCard extends StatefulWidget {
     required this.onEdit,
     required this.onDrivers,
     required this.onDelete,
+    required this.onToggleActive,
   });
 
   @override
@@ -482,13 +720,8 @@ class _GarageCardState extends State<_GarageCard> {
                     ),
                     const SizedBox(width: 8),
                     PcBadge(
-                      garage.isActive ? 'Actif' : 'Inactif',
+                      garage.isActive ? 'Active' : 'Inactive',
                       tone: garage.isActive ? PcTone.green : PcTone.neutral,
-                    ),
-                    const SizedBox(width: 6),
-                    PcBadge(
-                      '${garage.driversCount} chauffeurs',
-                      tone: PcTone.green,
                     ),
                     const SizedBox(width: 4),
                     AnimatedRotation(
@@ -523,6 +756,10 @@ class _GarageCardState extends State<_GarageCard> {
         children: [
           const PcDivider(),
           const SizedBox(height: 10),
+          _InfoRow(
+            label: 'Pays',
+            value: '${_flagOfCountry(garage.country)}  ${garage.country}',
+          ),
           _InfoRow(label: 'Région', value: garage.region),
           if (garage.address != null && garage.address!.isNotEmpty)
             _InfoRow(label: 'Adresse', value: garage.address!),
@@ -557,7 +794,30 @@ class _GarageCardState extends State<_GarageCard> {
             mono: true,
             isBold: true,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 6),
+          const PcDivider(),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  garage.isActive ? 'Zone active' : 'Zone inactive',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.slate600,
+                  ),
+                ),
+              ),
+              Switch(
+                value: garage.isActive,
+                activeColor: AppTheme.primary,
+                onChanged: widget.isProcessing
+                    ? null
+                    : (_) => widget.onToggleActive(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -679,6 +939,8 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
   final _phoneController = TextEditingController();
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
+  String _country = 'Sénégal';
+  bool _isActive = true;
 
   @override
   void initState() {
@@ -691,12 +953,14 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
   void _populateForm() {
     final garage = widget.garage!;
     _nameController.text = garage.name;
+    _country = garage.country;
     _cityController.text = garage.city;
     _regionController.text = garage.region;
     _addressController.text = garage.address ?? '';
     _phoneController.text = garage.phone ?? '';
     _latitudeController.text = garage.latitude?.toString() ?? '';
     _longitudeController.text = garage.longitude?.toString() ?? '';
+    _isActive = garage.isActive;
   }
 
   @override
@@ -711,8 +975,155 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
     super.dispose();
   }
 
+  void _showCountryPicker() {
+    String searchQuery = '';
+    final searchController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = searchCountries(searchQuery);
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.slate300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: TextField(
+                        controller: searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un pays...',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    searchController.clear();
+                                    setModalState(() => searchQuery = '');
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: AppTheme.slate100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (v) => setModalState(() => searchQuery = v),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollController,
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final country = filtered[index];
+                          final isSelected = _country.toLowerCase() ==
+                              country.name.toLowerCase();
+                          return ListTile(
+                            leading: Text(country.flag,
+                                style: const TextStyle(fontSize: 24)),
+                            title: Text(country.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            selected: isSelected,
+                            selectedTileColor: AppTheme.teal50,
+                            onTap: () {
+                              setState(() => _country = country.name);
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCountryField() {
+    return GestureDetector(
+      onTap: _showCountryPicker,
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(color: AppTheme.slate200),
+        ),
+        child: Row(
+          children: [
+            Text(_flagOfCountry(_country),
+                style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pays',
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.slate400,
+                    ),
+                  ),
+                  Text(
+                    _country,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.expand_more_rounded,
+                color: AppTheme.slate400, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_country.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez choisir un pays')),
+      );
+      return;
+    }
     
     setState(() => _isLoading = true);
     
@@ -731,12 +1142,14 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
         final result = await _apiService.updateGarageSuperAdmin(
           garageId: widget.garage!.id,
           name: _nameController.text.trim(),
+          country: _country,
           city: _cityController.text.trim(),
           region: _regionController.text.trim(),
           address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
           phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
           latitude: latitude,
           longitude: longitude,
+          isActive: _isActive,
         );
         
         if (result['success'] == true && mounted) {
@@ -766,12 +1179,14 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
       } else {
         final result = await _apiService.createGarageSuperAdmin(
           name: _nameController.text.trim(),
+          country: _country,
           city: _cityController.text.trim(),
           region: _regionController.text.trim(),
           address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
           phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
           latitude: latitude,
           longitude: longitude,
+          isActive: _isActive,
         );
         
         if (result['success'] == true && mounted) {
@@ -846,17 +1261,19 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
                 validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
               ),
               const SizedBox(height: 12),
+              _buildCountryField(),
+              const SizedBox(height: 12),
               CustomTextField(
-                controller: _cityController,
-                label: 'Ville',
-                prefixIcon: Icons.location_city,
+                controller: _regionController,
+                label: 'Région / État',
+                prefixIcon: Icons.map,
                 validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
               ),
               const SizedBox(height: 12),
               CustomTextField(
-                controller: _regionController,
-                label: 'Région',
-                prefixIcon: Icons.map,
+                controller: _cityController,
+                label: 'Ville',
+                prefixIcon: Icons.location_city,
                 validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
               ),
               const SizedBox(height: 12),
@@ -893,6 +1310,46 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardColor,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(color: AppTheme.slate200),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Zone active',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Les zones inactives n\'apparaissent plus dans les sélecteurs de trajet.',
+                            style: GoogleFonts.manrope(
+                              fontSize: 12,
+                              color: AppTheme.slate500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _isActive,
+                      activeColor: AppTheme.primary,
+                      onChanged: (v) => setState(() => _isActive = v),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
               CustomButton(

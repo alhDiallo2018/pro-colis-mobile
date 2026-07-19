@@ -56,7 +56,8 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
   }
 
   Future<void> _loadLibreService() async {
-    if (mounted) setState(() => _isLoading = true);
+    if (!mounted) return;
+    setState(() => _isLoading = true);
     try {
       await ref.read(parcelProvider.notifier).loadMyParcels();
       await ref.read(parcelProvider.notifier).loadFreeParcels();

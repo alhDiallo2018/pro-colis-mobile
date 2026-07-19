@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -21,6 +22,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   double _balance = 0;
   bool _loading = true;
   List<Map<String, dynamic>> _transactions = [];
+  List<Map<String, dynamic>> _withdrawals = [];
 
   @override
   void initState() {
@@ -34,6 +36,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       final auth = ref.read(authProvider);
       final userId = auth.user?.id ?? '';
       final wallet = await _api.getWallet(userId);
+      final withdrawals = auth.user?.isDriver == true
+          ? await _api.getMyWithdrawals()
+          : <Map<String, dynamic>>[];
       if (mounted) {
         setState(() {
           _balance = wallet.balance;
@@ -44,6 +49,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             'description': t.description,
             'date': t.createdAt.toIso8601String(),
           }).toList();
+          _withdrawals = withdrawals;
           _loading = false;
         });
       }
@@ -85,10 +91,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDriver = ref.watch(authProvider).user?.isDriver == true;
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Points & paiements'),
+        title: const Text('Portefeuille'),
         backgroundColor: AppTheme.cardColor,
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
@@ -106,16 +113,18 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      Expanded(
-                        child: PcButton(
-                          'Utiliser mes points',
-                          icon: Icons.redeem_rounded,
-                          variant: PcButtonVariant.secondary,
-                          block: true,
-                          onPressed: () {},
+                      if (isDriver) ...[
+                        Expanded(
+                          child: PcButton(
+                            'Mes points',
+                            icon: Icons.redeem_rounded,
+                            variant: PcButtonVariant.secondary,
+                            block: true,
+                            onPressed: () => context.push('/driver/points'),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
+                        const SizedBox(width: 10),
+                      ],
                       Expanded(
                         child: PcButton(
                           'Retirer des fonds',
@@ -127,6 +136,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       ),
                     ],
                   ),
+                  if (isDriver && _withdrawals.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    const PcSectionHeader('Mes demandes de retrait'),
+                    _buildWithdrawals(),
+                  ],
                   const SizedBox(height: 18),
                   const PcSectionHeader('Historique'),
                   _buildTransactions(),
@@ -135,6 +149,152 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             ),
       bottomNavigationBar: const AppBottomNav(),
     );
+  }
+
+  static const _withdrawalStatusLabels = <String, String>{
+    'PENDING': 'En attente',
+    'PROCESSING': 'En cours',
+    'SUCCESS': 'Réussi',
+    'FAILED': 'Échoué',
+    'CANCELLED': 'Annulé',
+  };
+
+  Color _withdrawalStatusColor(String s) {
+    switch (s) {
+      case 'SUCCESS':
+        return AppTheme.green600;
+      case 'PENDING':
+        return AppTheme.amber500;
+      case 'PROCESSING':
+        return AppTheme.teal500;
+      case 'FAILED':
+        return AppTheme.red400;
+      default:
+        return AppTheme.slate500;
+    }
+  }
+
+  Future<void> _cancelWithdrawal(Map<String, dynamic> w) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        ),
+        title: const Text('Annuler le retrait'),
+        content: const Text(
+            'Voulez-vous annuler cette demande de retrait ? Le montant sera remis dans votre solde.'),
+        actions: [
+          PcButton(
+            'Non',
+            variant: PcButtonVariant.secondary,
+            size: PcButtonSize.sm,
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          PcButton(
+            'Oui, annuler',
+            variant: PcButtonVariant.danger,
+            size: PcButtonSize.sm,
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final result = await _api.cancelWithdrawal(w['id'].toString());
+    if (!mounted) return;
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Demande de retrait annulée'),
+            backgroundColor: AppTheme.green600),
+      );
+      await _load();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                result['message']?.toString() ?? 'Erreur lors de l\'annulation'),
+            backgroundColor: AppTheme.error),
+      );
+    }
+  }
+
+  Widget _buildWithdrawals() {
+    final rows = <Widget>[];
+    for (var i = 0; i < _withdrawals.length; i++) {
+      final w = _withdrawals[i];
+      final status = w['status']?.toString() ?? 'PENDING';
+      final label = _withdrawalStatusLabels[status] ?? status;
+      final color = _withdrawalStatusColor(status);
+      final amount = (w['amount'] as num?)?.toDouble() ??
+          double.tryParse('${w['amount']}') ??
+          0;
+      final createdAt = w['createdAt']?.toString() ?? w['created_at']?.toString() ?? '';
+
+      rows.add(Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.savings_rounded, size: 19, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_formatFcfa(amount)} FCFA',
+                    style: AppTheme.mono(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    createdAt.isNotEmpty ? _formatDate(createdAt) : '—',
+                    style: GoogleFonts.manrope(
+                        fontSize: 11.5, color: AppTheme.slate400),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: color),
+              ),
+            ),
+            if (status == 'PENDING') ...[
+              const SizedBox(width: 8),
+              PcIconButton(
+                Icons.close_rounded,
+                variant: PcIconButtonVariant.danger,
+                tooltip: 'Annuler la demande',
+                onPressed: () => _cancelWithdrawal(w),
+              ),
+            ],
+          ],
+        ),
+      ));
+      if (i != _withdrawals.length - 1) rows.add(const PcDivider());
+    }
+    return PcCard(padding: EdgeInsets.zero, child: Column(children: rows));
   }
 
   Widget _buildTransactions() {
@@ -201,7 +361,7 @@ class _BalanceHero extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'SOLDE DE POINTS',
+                  'PORTEFEUILLE',
                   style: GoogleFonts.plusJakartaSans(
                     color: AppTheme.amberOnFg,
                     fontSize: 12,
@@ -217,13 +377,13 @@ class _BalanceHero extends StatelessWidget {
           Text.rich(
             TextSpan(
               text: fmt.format(balance.toInt()),
-              children: const [TextSpan(text: ' pts', style: TextStyle(fontSize: 18))],
+              children: const [TextSpan(text: ' FCFA', style: TextStyle(fontSize: 18))],
             ),
             style: AppTheme.mono(color: AppTheme.amberOnFg, fontSize: 38, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
-            '≈ ${fmt.format((balance * 10).toInt())} FCFA de réductions disponibles',
+            'Solde disponible',
             style: GoogleFonts.manrope(color: AppTheme.amberOnFg.withOpacity(0.8), fontSize: 12.5, fontWeight: FontWeight.w700),
           ),
         ],
@@ -276,9 +436,9 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
   Future<void> _submit() async {
     final amountText = _amountCtrl.text.trim();
     final amount = double.tryParse(amountText) ?? 0;
-    if (amount < 100) {
+    if (amount < 500) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Montant minimum : 100 FCFA'), backgroundColor: AppTheme.error),
+        const SnackBar(content: Text('Montant minimum : 500 FCFA'), backgroundColor: AppTheme.error),
       );
       return;
     }

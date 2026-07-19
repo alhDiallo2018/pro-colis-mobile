@@ -62,6 +62,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
 
   bool _showPrice = false;
   bool _recording = false;
+  bool _paused = false;
   int _recordSecs = 0;
   Timer? _recordTimer;
   String? _recordPath;
@@ -217,7 +218,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         await _audioRecorder.start(
           path: path, encoder: AudioEncoder.aacLc, samplingRate: 44100,
         );
-        setState(() { _recording = true; _recordSecs = 0; });
+        setState(() { _recording = true; _paused = false; _recordSecs = 0; });
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
           if (mounted) setState(() => _recordSecs++);
         });
@@ -225,25 +226,43 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     }
   }
 
+  Future<void> _pauseRecording() async {
+    _recordTimer?.cancel();
+    try {
+      await _audioRecorder.pause();
+      setState(() => _paused = true);
+    } catch (_) {}
+  }
+
+  Future<void> _resumeRecording() async {
+    try {
+      await _audioRecorder.resume();
+      setState(() => _paused = false);
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _recordSecs++);
+      });
+    } catch (_) {}
+  }
+
   Future<void> _stopRecording() async {
     _recordTimer?.cancel();
     try {
       final p = await _audioRecorder.stop();
       if (p != null && mounted) {
-        setState(() => _recording = false);
+        setState(() { _recording = false; _paused = false; });
         final file = XFile(p);
         final url = await _api.uploadFile(file: file, mediaType: 'audio');
         if (url != null) await _send(audioUrl: url);
       }
     } catch (_) {
-      if (mounted) setState(() => _recording = false);
+      if (mounted) setState(() { _recording = false; _paused = false; });
     }
   }
 
   void _cancelRecording() {
     _recordTimer?.cancel();
     _audioRecorder.stop();
-    setState(() => _recording = false);
+    setState(() { _recording = false; _paused = false; });
   }
 
   Future<void> _toggleAudio(String url) async {
@@ -516,8 +535,8 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-      color: AppTheme.cardColor,
       decoration: const BoxDecoration(
+        color: AppTheme.cardColor,
         border: Border(top: BorderSide(color: AppTheme.slate200)),
       ),
       child: _recording
@@ -539,25 +558,53 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                     height: 44,
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                      color: AppTheme.red50,
+                      color: _paused ? AppTheme.amber50 : AppTheme.red50,
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Row(
                       children: [
                         Container(
                           width: 10, height: 10,
-                          decoration: const BoxDecoration(
-                              color: AppTheme.red500, shape: BoxShape.circle),
+                          decoration: BoxDecoration(
+                              color: _paused ? AppTheme.amber500 : AppTheme.red500,
+                              shape: BoxShape.circle),
                         ),
                         const SizedBox(width: 8),
-                        Text('Enregistrement... ${_recordSecs}s',
-                            style: const TextStyle(
-                                color: AppTheme.red500,
-                                fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text(
+                          _paused ? 'En pause ${_recordSecs}s' : 'Enregistrement... ${_recordSecs}s',
+                          style: TextStyle(
+                            color: _paused ? AppTheme.amber500 : AppTheme.red500,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                if (_paused)
+                  GestureDetector(
+                    onTap: _resumeRecording,
+                    child: Container(
+                      width: 40, height: 40,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.teal500, shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                    ),
+                  )
+                else
+                  GestureDetector(
+                    onTap: _pauseRecording,
+                    child: Container(
+                      width: 40, height: 40,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.amber500, shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.pause_rounded, color: Colors.white, size: 20),
+                    ),
+                  ),
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: _stopRecording,

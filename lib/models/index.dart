@@ -1,4 +1,5 @@
 export 'admin_stats.dart';
+export 'broadcast.dart';
 export 'garage.dart';
 export 'notification.dart';
 export 'otp.dart';

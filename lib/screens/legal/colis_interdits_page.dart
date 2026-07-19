@@ -56,7 +56,7 @@ class ColisInterditsPage extends StatelessWidget {
           _subsectionTitle('Drogues et substances illicites'),
           _bodyText(
             'Toutes substances classées comme stupéfiants, drogues, psychotropes '
-            'ou précurseurs par la loi sénégalaise.',
+            'ou précurseurs par la loi sénégalaise ou par celle du pays de destination.',
           ),
           _subsectionTitle('Armes et explosifs'),
           _bodyText(

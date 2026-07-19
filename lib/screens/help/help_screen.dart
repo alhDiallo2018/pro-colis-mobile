@@ -230,7 +230,7 @@ class _HelpScreenState extends State<HelpScreen> {
                   icon: Icons.mail_rounded,
                   iconTone: PcTone.amber,
                   title: 'Envoyer un e-mail',
-                  subtitle: 'support@sendprocolis.com',
+                  subtitle: 'support-technic@sendprocolis.com',
                   chevron: true,
                 ),
               ],

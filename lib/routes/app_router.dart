@@ -11,6 +11,7 @@ import '../screens/accueil/landing_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/settings/notification_preferences_screen.dart';
 import '../screens/super-admin/brevo_config_screen.dart';
+import '../screens/super-admin/broadcasts_page.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/dashboard/notifications/notifications_screen.dart';
@@ -62,6 +63,7 @@ import '../screens/super-admin/finance_dashboard_screen.dart';
 import '../screens/super-admin/garage_drivers_screen.dart';
 import '../screens/super-admin/garages_management_screen.dart';
 import '../screens/super-admin/payments_screen.dart';
+import '../screens/super-admin/payment_notifications_screen.dart';
 import '../screens/super-admin/reputation_dashboard_screen.dart';
 import '../screens/super-admin/score_detail_screen.dart';
 import '../screens/super-admin/scores_screen.dart';
@@ -69,6 +71,7 @@ import '../screens/super-admin/stats_screen.dart';
 import '../screens/super-admin/users_management_screen.dart';
 import '../screens/super-admin/wallet_detail_screen.dart';
 import '../screens/super-admin/wallets_screen.dart';
+import '../screens/super-admin/withdrawals_screen.dart';
 import '../screens/wallet/wallet_screen.dart';
 import '../services/auth_notifier.dart';
 
@@ -83,20 +86,39 @@ class AppRouter {
         final location = state.matchedLocation;
         final isLogin = location == '/login';
         final isRegister = location == '/register';
-        final isLanding = location == '/landing';
         final isTrack = location.startsWith('/track');
         final isSplash = location == '/splash';
         final isLegal = location.startsWith('/a-propos') || location.startsWith('/contact') || location.startsWith('/mentions-legales') || location.startsWith('/confidentialite') || location.startsWith('/cgu') || location.startsWith('/conditions-transport') || location.startsWith('/paiement') || location.startsWith('/remboursement') || location.startsWith('/reclamations') || location.startsWith('/colis-interdits');
-        final isPublic = isLogin || isRegister || isTrack || isLanding || isLegal;
+        final isPublic = isLogin || isRegister || isTrack || isLegal;
 
         if (isSplash) {
           if (authState.isLoading) return null;
-          return authState.isAuthenticated ? '/dashboard' : '/landing';
+          return authState.isAuthenticated ? '/dashboard' : '/login';
         }
 
         if (authState.isLoading) return null;
         if (!authState.isAuthenticated && !isPublic) return '/login';
         if (authState.isAuthenticated && (isLogin || isRegister)) return '/dashboard';
+
+        // Garde par rôle (aligné sur RequireRole du web) :
+        // chaque espace est réservé à son rôle, sinon retour au dashboard.
+        if (authState.isAuthenticated) {
+          final user = authState.user;
+          if (user != null) {
+            if (location.startsWith('/admin') && !user.isSuperAdmin) {
+              return '/dashboard';
+            }
+            if (location.startsWith('/garage') && !user.isAdmin && !user.isSuperAdmin) {
+              return '/dashboard';
+            }
+            if (location.startsWith('/driver') && !user.isDriver) {
+              return '/dashboard';
+            }
+            if (location.startsWith('/client') && !user.isClient) {
+              return '/dashboard';
+            }
+          }
+        }
         return null;
       },
       routes: [
@@ -415,6 +437,16 @@ class AppRouter {
           builder: (context, state) => const PaymentsScreen(),
         ),
         GoRoute(
+          path: '/admin/withdrawals',
+          name: 'admin-withdrawals',
+          builder: (context, state) => const WithdrawalsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/payments-notifications',
+          name: 'admin-payments-notifications',
+          builder: (context, state) => const PaymentNotificationsScreen(),
+        ),
+        GoRoute(
           path: '/admin/commissions',
           name: 'admin-commissions',
           builder: (context, state) => const CommissionConfigScreen(),
@@ -456,6 +488,11 @@ class AppRouter {
           path: '/admin/notifications/brevo',
           name: 'admin-brevo-config',
           builder: (context, state) => const BrevoConfigScreen(),
+        ),
+        GoRoute(
+          path: '/admin/broadcasts',
+          name: 'admin-broadcasts',
+          builder: (context, state) => const BroadcastsPage(),
         ),
       ],
     );

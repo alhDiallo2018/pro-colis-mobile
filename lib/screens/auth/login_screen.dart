@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,7 +13,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
-import '../dashboard/dashboard_screen.dart';
 import 'register_page.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -118,10 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      );
+      GoRouter.of(context).go('/dashboard');
     } else {
       _showSnack(
           result['message']?.toString() ?? 'Identifiant ou PIN incorrect',
@@ -236,10 +233,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.isAuthenticated && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        );
+        GoRouter.of(context).go('/dashboard');
       }
     });
 

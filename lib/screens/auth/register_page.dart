@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../data/country_data.dart';
@@ -12,7 +13,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/location_autocomplete.dart';
 import '../../widgets/pc_components.dart';
-import '../dashboard/dashboard_screen.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -86,11 +86,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        (_) => false,
-      );
+      GoRouter.of(context).go('/dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

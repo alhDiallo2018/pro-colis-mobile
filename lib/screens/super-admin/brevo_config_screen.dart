@@ -172,7 +172,7 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
                               controller: _testEmailCtrl,
                               decoration: const InputDecoration(
                                 labelText: 'Adresse email de test',
-                                hintText: 'admin@sendprocolis.com',
+                                hintText: 'support-technic@sendprocolis.com',
                               ),
                             ),
                           ),

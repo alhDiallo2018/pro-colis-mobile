@@ -281,8 +281,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
 
   void _showPurchasePointsDialog(BuildContext context, WidgetRef ref) {
     final TextEditingController amountController = TextEditingController();
-    // Prix par point (exemple: 100 FCFA par point)
-    const pricePerPoint = 100;
+    const pricePerPoint = 1;
 
     showDialog(
       context: context,

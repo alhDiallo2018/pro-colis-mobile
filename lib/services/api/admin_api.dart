@@ -33,7 +33,7 @@ class AdminApi {
     try {
       final res = await client.dio.get('/super-admin/garages');
       final data = client.handle(res);
-      final list = (data['garages'] as List?) ?? [];
+      final list = (data['garages'] as List?) ?? (data['data'] as List?) ?? [];
       return list.map((j) => Garage.fromJson(Map<String, dynamic>.from(j))).toList();
     } catch (e) {
       return [];
@@ -134,6 +134,99 @@ class AdminApi {
   Future<Map<String, dynamic>> deleteGarage(String id) async {
     try {
       final res = await client.dio.delete('/super-admin/garages/$id');
+      return client.handle(res);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // --- Zones ---
+
+  Future<List<Map<String, dynamic>>> getAllZones() async {
+    try {
+      final res = await client.dio.get('/super-admin/zones');
+      final data = client.handle(res);
+      return (data['data'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getPublicZones() async {
+    try {
+      final res = await client.dio.get('/public/zones');
+      final data = client.handle(res);
+      return (data['data'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> createZone(Map<String, dynamic> d) async {
+    try {
+      final res = await client.dio.post('/super-admin/zones', data: d);
+      return client.handle(res);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateZone(String id, Map<String, dynamic> d) async {
+    try {
+      final res = await client.dio.put('/super-admin/zones/$id', data: d);
+      return client.handle(res);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteZone(String id) async {
+    try {
+      final res = await client.dio.delete('/super-admin/zones/$id');
+      return client.handle(res);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getZone(String id) async {
+    try {
+      final res = await client.dio.get('/super-admin/zones/$id');
+      return client.handle(res);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> assignDriverToZone(
+      String zoneId, String driverId, {bool isPrimary = false}) async {
+    try {
+      final res = await client.dio.post(
+        '/super-admin/zones/$zoneId/drivers',
+        data: {'driverId': driverId, 'isPrimary': isPrimary},
+      );
+      return client.handle(res);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> removeDriverFromZone(
+      String zoneId, String driverId) async {
+    try {
+      final res = await client.dio.delete(
+        '/super-admin/zones/$zoneId/drivers',
+        data: {'driverId': driverId},
+      );
+      return client.handle(res);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> migrateGaragesToZones() async {
+    try {
+      final res = await client.dio.post('/super-admin/zones/migrate');
       return client.handle(res);
     } catch (e) {
       return {'success': false, 'message': e.toString()};

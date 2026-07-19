@@ -57,6 +57,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   bool _isSending = false;
 
   bool _isRecording = false;
+  bool _isPaused = false;
   int _recordDuration = 0;
   Timer? _recordTimer;
   String? _recordingFilePath;
@@ -294,6 +295,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         );
         setState(() {
           _isRecording = true;
+          _isPaused = false;
           _recordDuration = 0;
         });
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -309,6 +311,26 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     }
   }
 
+  Future<void> _pauseRecording() async {
+    _recordTimer?.cancel();
+    try {
+      await _audioRecorder.pause();
+      setState(() => _isPaused = true);
+    } catch (_) {}
+  }
+
+  Future<void> _resumeRecording() async {
+    try {
+      await _audioRecorder.resume();
+      setState(() => _isPaused = false);
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) {
+          setState(() => _recordDuration++);
+        }
+      });
+    } catch (_) {}
+  }
+
   Future<void> _stopRecording() async {
     _recordTimer?.cancel();
     _recordTimer = null;
@@ -316,7 +338,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     if (!_isRecording) return;
 
     final path = await _audioRecorder.stop();
-    setState(() => _isRecording = false);
+    setState(() { _isRecording = false; _isPaused = false; });
 
     if (path != null && _activePeerId != null) {
       _showSnackBar('Envoi du message vocal...');
@@ -926,6 +948,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       _activeParcel = null;
       _messages = [];
       _isRecording = false;
+      _isPaused = false;
       _showPriceInput = false;
       _pendingNegotiateBidId = null;
       _currentlyPlayingAudioUrl = null;
@@ -1453,27 +1476,27 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppTheme.red50,
+        color: _isPaused ? AppTheme.amber50 : AppTheme.red50,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.red100),
+        border: Border.all(color: _isPaused ? AppTheme.amber100 : AppTheme.red100),
       ),
       child: Row(
         children: [
           Container(
             width: 10,
             height: 10,
-            decoration: const BoxDecoration(
-              color: AppTheme.red400,
+            decoration: BoxDecoration(
+              color: _isPaused ? AppTheme.amber400 : AppTheme.red400,
               shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 10),
           Text(
-            'Enregistrement…',
+            _isPaused ? 'En pause' : 'Enregistrement…',
             style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.red500),
+                color: _isPaused ? AppTheme.amber500 : AppTheme.red500),
           ),
           const SizedBox(width: 8),
           Text(
@@ -1481,9 +1504,26 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
             style: AppTheme.mono(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.red500),
+                color: _isPaused ? AppTheme.amber500 : AppTheme.red500),
           ),
           const Spacer(),
+          if (_isPaused)
+            PcIconButton(
+              Icons.play_arrow_rounded,
+              variant: PcIconButtonVariant.solid,
+              size: PcButtonSize.sm,
+              round: true,
+              onPressed: _resumeRecording,
+            )
+          else
+            PcIconButton(
+              Icons.pause_rounded,
+              variant: PcIconButtonVariant.soft,
+              size: PcButtonSize.sm,
+              round: true,
+              onPressed: _pauseRecording,
+            ),
+          const SizedBox(width: 6),
           PcIconButton(
             Icons.stop_rounded,
             variant: PcIconButtonVariant.danger,

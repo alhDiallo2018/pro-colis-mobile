@@ -86,20 +86,16 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   }
 
   void _loadRecentSearches() {
-    _recentSearches = [
-      'COL-20260526-ADE4B8',
-      'COL-20260525-933934',
-      'COL-20260524-7D6FDD',
-    ];
+    _recentSearches = [];
     setState(() {});
   }
 
   List<String> _generateSuggestions(String query) {
     final suggestions = <String>{};
 
-    if (query.startsWith('COL') || query.startsWith('col')) {
-      suggestions.add('COL-${_getCurrentDate()}-XXXXXX');
-      suggestions.add('COL-${_getYesterdayDate()}-XXXXXX');
+    if (query.startsWith('PC') || query.startsWith('pc')) {
+      suggestions.add('PC-${_getCurrentDate()}-XXXXXX');
+      suggestions.add('PC-${_getYesterdayDate()}-XXXXXX');
     }
 
     for (var search in _recentSearches) {
@@ -109,8 +105,8 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     }
 
     if (query.length >= 4 && query.length <= 8) {
-      suggestions.add('COL-${_getCurrentDate()}-$query');
-      suggestions.add('COL-${_getYesterdayDate()}-$query');
+      suggestions.add('PC-${_getCurrentDate()}-$query');
+      suggestions.add('PC-${_getYesterdayDate()}-$query');
     }
 
     return suggestions.take(5).toList();
@@ -500,12 +496,12 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             child: Column(
               children: [
                 Text(
-                  'PRO COLIS - Service de transport interurbain',
+                  'PRO COLIS - Transport de colis national & international',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '📞 +221 33 123 45 67 | 📧 contact@sendprocolis.com',
+                  '📞 +221 33 123 45 67 | 📧 support-commercial@sendprocolis.com',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                 ),
                 const SizedBox(height: 8),
@@ -770,7 +766,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            hintText: 'Ex: COL-20260526-ADE4B8',
+            hintText: 'Ex: PC-20260526-ADE4B8',
             prefixIcon: Icon(Icons.search),
           ),
           style: const TextStyle(fontFamily: 'monospace'),
@@ -854,7 +850,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     final normalized = value.trim().toUpperCase();
 
     final patterns = [
-      RegExp(r'COL-\d{8}-[A-Z0-9]{4,8}'),
+      RegExp(r'PC-\d{8}-[A-Z0-9]{4,8}'),
       RegExp(r'PC-[A-Z0-9]{2,6}-[A-Z0-9]{3,6}'),
     ];
 
@@ -1677,7 +1673,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               controller: _trackingController,
               focusNode: _focusNode,
               decoration: InputDecoration(
-                hintText: 'Ex: COL-20260526-ADE4B8',
+                hintText: 'Ex: PC-20260526-ADE4B8',
                 prefixIcon: Icon(Icons.search, color: primaryBlue),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,

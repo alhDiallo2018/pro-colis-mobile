@@ -4,6 +4,7 @@
 class Garage {
   final String id;
   final String name;
+  final String country;
   final String city;
   final String region;
   final String? address;
@@ -20,6 +21,7 @@ class Garage {
   Garage({
     required this.id,
     required this.name,
+    this.country = 'Sénégal',
     required this.city,
     required this.region,
     this.address,
@@ -47,6 +49,9 @@ class Garage {
     return Garage(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
+      country: (json['country']?.toString().trim().isNotEmpty ?? false)
+          ? json['country'].toString().trim()
+          : 'Sénégal',
       city: json['city']?.toString() ?? '',
       region: json['region']?.toString() ?? '',
       address: json['address']?.toString(),
@@ -65,6 +70,7 @@ class Garage {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
+    'country': country,
     'city': city,
     'region': region,
     'address': address,

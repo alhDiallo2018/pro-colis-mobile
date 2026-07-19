@@ -120,7 +120,7 @@ $bodyContent
 </td></tr>
 <tr><td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
 <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;">Ce message a été envoyé automatiquement par $_appName.<br/>Pour gérer vos préférences de notification, connectez-vous à votre compte sur <a href="$_platformUrl" style="color:#0d9488;">$_platformUrl</a>.</p>
-<p style="margin:0;font-size:11px;color:#cbd5e1;">© ${DateTime.now().year} $_appName — Livraison interurbaine au Sénégal</p>
+<p style="margin:0;font-size:11px;color:#cbd5e1;">© ${DateTime.now().year} $_appName — Livraison de colis au Sénégal, en Afrique et à l'international</p>
 </td></tr>
 </table>
 </td></tr>
@@ -235,8 +235,8 @@ String welcomeEmail(NotificationContext ctx) {
 Bienvenue sur $_appName,${name.isNotEmpty ? ' <strong>$name</strong> !' : ' !'}
 </p>
 <p style="margin:0 0 16px;font-size:14px;color:#64748b;line-height:1.6;">
-$_appName est votre plateforme de livraison de colis interurbains au Sénégal.
-Commandez, expédiez ou transportez des colis en toute sécurité entre les principales villes du pays.
+$_appName est votre plateforme de livraison de colis au Sénégal, en Afrique et à l'international.
+Commandez, expédiez ou transportez des colis en toute sécurité entre les principales villes du pays et au-delà des frontières.
 </p>
 <a href="$_platformUrl/login" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Accéder à mon compte</a>''';
   return _emailShell('Bienvenue sur $_appName !', body);
@@ -299,7 +299,7 @@ String driverAssignedSms(NotificationContext ctx) {
 }
 
 String welcomeSms(NotificationContext ctx) {
-  return 'Bienvenue sur $_appName ! Livraison interurbaine au Sénégal. Téléchargez l\'app ou connectez-vous sur $_platformUrl';
+  return 'Bienvenue sur $_appName ! Livraison de colis au Sénégal et à l\'international. Téléchargez l\'app ou connectez-vous sur $_platformUrl';
 }
 
 String verificationSms(NotificationContext ctx) {

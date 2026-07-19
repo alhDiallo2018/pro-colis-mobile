@@ -126,10 +126,13 @@ class WalletTransaction {
 class Wallet {
   final String id;
   final String userId;
-  final double balance; // Solde actuel en crédits FCFA
+  final double balance; // Solde disponible en FCFA
+  final double pendingBalance; // Montant en attente de retrait
   final double totalDeposited; // Total rechargé
   final double totalConsumed; // Total commissions payées
   final double totalRefunded; // Total remboursé
+  final double totalWithdrawn; // Total retiré
+  final double totalCommissionsPaid; // Total commissions payées
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -139,9 +142,12 @@ class Wallet {
     required this.id,
     required this.userId,
     required this.balance,
+    this.pendingBalance = 0,
     this.totalDeposited = 0,
     this.totalConsumed = 0,
     this.totalRefunded = 0,
+    this.totalWithdrawn = 0,
+    this.totalCommissionsPaid = 0,
     this.isActive = true,
     required this.createdAt,
     required this.updatedAt,
@@ -153,10 +159,13 @@ class Wallet {
     return Wallet(
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
-      balance: _toDouble(json['balance']),
+      balance: _toDouble(json['balance'] ?? json['availableBalance']),
+      pendingBalance: _toDouble(json['pendingBalance']),
       totalDeposited: _toDouble(json['totalDeposited']),
-      totalConsumed: _toDouble(json['totalConsumed']),
+      totalConsumed: _toDouble(json['totalConsumed'] ?? json['totalCommissionsPaid']),
       totalRefunded: _toDouble(json['totalRefunded']),
+      totalWithdrawn: _toDouble(json['totalWithdrawn']),
+      totalCommissionsPaid: _toDouble(json['totalCommissionsPaid']),
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())
@@ -177,9 +186,12 @@ class Wallet {
         'id': id,
         'userId': userId,
         'balance': balance,
+        'pendingBalance': pendingBalance,
         'totalDeposited': totalDeposited,
         'totalConsumed': totalConsumed,
         'totalRefunded': totalRefunded,
+        'totalWithdrawn': totalWithdrawn,
+        'totalCommissionsPaid': totalCommissionsPaid,
         'isActive': isActive,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
@@ -190,9 +202,12 @@ class Wallet {
     String? id,
     String? userId,
     double? balance,
+    double? pendingBalance,
     double? totalDeposited,
     double? totalConsumed,
     double? totalRefunded,
+    double? totalWithdrawn,
+    double? totalCommissionsPaid,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -202,9 +217,12 @@ class Wallet {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       balance: balance ?? this.balance,
+      pendingBalance: pendingBalance ?? this.pendingBalance,
       totalDeposited: totalDeposited ?? this.totalDeposited,
       totalConsumed: totalConsumed ?? this.totalConsumed,
       totalRefunded: totalRefunded ?? this.totalRefunded,
+      totalWithdrawn: totalWithdrawn ?? this.totalWithdrawn,
+      totalCommissionsPaid: totalCommissionsPaid ?? this.totalCommissionsPaid,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

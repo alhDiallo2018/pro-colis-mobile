@@ -119,7 +119,7 @@ class PaiementPage extends StatelessWidget {
             'En cas de contestation d\'un paiement ou d\'un débit non reconnu, '
             'veuillez contacter immédiatement notre service client :',
           ),
-          _bodyText('• Email : reclamations@sendprocolis.com'),
+          _bodyText('• Email : support-commercial@sendprocolis.com'),
           _bodyText('• Via l\'application : section Réclamations'),
           _bodyText(
             'Le litige sera examiné sous 5 jours ouvrés. En cas de débit '

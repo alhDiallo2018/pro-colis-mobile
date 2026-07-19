@@ -155,7 +155,7 @@ class ConditionsTransportPage extends StatelessWidget {
           _bodyText(
             'Toute réclamation relative au transport doit être déposée via '
             'l\'application dans la section dédiée ou par email à '
-            'reclamations@sendprocolis.com.',
+            'support-commercial@sendprocolis.com.',
           ),
           _bodyText(
             'La réclamation doit inclure : le numéro de suivi, la description '

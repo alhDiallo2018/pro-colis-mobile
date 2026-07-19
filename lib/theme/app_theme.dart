@@ -26,6 +26,7 @@ class AppTheme {
   static const Color deep700 = Color(0xFF0B4853);
   static const Color amber50 = Color(0xFFFFF6E2);
   static const Color amber100 = Color(0xFFFDE9B8);
+  static const Color amber200 = Color(0xFFFBD477);
   static const Color amber400 = Color(0xFFFCA202);
   static const Color amber500 = Color(0xFFE98C00);
   static const Color amber600 = Color(0xFFC77600);
@@ -57,6 +58,7 @@ class AppTheme {
   static const Color cardColor = slate0;
   static const Color textPrimary = slate900;
   static const Color textSecondary = slate500;
+  static const Color textBody = slate700;
   static const Color successColor = green600;
   static const Color warningColor = amber500;
   static const Color errorColor = red400;
@@ -71,6 +73,7 @@ class AppTheme {
   static const double radiusMd = 14;
   static const double radiusLg = 20;
   static const double radiusXl = 28;
+  static const double radiusPill = 999;
   static const double screenMaxWidth = 440;
 
   static const LinearGradient brandGradient = LinearGradient(

@@ -197,14 +197,14 @@ class ConfidentialitePage extends StatelessWidget {
             'fondés sur le consentement.',
           ),
           _bodyText(
-            'Pour exercer vos droits, écrivez à : confidentialite@sendprocolis.com.',
+            'Pour exercer vos droits, écrivez à : support-commercial@sendprocolis.com.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('8. Délégué à la protection des données (DPO)'),
           const SizedBox(height: 12),
           _bodyText(
             'Notre DPO est joignable à l\'adresse suivante : '
-            'dpo@sendprocolis.com.',
+            'support-commercial@sendprocolis.com.',
           ),
           _bodyText(
             'Sacré-Cœur 3, Dakar, Sénégal.',
