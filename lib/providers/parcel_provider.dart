@@ -27,6 +27,26 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     }
   }
 
+  Future<void> loadSentParcels({String? status}) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final parcels = await _apiService.getSentParcels(status: status);
+      state = state.copyWith(sentParcels: parcels, isLoading: false, error: null);
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+    }
+  }
+
+  Future<void> loadReceivedParcels({String? status}) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final parcels = await _apiService.getReceivedParcels(status: status);
+      state = state.copyWith(receivedParcels: parcels, isLoading: false, error: null);
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+    }
+  }
+
   Future<void> loadDriverParcels() async {
     state = state.copyWith(isLoading: true);
     try {
@@ -99,7 +119,7 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     try {
       final result = await _apiService.acceptBid(parcelId, bidId);
       if (result['success'] == true) {
-        await loadMyParcels();
+        await loadSentParcels();
         state = state.copyWith(isLoading: false, error: null);
         return true;
       }
@@ -121,7 +141,7 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
       final result = await _apiService.rejectBid(parcelId, bidId,
           responseMessage: responseMessage);
       if (result['success'] == true) {
-        await loadMyParcels();
+        await loadSentParcels();
         state = state.copyWith(isLoading: false, error: null);
         return true;
       }
@@ -150,7 +170,7 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     state = state.copyWith(isLoading: true);
     try {
       final parcel = await _apiService.createParcel(data);
-      await loadMyParcels();
+      await loadSentParcels();
       state = state.copyWith(
           isLoading: false, error: null, isSuccess: true);
       return parcel;
@@ -257,7 +277,7 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     try {
       final result = await _apiService.cancelParcel(parcelId, reason: reason);
       if (result['success'] == true) {
-        await loadMyParcels();
+        await loadSentParcels();
         state = state.copyWith(isLoading: false, error: null);
         return true;
       }
@@ -292,6 +312,8 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
 class ParcelState {
   final bool isLoading;
   final List<Parcel> parcels;
+  final List<Parcel> sentParcels;
+  final List<Parcel> receivedParcels;
   final List<Parcel> freeParcels;
   final Parcel? trackedParcel;
   final String? error;
@@ -301,6 +323,8 @@ class ParcelState {
   ParcelState({
     required this.isLoading,
     this.parcels = const [],
+    this.sentParcels = const [],
+    this.receivedParcels = const [],
     this.freeParcels = const [],
     this.trackedParcel,
     this.error,
@@ -311,6 +335,8 @@ class ParcelState {
   factory ParcelState.initial() => ParcelState(
         isLoading: false,
         parcels: const [],
+        sentParcels: const [],
+        receivedParcels: const [],
         freeParcels: const [],
         trackedParcel: null,
         error: null,
@@ -321,6 +347,8 @@ class ParcelState {
   factory ParcelState.loading() => ParcelState(
         isLoading: true,
         parcels: const [],
+        sentParcels: const [],
+        receivedParcels: const [],
         freeParcels: const [],
         trackedParcel: null,
         error: null,
@@ -331,6 +359,8 @@ class ParcelState {
   ParcelState copyWith({
     bool? isLoading,
     List<Parcel>? parcels,
+    List<Parcel>? sentParcels,
+    List<Parcel>? receivedParcels,
     List<Parcel>? freeParcels,
     Parcel? trackedParcel,
     String? error,
@@ -340,6 +370,8 @@ class ParcelState {
     return ParcelState(
       isLoading: isLoading ?? this.isLoading,
       parcels: parcels ?? this.parcels,
+      sentParcels: sentParcels ?? this.sentParcels,
+      receivedParcels: receivedParcels ?? this.receivedParcels,
       freeParcels: freeParcels ?? this.freeParcels,
       trackedParcel: trackedParcel ?? this.trackedParcel,
       error: error ?? this.error,

@@ -37,6 +37,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   // Step 0 - Destinataire
   final _receiverNameCtrl = TextEditingController();
   final _receiverPhoneCtrl = TextEditingController();
+  final _receiverEmailCtrl = TextEditingController();
   final _receiverAddressCtrl = TextEditingController();
 
   // Step 1 - Livraison
@@ -75,6 +76,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   void dispose() {
     _receiverNameCtrl.dispose();
     _receiverPhoneCtrl.dispose();
+    _receiverEmailCtrl.dispose();
     _receiverAddressCtrl.dispose();
     _weightCtrl.dispose();
     _proposedPriceCtrl.dispose();
@@ -245,6 +247,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         'senderEmail': user.email,
         'receiverName': _receiverNameCtrl.text.trim(),
         'receiverPhone': _receiverPhoneCtrl.text.trim(),
+        'receiverEmail': _receiverEmailCtrl.text.trim().isEmpty ? null : _receiverEmailCtrl.text.trim(),
         'receiverAddress': _receiverAddressCtrl.text.trim(),
         'description': description,
         'weight': weight,
@@ -275,7 +278,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           await _apiService.uploadFile(file: XFile(voice.path), mediaType: 'audio', parcelId: result.id);
         }
 
-        await ref.read(parcelProvider.notifier).loadMyParcels();
+        await ref.read(parcelProvider.notifier).loadSentParcels();
         _showSnack(_isFreeMode ? 'Colis publié en libre service' : 'Colis créé et chauffeur assigné');
         if (mounted) Navigator.pop(context, result);
       } else if (mounted) {
@@ -424,6 +427,15 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           decoration: InputDecoration(
             labelText: 'Téléphone *',
             prefixIcon: const Icon(Icons.call_rounded),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _receiverEmailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(
+            labelText: 'Email du destinataire',
+            prefixIcon: const Icon(Icons.email_rounded),
           ),
         ),
         const SizedBox(height: 12),
@@ -744,6 +756,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         _recapSection('Destinataire', Icons.person_pin_rounded, [
           _recapRow('Nom', _receiverNameCtrl.text.trim()),
           _recapRow('Téléphone', _receiverPhoneCtrl.text.trim()),
+          if (_receiverEmailCtrl.text.trim().isNotEmpty) _recapRow('Email', _receiverEmailCtrl.text.trim()),
           if (_receiverAddressCtrl.text.trim().isNotEmpty) _recapRow('Adresse', _receiverAddressCtrl.text.trim()),
         ], onEdit: () => _goToStep(0)),
         const SizedBox(height: 12),

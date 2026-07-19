@@ -71,7 +71,8 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
 
   void _loadData() {
     Future.microtask(() {
-      ref.read(parcelProvider.notifier).loadMyParcels();
+      ref.read(parcelProvider.notifier).loadSentParcels();
+      ref.read(parcelProvider.notifier).loadReceivedParcels();
     });
   }
 
@@ -159,7 +160,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
           ProcolisTabItem(
             icon: Icons.inventory_2_rounded,
             label: 'Mes colis',
-            badge: parcelState.parcels.length,
+            badge: parcelState.sentParcels.length + parcelState.receivedParcels.length,
           ),
           const ProcolisTabItem(
             icon: Icons.qr_code_scanner_rounded,
@@ -314,11 +315,10 @@ class _MesColisTab extends StatefulWidget {
 }
 
 class _MesColisTabState extends State<_MesColisTab> {
+  int _sentReceivedIndex = 0; // 0 = envoyés, 1 = reçus
   int _groupIndex = 0;
   String _searchQuery = '';
 
-  // Groupes de statut alignés sur le web (Tous / En attente / En transit /
-  // Livrés / Annulés), chacun couvrant plusieurs statuts bruts.
   static const List<(String, List<ParcelStatus>)> _statusGroups = [
     ('Tous', <ParcelStatus>[]),
     (
@@ -337,6 +337,12 @@ class _MesColisTabState extends State<_MesColisTab> {
     ('Livrés', [ParcelStatus.delivered]),
     ('Annulés', [ParcelStatus.cancelled]),
   ];
+
+  static const List<(String, String)> _directionTabs = [
+    ('sent', '📦 Envoyés'),
+    ('received', '📥 Reçus'),
+  ];
+
   String _selectedSort = 'recent';
   String _selectedTypeFilter = '';
   final TextEditingController _searchController = TextEditingController();
@@ -353,6 +359,11 @@ class _MesColisTabState extends State<_MesColisTab> {
     _searchController.dispose();
     super.dispose();
   }
+
+  List<Parcel> get _currentParcels =>
+      _sentReceivedIndex == 0
+          ? widget.parcelState.sentParcels
+          : widget.parcelState.receivedParcels;
 
   List<Parcel> _applyFilters(List<Parcel> parcels) {
     final query = _searchQuery.trim().toLowerCase();
@@ -387,32 +398,11 @@ class _MesColisTabState extends State<_MesColisTab> {
     return filtered;
   }
 
-  List<Parcel> get _inProgressParcels => widget.parcelState.parcels
-      .where(
-        (parcel) =>
-            parcel.status == ParcelStatus.pending ||
-            parcel.status == ParcelStatus.free ||
-            parcel.status == ParcelStatus.confirmed ||
-            parcel.status == ParcelStatus.pickedUp ||
-            parcel.status == ParcelStatus.inTransit ||
-            parcel.status == ParcelStatus.arrived ||
-            parcel.status == ParcelStatus.outForDelivery,
-      )
-      .toList();
-
-  List<Parcel> get _deliveredParcels => widget.parcelState.parcels
-      .where((parcel) => parcel.status == ParcelStatus.delivered)
-      .toList();
-
-  List<Parcel> get _cancelledParcels => widget.parcelState.parcels
-      .where((parcel) => parcel.status == ParcelStatus.cancelled)
-      .toList();
-
   List<Parcel> get _visibleParcels {
     final match = _statusGroups[_groupIndex].$2;
     final base = match.isEmpty
-        ? widget.parcelState.parcels
-        : widget.parcelState.parcels
+        ? _currentParcels
+        : _currentParcels
             .where((p) => match.contains(p.status))
             .toList();
     return _applyFilters(base);
@@ -522,6 +512,7 @@ class _MesColisTabState extends State<_MesColisTab> {
   @override
   Widget build(BuildContext context) {
     final parcels = _visibleParcels;
+    final hasAny = _currentParcels.isNotEmpty;
 
     return Column(
       children: [
@@ -552,6 +543,20 @@ class _MesColisTabState extends State<_MesColisTab> {
             ],
           ),
         ),
+        // Sent/Received tabs
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          decoration: const BoxDecoration(
+            color: AppTheme.cardColor,
+          ),
+          child: SegmentedControl(
+            options: _directionTabs.map((d) => d.$2).toList(),
+            selectedIndex: _sentReceivedIndex,
+            onChanged: (i) => setState(() => _sentReceivedIndex = i),
+          ),
+        ),
+        // Status group tabs
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -565,7 +570,7 @@ class _MesColisTabState extends State<_MesColisTab> {
             onChanged: (i) => setState(() => _groupIndex = i),
           ),
         ),
-        if (widget.parcelState.parcels.isNotEmpty)
+        if (hasAny)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: PcCard(
@@ -578,7 +583,7 @@ class _MesColisTabState extends State<_MesColisTab> {
                     controller: _searchController,
                     onChanged: (value) => setState(() => _searchQuery = value),
                     decoration: InputDecoration(
-                      hintText: 'Rechercher (suivi, ville, destinataire…)',
+                      hintText: 'Rechercher (suivi, ville, nom…)',
                       hintStyle: const TextStyle(fontSize: 14, color: AppTheme.slate400),
                       prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
                       suffixIcon: _searchQuery.isNotEmpty
@@ -1112,21 +1117,11 @@ class HomeScreen extends StatelessWidget {
   });
 
   List<Parcel> get _visibleParcels {
-    final currentUser = user;
-    if (currentUser == null) return [];
-
-    final parcels = parcelState.parcels.where((parcel) {
-      final isSender = parcel.senderName == currentUser.fullName ||
-          parcel.senderPhone == currentUser.phone ||
-          parcel.senderEmail == currentUser.email;
-      final isReceiver = parcel.receiverName == currentUser.fullName ||
-          parcel.receiverPhone == currentUser.phone ||
-          parcel.receiverEmail == currentUser.email;
-      return isSender || isReceiver;
-    }).toList()
+    final all = [...parcelState.sentParcels, ...parcelState.receivedParcels];
+    final seen = <String>{};
+    final unique = all.where((p) => seen.add(p.id)).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-    return parcels;
+    return unique;
   }
 
   @override

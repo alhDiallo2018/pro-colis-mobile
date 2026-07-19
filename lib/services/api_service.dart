@@ -273,13 +273,15 @@ class ApiService {
         if (status == null || status.isEmpty) return parcels;
         return parcels.where((p) => p.status.value == status).toList();
       }
-      final queryParams =
-          status != null ? {'status': status} : <String, dynamic>{};
+      final queryParams = <String, dynamic>{};
+      if (status != null && status.isNotEmpty) queryParams['status'] = status;
       final response = await _dio.get('/client/parcels/my-parcels',
           queryParameters: queryParams);
       final responseData = _handleResponse(response);
-      final List<dynamic> parcelsData = responseData['parcels'] ?? [];
-      return parcelsData
+      final sent = (responseData['sent'] as List?) ?? [];
+      final received = (responseData['received'] as List?) ?? [];
+      final all = [...sent, ...received];
+      return all
           .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
@@ -287,11 +289,44 @@ class ApiService {
     }
   }
 
+  Future<List<Parcel>> getSentParcels({String? status}) async {
+    try {
+      final params = <String, dynamic>{'filter': 'sent'};
+      if (status != null && status.isNotEmpty) params['status'] = status;
+      final response = await _dio.get('/client/parcels/my-parcels',
+          queryParameters: params);
+      final responseData = _handleResponse(response);
+      final list = (responseData['parcels'] as List?) ?? [];
+      return list
+          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint("❌ [API] getSentParcels failed: $e"); return [];
+    }
+  }
+
+  Future<List<Parcel>> getReceivedParcels({String? status}) async {
+    try {
+      final params = <String, dynamic>{'filter': 'received'};
+      if (status != null && status.isNotEmpty) params['status'] = status;
+      final response = await _dio.get('/client/parcels/my-parcels',
+          queryParameters: params);
+      final responseData = _handleResponse(response);
+      final list = (responseData['parcels'] as List?) ?? [];
+      return list
+          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint("❌ [API] getReceivedParcels failed: $e"); return [];
+    }
+  }
+
   Future<Parcel> getClientParcel(String parcelId) async {
     final response = await _dio.get('/client/parcels/$parcelId');
     final responseData = _handleResponse(response);
-    if (responseData['parcel'] != null) {
-      return Parcel.fromJson(responseData['parcel']);
+    final parcel = responseData['parcel'];
+    if (parcel != null) {
+      return Parcel.fromJson(parcel as Map<String, dynamic>);
     }
     throw Exception('Colis non trouvé');
   }
@@ -310,8 +345,9 @@ class ApiService {
       final response =
           await _dio.post('/client/parcels/create', data: data);
       final responseData = _handleResponse(response);
-      if (responseData['parcel'] != null) {
-        return Parcel.fromJson(responseData['parcel']);
+      final parcel = responseData['parcel'];
+      if (parcel != null) {
+        return Parcel.fromJson(parcel as Map<String, dynamic>);
       }
       throw Exception('Colis non créé');
     } catch (e) {
@@ -337,7 +373,7 @@ class ApiService {
       if (isMockMode) return MockData.freeParcels();
       final response = await _dio.get('/public/parcels/free');
       final responseData = _handleResponse(response);
-      final List<dynamic> parcelsData = responseData['parcels'] ?? [];
+      final List<dynamic> parcelsData = (responseData['parcels'] ?? responseData['data'] ?? []) as List;
       return parcelsData
           .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
           .toList();
@@ -349,8 +385,9 @@ class ApiService {
   Future<Parcel> trackParcel(String trackingNumber) async {
     final response = await _dio.get('/public/parcels/track/$trackingNumber');
     final responseData = _handleResponse(response);
-    if (responseData['parcel'] != null) {
-      return Parcel.fromJson(responseData['parcel']);
+    final parcel = responseData['data'] ?? responseData['parcel'];
+    if (parcel != null) {
+      return Parcel.fromJson(parcel as Map<String, dynamic>);
     }
     throw Exception(responseData['message'] ?? 'Colis non trouvé');
   }
@@ -360,7 +397,7 @@ class ApiService {
       final response = await _dio.get('/parcels/$parcelId/timeline');
       final responseData = _handleResponse(response);
       final List<dynamic> eventsData =
-          responseData['events'] ?? responseData['timeline'] ?? [];
+          (responseData['events'] ?? responseData['timeline'] ?? []) as List;
       return eventsData.map((event) {
         final json = Map<String, dynamic>.from(event);
         return ParcelEvent(

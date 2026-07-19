@@ -10,6 +10,34 @@ class ParcelsApi {
       final res = await client.dio.get('/client/parcels/my-parcels',
           queryParameters: status != null && status.isNotEmpty ? {'status': status} : null);
       final data = client.handle(res);
+      final sent = (data['sent'] as List?) ?? [];
+      final received = (data['received'] as List?) ?? [];
+      final all = [...sent, ...received];
+      return all.map((j) => Parcel.fromJson(Map<String, dynamic>.from(j))).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Parcel>> getSentParcels({String? status}) async {
+    try {
+      final params = <String, dynamic>{'filter': 'sent'};
+      if (status != null && status.isNotEmpty) params['status'] = status;
+      final res = await client.dio.get('/client/parcels/my-parcels', queryParameters: params);
+      final data = client.handle(res);
+      final list = (data['parcels'] as List?) ?? [];
+      return list.map((j) => Parcel.fromJson(Map<String, dynamic>.from(j))).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Parcel>> getReceivedParcels({String? status}) async {
+    try {
+      final params = <String, dynamic>{'filter': 'received'};
+      if (status != null && status.isNotEmpty) params['status'] = status;
+      final res = await client.dio.get('/client/parcels/my-parcels', queryParameters: params);
+      final data = client.handle(res);
       final list = (data['parcels'] as List?) ?? [];
       return list.map((j) => Parcel.fromJson(Map<String, dynamic>.from(j))).toList();
     } catch (e) {
@@ -20,7 +48,8 @@ class ParcelsApi {
   Future<Parcel> createParcel(Map<String, dynamic> d) async {
     final res = await client.dio.post('/client/parcels/create', data: d);
     final data = client.handle(res);
-    if (data['parcel'] != null) return Parcel.fromJson(data['parcel']);
+    final parcel = data['parcel'];
+    if (parcel != null) return Parcel.fromJson(Map<String, dynamic>.from(parcel));
     throw Exception('Colis non créé');
   }
 
@@ -38,7 +67,7 @@ class ParcelsApi {
     try {
       final res = await client.dio.get('/public/parcels/free');
       final data = client.handle(res);
-      final list = (data['parcels'] as List?) ?? [];
+      final list = (data['parcels'] ?? data['data'] ?? []) as List;
       return list.map((j) => Parcel.fromJson(Map<String, dynamic>.from(j))).toList();
     } catch (e) {
       return [];
@@ -48,20 +77,23 @@ class ParcelsApi {
   Future<Parcel> trackParcel(String trackingNumber) async {
     final res = await client.dio.get('/public/parcels/track/$trackingNumber');
     final data = client.handle(res);
-    if (data['parcel'] != null) return Parcel.fromJson(data['parcel']);
+    final parcel = data['data'] ?? data['parcel'];
+    if (parcel != null) return Parcel.fromJson(Map<String, dynamic>.from(parcel));
     throw Exception(data['message'] ?? 'Colis non trouvé');
   }
 
   Future<Parcel> getClientParcel(String parcelId) async {
     final res = await client.dio.get('/client/parcels/$parcelId');
     final data = client.handle(res);
-    if (data['parcel'] != null) return Parcel.fromJson(data['parcel']);
+    final parcel = data['parcel'];
+    if (parcel != null) return Parcel.fromJson(Map<String, dynamic>.from(parcel));
     throw Exception('Colis non trouvé');
   }
 
   Future<String> getDeliveryCode(String parcelId) async {
     final res = await client.dio.get('/client/parcels/$parcelId/delivery-code');
-    return client.handle(res)['code']?.toString() ?? '';
+    final data = client.handle(res);
+    return data['code']?.toString() ?? '';
   }
 
   Future<List<ParcelEvent>> getParcelTimeline(String parcelId) async {

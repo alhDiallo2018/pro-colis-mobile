@@ -70,6 +70,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
 
   final _receiverName = TextEditingController();
   final _receiverPhone = TextEditingController();
+  final _receiverEmail = TextEditingController();
   final _receiverAddress = TextEditingController();
   ParcelType _type = ParcelType.package;
   final _weight = TextEditingController();
@@ -101,6 +102,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   void dispose() {
     _receiverName.dispose();
     _receiverPhone.dispose();
+    _receiverEmail.dispose();
     _receiverAddress.dispose();
     _weight.dispose();
     _description.dispose();
@@ -421,6 +423,9 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     final data = <String, dynamic>{
       'receiverName': _receiverName.text.trim(),
       'receiverPhone': _receiverPhone.text.trim(),
+      'receiverEmail': _receiverEmail.text.trim().isEmpty
+          ? null
+          : _receiverEmail.text.trim(),
       'receiverAddress': _receiverAddress.text.trim().isEmpty
           ? null
           : _receiverAddress.text.trim(),
@@ -458,7 +463,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       } catch (error) {
         debugPrint('Erreur upload médias colis: $error');
       }
-      await ref.read(parcelProvider.notifier).loadMyParcels();
+      await ref.read(parcelProvider.notifier).loadSentParcels();
       if (!mounted) return;
       setState(() => _submitting = false);
       if (mounted) Navigator.pop(context, true);
@@ -623,6 +628,9 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         _label('Téléphone du destinataire'),
         _textField(_receiverPhone, 'Ex : 77 000 00 00', Icons.call_rounded,
             mono: true, phone: true),
+        const SizedBox(height: 14),
+        _label('Email du destinataire (optionnel)'),
+        _textField(_receiverEmail, 'Ex : exemple@email.com', Icons.email_rounded),
         const SizedBox(height: 14),
         LocationAutocomplete(
           controller: _receiverAddress,
@@ -1036,6 +1044,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             _recapRow('Téléphone', _receiverPhone.text.trim().isEmpty
                 ? '—'
                 : _receiverPhone.text.trim(), mono: true),
+            if (_receiverEmail.text.trim().isNotEmpty)
+              _recapRow('Email', _receiverEmail.text.trim()),
             if (address.isNotEmpty) _recapRow('Adresse', address),
           ],
         ),

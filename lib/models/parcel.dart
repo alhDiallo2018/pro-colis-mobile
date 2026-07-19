@@ -208,6 +208,9 @@ class Parcel {
   final String senderPhone;
   final String? senderEmail;
   
+  // Destinataire lié à un compte existant
+  final String? recipientUserId;
+
   // Destinataire
   final String receiverName;
   final String receiverPhone;
@@ -291,6 +294,7 @@ class Parcel {
     required this.senderPhone,
     this.senderId = '',
     this.senderEmail,
+    this.recipientUserId,
     required this.receiverName,
     required this.receiverPhone,
     this.receiverEmail,
@@ -409,6 +413,7 @@ class Parcel {
       senderName: parseString(json['senderName']) ?? '',
       senderPhone: parseString(json['senderPhone']) ?? '',
       senderEmail: parseString(json['senderEmail']),
+      recipientUserId: parseString(json['recipientUserId'] ?? json['recipient_user_id']),
       receiverName: parseString(json['receiverName']) ?? '',
       receiverPhone: parseString(json['receiverPhone']) ?? '',
       receiverEmail: parseString(json['receiverEmail']),
@@ -469,6 +474,7 @@ class Parcel {
     'senderName': senderName,
     'senderPhone': senderPhone,
     'senderEmail': senderEmail,
+    'recipientUserId': recipientUserId,
     'receiverName': receiverName,
     'receiverPhone': receiverPhone,
     'receiverEmail': receiverEmail,
@@ -646,6 +652,7 @@ class Parcel {
     String? senderName,
     String? senderPhone,
     String? senderEmail,
+    String? recipientUserId,
     String? receiverName,
     String? receiverPhone,
     String? receiverEmail,
@@ -704,6 +711,7 @@ class Parcel {
       senderName: senderName ?? this.senderName,
       senderPhone: senderPhone ?? this.senderPhone,
       senderEmail: senderEmail ?? this.senderEmail,
+      recipientUserId: recipientUserId ?? this.recipientUserId,
       receiverName: receiverName ?? this.receiverName,
       receiverPhone: receiverPhone ?? this.receiverPhone,
       receiverEmail: receiverEmail ?? this.receiverEmail,
