@@ -85,6 +85,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
+  remove_alpha_ios: true
   image_path: "assets/images/icone_procolis.png"
   adaptive_icon_background: "#1565C0"  # Changé en bleu
   adaptive_icon_foreground: "assets/images/icone_procolis_foreground.png"
