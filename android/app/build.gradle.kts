@@ -2,6 +2,10 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
+    // TODO(Firebase): placer google-services.json dans android/app/ puis
+    // décommenter la ligne ci-dessous (et celle dans android/settings.gradle)
+    // pour activer Firebase Cloud Messaging.
+    // id("com.google.gms.google-services")
 }
 
 android {

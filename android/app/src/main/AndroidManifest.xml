@@ -83,7 +83,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-            
+
+        <!-- ==================== FIREBASE CLOUD MESSAGING ==================== -->
+        <!-- Le service FCM est fourni automatiquement par le plugin
+             firebase_messaging (fusion de manifestes) : rien à déclarer ici.
+             TODO(Firebase): placer google-services.json dans android/app/
+             et activer le plugin com.google.gms.google-services
+             (voir android/settings.gradle et android/app/build.gradle.kts). -->
+        <!-- Canal utilisé pour les notifications FCM affichées par le système
+             (aligné sur le canal des notifications locales). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="sendprocolis_channel" />
+
     </application>
     
     <!-- Required to query activities that can process text, see:

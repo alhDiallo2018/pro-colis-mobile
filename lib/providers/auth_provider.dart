@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'dart:async';
+
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/auth_notifier.dart';
+import '../services/push_notification_service.dart';
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier();
@@ -38,10 +41,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       final user = await _apiService.getCurrentUser();
       state = AuthState.authenticated(user);
+      _registerPushToken();
     } catch (e) {
       await _apiService.clearToken();
       state = AuthState.unauthenticated();
     }
+  }
+
+  /// Enregistre le token FCM côté backend (fire-and-forget, jamais bloquant).
+  void _registerPushToken() {
+    unawaited(PushNotificationService.registerTokenWithBackend());
   }
 
   // ==================== AUTH ====================
@@ -60,6 +69,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
             ? User.fromJson(userData)
             : await _apiService.getCurrentUser();
         state = AuthState.authenticated(user);
+        _registerPushToken();
         return {'success': true};
       } else {
         state = AuthState.error(
@@ -122,11 +132,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
             ? User.fromJson(userData)
             : await _apiService.getCurrentUser();
         state = AuthState.authenticated(user);
+        _registerPushToken();
         return {'success': true};
       } else if (result['success'] == true) {
         // Cas où le token est déjà stocké via l'intercepteur
         final user = await _apiService.getCurrentUser();
         state = AuthState.authenticated(user);
+        _registerPushToken();
         return {'success': true};
       } else {
         state = AuthState.error(
