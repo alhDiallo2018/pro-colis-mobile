@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -906,7 +906,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                           _activePeerName ?? 'Conversation',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.textPrimary),
@@ -927,7 +927,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               backgroundColor: AppTheme.cardColor,
               centerTitle: false,
               title: Text('Messages',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                       fontWeight: FontWeight.w800,
                       fontSize: 20,
                       color: AppTheme.textPrimary)),
@@ -1146,7 +1146,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(parcel.status.label,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
                                 color: colors.foreground)),
@@ -1156,7 +1156,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                   const SizedBox(height: 3),
                   Text(
                     '${parcel.departureGarageName} → ${parcel.arrivalGarageName ?? "—"}',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w500,
                         color: AppTheme.slate600),
@@ -1216,7 +1216,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(body,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                     color: isMe ? Colors.white : AppTheme.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -1386,7 +1386,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                 Expanded(
                   child: Text(
                     isMe ? 'PRIX PROPOSÉ' : 'PROPOSITION DE PRIX',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.amber700,
@@ -1417,7 +1417,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                 ),
                 const SizedBox(width: 4),
                 Text('FCFA',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.amber600)),
@@ -1432,7 +1432,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
                 child: Text(priceMessage,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: AppTheme.slate600)),
@@ -1493,7 +1493,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
           const SizedBox(width: 10),
           Text(
             _isPaused ? 'En pause' : 'Enregistrement…',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: _isPaused ? AppTheme.amber500 : AppTheme.red500),
@@ -1563,7 +1563,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                       autofocus: true,
                       decoration: InputDecoration(
                         hintText: 'Montant en FCFA…',
-                        hintStyle: GoogleFonts.manrope(
+                        hintStyle: AppFonts.manrope(
                             color: AppTheme.amber500.withAlpha(160),
                             fontSize: 14),
                         border: InputBorder.none,
@@ -1661,13 +1661,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                         controller: _messageController,
                         minLines: 1,
                         maxLines: 4,
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: AppTheme.textPrimary),
                         decoration: InputDecoration(
                           hintText: 'Votre message…',
-                          hintStyle: GoogleFonts.manrope(
+                          hintStyle: AppFonts.manrope(
                               color: AppTheme.slate400, fontSize: 14),
                           border: InputBorder.none,
                           isCollapsed: true,

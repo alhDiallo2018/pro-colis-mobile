@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -134,7 +134,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         ),
         title: Text('Rejeter le retrait',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontWeight: FontWeight.w800,
               fontSize: 18,
               color: AppTheme.textPrimary,
@@ -156,7 +156,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
             const SizedBox(height: 10),
             Text(
               'Le montant sera remis dans le solde disponible du chauffeur.',
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 12,
                 color: AppTheme.slate500,
               ),
@@ -362,7 +362,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                 alignment: Alignment.center,
                 child: Text(
                   driverName.isNotEmpty ? driverName[0].toUpperCase() : '?',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: _statusColor(status),
@@ -378,7 +378,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                       driverName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary),
@@ -393,7 +393,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                       ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                           fontSize: 12, color: AppTheme.textSecondary),
                     ),
                   ],
@@ -432,14 +432,14 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
           const SizedBox(height: 8),
           Text(
             _formatDate(w['createdAt']?.toString() ?? w['created_at']?.toString()),
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
                 fontSize: 11.5, color: AppTheme.slate400),
           ),
           if (failureReason.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
               failureReason,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 12,
                 color: AppTheme.red400,
                 fontStyle: FontStyle.italic,

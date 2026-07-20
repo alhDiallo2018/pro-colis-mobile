@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
@@ -232,12 +232,12 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Configuration système',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                       fontSize: 18, fontWeight: FontWeight.w800,
                       color: AppTheme.textPrimary)),
               const SizedBox(height: 3),
               Text('Ajustez les paramètres de la plateforme puis enregistrez.',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                       fontSize: 13, fontWeight: FontWeight.w500,
                       color: AppTheme.slate500, height: 1.4)),
             ],
@@ -267,7 +267,7 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
               ),
               const SizedBox(width: 10),
               Text(section.title,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                       fontSize: 15.5, fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary)),
               const Spacer(),
@@ -290,7 +290,7 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
         children: [
           Expanded(
             child: Text(field.label,
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                     fontSize: 13.5, fontWeight: FontWeight.w600,
                     color: AppTheme.slate700)),
           ),
@@ -313,7 +313,7 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(field.label,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
                 fontSize: 13.5, fontWeight: FontWeight.w600,
                 color: AppTheme.slate700)),
         const SizedBox(height: 8),
@@ -327,7 +327,7 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
               : null,
           style: isNumber
               ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
-              : GoogleFonts.manrope(
+              : AppFonts.manrope(
                   fontSize: 14, fontWeight: FontWeight.w500,
                   color: AppTheme.textPrimary),
           decoration: InputDecoration(

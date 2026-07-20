@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -96,9 +96,9 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(_driverName(w), style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                                        Text(_driverName(w), style: AppFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                                         const SizedBox(height: 2),
-                                        Text(w['driver']?['phone']?.toString() ?? '', style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
+                                        Text(w['driver']?['phone']?.toString() ?? '', style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
                                       ],
                                     ),
                                   ),

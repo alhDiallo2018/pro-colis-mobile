@@ -1,7 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/providers/auth_provider.dart';
 import 'package:procolis/providers/parcel_provider.dart';
@@ -325,7 +325,7 @@ class _ReceivedOfferCard extends StatelessWidget {
                       driverName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
@@ -364,7 +364,7 @@ class _ReceivedOfferCard extends StatelessWidget {
             children: [
               Text(
                 'Proposition',
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textSecondary,
@@ -411,7 +411,7 @@ class _ReceivedOfferCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   _formatWhen(bid.createdAt),
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 11.5,
                     color: AppTheme.slate400,
                     fontWeight: FontWeight.w600,
@@ -427,7 +427,7 @@ class _ReceivedOfferCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       'Offre acceptée',
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.green500,
@@ -438,7 +438,7 @@ class _ReceivedOfferCard extends StatelessWidget {
               else if (bid.isRejected)
                 Text(
                   'Offre refusée',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 12.5,
                     fontStyle: FontStyle.italic,
                     color: AppTheme.slate400,
@@ -516,7 +516,7 @@ class _Bubble extends StatelessWidget {
               ),
               child: Text(
                 who,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.slate400,
@@ -537,7 +537,7 @@ class _Bubble extends StatelessWidget {
               ),
               child: Text(
                 text,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: isLeft ? AppTheme.textPrimary : Colors.white,
@@ -578,7 +578,7 @@ class _AudioBubble extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               isPlaying ? 'Lecture…' : 'Message audio',
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textSecondary,
@@ -636,7 +636,7 @@ class _NegotiateSheet extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               'Négocier avec $driverName',
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary,

@@ -9,7 +9,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -2357,7 +2357,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                       children: [
                         Text(
                           'Chauffeur',
-                          style: GoogleFonts.manrope(
+                          style: AppFonts.manrope(
                             color: Colors.white,
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -2367,7 +2367,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                           user?.fullName ?? 'Chauffeur',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -2475,7 +2475,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                         children: [
                           Text(
                             available ? 'Vous êtes en ligne' : 'Hors ligne',
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                               color: Colors.white,
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
@@ -2488,7 +2488,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                                 : 'Vous ne recevez pas de colis',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
+                            style: AppFonts.manrope(
                               color: Colors.white70,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -2575,7 +2575,7 @@ class _PublishTripShortcut extends StatelessWidget {
                       'Publier un voyage',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         color: Colors.white,
                         fontSize: 15.5,
                         fontWeight: FontWeight.w800,
@@ -2586,7 +2586,7 @@ class _PublishTripShortcut extends StatelessWidget {
                       'Annoncez votre trajet aux clients',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                         color: Colors.white70,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,

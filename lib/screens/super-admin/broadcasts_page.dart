@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../models/broadcast.dart';
 import '../../services/broadcast_service.dart';
 import '../../theme/app_theme.dart';
@@ -99,8 +99,8 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Bandeaux d'information", style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-                        Text('Diffusez un message ciblé dans la barre supérieure.', style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
+                        Text("Bandeaux d'information", style: AppFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                        Text('Diffusez un message ciblé dans la barre supérieure.', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
                       ],
                     ),
                     PcButton(
@@ -123,7 +123,7 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                       children: [
                         Icon(Icons.check_circle, color: AppTheme.green600, size: 18),
                         const SizedBox(width: 8),
-                        Text('Bandeau enregistré.', style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.green700)),
+                        Text('Bandeau enregistré.', style: AppFonts.manrope(fontSize: 13, color: AppTheme.green700)),
                       ],
                     ),
                   ),
@@ -141,7 +141,7 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.all(48),
-                      child: Text('Aucun bandeau pour le moment.', style: GoogleFonts.manrope(fontSize: 14, color: AppTheme.slate400)),
+                      child: Text('Aucun bandeau pour le moment.', style: AppFonts.manrope(fontSize: 14, color: AppTheme.slate400)),
                     ),
                   ),
                 ..._list.map((b) => _BroadcastTile(
@@ -215,14 +215,14 @@ class _BroadcastTile extends StatelessWidget {
                     Expanded(
                       child: Text(
                         broadcast.title.isNotEmpty ? broadcast.title : 'Sans titre',
-                        style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                        style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                       ),
                     ),
                     if (broadcast.scroll)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(color: AppTheme.teal50, borderRadius: BorderRadius.circular(99)),
-                        child: Text('DÉFILANT', style: GoogleFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+                        child: Text('DÉFILANT', style: AppFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.primary)),
                       ),
                   ],
                 ),
@@ -231,12 +231,12 @@ class _BroadcastTile extends StatelessWidget {
                   broadcast.message,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
+                  style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${broadcast.targetRoles.map(broadcastRoleLabel).join(", ")} · ${broadcast.startsAt} → ${broadcast.endsAt}',
-                  style: GoogleFonts.manrope(fontSize: 11, color: AppTheme.slate400),
+                  style: AppFonts.manrope(fontSize: 11, color: AppTheme.slate400),
                 ),
               ],
             ),
@@ -255,7 +255,7 @@ class _BroadcastTile extends StatelessWidget {
                   ),
                   child: Text(
                     broadcast.active ? 'Actif' : 'Inactif',
-                    style: GoogleFonts.manrope(fontSize: 11, color: broadcast.active ? AppTheme.green600 : AppTheme.slate400, fontWeight: FontWeight.w600),
+                    style: AppFonts.manrope(fontSize: 11, color: broadcast.active ? AppTheme.green600 : AppTheme.slate400, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -324,7 +324,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         children: [
           Text(
             _b.id.isNotEmpty ? 'Modifier le bandeau' : 'Nouveau bandeau',
-            style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -346,7 +346,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             onChanged: (v) => _b = _b.copyWith(message: v),
           ),
           const SizedBox(height: 14),
-          Text('Type', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          Text('Type', style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -376,11 +376,11 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                 value: _b.scroll,
                 onChanged: (v) => setState(() => _b = _b.copyWith(scroll: v == true)),
               ),
-              Text('Faire défiler le message', style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textPrimary)),
+              Text('Faire défiler le message', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textPrimary)),
             ],
           ),
           const SizedBox(height: 14),
-          Text('Cibler les rôles', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          Text('Cibler les rôles', style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 12,
@@ -399,7 +399,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                       });
                     },
                   ),
-                  Text(broadcastRoleLabel(r), style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textPrimary)),
+                  Text(broadcastRoleLabel(r), style: AppFonts.manrope(fontSize: 13, color: AppTheme.textPrimary)),
                 ],
               );
             }).toList(),

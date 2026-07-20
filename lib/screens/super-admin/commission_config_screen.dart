@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -75,11 +75,11 @@ class _CommissionConfigScreenState extends ConsumerState<CommissionConfigScreen>
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      Text('Profils de commission', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                      Text('Profils de commission', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                       const SizedBox(height: 12),
                       ..._configs.map(_configTile),
                       const SizedBox(height: 24),
-                      Text('Simulateur de commission', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                      Text('Simulateur de commission', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                       const SizedBox(height: 12),
                       _simulatorSection(),
                     ],
@@ -114,10 +114,10 @@ class _CommissionConfigScreenState extends ConsumerState<CommissionConfigScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(profile.toUpperCase(), style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                  Text(profile.toUpperCase(), style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                   const SizedBox(height: 2),
                   Text('$percentage% · Min: ${_fcfa(minAmt)} · Max: ${_fcfa(maxAmt)}',
-                      style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
+                      style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
                 ],
               ),
             ),

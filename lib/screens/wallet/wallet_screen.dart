@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/auth_provider.dart';
@@ -262,7 +262,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   const SizedBox(height: 2),
                   Text(
                     createdAt.isNotEmpty ? _formatDate(createdAt) : '—',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 11.5, color: AppTheme.slate400),
                   ),
                 ],
@@ -362,7 +362,7 @@ class _BalanceHero extends StatelessWidget {
               Expanded(
                 child: Text(
                   'PORTEFEUILLE',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     color: AppTheme.amberOnFg,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -384,7 +384,7 @@ class _BalanceHero extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Solde disponible',
-            style: GoogleFonts.manrope(color: AppTheme.amberOnFg.withOpacity(0.8), fontSize: 12.5, fontWeight: FontWeight.w700),
+            style: AppFonts.manrope(color: AppTheme.amberOnFg.withOpacity(0.8), fontSize: 12.5, fontWeight: FontWeight.w700),
           ),
         ],
       ),

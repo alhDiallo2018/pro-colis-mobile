@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/parcel.dart';
 import '../../services/api_service.dart';
@@ -141,7 +141,7 @@ class _ColisManagementScreenState extends ConsumerState<ColisManagementScreen> {
       appBar: AppBar(
         title: Text(
           'Colis${total > 0 ? ' · $total' : ''}',
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             fontWeight: FontWeight.w800,
             fontSize: 18,
             color: AppTheme.textPrimary,
@@ -180,7 +180,7 @@ class _ColisManagementScreenState extends ConsumerState<ColisManagementScreen> {
                     filled: true,
                     fillColor: AppTheme.slate50,
                   ),
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w500,
                   ),
@@ -310,7 +310,7 @@ class _FilterChip extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             label,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               color: selected ? Colors.white : AppTheme.slate600,
               fontWeight: FontWeight.w700,
               fontSize: 12.5,
@@ -347,7 +347,7 @@ class _DriverLine extends StatelessWidget {
               assigned ? driverName!.trim() : 'Non assigné',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 12.5,
                 fontWeight: assigned ? FontWeight.w600 : FontWeight.w500,
                 fontStyle: assigned ? FontStyle.normal : FontStyle.italic,

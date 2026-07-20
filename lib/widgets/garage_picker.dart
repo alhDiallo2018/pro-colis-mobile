@@ -4,7 +4,7 @@
 // et retour visuel instantané du choix.
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../models/garage.dart';
@@ -183,7 +183,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                     children: [
                       Expanded(
                         child: Text(widget.title,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                                 fontSize: 18, fontWeight: FontWeight.w800,
                                 color: AppTheme.textPrimary)),
                       ),
@@ -292,7 +292,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                                       ),
                                       const SizedBox(width: 10),
                                       Text(city,
-                                          style: GoogleFonts.plusJakartaSans(
+                                          style: AppFonts.plusJakartaSans(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w700,
                                               color: AppTheme.textPrimary)),
@@ -337,7 +337,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(g.name,
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                           fontSize: 14, fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary)),
                   const SizedBox(height: 2),
@@ -345,7 +345,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                     [g.region.isNotEmpty ? g.region : null, g.address]
                         .where((e) => e != null && e.isNotEmpty)
                         .join(' · '),
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 12, color: AppTheme.textSecondary),
                   ),
                 ],
@@ -358,7 +358,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: Text('${g.driversCount} chauff.',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 11, color: AppTheme.slate500)),
               ),
           ],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../models/parcel.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -226,7 +226,7 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('${p.departureGarageName} → ${p.arrivalGarageName ?? '—'}',
-                          style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                          style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -249,7 +249,7 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
                   children: [
                     Text(_fcfa(p.price), style: AppTheme.mono(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
                     const SizedBox(height: 2),
-                    Text(_formatDate(p.createdAt), style: GoogleFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
+                    Text(_formatDate(p.createdAt), style: AppFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
                   ],
                 ),
               ],

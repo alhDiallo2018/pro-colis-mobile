@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -127,7 +127,7 @@ class _ScoreDetailScreenState extends ConsumerState<ScoreDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      Text('Historique', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                      Text('Historique', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                       const SizedBox(height: 10),
                       if (_history.isEmpty)
                         const EmptyState(icon: Icons.history, title: 'Aucun historique')
@@ -174,8 +174,8 @@ class _ScoreDetailScreenState extends ConsumerState<ScoreDetailScreen> {
   Widget _miniStat(String label, String value, Color color) {
     return Column(
       children: [
-        Text(value, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: color)),
-        Text(label, style: GoogleFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
+        Text(value, style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: color)),
+        Text(label, style: AppFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
       ],
     );
   }
@@ -195,7 +195,7 @@ class _ScoreDetailScreenState extends ConsumerState<ScoreDetailScreen> {
                 size: 18, color: isCredit ? AppTheme.green600 : AppTheme.red400),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(tx['description']?.toString() ?? type, style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textPrimary)),
+              child: Text(tx['description']?.toString() ?? type, style: AppFonts.manrope(fontSize: 13, color: AppTheme.textPrimary)),
             ),
             Text(
               '${isCredit ? '+' : '-'}${amount.abs()} pts',

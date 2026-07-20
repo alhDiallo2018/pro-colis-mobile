@@ -6,7 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/models/user.dart';
 import 'package:procolis/screens/dashboard/notifications/notifications_screen.dart';
@@ -533,7 +533,7 @@ class _MesColisTabState extends State<_MesColisTab> {
               Expanded(
                 child: Text(
                   'Mes colis',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     color: AppTheme.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -1705,7 +1705,7 @@ class _ClientOffersPanel extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Offres reçues',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.textPrimary,
@@ -1720,7 +1720,7 @@ class _ClientOffersPanel extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Aucune offre reçue pour le moment.',
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: AppTheme.textSecondary,
@@ -1771,7 +1771,7 @@ class _OfferPreviewRow extends StatelessWidget {
                   driverName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -1782,7 +1782,7 @@ class _OfferPreviewRow extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 11.5,
                       color: AppTheme.textSecondary,
                       fontWeight: FontWeight.w500,

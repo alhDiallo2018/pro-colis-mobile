@@ -4,7 +4,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/parcel_provider.dart';
@@ -206,7 +206,7 @@ class _DriverMesAnnoncesScreenState
                   Expanded(
                     child: Text(
                       'Mes annonces',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
@@ -228,7 +228,7 @@ class _DriverMesAnnoncesScreenState
               labelColor: AppTheme.primary,
               unselectedLabelColor: AppTheme.textSecondary,
               indicatorColor: AppTheme.primary,
-              labelStyle: GoogleFonts.plusJakartaSans(
+              labelStyle: AppFonts.plusJakartaSans(
                   fontSize: 14, fontWeight: FontWeight.w700),
               tabs: const [
                 Tab(text: 'Voyages'),
@@ -347,7 +347,7 @@ class _DriverMesAnnoncesScreenState
               Expanded(
                 child: RichText(
                   text: TextSpan(
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
@@ -406,7 +406,7 @@ class _DriverMesAnnoncesScreenState
                 _metaItem(
                   'Prix',
                   Text('À négocier',
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,
                         color: AppTheme.slate400,
@@ -415,7 +415,7 @@ class _DriverMesAnnoncesScreenState
               _metaItem(
                 'Départ',
                 Text(_formatDate(departureAt),
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.slate700)),
@@ -428,7 +428,7 @@ class _DriverMesAnnoncesScreenState
             const SizedBox(height: 12),
             Text(
               description,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                   fontSize: 13, color: AppTheme.slate700, height: 1.45),
             ),
           ],
@@ -440,7 +440,7 @@ class _DriverMesAnnoncesScreenState
           if (offers.isNotEmpty) ...[
             Text(
               'Offres reçues (${offers.length})',
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary),
@@ -451,7 +451,7 @@ class _DriverMesAnnoncesScreenState
           ] else
             Text(
               'Aucune offre reçue pour cette annonce.',
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 13,
                 fontStyle: FontStyle.italic,
                 color: AppTheme.slate400,
@@ -496,7 +496,7 @@ class _DriverMesAnnoncesScreenState
                       clientName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.textPrimary),
@@ -519,7 +519,7 @@ class _DriverMesAnnoncesScreenState
                         message,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                             fontSize: 11, color: AppTheme.slate500),
                       ),
                   ],
@@ -591,7 +591,7 @@ class _DriverMesAnnoncesScreenState
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: AppFonts.manrope(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppTheme.slate600),
@@ -817,7 +817,7 @@ class _ParcelSheetState extends State<_ParcelSheet> {
                 Expanded(
                   child: Text(
                     tracking != null ? 'Colis — $tracking' : 'Colis',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary),
@@ -836,7 +836,7 @@ class _ParcelSheetState extends State<_ParcelSheet> {
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
                 child: Text(description,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 13, color: AppTheme.slate700, height: 1.45)),
               ),
               const SizedBox(height: 12),
@@ -971,14 +971,14 @@ class _ParcelSheetState extends State<_ParcelSheet> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label,
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
                 fontSize: 12, color: AppTheme.slate500)),
         const SizedBox(height: 3),
         Text(
           value,
           style: mono
               ? AppTheme.mono(fontSize: 12, color: AppTheme.textPrimary)
-              : GoogleFonts.plusJakartaSans(
+              : AppFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary),

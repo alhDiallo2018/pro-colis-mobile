@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
 import 'package:procolis/screens/profile/profile_screen.dart';
 
@@ -205,7 +205,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                     children: [
                       Text(
                         'Bonjour, $firstName',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: AppFonts.plusJakartaSans(
                           color: Colors.white,
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
@@ -216,7 +216,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                       const SizedBox(height: 2),
                       Text(
                         'Gérez votre zone et vos livraisons',
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           color: Colors.white.withOpacity(0.85),
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
@@ -247,7 +247,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                       const SizedBox(width: 6),
                       Text(
                         '$_availableDriversCount dispo',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: AppFonts.plusJakartaSans(
                           color: Colors.white,
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
@@ -274,7 +274,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                 const SizedBox(width: 6),
                 Text(
                   '${_parcels.length} colis · ${_drivers.length} chauffeurs',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     color: Colors.white.withOpacity(0.85),
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -406,8 +406,8 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
         indicatorSize: TabBarIndicatorSize.label,
         labelColor: AppTheme.textPrimary,
         unselectedLabelColor: AppTheme.slate500,
-        labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700),
-        unselectedLabelStyle: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600),
+        labelStyle: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600),
         tabs: const [
           Tab(text: 'En attente'),
           Tab(text: 'Chauffeurs'),
@@ -534,7 +534,7 @@ class _QuickActionCard extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
@@ -728,7 +728,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                           const SizedBox(height: 2),
                           Text(
                             parcel.receiverName,
-                            style: GoogleFonts.manrope(
+                            style: AppFonts.manrope(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: AppTheme.slate500,
@@ -775,7 +775,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                         Expanded(
                           child: Text(
                             'Chauffeur : $driverName',
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.green700,
@@ -832,7 +832,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           isExpanded: true,
-                          hint: Text('Assigner', style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                          hint: Text('Assigner', style: AppFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w600)),
                           decoration: InputDecoration(
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -857,7 +857,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                                     Expanded(
                                       child: Text(
                                         d.fullName,
-                                        style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                        style: AppFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w600),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -1021,7 +1021,7 @@ class _DriversTab extends StatelessWidget {
                     children: [
                       Text(
                         driver.fullName,
-                        style: GoogleFonts.plusJakartaSans(
+                        style: AppFonts.plusJakartaSans(
                           fontWeight: FontWeight.w700,
                           fontSize: 14.5,
                           color: AppTheme.textPrimary,
@@ -1032,7 +1032,7 @@ class _DriversTab extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         driver.phone,
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
                           color: AppTheme.slate500,
@@ -1264,7 +1264,7 @@ class _HistoryTab extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${parcel.receiverName} · ${_formatDate(parcel.createdAt)}',
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                           color: AppTheme.slate500,
@@ -1284,7 +1284,7 @@ class _HistoryTab extends StatelessWidget {
                   ),
                   child: Text(
                     parcel.status.label.toUpperCase(),
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.4,

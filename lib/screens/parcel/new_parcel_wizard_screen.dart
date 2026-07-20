@@ -11,8 +11,11 @@ import 'package:path_provider/path_provider.dart';
 import '../../models/garage.dart';
 import '../../models/parcel.dart';
 import '../../models/user.dart';
+import '../../models/zone.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
+import '../../services/api/client.dart';
+import '../../services/api/zones_api.dart';
 import '../../services/api_service.dart';
 import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
@@ -39,6 +42,11 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   final _receiverPhoneCtrl = TextEditingController();
   final _receiverEmailCtrl = TextEditingController();
   final _receiverAddressCtrl = TextEditingController();
+
+  // Détection de zone à partir des coordonnées de l'adresse destinataire.
+  final ZonesApi _zonesApi = ZonesApi(ApiClient());
+  Zone? _detectedZone;
+  bool _detectingZone = false;
 
   // Step 1 - Livraison
   List<Garage> _garages = [];
@@ -102,6 +110,19 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       if (mounted) setState(() => _drivers = drivers);
     } catch (_) {}
     if (mounted) setState(() => _loadingDrivers = false);
+  }
+
+  Future<void> _detectZoneFromCoordinates(double lat, double lng) async {
+    setState(() {
+      _detectingZone = true;
+      _detectedZone = null;
+    });
+    final zones = await _zonesApi.detectZones(lat, lng);
+    if (!mounted) return;
+    setState(() {
+      _detectingZone = false;
+      _detectedZone = zones.isNotEmpty ? zones.first : null;
+    });
   }
 
   Garage? _garageById(String? id) {
@@ -445,8 +466,62 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           prefixIcon: Icons.location_on_rounded,
           hint: 'Rechercher une adresse...',
           googleApiKey: PlacesService.googleApiKey,
+          onCoordinates: _detectZoneFromCoordinates,
         ),
+        if (_detectingZone || _detectedZone != null) ...[
+          const SizedBox(height: 8),
+          _buildDetectedZoneChip(),
+        ],
       ],
+    );
+  }
+
+  Widget _buildDetectedZoneChip() {
+    if (_detectingZone) {
+      return const Row(
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 8),
+          Text(
+            'Détection de la zone...',
+            style: TextStyle(fontSize: 12, color: AppTheme.slate500),
+          ),
+        ],
+      );
+    }
+    final zone = _detectedZone!;
+    final label = zone.displayName?.isNotEmpty == true
+        ? zone.displayName!
+        : zone.name;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.teal50,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(color: AppTheme.teal100),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.explore_rounded,
+              size: 16, color: AppTheme.teal600),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Zone détectée : $label',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.teal700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -5,10 +5,12 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
-import '../../services/api_service.dart';
+import '../../services/api/client.dart';
+import '../../services/api/payments_api.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/pc_components.dart';
 
@@ -21,7 +23,7 @@ class DriverRevenusScreen extends ConsumerStatefulWidget {
 }
 
 class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
-  final ApiService _apiService = ApiService();
+  final PaymentsApi _paymentsApi = PaymentsApi(ApiClient());
   List<Map<String, dynamic>> _payments = [];
   double _totalRevenue = 0;
   double _lastWeekRevenue = 0;
@@ -51,7 +53,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final payments = await _apiService.getPaymentHistory();
+      final payments = await _paymentsApi.getHistory();
       double total = 0;
 
       final now = DateTime.now();
@@ -107,7 +109,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
     return _filteredPayments.take(_visiblePaymentsCount).toList();
   }
 
-  String _fcfa(num value) => '${value.toStringAsFixed(0)} FCFA';
+  String _fcfa(num value) => formatFcfa(value);
 
   @override
   Widget build(BuildContext context) {
@@ -222,7 +224,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppTheme.slate500,
@@ -401,7 +403,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
               ),
               child: Text(
                 label,
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: isActive ? Colors.white : AppTheme.slate500,
@@ -422,7 +424,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
     final tracking = payment['trackingNumber']?.toString() ?? '';
     final isCompleted = status == 'completed' || status == 'confirmed';
     final subtitle =
-        [_formatDate(date), if (method.isNotEmpty) method].join(' · ');
+        [formatDateIso(date), if (method.isNotEmpty) method].join(' · ');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -461,7 +463,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.slate500,
@@ -517,7 +519,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
                 Flexible(
                   child: Text(
                     title,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 15.5,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
@@ -536,14 +538,5 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
         ],
       ),
     );
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final d = DateTime.parse(dateStr);
-      return '${d.day}/${d.month}/${d.year}';
-    } catch (_) {
-      return '';
-    }
   }
 }

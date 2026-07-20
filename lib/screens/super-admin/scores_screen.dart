@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -82,8 +82,8 @@ class _ScoresScreenState extends ConsumerState<ScoresScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(s['driverName']?.toString() ?? s['fullName']?.toString() ?? '', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                                      Text(s['garageName']?.toString() ?? '', style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
+                                      Text(s['driverName']?.toString() ?? s['fullName']?.toString() ?? '', style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                                      Text(s['garageName']?.toString() ?? '', style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
                                     ],
                                   ),
                                 ),

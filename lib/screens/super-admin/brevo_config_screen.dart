@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../services/brevo_service.dart';
 import '../../theme/app_theme.dart';
@@ -113,11 +113,11 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Configuration Brevo (Email & SMS)', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                      Text('Configuration Brevo (Email & SMS)', style: AppFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
                       const SizedBox(height: 8),
                       Text(
                         "Brevo (ex-SendinBlue) est le fournisseur d'emails transactionnels et de SMS. La clé API est configurée côté serveur.",
-                        style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary, height: 1.5),
+                        style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary, height: 1.5),
                       ),
                       const SizedBox(height: 20),
                       TextField(
@@ -160,9 +160,9 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Tester la connexion Brevo', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                      Text('Tester la connexion Brevo', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                       const SizedBox(height: 6),
-                      Text('Envoyez un email de test pour vérifier que la configuration fonctionne.', style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
+                      Text('Envoyez un email de test pour vérifier que la configuration fonctionne.', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
                       const SizedBox(height: 16),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -206,7 +206,7 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
                         Expanded(
                           child: Text(
                             _message!,
-                            style: GoogleFonts.manrope(
+                            style: AppFonts.manrope(
                               fontSize: 13,
                               color: _messageSuccess ? AppTheme.green700 : AppTheme.red500,
                             ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../models/parcel.dart';
 import '../theme/app_theme.dart';
 
@@ -178,7 +178,7 @@ class StatusTimeline extends StatelessWidget {
                           Expanded(
                             child: Text(
                               step.label,
-                              style: GoogleFonts.plusJakartaSans(
+                              style: AppFonts.plusJakartaSans(
                                 fontSize: 14.5,
                                 fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w600,
                                 color: (isDone || isCurrent)
@@ -202,7 +202,7 @@ class StatusTimeline extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           step.note!,
-                          style: GoogleFonts.manrope(
+                          style: AppFonts.manrope(
                             fontSize: 13,
                             color: AppTheme.textSecondary,
                           ),

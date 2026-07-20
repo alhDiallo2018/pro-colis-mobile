@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../theme/app_theme.dart';
 
@@ -62,7 +62,7 @@ class _TopNav extends StatelessWidget {
                     child: RichText(
                       overflow: TextOverflow.ellipsis,
                       text: TextSpan(
-                        style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.2, color: AppTheme.slate900),
+                        style: AppFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.2, color: AppTheme.slate900),
                         children: const [
                           TextSpan(text: 'PRO'),
                           TextSpan(text: 'COLIS', style: TextStyle(color: AppTheme.amber400)),
@@ -121,7 +121,7 @@ class _HeroSection extends StatelessWidget {
                     ),
                     child: Text(
                       '» Livraison interurbaine & internationale',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
@@ -132,7 +132,7 @@ class _HeroSection extends StatelessWidget {
                   const SizedBox(height: 22),
                   Text(
                     'Vos colis,\nde ville en ville,\npartout en Afrique.',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 40,
                       fontWeight: FontWeight.w800,
                       height: 1.05,
@@ -143,7 +143,7 @@ class _HeroSection extends StatelessWidget {
                   const SizedBox(height: 18),
                   Text(
                     'Déclarez un colis, fixez votre trajet et votre prix, publiez-le en annonce et laissez nos chauffeurs vérifiés vous faire leurs meilleures offres. Livraison au Sénégal et à l\'international, avec suivi en temps réel.',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 16,
                       height: 1.55,
                       color: Colors.white.withOpacity(0.92),
@@ -162,7 +162,7 @@ class _HeroSection extends StatelessWidget {
                           backgroundColor: AppTheme.amber400,
                           foregroundColor: AppTheme.amberOnFg,
                           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-                          textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15),
+                          textStyle: AppFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15),
                         ),
                       ),
                       OutlinedButton.icon(
@@ -173,7 +173,7 @@ class _HeroSection extends StatelessWidget {
                           foregroundColor: Colors.white,
                           side: const BorderSide(color: Colors.white),
                           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-                          textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15),
+                          textStyle: AppFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15),
                         ),
                       ),
                     ],
@@ -208,9 +208,9 @@ class _TrackingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Suivez votre colis', style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+            Text('Suivez votre colis', style: AppFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
             const SizedBox(height: 4),
-            Text('Entrez votre numéro de suivi.', style: GoogleFonts.manrope(fontSize: 13.5, color: AppTheme.textSecondary)),
+            Text('Entrez votre numéro de suivi.', style: AppFonts.manrope(fontSize: 13.5, color: AppTheme.textSecondary)),
             const SizedBox(height: 16),
             Container(
               height: 50,
@@ -261,15 +261,15 @@ class _TrackingCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Dakar → Thiès', style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                        Text('En transit · arrive dans ~4 h', style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
+                        Text('Dakar → Thiès', style: AppFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                        Text('En transit · arrive dans ~4 h', style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
                       ],
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(color: AppTheme.teal50, borderRadius: BorderRadius.circular(99)),
-                    child: Text('En transit', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.teal600)),
+                    child: Text('En transit', style: AppFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.teal600)),
                   ),
                 ],
               ),
@@ -321,7 +321,7 @@ class _StatsBand extends StatelessWidget {
                 children: [
                   Text(
                     s['value'] as String,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
                       color: (s['accent'] as bool) ? AppTheme.amber400 : Colors.white,
@@ -330,7 +330,7 @@ class _StatsBand extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     s['label'] as String,
-                    style: GoogleFonts.manrope(fontSize: 13, color: Colors.white.withOpacity(0.6)),
+                    style: AppFonts.manrope(fontSize: 13, color: Colors.white.withOpacity(0.6)),
                   ),
                 ],
               ),
@@ -358,11 +358,11 @@ class _HowItWorks extends StatelessWidget {
           children: [
             Column(
               children: [
-                Text('COMMENT ÇA MARCHE', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: AppTheme.primary)),
+                Text('COMMENT ÇA MARCHE', style: AppFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: AppTheme.primary)),
                 const SizedBox(height: 10),
-                Text("Trois étapes, d'un quai à l'autre", style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppTheme.textPrimary)),
+                Text("Trois étapes, d'un quai à l'autre", style: AppFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppTheme.textPrimary)),
                 const SizedBox(height: 12),
-                Text("Pas d'intermédiaire opaque : vous gardez la main sur le prix et le chauffeur.", style: GoogleFonts.manrope(fontSize: 15, color: AppTheme.textSecondary, height: 1.5)),
+                Text("Pas d'intermédiaire opaque : vous gardez la main sur le prix et le chauffeur.", style: AppFonts.manrope(fontSize: 15, color: AppTheme.textSecondary, height: 1.5)),
               ],
             ),
             const SizedBox(height: 40),
@@ -395,9 +395,9 @@ class _HowItWorks extends StatelessWidget {
                           children: [
                             Text('ÉTAPE ${s['n']}', style: AppTheme.mono(fontSize: 12, color: AppTheme.slate400, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
-                            Text(s['title'] as String, style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                            Text(s['title'] as String, style: AppFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
                             const SizedBox(height: 6),
-                            Text(s['text'] as String, style: GoogleFonts.manrope(fontSize: 14, color: AppTheme.textSecondary, height: 1.5)),
+                            Text(s['text'] as String, style: AppFonts.manrope(fontSize: 14, color: AppTheme.textSecondary, height: 1.5)),
                           ],
                         ),
                       ),
@@ -428,11 +428,11 @@ class _ExpressCallout extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('»» Option express', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1, color: AppTheme.red400)),
+              Text('»» Option express', style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1, color: AppTheme.red400)),
               const SizedBox(height: 14),
-              Text('Un colis urgent ? Priorité haute, départ immédiat.', style: GoogleFonts.plusJakartaSans(fontSize: 26, fontWeight: FontWeight.w800, height: 1.15, color: Colors.white)),
+              Text('Un colis urgent ? Priorité haute, départ immédiat.', style: AppFonts.plusJakartaSans(fontSize: 26, fontWeight: FontWeight.w800, height: 1.15, color: Colors.white)),
               const SizedBox(height: 12),
-              Text("Votre annonce passe en tête et n'est proposée qu'aux chauffeurs déjà sur la route. Le supplément s'ajuste selon votre trajet.", style: GoogleFonts.manrope(fontSize: 15, height: 1.55, color: Colors.white.withOpacity(0.7))),
+              Text("Votre annonce passe en tête et n'est proposée qu'aux chauffeurs déjà sur la route. Le supplément s'ajuste selon votre trajet.", style: AppFonts.manrope(fontSize: 15, height: 1.55, color: Colors.white.withOpacity(0.7))),
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () => context.go('/register'),
@@ -442,7 +442,7 @@ class _ExpressCallout extends StatelessWidget {
                   backgroundColor: AppTheme.amber400,
                   foregroundColor: AppTheme.amberOnFg,
                   padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-                  textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15),
+                  textStyle: AppFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15),
                 ),
               ),
             ],
@@ -480,7 +480,7 @@ class _Footer extends StatelessWidget {
                 const SizedBox(width: 10),
                 RichText(
                   text: TextSpan(
-                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.white),
+                    style: AppFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.white),
                     children: const [
                       TextSpan(text: 'PRO'),
                       TextSpan(text: 'COLIS', style: TextStyle(color: AppTheme.amber400)),
@@ -492,7 +492,7 @@ class _Footer extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               "La plateforme qui connecte expéditeurs et chauffeurs pour le transport de colis au Sénégal, partout en Afrique et à l'international.",
-              style: GoogleFonts.manrope(fontSize: 13.5, height: 1.6, color: Colors.white.withOpacity(0.7)),
+              style: AppFonts.manrope(fontSize: 13.5, height: 1.6, color: Colors.white.withOpacity(0.7)),
             ),
             const SizedBox(height: 28),
             Wrap(
@@ -528,7 +528,7 @@ class _Footer extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 28),
-            Text('© ${DateTime.now().year} SENDPROCOLIS', style: GoogleFonts.manrope(fontSize: 12, color: Colors.white.withOpacity(0.5))),
+            Text('© ${DateTime.now().year} SENDPROCOLIS', style: AppFonts.manrope(fontSize: 12, color: Colors.white.withOpacity(0.5))),
           ],
         ),
       ),
@@ -554,7 +554,7 @@ class _FooterLinks extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+        Text(title, style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
         const SizedBox(height: 12),
         ...items.map((item) => Padding(
           padding: const EdgeInsets.only(bottom: 9),
@@ -562,7 +562,7 @@ class _FooterLinks extends StatelessWidget {
             onTap: () => context.go(item.path),
             child: Text(
               item.label,
-              style: GoogleFonts.manrope(fontSize: 13.5, color: Colors.white.withOpacity(0.7)),
+              style: AppFonts.manrope(fontSize: 13.5, color: Colors.white.withOpacity(0.7)),
             ),
           ),
         )),

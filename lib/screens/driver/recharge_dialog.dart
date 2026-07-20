@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/score_provider.dart';
 import '../../providers/wallet_provider.dart';
@@ -126,7 +126,7 @@ class _RechargeDialogState extends ConsumerState<RechargeDialog> {
                   Expanded(
                     child: Text(
                       'Recharger des points',
-                      style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                      style: AppFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
                     ),
                   ),
                   IconButton(onPressed: widget.onClose, icon: const Icon(Icons.close), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
@@ -143,7 +143,7 @@ class _RechargeDialogState extends ConsumerState<RechargeDialog> {
                   ),
                   child: Text(
                     'Solde portefeuille : ${formatFcfa(walletBalance)}',
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.teal700, fontWeight: FontWeight.w600),
+                    style: AppFonts.manrope(fontSize: 13, color: AppTheme.teal700, fontWeight: FontWeight.w600),
                   ),
                 ),
               if (!_useCustom)
@@ -168,7 +168,7 @@ class _RechargeDialogState extends ConsumerState<RechargeDialog> {
                 onTap: () => setState(() => _useCustom = !_useCustom),
                 child: Text(
                   _useCustom ? '← Choisir un forfait' : 'Montant personnalisé',
-                  style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.primary, fontWeight: FontWeight.w600),
+                  style: AppFonts.manrope(fontSize: 13, color: AppTheme.primary, fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(height: 14),
@@ -204,14 +204,14 @@ class _RechargeDialogState extends ConsumerState<RechargeDialog> {
                   children: [
                     Text(
                       'Les points vous permettent d\'accéder aux annonces de colis et de recevoir des missions. 1 point = 1 FCFA.',
-                      style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.textSecondary, height: 1.5),
+                      style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary, height: 1.5),
                     ),
                     if (isWallet)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           'Le montant sera débité de votre portefeuille immédiatement.',
-                          style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.teal700, fontWeight: FontWeight.w500),
+                          style: AppFonts.manrope(fontSize: 12, color: AppTheme.teal700, fontWeight: FontWeight.w500),
                         ),
                       ),
                     if (isPaydunya)
@@ -219,7 +219,7 @@ class _RechargeDialogState extends ConsumerState<RechargeDialog> {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           'PayDunya accepte Wave, Orange Money, FreeMoney et carte bancaire.',
-                          style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.teal700, fontWeight: FontWeight.w500),
+                          style: AppFonts.manrope(fontSize: 12, color: AppTheme.teal700, fontWeight: FontWeight.w500),
                         ),
                       ),
                   ],
@@ -227,7 +227,7 @@ class _RechargeDialogState extends ConsumerState<RechargeDialog> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 10),
-                Text(_error!, style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.red500)),
+                Text(_error!, style: AppFonts.manrope(fontSize: 13, color: AppTheme.red500)),
               ],
               const SizedBox(height: 20),
               Row(

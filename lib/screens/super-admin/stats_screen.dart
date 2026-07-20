@@ -5,7 +5,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/garage.dart';
 import '../../models/parcel.dart';
@@ -414,7 +414,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppTheme.slate500,
@@ -608,7 +608,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
             _prettyKey(entry.key),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppTheme.slate500,
@@ -755,7 +755,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                 const SizedBox(width: 8),
                 Text(
                   stat.label,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
@@ -812,7 +812,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                     subtitle: activities[i]['description'] as String,
                     trailing: Text(
                       _formatDate(activities[i]['time'] as DateTime),
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: AppTheme.slate400,
@@ -875,7 +875,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                 Flexible(
                   child: Text(
                     title,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 15.5,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../screens/help/help_screen.dart';
@@ -239,7 +239,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   subtitle: 'Langue de l\'application',
                   trailing: Text(
                     'Français',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       color: AppTheme.slate500,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

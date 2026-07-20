@@ -6,7 +6,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -379,7 +379,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: Text(widget.peerName,
-            style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800)),
+            style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800)),
       ),
       body: Column(
         children: [
@@ -422,7 +422,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
               child: Text(
                 [p.departureGarageName, p.arrivalGarageName]
                     .where((e) => e != null && e.isNotEmpty).join(' → '),
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                     fontSize: 12, fontWeight: FontWeight.w600,
                     color: AppTheme.slate700),
                 overflow: TextOverflow.ellipsis,
@@ -445,7 +445,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
             const Icon(Icons.forum, size: 32, color: AppTheme.slate300),
             const SizedBox(height: 8),
             Text('Démarrez la négociation avec ${widget.peerName}.',
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                     fontSize: 13, color: AppTheme.textSecondary)),
           ],
         ),
@@ -739,7 +739,7 @@ class _MsgBubble extends StatelessWidget {
           children: [
             if (body.isNotEmpty)
               Text(body,
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                       fontSize: 13, fontWeight: FontWeight.w500,
                       color: mine ? Colors.white : AppTheme.slate700)),
             if (audioUrl != null && audioUrl!.isNotEmpty)
@@ -825,7 +825,7 @@ class _PriceBubble extends StatelessWidget {
                 const Icon(Icons.payments, size: 18, color: AppTheme.amber600),
                 const SizedBox(width: 6),
                 Text(mine ? 'Prix proposé' : 'Proposition de prix',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 11, fontWeight: FontWeight.w700,
                         color: AppTheme.amber700)),
               ],
@@ -851,7 +851,7 @@ class _PriceBubble extends StatelessWidget {
             if (message != null && message!.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(message!,
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                       fontSize: 13, color: AppTheme.slate700)),
             ],
             if (!mine && onAccept != null && onCounter != null) ...[

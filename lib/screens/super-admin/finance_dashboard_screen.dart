@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -117,7 +117,7 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
             const SizedBox(height: 12),
             Text(
               item.value,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontSize: 18, fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary,
               ),
@@ -125,7 +125,7 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
             const SizedBox(height: 2),
             Text(
               item.label,
-              style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
+              style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
             ),
           ],
         ),

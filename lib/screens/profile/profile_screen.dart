@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../models/user.dart';
@@ -200,7 +200,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Changer la photo',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontWeight: FontWeight.w800,
                   fontSize: 17,
                   color: AppTheme.textPrimary,
@@ -461,7 +461,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _user.fullName,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.textPrimary,
@@ -616,7 +616,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           Text(
             'Informations personnelles',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontSize: 17,
               fontWeight: FontWeight.w800,
               color: AppTheme.textPrimary,
@@ -743,7 +743,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Expanded(
             child: Text(
               message,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: fg,
@@ -889,7 +889,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(width: 12),
               Text(
                 'Se déconnecter',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.red500,

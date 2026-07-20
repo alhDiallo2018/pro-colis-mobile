@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -354,7 +354,7 @@ class _PaymentNotificationsScreenState
         const SizedBox(width: 6),
         Text(
           'Actualisation automatique toutes les 15 s',
-          style: GoogleFonts.manrope(
+          style: AppFonts.manrope(
             fontSize: 12,
             fontWeight: FontWeight.w500,
             color: AppTheme.slate500,
@@ -423,7 +423,7 @@ class _PaymentNotificationsScreenState
                   children: [
                     Text(
                       userName,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.textPrimary,
@@ -431,7 +431,7 @@ class _PaymentNotificationsScreenState
                     ),
                     Text(
                       'a payé ${_fcfa(_amountOf(p))}',
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.primary,
@@ -449,7 +449,7 @@ class _PaymentNotificationsScreenState
                     if (phone.isNotEmpty) phone,
                     _formatDateTime(p),
                   ].join(' · '),
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 11.5,
                     color: AppTheme.slate500,
                   ),

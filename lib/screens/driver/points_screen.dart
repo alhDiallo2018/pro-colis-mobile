@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -130,7 +130,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                   children: [
                     Text(
                       'PORTEFEUILLE PRO-COLIS',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.7,
@@ -164,7 +164,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                     const SizedBox(height: 6),
                     Text(
                       'Commission: ${CommissionService.percentage.toStringAsFixed(0)}% (min ${CommissionService.minimum.toStringAsFixed(0)} FCFA, max ${CommissionService.maximum.toStringAsFixed(0)} FCFA)',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: AppTheme.amberOnFg.withOpacity(0.6),
@@ -341,7 +341,7 @@ class _GhostButton extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.amberOnFg,

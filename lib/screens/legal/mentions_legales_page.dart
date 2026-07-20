@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../theme/app_theme.dart';
 
 class MentionsLegalesPage extends StatelessWidget {
@@ -248,7 +248,7 @@ Widget _sectionTitle(String text) => Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Text(
         text,
-        style: GoogleFonts.plusJakartaSans(
+        style: AppFonts.plusJakartaSans(
           fontSize: 18,
           fontWeight: FontWeight.w800,
           color: AppTheme.textPrimary,
@@ -260,7 +260,7 @@ Widget _bodyText(String text) => Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style: GoogleFonts.manrope(
+        style: AppFonts.manrope(
           fontSize: 14,
           color: AppTheme.textSecondary,
           height: 1.6,
@@ -272,7 +272,7 @@ Widget _subsectionTitle(String text) => Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Text(
         text,
-        style: GoogleFonts.plusJakartaSans(
+        style: AppFonts.plusJakartaSans(
           fontSize: 15,
           fontWeight: FontWeight.w700,
           color: AppTheme.textPrimary,

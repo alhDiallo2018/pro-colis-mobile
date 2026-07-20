@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'fonts.dart';
 
 import '../models/parcel.dart';
 
@@ -160,8 +160,8 @@ class AppTheme {
     );
 
     final displayTextTheme =
-        GoogleFonts.plusJakartaSansTextTheme(base.textTheme);
-    final bodyTextTheme = GoogleFonts.manropeTextTheme(base.textTheme);
+        base.textTheme.apply(fontFamily: AppFonts.display);
+    final bodyTextTheme = base.textTheme.apply(fontFamily: AppFonts.body);
 
     return base.copyWith(
       primaryColor: primary,
@@ -205,7 +205,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: const TextStyle(fontFamily: AppFonts.display, 
           color: textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.w800,
@@ -235,7 +235,7 @@ class AppTheme {
           disabledForegroundColor: slate400,
           minimumSize: const Size(double.infinity, 50),
           elevation: 0,
-          textStyle: GoogleFonts.plusJakartaSans(
+          textStyle: const TextStyle(fontFamily: AppFonts.display, 
             fontWeight: FontWeight.w800,
             fontSize: 15,
           ),
@@ -247,14 +247,14 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: teal600,
-          textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontFamily: AppFonts.display, fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primary,
           side: const BorderSide(color: teal500),
-          textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontFamily: AppFonts.display, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
@@ -273,12 +273,12 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: slate100,
         selectedColor: teal50,
-        labelStyle: GoogleFonts.plusJakartaSans(
+        labelStyle: const TextStyle(fontFamily: AppFonts.display, 
           color: textPrimary,
           fontWeight: FontWeight.w700,
           fontSize: 12,
         ),
-        secondaryLabelStyle: GoogleFonts.plusJakartaSans(
+        secondaryLabelStyle: const TextStyle(fontFamily: AppFonts.display, 
           color: teal700,
           fontWeight: FontWeight.w800,
           fontSize: 12,
@@ -302,7 +302,7 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: slate900,
-        contentTextStyle: GoogleFonts.manrope(color: Colors.white),
+        contentTextStyle: const TextStyle(fontFamily: AppFonts.body, color: Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
         ),
@@ -314,12 +314,12 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),
         ),
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: const TextStyle(fontFamily: AppFonts.display, 
           color: textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w800,
         ),
-        contentTextStyle: GoogleFonts.manrope(color: slate700),
+        contentTextStyle: const TextStyle(fontFamily: AppFonts.body, color: slate700),
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith(
@@ -375,7 +375,7 @@ class AppTheme {
     FontWeight fontWeight = FontWeight.w700,
     Color color = textPrimary,
   }) {
-    return GoogleFonts.jetBrainsMono(
+    return TextStyle(fontFamily: AppFonts.monoFamily, 
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,

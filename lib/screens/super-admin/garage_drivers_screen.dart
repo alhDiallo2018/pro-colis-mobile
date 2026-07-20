@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/garage.dart';
 import '../../models/user.dart';
@@ -74,7 +74,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
           children: [
             Text(
               'Chauffeurs',
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontWeight: FontWeight.w800,
                 fontSize: 18,
                 color: AppTheme.textPrimary,
@@ -84,7 +84,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
               widget.garage.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontWeight: FontWeight.w500,
                 fontSize: 12,
                 color: AppTheme.slate500,
@@ -178,7 +178,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
                       driver.fullName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.textPrimary,
@@ -189,7 +189,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w500,
                         color: AppTheme.slate500,
@@ -214,7 +214,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
                   const SizedBox(height: 2),
                   Text(
                     '${driver.completedDeliveries ?? 0} livraisons',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: AppTheme.slate500,
@@ -269,7 +269,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
                         children: [
                           Text(
                             driver.fullName,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,

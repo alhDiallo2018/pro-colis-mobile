@@ -9,7 +9,7 @@ import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -157,14 +157,14 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               leading: const Icon(Icons.photo_camera_rounded,
                   color: AppTheme.primary),
               title: Text('Prendre une photo',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                  style: AppFonts.manrope(fontWeight: FontWeight.w600)),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_rounded,
                   color: AppTheme.primary),
               title: Text('Choisir dans la galerie',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                  style: AppFonts.manrope(fontWeight: FontWeight.w600)),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
             const SizedBox(height: 6),
@@ -549,10 +549,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Nouveau colis',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 17, fontWeight: FontWeight.w800)),
                 Text('Étape ${_step + 1} sur 3 · ${_stepTitle(_step)}',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 12.5, color: AppTheme.textSecondary)),
               ],
             ),
@@ -703,11 +703,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                           fontSize: 14, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
                   Text(desc,
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                           fontSize: 12.5, color: AppTheme.textSecondary)),
                 ],
               ),
@@ -729,12 +729,12 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   Widget _driverField() {
     if (_loadingDrivers) {
       return Text('Chargement des chauffeurs…',
-          style: GoogleFonts.manrope(
+          style: AppFonts.manrope(
               fontSize: 13, color: AppTheme.textSecondary));
     }
     if (_drivers.isEmpty) {
       return Text('Aucun chauffeur disponible pour le moment.',
-          style: GoogleFonts.manrope(
+          style: AppFonts.manrope(
               fontSize: 13, color: AppTheme.textSecondary));
     }
     return Column(
@@ -806,7 +806,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
 
   Widget _driverInitials(User d) => Text(
         d.initials,
-        style: GoogleFonts.plusJakartaSans(
+        style: AppFonts.plusJakartaSans(
             fontSize: 15,
             fontWeight: FontWeight.w800,
             color: AppTheme.teal700),
@@ -847,13 +847,13 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                       Text(d.fullName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                               fontSize: 14, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(subtitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
+                          style: AppFonts.manrope(
                               fontSize: 12.5,
                               color: AppTheme.textSecondary)),
                     ],
@@ -876,11 +876,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                     size: 16, color: AppTheme.amber500),
                 const SizedBox(width: 3),
                 Text(rating,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 12.5, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 4),
                 Text('· $completed livr.',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 12.5, color: AppTheme.textSecondary)),
                 const Spacer(),
                 Container(
@@ -893,7 +893,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                 ),
                 const SizedBox(width: 5),
                 Text(status.label,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                         color: status.color)),
@@ -941,7 +941,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           controller: _description,
           maxLines: 2,
           maxLength: 200,
-          style: GoogleFonts.manrope(fontSize: 14),
+          style: AppFonts.manrope(fontSize: 14),
           decoration: _dec('Ex : documents, fragile…', null),
         ),
         const SizedBox(height: 4),
@@ -988,7 +988,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           _mode == 'driver'
               ? 'Le montant convenu avec le chauffeur.'
               : 'Indicatif — les chauffeurs peuvent surenchérir.',
-          style: GoogleFonts.manrope(
+          style: AppFonts.manrope(
               fontSize: 12, color: AppTheme.textSecondary),
         ),
         const SizedBox(height: 18),
@@ -1012,11 +1012,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       children: [
         _stepBar(),
         Text('Vérifiez avant de publier',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
                 fontSize: 16, fontWeight: FontWeight.w800)),
         const SizedBox(height: 2),
         Text('Un dernier coup d’œil ; touchez « Modifier » pour corriger.',
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
                 fontSize: 12.5, color: AppTheme.textSecondary)),
         const SizedBox(height: 16),
 
@@ -1135,7 +1135,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(title,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 14, fontWeight: FontWeight.w800)),
               ),
               InkWell(
@@ -1151,7 +1151,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                           size: 15, color: AppTheme.primary),
                       const SizedBox(width: 3),
                       Text('Modifier',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.primary)),
@@ -1176,7 +1176,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                   fontSize: 12.5, color: AppTheme.textSecondary)),
           const SizedBox(width: 12),
           Expanded(
@@ -1186,7 +1186,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               style: mono
                   ? AppTheme.mono(
                       fontSize: 13, fontWeight: FontWeight.w700)
-                  : GoogleFonts.plusJakartaSans(
+                  : AppFonts.plusJakartaSans(
                       fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
@@ -1208,7 +1208,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           Icon(icon, size: 14, color: AppTheme.teal700),
           const SizedBox(width: 4),
           Text(label,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.teal700)),
@@ -1230,13 +1230,13 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                 size: 18, color: AppTheme.primary),
             const SizedBox(width: 6),
             Text('Pièces jointes',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.slate700)),
             const SizedBox(width: 6),
             Text('(optionnel)',
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                     fontSize: 12, color: AppTheme.textSecondary)),
           ],
         ),
@@ -1274,7 +1274,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         if (_mediaNote != null) ...[
           const SizedBox(height: 8),
           Text(_mediaNote!,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.red400)),
@@ -1332,7 +1332,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               Text(label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       color: color)),
@@ -1403,7 +1403,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           Text(label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.slate700)),
@@ -1531,7 +1531,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.slate700)),
@@ -1539,7 +1539,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
 
   InputDecoration _dec(String hint, IconData? icon) => InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppTheme.slate400),
+        hintStyle: AppFonts.manrope(fontSize: 14, color: AppTheme.slate400),
         prefixIcon: icon != null
             ? Icon(icon, size: 20, color: AppTheme.slate400)
             : null,
@@ -1572,7 +1572,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           : (phone ? TextInputType.phone : TextInputType.text),
       style: mono
           ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
-          : GoogleFonts.manrope(fontSize: 14),
+          : AppFonts.manrope(fontSize: 14),
       decoration: _dec(hint, icon),
     );
   }
@@ -1583,7 +1583,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       isExpanded: true,
       icon: const Icon(Icons.expand_more_rounded, color: AppTheme.slate500),
       decoration: _dec('', Icons.category_rounded),
-      style: GoogleFonts.manrope(fontSize: 13.5, color: AppTheme.textPrimary),
+      style: AppFonts.manrope(fontSize: 13.5, color: AppTheme.textPrimary),
       items: ParcelType.values
           .map((t) => DropdownMenuItem(
                 value: t,
@@ -1605,11 +1605,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(subtitle,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 12.5, color: AppTheme.textSecondary)),
               ],
             ),
@@ -1641,7 +1641,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(text,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: color)),

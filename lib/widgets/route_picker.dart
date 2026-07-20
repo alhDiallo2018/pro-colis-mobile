@@ -3,7 +3,7 @@
 // pillule visuelle de trajet, et bouton d'inversion.
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../models/garage.dart';
 import '../theme/app_theme.dart';
@@ -154,7 +154,7 @@ class _RoutePickerState extends State<RoutePicker> {
       children: [
         if (label != null) ...[
           Text(label,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                   fontSize: 13, fontWeight: FontWeight.w600,
                   color: AppTheme.slate700)),
           const SizedBox(height: 6),
@@ -181,19 +181,19 @@ class _RoutePickerState extends State<RoutePicker> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(garage.name,
-                                style: GoogleFonts.manrope(
+                                style: AppFonts.manrope(
                                     fontSize: 13.5, fontWeight: FontWeight.w700,
                                     color: AppTheme.textPrimary),
                                 overflow: TextOverflow.ellipsis),
                             if (_city(garage).isNotEmpty)
                               Text(_city(garage),
-                                  style: GoogleFonts.manrope(
+                                  style: AppFonts.manrope(
                                       fontSize: 11.5,
                                       color: AppTheme.textSecondary)),
                           ],
                         )
                       : Text('Choisir...',
-                          style: GoogleFonts.manrope(
+                          style: AppFonts.manrope(
                               fontSize: 13, color: AppTheme.slate400)),
                 ),
                 const Icon(Icons.chevron_right_rounded,
@@ -227,7 +227,7 @@ class _RoutePill extends StatelessWidget {
           Expanded(
             child: Text(from,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                     fontSize: 13.5, fontWeight: FontWeight.w700,
                     color: AppTheme.teal700)),
           ),
@@ -247,7 +247,7 @@ class _RoutePill extends StatelessWidget {
           Expanded(
             child: Text(to,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                     fontSize: 13.5, fontWeight: FontWeight.w700,
                     color: AppTheme.teal700)),
           ),

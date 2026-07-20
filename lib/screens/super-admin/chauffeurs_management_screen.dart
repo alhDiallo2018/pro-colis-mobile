@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/user.dart';
 import '../../services/api_service.dart';
@@ -104,7 +104,7 @@ class _ChauffeursManagementScreenState
       appBar: AppBar(
         title: Text(
           'Chauffeurs${total > 0 ? ' · $total' : ''}',
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             fontWeight: FontWeight.w800,
             fontSize: 18,
             color: AppTheme.textPrimary,
@@ -141,7 +141,7 @@ class _ChauffeursManagementScreenState
                 filled: true,
                 fillColor: AppTheme.slate50,
               ),
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w500,
               ),
@@ -219,7 +219,7 @@ class _ChauffeursManagementScreenState
                   driver.fullName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -234,7 +234,7 @@ class _ChauffeursManagementScreenState
                           location,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
+                          style: AppFonts.manrope(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w500,
                             color: AppTheme.slate500,
@@ -243,7 +243,7 @@ class _ChauffeursManagementScreenState
                       ),
                       Text(
                         '  ·  ',
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           fontSize: 12.5,
                           color: AppTheme.slate400,
                         ),
@@ -278,7 +278,7 @@ class _ChauffeursManagementScreenState
               const SizedBox(height: 2),
               Text(
                 '${driver.completedDeliveries ?? 0} livraisons',
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: AppTheme.slate500,

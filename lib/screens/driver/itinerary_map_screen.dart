@@ -197,7 +197,7 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
           color: textColor,
           fontSize: 26,
           fontWeight: FontWeight.w800,
-          fontFamily: 'Poppins',
+          fontFamily: 'PlusJakartaSans',
         ),
       ),
       textDirection: ui.TextDirection.ltr,

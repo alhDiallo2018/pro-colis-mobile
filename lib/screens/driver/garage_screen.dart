@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/garage.dart';
@@ -187,7 +187,7 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
                     fontSize: 20,
                     color: AppTheme.textPrimary,
@@ -196,7 +196,7 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
                 const SizedBox(height: 3),
                 Text(
                   locationText,
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.slate500,

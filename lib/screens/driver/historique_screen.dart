@@ -5,7 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/parcel.dart';
 import '../../services/api_service.dart';
@@ -129,7 +129,7 @@ class _HistoryRow extends StatelessWidget {
                     Flexible(
                       child: Text(from,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                               fontSize: 14.5, fontWeight: FontWeight.w700)),
                     ),
                     const Padding(
@@ -140,7 +140,7 @@ class _HistoryRow extends StatelessWidget {
                     Flexible(
                       child: Text(to,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                               fontSize: 14.5, fontWeight: FontWeight.w700)),
                     ),
                   ],
@@ -154,7 +154,7 @@ class _HistoryRow extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color: AppTheme.slate500)),
                     Text('  ·  ${_formatDate(date)}',
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                             fontSize: 12, color: AppTheme.slate500)),
                   ],
                 ),
@@ -180,7 +180,7 @@ class _HistoryRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(parcel.status.label.toUpperCase(),
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 9.5,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,

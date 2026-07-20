@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../models/parcel.dart';
 import '../theme/app_theme.dart';
 
@@ -37,7 +37,7 @@ class StatusBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             _statusLabel(status),
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontSize: fontSize,
               fontWeight: FontWeight.w700,
               color: colors.foreground,

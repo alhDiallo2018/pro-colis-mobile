@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -99,16 +99,16 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(user['fullName']?.toString() ?? '', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-                Text(user['phone']?.toString() ?? '', style: GoogleFonts.manrope(fontSize: 14, color: AppTheme.textSecondary)),
-                if (user['garageName'] != null) Text(user['garageName'].toString(), style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.primary)),
+                Text(user['fullName']?.toString() ?? '', style: AppFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                Text(user['phone']?.toString() ?? '', style: AppFonts.manrope(fontSize: 14, color: AppTheme.textSecondary)),
+                if (user['garageName'] != null) Text(user['garageName'].toString(), style: AppFonts.manrope(fontSize: 13, color: AppTheme.primary)),
               ],
             ),
           ),
           const SizedBox(height: 16),
         ],
         if (score != null) ...[
-          Text('Score', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+          Text('Score', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           PcCard(
             padding: const EdgeInsets.all(16),
@@ -143,9 +143,9 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen>
               children: [
                 Icon(Icons.star, color: AppTheme.amber500, size: 22),
                 const SizedBox(width: 10),
-                Text('${(user['rating'] as num).toStringAsFixed(1)} / 5', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                Text('${(user['rating'] as num).toStringAsFixed(1)} / 5', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                 const Spacer(),
-                Text('${user['totalDeliveries'] ?? 0} livraisons', style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
+                Text('${user['totalDeliveries'] ?? 0} livraisons', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
               ],
             ),
           ),
@@ -165,7 +165,7 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen>
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              Text('Solde wallet', style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
+              Text('Solde wallet', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
               Text(_fcfa(wallet['balance']), style: AppTheme.mono(fontSize: 28, fontWeight: FontWeight.w800, color: AppTheme.successColor)),
               const SizedBox(height: 16),
               Row(
@@ -196,8 +196,8 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen>
   Widget _miniStat(String label, String value, Color color) {
     return Column(
       children: [
-        Text(value, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
-        Text(label, style: GoogleFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
+        Text(value, style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+        Text(label, style: AppFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
       ],
     );
   }

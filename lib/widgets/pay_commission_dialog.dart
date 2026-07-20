@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api_service.dart';
@@ -152,7 +152,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                       const SizedBox(width: 12),
                       Text(
                         'Payer la commission',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: AppFonts.plusJakartaSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.textPrimary,
@@ -175,7 +175,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                       children: [
                         Text(
                           'DÉTAIL COMMISSION',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: AppTheme.amber600,
@@ -194,7 +194,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
 
                   Text(
                     'Comment souhaitez-vous payer la commission ?',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
@@ -246,7 +246,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                               const SizedBox(width: 6),
                               Text(
                                 'Portefeuille + Points',
-                                style: GoogleFonts.plusJakartaSans(
+                                style: AppFonts.plusJakartaSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: AppTheme.teal700,
@@ -319,7 +319,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
+          Text(label, style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
           Text(value, style: AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w700, color: valueColor)),
         ],
       ),

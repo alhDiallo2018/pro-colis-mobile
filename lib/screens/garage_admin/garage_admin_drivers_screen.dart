@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/widgets/app_logo.dart';
 
 import '../../models/user.dart';
@@ -62,7 +62,7 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
             const SizedBox(width: 8),
             Text(
               'SENDPROCOLIS',
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontWeight: FontWeight.w800,
                 fontSize: 18,
                 color: AppTheme.textPrimary,
@@ -224,7 +224,7 @@ class _DriverCard extends StatelessWidget {
           ),
           title: Text(
             driver.fullName,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontWeight: FontWeight.w700,
               fontSize: 14.5,
               color: AppTheme.textPrimary,
@@ -282,7 +282,7 @@ class _DriverCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Informations du chauffeur',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.teal600,
@@ -291,7 +291,7 @@ class _DriverCard extends StatelessWidget {
                   ),
                   Text(
                     '$deliveries livraisons',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.slate500,
@@ -388,7 +388,7 @@ class _DriverCard extends StatelessWidget {
             width: 88,
             child: Text(
               label,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 12,
                 color: AppTheme.slate500,
                 fontWeight: FontWeight.w600,
@@ -404,7 +404,7 @@ class _DriverCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: AppTheme.slate700,
                     )
-                  : GoogleFonts.manrope(
+                  : AppFonts.manrope(
                       fontSize: 13,
                       color: AppTheme.slate700,
                       fontWeight: FontWeight.w500,

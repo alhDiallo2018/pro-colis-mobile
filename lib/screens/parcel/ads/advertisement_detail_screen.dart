@@ -1,7 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -236,7 +236,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               Expanded(
                 child: Text(
                   'Detail de l\'annonce',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -313,7 +313,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               children: [
                 Text(
                   driverName,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.textPrimary,
@@ -323,7 +323,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                   const SizedBox(height: 2),
                   Text(
                     garageName,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 13,
                       color: AppTheme.slate500,
                       fontWeight: FontWeight.w600,
@@ -369,7 +369,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                   const SizedBox(width: 3),
                   Text(
                     rating.toStringAsFixed(1),
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.amber700,
@@ -454,7 +454,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
             const SizedBox(height: 14),
             Text(
               'Description',
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.slate500,
@@ -470,7 +470,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               ),
               child: Text(
                 description,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   fontSize: 14,
                   height: 1.5,
                   color: AppTheme.slate700,
@@ -486,7 +486,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'Audio joint',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.slate500,
@@ -524,7 +524,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
           const SizedBox(width: 10),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppTheme.slate500,
@@ -536,7 +536,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               value,
               textAlign: TextAlign.right,
               style: valueStyle ??
-                  GoogleFonts.plusJakartaSans(
+                  AppFonts.plusJakartaSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -601,7 +601,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                   children: [
                     Text(
                       'Votre offre',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
@@ -633,7 +633,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               ),
               child: Text(
                 message,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   fontSize: 13,
                   height: 1.45,
                   color: AppTheme.slate700,
@@ -773,7 +773,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                         const SizedBox(height: 20),
                         Text(
                           'Votre offre',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.textPrimary,
@@ -783,7 +783,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                         if (_userParcels.isNotEmpty) ...[
                           Text(
                             'Selectionner un colis',
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.slate500,
@@ -1061,7 +1061,7 @@ class _HeroPlace extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: GoogleFonts.manrope(
+          style: AppFonts.manrope(
             fontSize: 10.5,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.6,
@@ -1074,7 +1074,7 @@ class _HeroPlace extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           textAlign: alignEnd ? TextAlign.end : TextAlign.start,
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             fontSize: 16,
             fontWeight: FontWeight.w800,
             color: Colors.white,

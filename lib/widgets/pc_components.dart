@@ -5,7 +5,7 @@
 // Préfixe `Pc` pour cohabiter avec les widgets existants pendant la refonte.
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../theme/app_theme.dart';
 
@@ -43,7 +43,7 @@ TextStyle _display({
   double? letterSpacing,
   double? height,
 }) =>
-    GoogleFonts.plusJakartaSans(
+    AppFonts.plusJakartaSans(
       fontSize: size,
       fontWeight: weight,
       color: color,
@@ -57,7 +57,7 @@ TextStyle _body({
   Color color = AppTheme.slate600,
   double? height,
 }) =>
-    GoogleFonts.manrope(
+    AppFonts.manrope(
       fontSize: size,
       fontWeight: weight,
       color: color,

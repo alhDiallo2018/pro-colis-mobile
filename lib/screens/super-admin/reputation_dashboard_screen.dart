@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -57,7 +57,7 @@ class _ReputationDashboardScreenState extends ConsumerState<ReputationDashboardS
                       if (_dash != null) _statsGrid(),
                       const SizedBox(height: 20),
                       if (top5.isNotEmpty) ...[
-                        Text('Top 5 · Classement réputation', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                        Text('Top 5 · Classement réputation', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                         const SizedBox(height: 10),
                         ...List.generate(top5.length, (i) => _rankTile(top5[i], i)),
                       ],
@@ -93,8 +93,8 @@ class _ReputationDashboardScreenState extends ConsumerState<ReputationDashboardS
           children: [
             Icon(icon, size: 20, color: color),
             const SizedBox(height: 8),
-            Text(value, style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-            Text(label, style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
+            Text(value, style: AppFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+            Text(label, style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
           ],
         ),
       ),
@@ -116,7 +116,7 @@ class _ReputationDashboardScreenState extends ConsumerState<ReputationDashboardS
           children: [
             SizedBox(
               width: 28,
-              child: Text('#$rank', style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w800, color: rankColor)),
+              child: Text('#$rank', style: AppFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w800, color: rankColor)),
             ),
             CircleAvatar(
               radius: 16,
@@ -131,8 +131,8 @@ class _ReputationDashboardScreenState extends ConsumerState<ReputationDashboardS
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(r['fullName']?.toString() ?? '', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                  Text(r['garageName']?.toString() ?? '—', style: GoogleFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
+                  Text(r['fullName']?.toString() ?? '', style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                  Text(r['garageName']?.toString() ?? '—', style: AppFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
                 ],
               ),
             ),

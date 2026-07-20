@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../theme/app_theme.dart';
 
 class AProposPage extends StatelessWidget {
@@ -42,7 +42,7 @@ class AProposPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 RichText(
                   text: TextSpan(
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontWeight: FontWeight.w800,
                       fontSize: 24,
                       letterSpacing: -0.3,
@@ -60,7 +60,7 @@ class AProposPage extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Version 1.0.0',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 13,
                     color: AppTheme.slate400,
                   ),
@@ -142,7 +142,7 @@ class AProposPage extends StatelessWidget {
           Center(
             child: Text(
               '© ${DateTime.now().year} PRO COLIS — Tous droits réservés.',
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 12,
                 color: AppTheme.slate400,
               ),
@@ -182,7 +182,7 @@ class AProposPage extends StatelessWidget {
               children: [
                 Text(
                   '$title',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -191,7 +191,7 @@ class AProposPage extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   text,
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 13,
                     color: AppTheme.textSecondary,
                     height: 1.5,
@@ -222,7 +222,7 @@ class AProposPage extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -231,7 +231,7 @@ class AProposPage extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   text,
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 13,
                     color: AppTheme.textSecondary,
                     height: 1.5,
@@ -250,7 +250,7 @@ Widget _sectionTitle(String text) => Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Text(
         text,
-        style: GoogleFonts.plusJakartaSans(
+        style: AppFonts.plusJakartaSans(
           fontSize: 18,
           fontWeight: FontWeight.w800,
           color: AppTheme.textPrimary,
@@ -262,7 +262,7 @@ Widget _bodyText(String text) => Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style: GoogleFonts.manrope(
+        style: AppFonts.manrope(
           fontSize: 14,
           color: AppTheme.textSecondary,
           height: 1.6,

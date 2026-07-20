@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/models/garage.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/models/user.dart';
@@ -375,7 +375,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                       children: [
                         Text(
                           'Super Admin',
-                          style: GoogleFonts.manrope(
+                          style: AppFonts.manrope(
                             color: Colors.white.withAlpha(220),
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -385,7 +385,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                           user?.fullName ?? 'Administration',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                             color: Colors.white,
                             fontSize: 21,
                             fontWeight: FontWeight.w800,
@@ -431,7 +431,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 'Gérez l\'ensemble de la plateforme',
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   color: Colors.white.withAlpha(220),
                   fontSize: 13.5,
                   fontWeight: FontWeight.w500,
@@ -542,7 +542,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             children: [
               Text(
                 'Volume de colis · 12 mois',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
@@ -821,7 +821,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             children: [
               Text(
                 'Chauffeurs',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
@@ -995,7 +995,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
         ),
         child: Text(
           parcel.status.label,
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             fontSize: 11.5,
             fontWeight: FontWeight.w700,
             color: colors.foreground,
@@ -1071,7 +1071,7 @@ class _StatusMini extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: AppTheme.slate500,
@@ -1131,7 +1131,7 @@ class _ActionCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             label,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               color: AppTheme.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: 14,

@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -2142,7 +2142,7 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: GoogleFonts.manrope(fontSize: 12.5, color: AppTheme.textSecondary)),
+        Text(label, style: AppFonts.manrope(fontSize: 12.5, color: AppTheme.textSecondary)),
         Text(value, style: AppTheme.mono(fontSize: 12.5, fontWeight: FontWeight.w700, color: valueColor)),
       ],
     );
@@ -2190,7 +2190,7 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
               const SizedBox(width: 12),
               Text(
                 'Paiement',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 16, fontWeight: FontWeight.w800,
                   color: AppTheme.textPrimary,
                 ),
@@ -2200,7 +2200,7 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
           const SizedBox(height: 10),
           Text(
             'Paiement de ${_fcfa(widget.amount)} pour le colis ${widget.trackingNumber}',
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 13, fontWeight: FontWeight.w500,
               color: AppTheme.textSecondary,
             ),

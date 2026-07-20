@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
@@ -75,7 +75,7 @@ class _HelpScreenState extends State<HelpScreen> {
           TextField(
             controller: _searchController,
             onChanged: (value) => setState(() => _query = value.trim()),
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: AppTheme.textPrimary,
@@ -112,7 +112,7 @@ class _HelpScreenState extends State<HelpScreen> {
                     padding: const EdgeInsets.all(18),
                     child: Text(
                       'Aucun résultat pour cette recherche.',
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                         color: AppTheme.slate500,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -154,7 +154,7 @@ class _HelpScreenState extends State<HelpScreen> {
                     children: [
                       Text(
                         'Besoin d’aide ?',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: AppFonts.plusJakartaSans(
                           color: AppTheme.textPrimary,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -163,7 +163,7 @@ class _HelpScreenState extends State<HelpScreen> {
                       const SizedBox(height: 2),
                       Text(
                         'Notre équipe répond 7j/7',
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           color: AppTheme.slate600,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -275,7 +275,7 @@ class _HelpTopicCard extends StatelessWidget {
             topic.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               color: AppTheme.textPrimary,
               fontSize: 13.5,
               height: 1.25,
@@ -320,7 +320,7 @@ class _FaqTileState extends State<_FaqTile> {
                 Expanded(
                   child: Text(
                     widget.item.question,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       color: AppTheme.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -348,7 +348,7 @@ class _FaqTileState extends State<_FaqTile> {
               width: double.infinity,
               child: Text(
                 widget.item.answer,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   color: AppTheme.slate600,
                   fontSize: 13.5,
                   height: 1.55,

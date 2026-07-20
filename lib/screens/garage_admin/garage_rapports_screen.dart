@@ -4,7 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/parcel.dart';
@@ -318,7 +318,7 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'Aucune donnée.',
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   fontSize: 13.5,
                   color: AppTheme.slate500,
                 ),
@@ -349,7 +349,7 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
             status.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppTheme.slate700,
@@ -420,7 +420,7 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
                 Flexible(
                   child: Text(
                     title,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 15.5,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,

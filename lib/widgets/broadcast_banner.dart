@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/broadcast.dart';
 import '../providers/broadcast_provider.dart';
@@ -96,7 +96,7 @@ class _BroadcastBannerState extends ConsumerState<BroadcastBanner> {
                         broadcast.message,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           fontSize: 12,
                           color: AppTheme.textPrimary,
                           fontWeight: FontWeight.w500,
@@ -107,7 +107,7 @@ class _BroadcastBannerState extends ConsumerState<BroadcastBanner> {
                 const SizedBox(width: 8),
                 Text(
                   '${_currentIndex + 1}/${active.length}',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 11,
                     color: AppTheme.slate400,
                   ),
@@ -197,7 +197,7 @@ class _MarqueeTextState extends State<_MarqueeText> with SingleTickerProviderSta
           widget.message,
           maxLines: 1,
           overflow: TextOverflow.visible,
-          style: GoogleFonts.manrope(
+          style: AppFonts.manrope(
             fontSize: 12,
             color: AppTheme.textPrimary,
             fontWeight: FontWeight.w500,

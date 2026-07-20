@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/zone.dart';
 import '../../services/api_service.dart';
@@ -314,7 +314,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
                                     const SizedBox(width: 8),
                                     Text(entry.key, style: AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
                                     const SizedBox(width: 8),
-                                    Text('· ${entry.value.length}', style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.slate400)),
+                                    Text('· ${entry.value.length}', style: AppFonts.manrope(fontSize: 12, color: AppTheme.slate400)),
                                   ],
                                 ),
                               ),

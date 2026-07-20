@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../data/country_data.dart';
 import '../../providers/auth_provider.dart';
@@ -114,7 +114,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 const SizedBox(height: 18),
                 Text(
                   'Créer un compte',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -124,7 +124,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 const SizedBox(height: 6),
                 Text(
                   'Quelques informations et vous êtes prêt.',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     color: Colors.white.withOpacity( 0.88),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -144,7 +144,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   // Rôle
                   Text(
                     'Je suis…',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.slate600,
@@ -207,7 +207,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           children: [
                             Text(
                               'Téléphone',
-                              style: GoogleFonts.plusJakartaSans(
+                              style: AppFonts.plusJakartaSans(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: AppTheme.slate600,
@@ -286,7 +286,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(
                               'J\'accepte les conditions de transport et la politique de confidentialité.',
-                              style: GoogleFonts.manrope(
+                              style: AppFonts.manrope(
                                 fontSize: 12.5,
                                 height: 1.4,
                                 color: AppTheme.slate500,
@@ -315,7 +315,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       onPressed: () => Navigator.pop(context),
                       child: RichText(
                         text: TextSpan(
-                          style: GoogleFonts.manrope(
+                          style: AppFonts.manrope(
                             fontSize: 14,
                             color: AppTheme.slate500,
                           ),
@@ -323,7 +323,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             const TextSpan(text: 'Déjà un compte ? '),
                             TextSpan(
                               text: 'Se connecter',
-                              style: GoogleFonts.plusJakartaSans(
+                              style: AppFonts.plusJakartaSans(
                                 color: AppTheme.primary,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -416,7 +416,7 @@ class _RoleTile extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: selected ? AppTheme.teal700 : AppTheme.slate600,

@@ -7,7 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -376,7 +376,7 @@ class _FreeParcelDetailsScreenState
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: AppFonts.plusJakartaSans(
           color: AppTheme.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w800,
@@ -478,7 +478,7 @@ class _PoolHeader extends StatelessWidget {
               children: [
                 Text(
                   'Colis à prendre',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 22,
                     height: 1.05,
                     fontWeight: FontWeight.w800,
@@ -488,7 +488,7 @@ class _PoolHeader extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Libre service chauffeur',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textSecondary,
@@ -585,7 +585,7 @@ class _FreeParcelItem extends StatelessWidget {
                 bidLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                   color: AppTheme.textSecondary,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -721,7 +721,7 @@ class _PoolFilterChip extends StatelessWidget {
             ],
             Text(
               label,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 color: selected ? Colors.white : AppTheme.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -754,7 +754,7 @@ class _OfferPriceField extends StatelessWidget {
       children: [
         Text(
           'Votre prix',
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             color: AppTheme.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -790,7 +790,7 @@ class _OfferPriceField extends StatelessWidget {
               ),
               Text(
                 'FCFA',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   color: AppTheme.textSecondary,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -825,7 +825,7 @@ class _OfferMessageField extends StatelessWidget {
       children: [
         Text(
           'Message au client (optionnel)',
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             color: AppTheme.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -837,14 +837,14 @@ class _OfferMessageField extends StatelessWidget {
           minLines: 4,
           maxLines: 4,
           maxLength: 160,
-          style: GoogleFonts.manrope(fontSize: 15, color: AppTheme.slate700),
+          style: AppFonts.manrope(fontSize: 15, color: AppTheme.slate700),
           decoration: InputDecoration(
             hintText: 'Ex : Je pars cet après-midi, livraison ce soir.',
             hintStyle:
-                GoogleFonts.manrope(color: AppTheme.slate400, fontSize: 15),
+                AppFonts.manrope(color: AppTheme.slate400, fontSize: 15),
             filled: true,
             fillColor: AppTheme.cardColor,
-            counterStyle: GoogleFonts.manrope(
+            counterStyle: AppFonts.manrope(
               color: AppTheme.slate400,
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -897,7 +897,7 @@ class _OfferVoiceField extends StatelessWidget {
       children: [
         Text(
           'Note vocale (optionnel)',
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             color: AppTheme.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -970,7 +970,7 @@ class _OfferVoiceField extends StatelessWidget {
                       isRecording
                           ? 'Enregistrement... touchez pour arrêter'
                           : 'Enregistrer une note vocale',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         color: isRecording
                             ? AppTheme.red500
                             : AppTheme.textPrimary,
@@ -1041,7 +1041,7 @@ class _OfferSuccessScreen extends StatelessWidget {
                 const SizedBox(height: 22),
                 Text(
                   'Offre envoyée !',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     color: AppTheme.textPrimary,
                     fontSize: 23,
                     fontWeight: FontWeight.w800,
@@ -1064,7 +1064,7 @@ class _OfferSuccessScreen extends StatelessWidget {
                     ],
                   ),
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     color: AppTheme.textSecondary,
                     fontSize: 15,
                     height: 1.4,

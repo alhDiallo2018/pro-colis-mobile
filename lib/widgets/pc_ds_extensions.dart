@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../theme/app_theme.dart';
 
 class PcStepper extends StatelessWidget {
@@ -49,7 +49,7 @@ class PcStepper extends StatelessWidget {
                           ? const Icon(Icons.check, size: 14, color: Colors.white)
                           : Text(
                               '${index + 1}',
-                              style: GoogleFonts.manrope(
+                              style: AppFonts.manrope(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: isActive ? Colors.white : AppTheme.slate400,
@@ -60,7 +60,7 @@ class PcStepper extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         label,
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           fontSize: 10,
                           color: isActive ? AppTheme.textPrimary : AppTheme.slate400,
                         ),
@@ -123,7 +123,7 @@ class PcTabs extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   tabs[i],
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: selected ? AppTheme.textPrimary : AppTheme.slate500,
@@ -210,7 +210,7 @@ class _PcPanelState extends State<PcPanel> with SingleTickerProviderStateMixin {
                   Expanded(
                     child: Text(
                       widget.title,
-                      style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                      style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                     ),
                   ),
                   RotationTransition(

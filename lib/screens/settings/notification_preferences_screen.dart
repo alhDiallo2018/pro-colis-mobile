@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../services/notification_engine.dart';
 import '../../theme/app_theme.dart';
@@ -85,7 +85,7 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
                       Expanded(
                         child: Text(
                           'Gérez vos préférences de notification pour chaque type d\'événement.',
-                          style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.teal700),
+                          style: AppFonts.manrope(fontSize: 13, color: AppTheme.teal700),
                         ),
                       ),
                     ],
@@ -107,7 +107,7 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
                         children: [
                           Text(
                             pref.eventType.label,
-                            style: GoogleFonts.plusJakartaSans(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                            style: AppFonts.plusJakartaSans(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                           ),
                           const SizedBox(height: 10),
                           Row(
@@ -182,7 +182,7 @@ class _ChannelChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: enabled ? AppTheme.teal700 : AppTheme.slate500,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -126,7 +126,7 @@ class _WalletDetailScreenState extends ConsumerState<WalletDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      Text('Historique des transactions', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                      Text('Historique des transactions', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                       const SizedBox(height: 10),
                       if (_transactions.isEmpty)
                         const EmptyState(icon: Icons.receipt_long, title: 'Aucune transaction')
@@ -148,7 +148,7 @@ class _WalletDetailScreenState extends ConsumerState<WalletDetailScreen> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Text('Solde actuel', style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
+          Text('Solde actuel', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
           const SizedBox(height: 4),
           Text(_fcfa(balance), style: AppTheme.mono(fontSize: 32, fontWeight: FontWeight.w800, color: balance >= 0 ? AppTheme.successColor : AppTheme.errorColor)),
           const SizedBox(height: 16),
@@ -167,8 +167,8 @@ class _WalletDetailScreenState extends ConsumerState<WalletDetailScreen> {
   Widget _miniStat(String label, String value, Color color) {
     return Column(
       children: [
-        Text(value, style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: color)),
-        Text(label, style: GoogleFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
+        Text(value, style: AppFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: color)),
+        Text(label, style: AppFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
       ],
     );
   }
@@ -198,9 +198,9 @@ class _WalletDetailScreenState extends ConsumerState<WalletDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(type.toUpperCase(), style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                  Text(type.toUpperCase(), style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                   if (tx['description'] != null)
-                    Text(tx['description'].toString(), style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
+                    Text(tx['description'].toString(), style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
                 ],
               ),
             ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/screens/super-admin/garage_drivers_screen.dart';
 
 import '../../data/country_data.dart';
@@ -213,7 +213,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
                 color: AppTheme.red400, size: 28),
             const SizedBox(width: 12),
             Text('Supprimer la zone',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontWeight: FontWeight.w800,
                   fontSize: 18,
                   color: AppTheme.textPrimary,
@@ -222,7 +222,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
         ),
         content: Text(
           'Voulez-vous vraiment supprimer la zone "${garage.name}" ? Elle ne sera plus proposée dans les trajets.',
-          style: GoogleFonts.manrope(color: AppTheme.slate600),
+          style: AppFonts.manrope(color: AppTheme.slate600),
         ),
         actions: [
           PcButton(
@@ -326,7 +326,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
             children: [
               Text(
                 'Zones',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
@@ -345,7 +345,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
                 const SizedBox(width: 8),
                 Text(
                   '·  ${countries.length} pays',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.slate400,
@@ -474,14 +474,14 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
       child: TextField(
         controller: _searchController,
         onChanged: (v) => setState(() => _searchQuery = v),
-        style: GoogleFonts.manrope(
+        style: AppFonts.manrope(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: AppTheme.textPrimary,
         ),
         decoration: InputDecoration(
           hintText: 'Rechercher une zone, ville, pays…',
-          hintStyle: GoogleFonts.manrope(
+          hintStyle: AppFonts.manrope(
             fontSize: 14,
             color: AppTheme.slate400,
           ),
@@ -570,7 +570,7 @@ class _FilterChip extends StatelessWidget {
             ],
             Text(
               label,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: selected ? AppTheme.primary : AppTheme.slate600,
@@ -603,7 +603,7 @@ class _CountryHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             country.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontSize: 12.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
@@ -698,7 +698,7 @@ class _GarageCardState extends State<_GarageCard> {
                             garage.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.textPrimary,
@@ -709,7 +709,7 @@ class _GarageCardState extends State<_GarageCard> {
                             location.isEmpty ? '—' : location,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
+                            style: AppFonts.manrope(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
                               color: AppTheme.slate500,
@@ -801,7 +801,7 @@ class _GarageCardState extends State<_GarageCard> {
               Expanded(
                 child: Text(
                   garage.isActive ? 'Zone active' : 'Zone inactive',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.slate600,
@@ -884,7 +884,7 @@ class _InfoRow extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 color: AppTheme.slate500,
                 fontWeight: FontWeight.w500,
                 fontSize: 13,
@@ -900,7 +900,7 @@ class _InfoRow extends StatelessWidget {
                       fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
                       color: valueColor ?? AppTheme.textPrimary,
                     )
-                  : GoogleFonts.manrope(
+                  : AppFonts.manrope(
                       fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
                       fontSize: 13,
                       color: valueColor ?? AppTheme.textPrimary,
@@ -1089,7 +1089,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
                 children: [
                   Text(
                     'Pays',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.slate400,
@@ -1099,7 +1099,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
                     _country,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
@@ -1327,7 +1327,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
                         children: [
                           Text(
                             'Zone active',
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.textPrimary,
@@ -1335,7 +1335,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
                           ),
                           Text(
                             'Les zones inactives n\'apparaissent plus dans les sélecteurs de trajet.',
-                            style: GoogleFonts.manrope(
+                            style: AppFonts.manrope(
                               fontSize: 12,
                               color: AppTheme.slate500,
                             ),

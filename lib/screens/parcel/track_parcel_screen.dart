@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
 import 'package:procolis/widgets/app_logo.dart';
@@ -1089,7 +1089,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           Expanded(
             child: Text(
               'Suivi colis',
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontSize: 24,
                 height: 1,
                 fontWeight: FontWeight.w800,
@@ -1134,7 +1134,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         children: [
           Text(
             'Suivre un colis',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontSize: 19,
               fontWeight: FontWeight.w800,
               color: AppTheme.textPrimary,
@@ -1143,7 +1143,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           const SizedBox(height: 4),
           Text(
             'Entrez le numéro de suivi (ex. PC-7F3K-2291).',
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 13.5,
               fontWeight: FontWeight.w500,
               color: AppTheme.slate500,
@@ -1238,7 +1238,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       label: Text(
         tracking,
         style:
-            GoogleFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w700),
+            AppFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w700),
       ),
       onPressed: () => _trackParcel(trackingNumber: tracking),
       side: const BorderSide(color: AppTheme.slate200),
@@ -1270,7 +1270,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 child: Text(
                   parcel.trackingNumber,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.robotoMono(
+                  style: AppFonts.robotoMono(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -1368,7 +1368,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               children: [
                 Text(
                   parcel.driverName ?? 'Chauffeur',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.textPrimary,
@@ -1461,7 +1461,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         children: [
           Text(
             'Historique',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppTheme.textPrimary,
@@ -2306,7 +2306,7 @@ class _DesignStatusBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             status.label.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               color: colors.foreground,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
@@ -2351,7 +2351,7 @@ class _DesignRouteEnd extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: alignRight ? TextAlign.right : TextAlign.left,
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             color: Colors.white,
             fontSize: 18,
             height: 1,
@@ -2388,7 +2388,7 @@ class _DesignHeroMeta extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.robotoMono(
+            style: AppFonts.robotoMono(
               color: Colors.white,
               fontSize: 14,
               fontWeight: FontWeight.w800,
@@ -2442,7 +2442,7 @@ class _DesignAvatar extends StatelessWidget {
           backgroundColor: AppTheme.teal50,
           child: Text(
             initials.isEmpty ? 'CH' : initials,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               color: AppTheme.teal700,
               fontSize: 14,
               fontWeight: FontWeight.w800,
@@ -2505,7 +2505,7 @@ class _DesignInfoRow extends StatelessWidget {
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: (mono ? GoogleFonts.robotoMono() : GoogleFonts.manrope())
+              style: (mono ? AppFonts.robotoMono() : AppFonts.manrope())
                   .copyWith(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
@@ -2564,7 +2564,7 @@ class _DesignTimelineItem extends StatelessWidget {
             padding: const EdgeInsets.only(top: 5),
             child: Text(
               title,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 color:
                     completed ? AppTheme.textPrimary : AppTheme.textSecondary,
                 fontSize: 14,
@@ -2836,7 +2836,7 @@ class _ResultStatusBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             status.label.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               color: colors.foreground,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
@@ -2869,7 +2869,7 @@ class _ResultRouteField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             color: AppTheme.slate400,
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -2882,7 +2882,7 @@ class _ResultRouteField extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: alignRight ? TextAlign.right : TextAlign.left,
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             color: AppTheme.textPrimary,
             fontSize: 16,
             height: 1,

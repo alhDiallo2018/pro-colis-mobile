@@ -4,7 +4,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/parcel.dart';
 import '../../models/user.dart';
@@ -135,7 +135,7 @@ class _GarageAssignationsScreenState
       appBar: AppBar(
         backgroundColor: AppTheme.cardColor,
         title: Text('Assignations',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
                 fontWeight: FontWeight.w800, fontSize: 18)),
         actions: [
           if (_pendingParcels.isNotEmpty)
@@ -202,7 +202,7 @@ class _GarageAssignationsScreenState
                                 child: Row(
                                   children: [
                                     Text('À assigner',
-                                        style: GoogleFonts.plusJakartaSans(
+                                        style: AppFonts.plusJakartaSans(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w700,
                                             color: AppTheme.textPrimary)),
@@ -253,7 +253,7 @@ class _GarageAssignationsScreenState
                                 : parcel.departureGarageName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w700,
                                 color: AppTheme.textPrimary),
@@ -269,7 +269,7 @@ class _GarageAssignationsScreenState
                             parcel.arrivalGarageName ?? '—',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: AppFonts.plusJakartaSans(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w700,
                                 color: AppTheme.textPrimary),
@@ -315,7 +315,7 @@ class _GarageAssignationsScreenState
                     parcel.driverName ?? 'Assigné',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.green700),
@@ -336,7 +336,7 @@ class _GarageAssignationsScreenState
                       _drivers.isEmpty
                           ? 'Aucun chauffeur'
                           : 'Choisir un chauffeur',
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                           fontSize: 13, color: AppTheme.slate400),
                     ),
                     icon: const Icon(Icons.expand_more_rounded,
@@ -376,14 +376,14 @@ class _GarageAssignationsScreenState
                               child: Text(
                                 d.fullName,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.plusJakartaSans(
+                                style: AppFonts.plusJakartaSans(
                                     fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                             ),
                             const SizedBox(width: 6),
                             Text(
                               _driverStatusLabel(st),
-                              style: GoogleFonts.manrope(
+                              style: AppFonts.manrope(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: _driverStatusColor(st)),
@@ -599,7 +599,7 @@ class _GarageAssignationsScreenState
         const SizedBox(width: 6),
         Text(
           text,
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
               color: AppTheme.textPrimary,
               fontSize: 12.5,
               fontWeight: FontWeight.w800),
@@ -628,7 +628,7 @@ class _GarageAssignationsScreenState
               Expanded(
                 child: Text(
                   label,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                       color: AppTheme.textPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w600),
@@ -684,7 +684,7 @@ class _GarageAssignationsScreenState
           ),
           const SizedBox(width: 6),
           Text(status.label.toUpperCase(),
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.4,

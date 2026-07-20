@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../../services/api_service.dart';
 import '../../../theme/app_theme.dart';
@@ -214,7 +214,7 @@ class _NotificationTile extends StatelessWidget {
                       notification.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: AppFonts.plusJakartaSans(
                         color: AppTheme.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -225,7 +225,7 @@ class _NotificationTile extends StatelessWidget {
                       notification.body,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: AppFonts.manrope(
                         color: AppTheme.slate500,
                         fontSize: 13,
                         height: 1.35,
@@ -240,7 +240,7 @@ class _NotificationTile extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 1),
                 child: Text(
                   notification.when,
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     color: AppTheme.slate400,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,

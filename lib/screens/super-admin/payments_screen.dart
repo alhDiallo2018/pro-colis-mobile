@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -293,14 +293,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         p['user']?['fullName']?.toString() ??
                             p['userName']?.toString() ??
                             'Inconnu',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: AppFonts.plusJakartaSans(
                             fontSize: 14, fontWeight: FontWeight.w700,
                             color: AppTheme.textPrimary),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${p['method']?.toString() ?? '-'} · ${_formatDate(p['createdAt']?.toString())}',
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                             fontSize: 12, color: AppTheme.textSecondary),
                       ),
                     ],
@@ -359,7 +359,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           const SizedBox(width: 14),
           Text(
             'Page $_page / $_totalPages',
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               fontSize: 13, fontWeight: FontWeight.w600,
               color: AppTheme.textSecondary,
             ),

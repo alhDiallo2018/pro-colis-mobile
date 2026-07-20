@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
@@ -276,7 +276,7 @@ class _DriverParametresScreenState
                     children: [
                       Text(
                         'Votre statut détermine si vous recevez de nouvelles missions.',
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           fontSize: 13,
                           color: AppTheme.slate500,
                           height: 1.4,
@@ -486,7 +486,7 @@ class _DriverParametresScreenState
                   user.fullName.isNotEmpty ? user.fullName : 'Chauffeur',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.textPrimary,
@@ -520,7 +520,7 @@ class _DriverParametresScreenState
                     user.garageName!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 13,
                       color: AppTheme.slate500,
                     ),
@@ -584,14 +584,14 @@ class _DriverParametresScreenState
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
                 color: AppTheme.slate500, fontSize: 14)),
         const SizedBox(width: 12),
         Flexible(
           child: Text(value,
               textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
                   fontSize: 14)),

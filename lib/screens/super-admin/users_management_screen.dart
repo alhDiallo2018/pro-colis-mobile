@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/user.dart';
 import '../../services/api_service.dart';
@@ -652,7 +652,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
       appBar: AppBar(
         title: Text(
           'Utilisateurs${total > 0 ? ' · $total' : ''}',
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             fontWeight: FontWeight.w800,
             fontSize: 18,
             color: AppTheme.textPrimary,
@@ -696,7 +696,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                     filled: true,
                     fillColor: AppTheme.slate50,
                   ),
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w500,
                   ),
@@ -800,7 +800,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                                     user.fullName,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.plusJakartaSans(
+                                    style: AppFonts.plusJakartaSans(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 14,
                                       color: AppTheme.textPrimary,
@@ -815,7 +815,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                                           user.email.isNotEmpty ? user.email : user.phone,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.manrope(
+                                          style: AppFonts.manrope(
                                             fontSize: 12,
                                             color: AppTheme.slate500,
                                           ),
@@ -986,7 +986,7 @@ class _FilterChip extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             label,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               color: selected ? Colors.white : AppTheme.slate600,
               fontWeight: FontWeight.w700,
               fontSize: 12.5,
@@ -1016,7 +1016,7 @@ class _InfoRow extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 color: AppTheme.slate500,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -1028,7 +1028,7 @@ class _InfoRow extends StatelessWidget {
               value,
               style: mono
                   ? AppTheme.mono(fontSize: 12, fontWeight: FontWeight.w600)
-                  : GoogleFonts.manrope(
+                  : AppFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,

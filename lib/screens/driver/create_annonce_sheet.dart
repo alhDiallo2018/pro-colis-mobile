@@ -5,7 +5,7 @@
 // Aligné sur le CreateAnnonceDialog du web, en flux 2 étapes.
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/garage.dart';
 import '../../services/api_service.dart';
@@ -220,10 +220,10 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Créer une annonce',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                         fontSize: 17, fontWeight: FontWeight.w800)),
                 Text('Étape ${_step + 1} sur 2',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         fontSize: 12.5, color: AppTheme.textSecondary)),
               ],
             ),
@@ -322,7 +322,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
           controller: _descriptionController,
           maxLines: 3,
           maxLength: 200,
-          style: GoogleFonts.manrope(fontSize: 14),
+          style: AppFonts.manrope(fontSize: 14),
           decoration: _inputDecoration(
               'Ex : véhicule climatisé, départ confirmé.', null),
         ),
@@ -343,7 +343,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
                 child: Text(
                   '${_garageById(_departureId)?.city ?? '—'}  →  ${_garageById(_arrivalId)?.city ?? '—'}'
                   '${_departureAt != null ? '  ·  ${_formatDate(_departureAt!)}' : ''}',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.teal700),
@@ -402,7 +402,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   Widget _fieldLabel(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text,
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.slate700)),
@@ -411,7 +411,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   InputDecoration _inputDecoration(String hint, IconData? icon) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppTheme.slate400),
+      hintStyle: AppFonts.manrope(fontSize: 14, color: AppTheme.slate400),
       prefixIcon:
           icon != null ? Icon(icon, size: 20, color: AppTheme.slate400) : null,
       filled: true,
@@ -454,7 +454,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
           _departureAt != null ? _formatDate(_departureAt!) : 'Choisir…',
           style: _departureAt != null
               ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
-              : GoogleFonts.manrope(fontSize: 14, color: AppTheme.slate400),
+              : AppFonts.manrope(fontSize: 14, color: AppTheme.slate400),
         ),
       ),
     );
@@ -476,7 +476,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(text,
-                style: GoogleFonts.manrope(
+                style: AppFonts.manrope(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: color)),

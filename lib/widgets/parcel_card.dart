@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../models/parcel.dart';
 import '../theme/app_theme.dart';
@@ -72,7 +72,7 @@ class ParcelCard extends StatelessWidget {
                   ),
                   if (parcel.isUrgent) ...[
                     Text('»',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: AppFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.red400)),
@@ -163,7 +163,7 @@ class _StatusPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
@@ -189,7 +189,7 @@ class _Meta extends StatelessWidget {
         Icon(icon, size: 16, color: AppTheme.slate400),
         const SizedBox(width: 5),
         Text(text,
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
                 color: AppTheme.slate500)),
@@ -225,7 +225,7 @@ class _RouteLabel extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             color: AppTheme.slate400,
             fontSize: 10,
             fontWeight: FontWeight.w700,
@@ -238,7 +238,7 @@ class _RouteLabel extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: alignEnd ? TextAlign.end : TextAlign.start,
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             color: AppTheme.textPrimary,
             fontSize: 15,
             fontWeight: FontWeight.w700,

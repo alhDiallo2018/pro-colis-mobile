@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/country_data.dart';
@@ -251,7 +251,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   Text(
                     'Connexion',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: AppFonts.plusJakartaSans(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.textPrimary,
@@ -261,7 +261,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 6),
                   Text(
                     'Entrez votre identifiant et votre code PIN.',
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                       fontSize: 14.5,
                       color: AppTheme.slate500,
                       height: 1.4,
@@ -384,7 +384,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(width: 6),
                       Text(
                         'Se souvenir de mon identifiant',
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w500,
                           color: AppTheme.slate500,
@@ -415,7 +415,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       },
                       child: RichText(
                         text: TextSpan(
-                          style: GoogleFonts.manrope(
+                          style: AppFonts.manrope(
                             fontSize: 14,
                             color: AppTheme.slate500,
                           ),
@@ -423,7 +423,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             const TextSpan(text: 'Pas encore de compte ? '),
                             TextSpan(
                               text: 'Créer un compte',
-                              style: GoogleFonts.manrope(
+                              style: AppFonts.manrope(
                                 color: AppTheme.primary,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -444,7 +444,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _fieldLabel(String text) => Text(
         text,
-        style: GoogleFonts.plusJakartaSans(
+        style: AppFonts.plusJakartaSans(
           fontSize: 13.5,
           fontWeight: FontWeight.w700,
           color: AppTheme.slate700,
@@ -485,7 +485,7 @@ class _AuthHero extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 'SENDPROCOLIS',
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   color: Colors.white,
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
@@ -497,7 +497,7 @@ class _AuthHero extends StatelessWidget {
           const SizedBox(height: 30),
           Text(
             'Pilotez vos colis\ndepuis votre mobile.',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
               color: Colors.white,
               fontSize: 26,
               fontWeight: FontWeight.w800,
@@ -508,7 +508,7 @@ class _AuthHero extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'Connectez-vous pour créer des colis, comparer les offres et suivre vos livraisons.',
-            style: GoogleFonts.manrope(
+            style: AppFonts.manrope(
               color: Colors.white.withOpacity( 0.9),
               fontSize: 14,
               height: 1.5,

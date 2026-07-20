@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -57,7 +57,7 @@ class _ClassementScreenState extends ConsumerState<ClassementScreen> {
                         children: [
                           if (top3.length >= 3) _podium(top3),
                           if (top3.length >= 3) const SizedBox(height: 20),
-                          Text('Classement complet', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                          Text('Classement complet', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                           const SizedBox(height: 10),
                           ..._rankings.map((r) {
                             final rank = r['rank'] as int? ?? 1;
@@ -78,13 +78,13 @@ class _ClassementScreenState extends ConsumerState<ClassementScreen> {
                                   children: [
                                     SizedBox(
                                       width: 32,
-                                      child: Text('#$rank', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.slate500)),
+                                      child: Text('#$rank', style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.slate500)),
                                     ),
                                     CircleAvatar(radius: 14, backgroundColor: AppTheme.primary.withOpacity(0.1),
                                         child: Text((r['fullName']?.toString() ?? '?')[0].toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primary))),
                                     const SizedBox(width: 10),
                                     Expanded(
-                                      child: Text(r['fullName']?.toString() ?? '', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                                      child: Text(r['fullName']?.toString() ?? '', style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -128,7 +128,7 @@ class _ClassementScreenState extends ConsumerState<ClassementScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Text(name.split(' ').first, style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.textPrimary), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(name.split(' ').first, style: AppFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.textPrimary), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 4),
           Text(_points(r['points']), style: AppTheme.mono(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
           const SizedBox(height: 6),
@@ -139,7 +139,7 @@ class _ClassementScreenState extends ConsumerState<ClassementScreen> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
             ),
             child: Center(
-              child: Text('#$rank', style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
+              child: Text('#$rank', style: AppFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
             ),
           ),
         ],

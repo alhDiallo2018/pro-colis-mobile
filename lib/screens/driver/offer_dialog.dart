@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import '../../models/parcel.dart';
 import '../../providers/parcel_provider.dart';
 import '../../theme/app_theme.dart';
@@ -92,7 +92,7 @@ class _OfferDialogState extends ConsumerState<OfferDialog> {
                 Expanded(
                   child: Text(
                     'Faire une offre',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                    style: AppFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
                   ),
                 ),
                 IconButton(onPressed: widget.onClose, icon: const Icon(Icons.close), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
@@ -101,11 +101,11 @@ class _OfferDialogState extends ConsumerState<OfferDialog> {
             const SizedBox(height: 8),
             Text(
               'Colis ${parcel.trackingNumber} · ${parcel.departureGarageName} → ${parcel.arrivalGarageName ?? '—'}',
-              style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
+              style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
             ),
             if (parcel.description.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(parcel.description, style: GoogleFonts.manrope(fontSize: 12, color: AppTheme.slate400, fontStyle: FontStyle.italic)),
+              Text(parcel.description, style: AppFonts.manrope(fontSize: 12, color: AppTheme.slate400, fontStyle: FontStyle.italic)),
             ],
             const SizedBox(height: 20),
             TextField(
@@ -140,7 +140,7 @@ class _OfferDialogState extends ConsumerState<OfferDialog> {
                   Expanded(
                     child: Text(
                       'Votre offre sera visible par le client. Vous pourrez négocier après acceptation.',
-                      style: GoogleFonts.manrope(fontSize: 11, color: AppTheme.textSecondary),
+                      style: AppFonts.manrope(fontSize: 11, color: AppTheme.textSecondary),
                     ),
                   ),
                 ],
@@ -148,7 +148,7 @@ class _OfferDialogState extends ConsumerState<OfferDialog> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 10),
-              Text(_error!, style: GoogleFonts.manrope(fontSize: 13, color: AppTheme.red500)),
+              Text(_error!, style: AppFonts.manrope(fontSize: 13, color: AppTheme.red500)),
             ],
             const SizedBox(height: 20),
             Row(

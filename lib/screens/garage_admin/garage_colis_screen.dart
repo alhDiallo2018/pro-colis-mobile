@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 
 import '../../models/parcel.dart';
 import '../../services/api_service.dart';
@@ -132,7 +132,7 @@ class _GarageColisScreenState extends ConsumerState<GarageColisScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.cardColor,
         title: Text('Colis de la zone',
-            style: GoogleFonts.plusJakartaSans(
+            style: AppFonts.plusJakartaSans(
                 fontWeight: FontWeight.w800, fontSize: 18)),
       ),
       body: _buildBody(),
@@ -233,13 +233,13 @@ class _GarageColisScreenState extends ConsumerState<GarageColisScreen> {
       child: TextField(
         controller: _searchController,
         onChanged: (v) => setState(() => _search = v),
-        style: GoogleFonts.manrope(
+        style: AppFonts.manrope(
             fontSize: 14, fontWeight: FontWeight.w500, color: AppTheme.textPrimary),
         decoration: InputDecoration(
           isDense: true,
           hintText: 'Rechercher (suivi, ville, destinataire)',
           hintStyle:
-              GoogleFonts.manrope(fontSize: 13.5, color: AppTheme.slate400),
+              AppFonts.manrope(fontSize: 13.5, color: AppTheme.slate400),
           prefixIcon:
               const Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
           suffixIcon: _search.isNotEmpty
@@ -304,7 +304,7 @@ class _FilterChip extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: GoogleFonts.plusJakartaSans(
+                style: AppFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: selected ? Colors.white : AppTheme.slate600,

@@ -1,7 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/models/advertisement.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/providers/auth_provider.dart';
@@ -209,7 +209,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
         controller: _tripSearchController,
         onChanged: (value) => setState(() => _tripQuery = value),
         textInputAction: TextInputAction.search,
-        style: GoogleFonts.manrope(
+        style: AppFonts.manrope(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: AppTheme.textPrimary,
@@ -219,7 +219,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
           filled: true,
           fillColor: AppTheme.slate50,
           hintText: 'Rechercher (ville, chauffeur, description)',
-          hintStyle: GoogleFonts.manrope(
+          hintStyle: AppFonts.manrope(
             fontSize: 13.5,
             fontWeight: FontWeight.w500,
             color: AppTheme.slate400,
@@ -468,7 +468,7 @@ class _LibreServiceHeader extends StatelessWidget {
           Expanded(
             child: Text(
               'Libre service',
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontSize: 26,
                 height: 1,
                 fontWeight: FontWeight.w800,
@@ -665,7 +665,7 @@ class _OfferCard extends StatelessWidget {
                         bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.plusJakartaSans(
+                        style: AppFonts.plusJakartaSans(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.textPrimary,
@@ -685,7 +685,7 @@ class _OfferCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Zone partenaire · 4,8 ★',
-                  style: GoogleFonts.manrope(
+                  style: AppFonts.manrope(
                     fontSize: 12.5,
                     color: AppTheme.textSecondary,
                     fontWeight: FontWeight.w500,
@@ -703,7 +703,7 @@ class _OfferCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         _formatWhen(bid.createdAt),
-                        style: GoogleFonts.manrope(
+                        style: AppFonts.manrope(
                           fontSize: 11.5,
                           color: AppTheme.slate400,
                           fontWeight: FontWeight.w600,
@@ -883,7 +883,7 @@ class _NegotiateSheet extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               'Négocier avec ${bid.driverName}',
-              style: GoogleFonts.plusJakartaSans(
+              style: AppFonts.plusJakartaSans(
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary,
@@ -972,7 +972,7 @@ class _NoOffersCard extends StatelessWidget {
           Expanded(
             child: Text(
               'Aucune offre reçue pour le moment.',
-              style: GoogleFonts.manrope(
+              style: AppFonts.manrope(
                 fontSize: 13.5,
                 color: AppTheme.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -1024,7 +1024,7 @@ class _RouteEnd extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: alignRight ? TextAlign.right : TextAlign.left,
-          style: GoogleFonts.plusJakartaSans(
+          style: AppFonts.plusJakartaSans(
             fontSize: 22,
             height: 1,
             fontWeight: FontWeight.w800,
@@ -1055,7 +1055,7 @@ class _MetaItem extends StatelessWidget {
             fontWeight: FontWeight.w700,
             color: AppTheme.slate600,
           )
-        : GoogleFonts.manrope(
+        : AppFonts.manrope(
             fontSize: 14,
             height: 1.25,
             color: AppTheme.textSecondary,
@@ -1178,7 +1178,7 @@ class _TripCard extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(from,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
                               color: AppTheme.textPrimary),
@@ -1191,7 +1191,7 @@ class _TripCard extends StatelessWidget {
                     ),
                     Flexible(
                       child: Text(to,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: AppFonts.plusJakartaSans(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
                               color: AppTheme.textPrimary),
@@ -1225,14 +1225,14 @@ class _TripCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(driver,
-                    style: GoogleFonts.manrope(
+                    style: AppFonts.manrope(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis),
               ),
               Text('Détail',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: AppFonts.plusJakartaSans(
                       color: AppTheme.primary,
                       fontSize: 13,
                       fontWeight: FontWeight.w700)),
@@ -1262,7 +1262,7 @@ class _TripCard extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.slate700)
-                  : GoogleFonts.manrope(
+                  : AppFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.slate700)),
