@@ -11,6 +11,7 @@ import '../screens/accueil/landing_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/settings/notification_preferences_screen.dart';
 import '../screens/super-admin/brevo_config_screen.dart';
+import '../screens/super-admin/paydunya_config_screen.dart';
 import '../screens/super-admin/broadcasts_page.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/dashboard/dashboard_screen.dart';
@@ -488,6 +489,11 @@ class AppRouter {
           path: '/admin/notifications/brevo',
           name: 'admin-brevo-config',
           builder: (context, state) => const BrevoConfigScreen(),
+        ),
+        GoRoute(
+          path: '/admin/payments/paydunya',
+          name: 'admin-paydunya-config',
+          builder: (context, state) => const PaydunyaConfigScreen(),
         ),
         GoRoute(
           path: '/admin/broadcasts',

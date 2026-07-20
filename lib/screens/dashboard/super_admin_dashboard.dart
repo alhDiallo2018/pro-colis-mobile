@@ -798,7 +798,15 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 },
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Configuration PayDunya',
+                tone: PcTone.green,
+                onTap: () => context.go('/admin/payments/paydunya'),
+              ),
+            ),
           ],
         ),
       ],
