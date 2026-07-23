@@ -147,7 +147,7 @@
     const [method, setMethod] = React.useState('om');
     const presets = ['500', '1000', '2500', '5000'];
     const methods = [
-      { key: 'om', icon: 'smartphone', title: 'Orange Money', sub: '+225 07 11 45 90' },
+      { key: 'om', icon: 'smartphone', title: 'Orange Money', sub: '+221 76 516 27 96' },
       { key: 'momo', icon: 'smartphone', title: 'MTN MoMo', sub: 'Compte lié' },
       { key: 'card', icon: 'credit_card', title: 'Carte bancaire', sub: 'Visa · Mastercard' },
     ];

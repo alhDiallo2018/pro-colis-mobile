@@ -30,6 +30,12 @@ class UploadsApi {
   Future<String?> uploadChatAudio(XFile file) async =>
       uploadFile(file: file, mediaType: 'audio');
 
+  Future<String?> uploadChatPhoto(XFile file) async =>
+      uploadFile(file: file, mediaType: 'photo');
+
+  Future<String?> uploadChatVideo(XFile file) async =>
+      uploadFile(file: file, mediaType: 'video');
+
   Future<Map<String, dynamic>> uploadIdentityDocument({
     required String documentType,
     required String side,

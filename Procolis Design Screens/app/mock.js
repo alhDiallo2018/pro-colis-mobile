@@ -92,7 +92,7 @@
   const cities = ['Abidjan', 'Bouaké', 'Yamoussoukro', 'San-Pédro', 'Korhogo', 'Daloa', 'Man', 'Gagnoa', 'Divo', 'Abengourou', 'Aboisso'];
   const parcelTypes = ['Colis standard', 'Document', 'Fragile', 'Volumineux', 'Denrées'];
 
-  const user = { name: 'Awa Diallo', phone: '+225 07 11 45 90', city: 'Abidjan', points: '2 450', initials: 'AD', role: 'client' };
+  const user = { name: 'Awa Diallo', phone: '+221 76 516 27 96', city: 'Abidjan', points: '2 450', initials: 'AD', role: 'client' };
   const driver = { name: 'Koffi Aka', phone: '+225 05 62 18 33', garage: 'Garage de Cocody', vehicle: 'Toyota Hiace', plate: '4821 CI 01', points: '6 180', rating: '4,9', initials: 'KA', role: 'driver', deliveries: 142, online: true };
 
   window.PCMock = { parcels, freeParcels, missions, offers, timeline, notifications, chat, txns, onboarding, helpTopics, faq, cities, parcelTypes, user, driver };

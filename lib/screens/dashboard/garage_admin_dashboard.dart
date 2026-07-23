@@ -13,6 +13,7 @@ import '../../models/user.dart';
 import '../../providers/nav_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/broadcast_banner.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/procolis_design_system.dart';
@@ -123,7 +124,12 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: _buildBody(),
+      body: Column(
+        children: [
+          const BroadcastBanner(),
+          Expanded(child: _buildBody()),
+        ],
+      ),
       bottomNavigationBar: _buildBottomNavBar(),
       floatingActionButton: PcFab(
         icon: Icons.assignment_turned_in_rounded,

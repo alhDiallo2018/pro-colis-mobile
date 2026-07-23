@@ -19,6 +19,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/pc_components.dart';
+import '../../widgets/broadcast_banner.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../../widgets/segmented_control.dart';
 // IMPORTANT: Importer le nouvel écran d'annonces
@@ -142,7 +143,14 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: _getScreen(_selectedIndex, user, parcelState),
+      body: Column(
+        children: [
+          const BroadcastBanner(),
+          Expanded(
+            child: _getScreen(_selectedIndex, user, parcelState),
+          ),
+        ],
+      ),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {

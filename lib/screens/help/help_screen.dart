@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../theme/app_theme.dart';
@@ -194,7 +195,7 @@ class _HelpScreenState extends State<HelpScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
@@ -210,19 +211,25 @@ class _HelpScreenState extends State<HelpScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const PcListRow(
-                  icon: Icons.chat_bubble_rounded,
-                  iconTone: PcTone.primary,
-                  title: 'Chat support',
-                  subtitle: 'Réponse moyenne : 5 min',
-                  chevron: true,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.go('/support');
+                  },
+                  child: const PcListRow(
+                    icon: Icons.chat_bubble_rounded,
+                    iconTone: PcTone.primary,
+                    title: 'Chat support',
+                    subtitle: 'Réponse moyenne : 24h',
+                    chevron: true,
+                  ),
                 ),
                 const PcDivider(),
                 const PcListRow(
                   icon: Icons.call_rounded,
                   iconTone: PcTone.green,
                   title: 'Appeler le support',
-                  subtitle: '+225 07 11 45 90',
+                  subtitle: '+221 76 516 27 96',
                   chevron: true,
                 ),
                 const PcDivider(),

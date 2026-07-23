@@ -69,6 +69,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   String? _currentlyPlayingAudioUrl;
   bool _isPlayingAudio = false;
 
+  final ImagePicker _imagePicker = ImagePicker();
+  bool _isBusyMedia = false;
+
   @override
   void initState() {
     super.initState();
@@ -218,20 +221,27 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     setState(() => _isLoading = false);
   }
 
-  Future<void> _sendMessage({String? audioUrl}) async {
+  Future<void> _sendMessage({String? audioUrl, String? photoUrl, String? videoUrl}) async {
     final body = _messageController.text.trim();
-    if ((body.isEmpty && audioUrl == null) ||
+    if ((body.isEmpty && audioUrl == null && photoUrl == null && videoUrl == null) ||
         _activePeerId == null ||
         _isSending) return;
 
     setState(() => _isSending = true);
     final data = <String, dynamic>{
       'receiverId': _activePeerId,
-      'body': audioUrl != null ? '' : body,
+      'body': (audioUrl != null || photoUrl != null || videoUrl != null) ? '' : body,
       if (audioUrl != null) 'audioUrl': audioUrl,
+      if (photoUrl != null) 'photoUrl': photoUrl,
+      if (videoUrl != null) 'videoUrl': videoUrl,
       if (_activeParcelId != null) 'parcelId': _activeParcelId,
     };
-    await _apiService.sendMessage(data);
+    final sendResult = await _apiService.sendMessage(data);
+    if (sendResult['success'] == false && mounted) {
+      _showSnackBar(sendResult['message']?.toString() ?? "Échec de l'envoi. Vérifiez que le destinataire existe.");
+      setState(() => _isSending = false);
+      return;
+    }
     _messageController.clear();
     setState(() {
       _isSending = false;
@@ -349,6 +359,99 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         _showSnackBar('Erreur lors de l\'envoi du message vocal');
       }
     }
+  }
+
+  Future<void> _pickAndSendPhoto() async {
+    if (_isBusyMedia) return;
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      if (image == null || _activePeerId == null) return;
+      setState(() => _isBusyMedia = true);
+      final photoUrl = await _apiService.uploadChatPhoto(image);
+      if (photoUrl != null && mounted) {
+        await _sendMessage(photoUrl: photoUrl);
+      } else if (mounted) {
+        _showSnackBar('Erreur lors de l\'envoi de la photo');
+      }
+    } catch (_) {
+      if (mounted) _showSnackBar('Erreur lors de la sélection de la photo');
+    } finally {
+      if (mounted) setState(() => _isBusyMedia = false);
+    }
+  }
+
+  Future<void> _pickAndSendVideo() async {
+    if (_isBusyMedia) return;
+    try {
+      final XFile? video = await _imagePicker.pickVideo(
+        source: ImageSource.gallery,
+      );
+      if (video == null || _activePeerId == null) return;
+      setState(() => _isBusyMedia = true);
+      final videoUrl = await _apiService.uploadChatVideo(video);
+      if (videoUrl != null && mounted) {
+        await _sendMessage(videoUrl: videoUrl);
+      } else if (mounted) {
+        _showSnackBar('Erreur lors de l\'envoi de la vidéo');
+      }
+    } catch (_) {
+      if (mounted) _showSnackBar('Erreur lors de la sélection de la vidéo');
+    } finally {
+      if (mounted) setState(() => _isBusyMedia = false);
+    }
+  }
+
+  Future<void> _pickAndSendCameraPhoto() async {
+    if (_isBusyMedia) return;
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+      if (image == null || _activePeerId == null) return;
+      setState(() => _isBusyMedia = true);
+      final photoUrl = await _apiService.uploadChatPhoto(image);
+      if (photoUrl != null && mounted) {
+        await _sendMessage(photoUrl: photoUrl);
+      } else if (mounted) {
+        _showSnackBar('Erreur lors de l\'envoi de la photo');
+      }
+    } catch (_) {
+      if (mounted) _showSnackBar('Erreur lors de la prise de photo');
+    } finally {
+      if (mounted) setState(() => _isBusyMedia = false);
+    }
+  }
+
+  void _showMediaPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Prendre une photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndSendCameraPhoto();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Galerie photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndSendPhoto();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _togglePlayAudio(String url) async {
@@ -1179,11 +1282,23 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     final isMe = msg['senderId'] == user?.id;
     final body = msg['body']?.toString() ?? '';
     final audioUrl = msg['audioUrl']?.toString();
+    final photoUrl = msg['photoUrl']?.toString();
+    final videoUrl = msg['videoUrl']?.toString();
     final bidId = msg['bidId']?.toString() ?? msg['negotiationId']?.toString();
     final hasAudio = audioUrl != null && audioUrl.isNotEmpty;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+    final hasVideo = videoUrl != null && videoUrl.isNotEmpty;
 
-    if (hasAudio) {
+    if (hasAudio && !hasPhoto && !hasVideo) {
       return _buildAudioBubble(msg, isMe);
+    }
+
+    if (hasPhoto) {
+      return _buildPhotoBubble(msg, isMe, photoUrl, body);
+    }
+
+    if (hasVideo) {
+      return _buildVideoBubble(msg, isMe, videoUrl, body);
     }
 
     if (body.startsWith('__PRIX__:')) {
@@ -1313,6 +1428,145 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoBubble(
+      Map<String, dynamic> msg, bool isMe, String photoUrl, String body) {
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: body.isNotEmpty
+            ? const EdgeInsets.all(10)
+            : const EdgeInsets.all(4),
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75),
+        decoration: BoxDecoration(
+          color: isMe ? AppTheme.primary : AppTheme.cardColor,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isMe ? 16 : 4),
+            bottomRight: Radius.circular(isMe ? 4 : 16),
+          ),
+          border: isMe ? null : Border.all(color: AppTheme.slate200),
+          boxShadow: isMe ? null : AppTheme.shadowXs(),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () => _openUrl(photoUrl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  photoUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 120,
+                    color: AppTheme.slate100,
+                    child: const Center(child: Icon(Icons.broken_image)),
+                  ),
+                ),
+              ),
+            ),
+            if (body.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(body,
+                  style: AppFonts.manrope(
+                      color: isMe ? Colors.white : AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35)),
+            ],
+            if (msg['createdAt'] != null) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _formatTime(msg['createdAt'].toString()),
+                  style: AppTheme.mono(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: isMe
+                          ? Colors.white.withAlpha(200)
+                          : AppTheme.slate400),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoBubble(
+      Map<String, dynamic> msg, bool isMe, String videoUrl, String body) {
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: body.isNotEmpty
+            ? const EdgeInsets.all(10)
+            : const EdgeInsets.all(4),
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75),
+        decoration: BoxDecoration(
+          color: isMe ? AppTheme.primary : AppTheme.cardColor,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isMe ? 16 : 4),
+            bottomRight: Radius.circular(isMe ? 4 : 16),
+          ),
+          border: isMe ? null : Border.all(color: AppTheme.slate200),
+          boxShadow: isMe ? null : AppTheme.shadowXs(),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () => _openUrl(videoUrl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  height: 180,
+                  color: AppTheme.slate900,
+                  child: const Center(
+                    child: Icon(Icons.play_circle_fill,
+                        size: 48, color: Colors.white70),
+                  ),
+                ),
+              ),
+            ),
+            if (body.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(body,
+                  style: AppFonts.manrope(
+                      color: isMe ? Colors.white : AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35)),
+            ],
+            if (msg['createdAt'] != null) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _formatTime(msg['createdAt'].toString()),
+                  style: AppTheme.mono(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: isMe
+                          ? Colors.white.withAlpha(200)
+                          : AppTheme.slate400),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1642,6 +1896,28 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                   }
                 });
               },
+            ),
+            const SizedBox(width: 4),
+
+            // Photo picker button
+            PcIconButton(
+              Icons.photo_camera_rounded,
+              variant: PcIconButtonVariant.ghost,
+              round: true,
+              tooltip: 'Envoyer une photo',
+              onPressed: _isBusyMedia
+                  ? null
+                  : () => _showMediaPicker(context),
+            ),
+            const SizedBox(width: 2),
+
+            // Video picker button
+            PcIconButton(
+              Icons.videocam_rounded,
+              variant: PcIconButtonVariant.ghost,
+              round: true,
+              tooltip: 'Envoyer une vidéo',
+              onPressed: _isBusyMedia ? null : _pickAndSendVideo,
             ),
             const SizedBox(width: 4),
 

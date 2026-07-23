@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/broadcast.dart';
 
 class BroadcastService {
@@ -8,6 +9,8 @@ class BroadcastService {
     'API_BASE_URL',
     defaultValue: 'http://localhost:18081/api/v1',
   );
+
+  static const String _cacheKey = 'procolis-broadcasts';
 
   final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -39,11 +42,14 @@ class BroadcastService {
       final data = _handleResponse(response);
       final config = data['config'] as Map<String, dynamic>? ?? (data['data'] as Map<String, dynamic>? ?? {});
       final raw = config['broadcasts'];
-      if (raw is! List) return [];
-      return raw.map((b) => Broadcast.fromJson(b as Map<String, dynamic>)).toList();
-    } catch (_) {
-      return [];
-    }
+      if (raw is List && raw.isNotEmpty) {
+        final broadcasts = raw.map((b) => Broadcast.fromJson(b as Map<String, dynamic>)).toList();
+        _cacheBroadcasts(broadcasts);
+        return broadcasts;
+      }
+    } catch (_) {}
+
+    return _loadCachedBroadcasts();
   }
 
   Future<List<Broadcast>> adminLoadBroadcasts() async {
@@ -61,7 +67,28 @@ class BroadcastService {
             'Authorization': 'Bearer $token',
         }),
       );
+      _cacheBroadcasts(broadcasts);
     } catch (_) {}
+  }
+
+  Future<void> _cacheBroadcasts(List<Broadcast> broadcasts) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(broadcasts.map((b) => b.toJson()).toList());
+      await sp.setString(_cacheKey, encoded);
+    } catch (_) {}
+  }
+
+  Future<List<Broadcast>> _loadCachedBroadcasts() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final encoded = sp.getString(_cacheKey);
+      if (encoded == null || encoded.isEmpty) return [];
+      final list = jsonDecode(encoded) as List<dynamic>;
+      return list.map((e) => Broadcast.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Map<String, dynamic> _handleResponse(Response response) {

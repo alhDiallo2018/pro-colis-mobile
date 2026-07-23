@@ -31,6 +31,7 @@ import '../../providers/wallet_provider.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/availability_toggle.dart';
 import '../../widgets/bar_chart.dart';
+import '../../widgets/broadcast_banner.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../driver/create_annonce_sheet.dart';
@@ -1726,7 +1727,14 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: _getScreen(_selectedIndex, user, parcelState),
+      body: Column(
+        children: [
+          const BroadcastBanner(),
+          Expanded(
+            child: _getScreen(_selectedIndex, user, parcelState),
+          ),
+        ],
+      ),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {

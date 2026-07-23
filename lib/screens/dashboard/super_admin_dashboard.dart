@@ -20,6 +20,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../widgets/bar_chart.dart';
+import '../../widgets/broadcast_banner.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../profile/profile_screen.dart';
@@ -167,7 +168,14 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: _getScreen(_selectedIndex, user, parcelState, users, garages),
+      body: Column(
+        children: [
+          const BroadcastBanner(),
+          Expanded(
+            child: _getScreen(_selectedIndex, user, parcelState, users, garages),
+          ),
+        ],
+      ),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -755,6 +763,21 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 },
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.campaign_rounded,
+                label: 'Bandeaux',
+                tone: PcTone.primary,
+                onTap: () => context.go('/admin/broadcasts'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox()),
           ],
         ),
         const SizedBox(height: 12),

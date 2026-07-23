@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/broadcast.dart';
 import '../providers/broadcast_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class BroadcastBanner extends ConsumerStatefulWidget {
@@ -67,6 +68,7 @@ class _BroadcastBannerState extends ConsumerState<BroadcastBanner> {
         }
 
         final broadcast = active[_currentIndex];
+        final hasImage = broadcast.imageUrl != null && broadcast.imageUrl!.isNotEmpty;
 
         if (_timer == null || !_timer!.isActive) {
           _timer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -84,42 +86,71 @@ class _BroadcastBannerState extends ConsumerState<BroadcastBanner> {
         return Container(
           width: double.infinity,
           color: typeColor.withAlpha(30),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             children: [
-              Icon(typeIcon, size: 18, color: typeColor),
-              const SizedBox(width: 8),
+              Icon(typeIcon, size: 16, color: typeColor),
+              const SizedBox(width: 6),
+              if (hasImage)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.network(
+                    ApiService.resolveMediaUrl(broadcast.imageUrl!),
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              if (hasImage) const SizedBox(width: 6),
               Expanded(
-                child: broadcast.scroll
-                    ? _MarqueeText(message: broadcast.message)
-                    : Text(
-                        broadcast.message,
-                        maxLines: 2,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (broadcast.title.isNotEmpty)
+                      Text(
+                        broadcast.title,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppFonts.manrope(
-                          fontSize: 12,
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w500,
+                        style: AppFonts.plusJakartaSans(
+                          fontSize: 11,
+                          color: typeColor,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                    broadcast.scroll
+                        ? _MarqueeText(message: broadcast.message)
+                        : Text(
+                            broadcast.message,
+                            maxLines: broadcast.title.isNotEmpty ? 1 : 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppFonts.manrope(
+                              fontSize: 11,
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                  ],
+                ),
               ),
               if (active.length > 1) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 Text(
                   '${_currentIndex + 1}/${active.length}',
                   style: AppFonts.manrope(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: AppTheme.slate400,
                   ),
                 ),
               ],
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               GestureDetector(
                 onTap: () async {
                   await dismissBroadcast(broadcast.id);
                   await _loadDismissed();
                 },
-                child: Icon(Icons.close, size: 16, color: AppTheme.slate400),
+                child: Icon(Icons.close, size: 14, color: AppTheme.slate400),
               ),
             ],
           ),

@@ -2525,7 +2525,7 @@ try { (() => {
   const parcelTypes = ['Colis standard', 'Document', 'Fragile', 'Volumineux', 'Denrées'];
   const user = {
     name: 'Awa Diallo',
-    phone: '+225 07 11 45 90',
+    phone: '+221 76 516 27 96',
     city: 'Abidjan',
     points: '2 450',
     initials: 'AD',

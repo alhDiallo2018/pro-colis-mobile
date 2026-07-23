@@ -53,6 +53,7 @@ import '../screens/parcel/track_parcel_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/shared/messages_screen.dart';
+import '../screens/shared/support_chat_screen.dart';
 import '../screens/client/client_libre_service_screen.dart';
 import '../screens/super-admin/add_points_dialog.dart';
 import '../screens/super-admin/remove_points_dialog.dart';
@@ -331,6 +332,11 @@ class AppRouter {
           path: '/help',
           name: 'help',
           builder: (context, state) => const HelpScreen(),
+        ),
+        GoRoute(
+          path: '/support',
+          name: 'support',
+          builder: (context, state) => const SupportChatScreen(),
         ),
         GoRoute(path: '/a-propos', name: 'a-propos', builder: (context, state) => const AProposPage()),
         GoRoute(path: '/contact', name: 'contact', builder: (context, state) => const ContactPage()),

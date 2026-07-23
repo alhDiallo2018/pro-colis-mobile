@@ -1267,6 +1267,16 @@ class ApiService {
     return uploadFile(file: file, mediaType: 'audio');
   }
 
+  /// Upload chat photo. Returns the file URL.
+  Future<String?> uploadChatPhoto(XFile file) async {
+    return uploadFile(file: file, mediaType: 'photo');
+  }
+
+  /// Upload chat video. Returns the file URL.
+  Future<String?> uploadChatVideo(XFile file) async {
+    return uploadFile(file: file, mediaType: 'video');
+  }
+
   // ==================== PUBLIC DRIVERS ====================
 
   Future<List<User>> searchDriversPublic({String? query}) async {

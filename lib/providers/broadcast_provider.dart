@@ -1,16 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/broadcast.dart';
-import '../services/broadcast_service.dart';
+import '../services/api_service.dart';
 import '../providers/auth_provider.dart';
+
+const _cacheKey = 'procolis-broadcasts';
 
 final broadcastProvider = FutureProvider<List<Broadcast>>((ref) async {
   final authState = ref.watch(authProvider);
   if (!authState.isAuthenticated) return [];
-  final service = BroadcastService();
-  return service.fetchActiveBroadcasts();
+
+  final cached = await _loadCachedBroadcasts();
+  if (cached.isNotEmpty) {
+    _refreshFromApi();
+    return cached;
+  }
+
+  try {
+    final api = ApiService();
+    final config = await api.getAdminConfig();
+    final broadcasts = _extractBroadcasts(config);
+    if (broadcasts.isNotEmpty) {
+      _cacheBroadcasts(broadcasts);
+      return broadcasts;
+    }
+  } catch (_) {}
+
+  return cached;
 });
+
+Future<void> _refreshFromApi() async {
+  try {
+    final api = ApiService();
+    final config = await api.getAdminConfig();
+    final broadcasts = _extractBroadcasts(config);
+    if (broadcasts.isNotEmpty) {
+      _cacheBroadcasts(broadcasts);
+    }
+  } catch (_) {}
+}
+
+List<Broadcast> _extractBroadcasts(Map<String, dynamic> response) {
+  final raw = _findBroadcastsRaw(response);
+  if (raw is! List) return [];
+  return raw
+      .map((b) => Broadcast.fromJson(b is Map<String, dynamic> ? b : {}))
+      .toList();
+}
+
+dynamic _findBroadcastsRaw(Map<String, dynamic> response) {
+  final keys = ['config', 'data'];
+  for (final k in keys) {
+    final val = response[k];
+    if (val is List) {
+      for (final item in val) {
+        if (item is Map<String, dynamic> && item['key'] == 'broadcasts') {
+          final raw = item['value'];
+          if (raw is String) {
+            try { return jsonDecode(raw); } catch (_) {}
+          }
+          return raw;
+        }
+      }
+    }
+    if (val is Map<String, dynamic>) {
+      final broadcasts = val['broadcasts'];
+      if (broadcasts != null) return broadcasts;
+    }
+  }
+  final broadcasts = response['broadcasts'];
+  if (broadcasts != null) return broadcasts;
+  return null;
+}
+
+Future<void> _cacheBroadcasts(List<Broadcast> broadcasts) async {
+  try {
+    final sp = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(broadcasts.map((b) => b.toJson()).toList());
+    await sp.setString(_cacheKey, encoded);
+  } catch (_) {}
+}
+
+Future<List<Broadcast>> _loadCachedBroadcasts() async {
+  try {
+    final sp = await SharedPreferences.getInstance();
+    final encoded = sp.getString(_cacheKey);
+    if (encoded == null || encoded.isEmpty) return [];
+    final list = jsonDecode(encoded) as List<dynamic>;
+    return list.map((e) => Broadcast.fromJson(e as Map<String, dynamic>)).toList();
+  } catch (_) {
+    return [];
+  }
+}
 
 final dismissedBroadcastsProvider = StateProvider<Set<String>>((ref) => {});
 

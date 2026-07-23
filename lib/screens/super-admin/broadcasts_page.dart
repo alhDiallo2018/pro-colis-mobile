@@ -1,11 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../models/broadcast.dart';
-import '../../services/broadcast_service.dart';
+import '../../providers/broadcast_provider.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
-import '../../providers/broadcast_provider.dart';
+import '../../widgets/procolis_design_system.dart';
 
 class BroadcastsPage extends ConsumerStatefulWidget {
   const BroadcastsPage({super.key});
@@ -15,7 +21,7 @@ class BroadcastsPage extends ConsumerStatefulWidget {
 }
 
 class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
-  final BroadcastService _service = BroadcastService();
+  final ApiService _api = ApiService();
   List<Broadcast> _list = [];
   Broadcast? _editing;
   bool _loading = true;
@@ -30,16 +36,75 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final b = await _service.adminLoadBroadcasts();
-      if (mounted) setState(() { _list = b; _loading = false; });
+      final config = await _api.getAdminConfig();
+      if (mounted) {
+        setState(() {
+          _list = _extractBroadcastsForPage(config);
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() { _list = []; _loading = false; });
+      }
     }
+  }
+
+  List<Broadcast> _extractBroadcastsForPage(Map<String, dynamic> response) {
+    final keys = ['config', 'data'];
+    for (final k in keys) {
+      final val = response[k];
+      if (val is List) {
+        for (final item in val) {
+          if (item is Map<String, dynamic> && item['key'] == 'broadcasts') {
+            final raw = item['value'];
+            if (raw is String) {
+              try {
+                final decoded = jsonDecode(raw);
+                if (decoded is List) {
+                  return decoded
+                      .map((b) => Broadcast.fromJson(b as Map<String, dynamic>))
+                      .toList();
+                }
+              } catch (_) {}
+            }
+            if (raw is List) {
+              return raw
+                  .map((b) => Broadcast.fromJson(b as Map<String, dynamic>))
+                  .toList();
+            }
+          }
+        }
+      }
+      if (val is Map<String, dynamic>) {
+        final broadcasts = val['broadcasts'];
+        if (broadcasts is List) {
+          return broadcasts
+              .map((b) => Broadcast.fromJson(b as Map<String, dynamic>))
+              .toList();
+        }
+      }
+    }
+    return [];
   }
 
   void _persist(List<Broadcast> next) {
     setState(() => _list = next);
-    _service.adminSaveBroadcasts(next);
+    _cacheAndSave(next);
+    ref.invalidate(broadcastProvider);
+  }
+
+  Future<void> _cacheAndSave(List<Broadcast> broadcasts) async {
+    try {
+      await _api.updateAdminConfig({
+        'broadcasts': broadcasts.map((b) => b.toJson()).toList(),
+      });
+    } catch (_) {}
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(broadcasts.map((b) => b.toJson()).toList());
+      await sp.setString('procolis-broadcasts', encoded);
+    } catch (_) {}
   }
 
   void _save(Broadcast b) {
@@ -87,6 +152,10 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text("Bandeaux d'information"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/dashboard'),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -96,13 +165,16 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Bandeaux d'information", style: AppFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-                        Text('Diffusez un message ciblé dans la barre supérieure.', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Bandeaux d'information", style: AppFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                          Text('Diffusez un message ciblé dans la barre supérieure.', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     PcButton(
                       'Nouveau',
                       icon: Icons.add,
@@ -150,6 +222,7 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                       onEdit: () => setState(() => _editing = b),
                       onDelete: () => _remove(b.id),
                     )),
+                const SizedBox(height: 20),
               ],
             ),
     );
@@ -215,14 +288,19 @@ class _BroadcastTile extends StatelessWidget {
                     Expanded(
                       child: Text(
                         broadcast.title.isNotEmpty ? broadcast.title : 'Sans titre',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                       ),
                     ),
                     if (broadcast.scroll)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(color: AppTheme.teal50, borderRadius: BorderRadius.circular(99)),
-                        child: Text('DÉFILANT', style: AppFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(color: AppTheme.teal50, borderRadius: BorderRadius.circular(99)),
+                          child: Text('DÉFILANT', style: AppFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+                        ),
                       ),
                   ],
                 ),
@@ -236,45 +314,55 @@ class _BroadcastTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${broadcast.targetRoles.map(broadcastRoleLabel).join(", ")} · ${broadcast.startsAt} → ${broadcast.endsAt}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: AppFonts.manrope(fontSize: 11, color: AppTheme.slate400),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Column(
-            children: [
-              GestureDetector(
-                onTap: onToggle,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: broadcast.active ? AppTheme.green50 : AppTheme.slate100,
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: broadcast.active ? AppTheme.green600 : AppTheme.slate300),
-                  ),
-                  child: Text(
-                    broadcast.active ? 'Actif' : 'Inactif',
-                    style: AppFonts.manrope(fontSize: 11, color: broadcast.active ? AppTheme.green600 : AppTheme.slate400, fontWeight: FontWeight.w600),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 85),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: onToggle,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: broadcast.active ? AppTheme.green50 : AppTheme.slate100,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: broadcast.active ? AppTheme.green600 : AppTheme.slate300),
+                    ),
+                    child: Text(
+                      broadcast.active ? 'Actif' : 'Inactif',
+                      style: AppFonts.manrope(
+                        fontSize: 11, 
+                        color: broadcast.active ? AppTheme.green600 : AppTheme.slate400, 
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: onEdit,
-                    child: Icon(Icons.edit, size: 18, color: AppTheme.slate400),
-                  ),
-                  const SizedBox(width: 12),
-                  GestureDetector(
-                    onTap: onDelete,
-                    child: Icon(Icons.delete, size: 18, color: AppTheme.red500),
-                  ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: onEdit,
+                      child: Icon(Icons.edit, size: 18, color: AppTheme.slate400),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: onDelete,
+                      child: Icon(Icons.delete, size: 18, color: AppTheme.red500),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -299,10 +387,6 @@ class _BroadcastForm extends StatefulWidget {
 
 class _BroadcastFormState extends State<_BroadcastForm> {
   late Broadcast _b;
-
-  void _set<K>(K Function(Broadcast) getter, dynamic value, void Function(Broadcast, dynamic) setter) {
-    setState(() { setter(_b, value); });
-  }
 
   @override
   void initState() {

@@ -43,7 +43,7 @@
   const cities = ['Abidjan', 'Bouaké', 'Yamoussoukro', 'San-Pédro', 'Korhogo', 'Daloa', 'Man', 'Gagnoa', 'Divo', 'Abengourou'];
   const parcelTypes = ['Colis standard', 'Document', 'Fragile', 'Volumineux', 'Denrées'];
 
-  const user = { name: 'Awa Diallo', phone: '+225 07 11 45 90', city: 'Abidjan', points: '2 450', initials: 'AD', role: 'client' };
+  const user = { name: 'Awa Diallo', phone: '+221 76 516 27 96', city: 'Abidjan', points: '2 450', initials: 'AD', role: 'client' };
 
   window.PCMock = { parcels, freeParcels, offers, timeline, notifications, cities, parcelTypes, user };
 })();

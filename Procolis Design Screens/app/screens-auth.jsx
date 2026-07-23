@@ -94,7 +94,7 @@
         e('button', { onClick: onBack, style: { border: '1px solid var(--border-subtle)', background: 'var(--surface-card)', color: 'var(--text-body)', width: 40, height: 40, borderRadius: 'var(--radius-md)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' } },
           e('span', { className: 'material-symbols-rounded' }, 'arrow_back')),
         e('h2', { style: { ...SH.titleStyle, marginTop: 18 } }, 'Vérification'),
-        e('p', { style: SH.subStyle }, 'Saisissez le code à 4 chiffres envoyé au ', e('span', { style: { fontFamily: 'var(--font-mono)', color: 'var(--text-body)', fontWeight: 600 } }, '+225 07 11 45 90'), '.'),
+        e('p', { style: SH.subStyle }, 'Saisissez le code à 4 chiffres envoyé au ', e('span', { style: { fontFamily: 'var(--font-mono)', color: 'var(--text-body)', fontWeight: 600 } }, '+221 76 516 27 96'), '.'),
       ),
       e('div', { style: { flex: 1, overflowY: 'auto', padding: '28px 24px 24px', display: 'flex', flexDirection: 'column' } },
         e(SH.OtpBoxes, { value: otp }),
