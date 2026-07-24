@@ -777,6 +777,50 @@ class _SuperAdminHomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.support_agent_rounded,
+                label: 'Support',
+                tone: PcTone.primary,
+                onTap: () => context.go('/admin/support'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.contact_support_rounded,
+                label: 'Assistances',
+                tone: PcTone.primary,
+                onTap: () => context.go('/admin/assistances'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.receipt_long_rounded,
+                label: 'Dépenses',
+                tone: PcTone.green,
+                onTap: () => context.go('/admin/expenses'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.verified_user_rounded,
+                label: 'Vérifications',
+                tone: PcTone.primary,
+                onTap: () => context.go('/admin/verifications'),
+              ),
+            ),
+            const SizedBox(width: 12),
             const Expanded(child: SizedBox()),
           ],
         ),

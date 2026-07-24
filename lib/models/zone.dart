@@ -11,6 +11,8 @@ class Zone {
   final List<List<double>>? boundary;
   final String type;
   final bool isActive;
+  final String status;
+  final String source;
   final String? parentId;
   final Map<String, dynamic>? metadata;
   final int driversCount;
@@ -31,6 +33,8 @@ class Zone {
     this.boundary,
     this.type = 'CIRCLE',
     this.isActive = true,
+    this.status = 'approved',
+    this.source = 'manual',
     this.parentId,
     this.metadata,
     this.driversCount = 0,
@@ -87,6 +91,8 @@ class Zone {
       boundary: parseBoundary(json['boundary']),
       type: json['type']?.toString() ?? 'CIRCLE',
       isActive: (json['isActive'] ?? json['is_active'] ?? true) != false,
+      status: json['status']?.toString() ?? 'approved',
+      source: json['source']?.toString() ?? 'manual',
       parentId: json['parentId']?.toString() ?? json['parent_id']?.toString(),
       metadata: json['metadata'] is Map ? Map<String, dynamic>.from(json['metadata']) : null,
       driversCount: json['_count'] != null

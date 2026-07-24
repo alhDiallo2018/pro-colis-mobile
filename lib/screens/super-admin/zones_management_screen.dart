@@ -8,6 +8,8 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
+import '../../widgets/location_autocomplete.dart';
+import '../../services/places_service.dart';
 
 String _flagOfCountry(String? country) {
   if (country == null) return '🌍';
@@ -67,6 +69,8 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
       if (_typeFilter.isNotEmpty && z.type != _typeFilter) return false;
       if (_statusFilter == 'active' && !z.isActive) return false;
       if (_statusFilter == 'inactive' && z.isActive) return false;
+      if (_statusFilter == 'pending' && z.status != 'pending') return false;
+      if (_statusFilter == 'rejected' && z.status != 'rejected') return false;
       if (q.isEmpty) return true;
       return z.name.toLowerCase().contains(q) ||
           (z.displayName ?? '').toLowerCase().contains(q) ||
@@ -95,6 +99,26 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
       });
     } catch (e) {
       setState(() { _isLoading = false; _error = e.toString(); });
+    }
+  }
+
+  Future<void> _setZoneStatus(Zone zone, String status) async {
+    setState(() => _isLoading = true);
+    final res = await _apiService.setZoneStatus(zone.id, status);
+    if (res['success'] == false) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur lors de la mise à jour du statut')),
+        );
+      }
+      return;
+    }
+    await _loadZones();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(status == 'approved' ? 'Zone approuvée' : 'Zone rejetée')),
+      );
     }
   }
 
@@ -147,6 +171,8 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
     final countryCtrl = TextEditingController(text: zone?.country ?? '');
     String type = zone?.type ?? 'CIRCLE';
     bool isActive = zone?.isActive ?? true;
+    final placeCtrl = TextEditingController();
+    PlaceResult? picked;
 
     showDialog(
       context: context,
@@ -157,6 +183,23 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Autocomplétion Google Places : auto-remplit nom / ville / coordonnées.
+                LocationAutocomplete(
+                  controller: placeCtrl,
+                  label: 'Rechercher un lieu (Google Places)',
+                  prefixIcon: Icons.search_rounded,
+                  hint: 'Ville / adresse…',
+                  googleApiKey: PlacesService.googleApiKey,
+                  onPlaceSelected: (p) => picked = p,
+                  onCoordinates: (lat, lng) => setDlg(() {
+                    latCtrl.text = lat.toStringAsFixed(6);
+                    lngCtrl.text = lng.toStringAsFixed(6);
+                    final label = picked?.mainText ?? picked?.description ?? '';
+                    if (nameCtrl.text.trim().isEmpty) nameCtrl.text = label;
+                    if (cityCtrl.text.trim().isEmpty) cityCtrl.text = label;
+                  }),
+                ),
+                const SizedBox(height: 10),
                 CustomTextField(controller: nameCtrl, label: 'Nom'),
                 const SizedBox(height: 10),
                 CustomTextField(controller: cityCtrl, label: 'Ville'),
@@ -261,7 +304,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
                         setState(() => _typeFilter = v);
                       }),
                       const SizedBox(width: 6),
-                      _filterChip('Statut', _statusFilter, ['active', 'inactive'], (v) {
+                      _filterChip('Statut', _statusFilter, ['pending', 'rejected', 'active', 'inactive'], (v) {
                         setState(() => _statusFilter = v);
                       }),
                     ],
@@ -372,18 +415,29 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
             variant: PcBadgeVariant.soft,
           ),
           const SizedBox(width: 6),
-          PcBadge(
-            z.isActive ? 'Actif' : 'Inactif',
-            tone: z.isActive ? PcTone.green : PcTone.neutral,
-            variant: PcBadgeVariant.solid,
-          ),
+          if (z.status == 'pending')
+            const PcBadge('À valider', tone: PcTone.amber, variant: PcBadgeVariant.solid)
+          else if (z.status == 'rejected')
+            const PcBadge('Rejetée', tone: PcTone.red, variant: PcBadgeVariant.solid)
+          else
+            PcBadge(
+              z.isActive ? 'Actif' : 'Inactif',
+              tone: z.isActive ? PcTone.green : PcTone.neutral,
+              variant: PcBadgeVariant.solid,
+            ),
           PopupMenuButton<String>(
             onSelected: (v) {
               if (v == 'edit') _showCreateDialog(zone: z);
               if (v == 'toggle') _toggleZone(z);
               if (v == 'delete') _deleteZone(z);
+              if (v == 'approve') _setZoneStatus(z, 'approved');
+              if (v == 'reject') _setZoneStatus(z, 'rejected');
             },
             itemBuilder: (_) => [
+              if (z.status == 'pending' || z.status == 'rejected')
+                const PopupMenuItem(value: 'approve', child: Text('✅ Approuver')),
+              if (z.status == 'pending')
+                const PopupMenuItem(value: 'reject', child: Text('⛔ Rejeter')),
               const PopupMenuItem(value: 'edit', child: Text('Modifier')),
               PopupMenuItem(value: 'toggle', child: Text(z.isActive ? 'Desactiver' : 'Activer')),
               const PopupMenuItem(value: 'delete', child: Text('Supprimer', style: TextStyle(color: AppTheme.red500))),

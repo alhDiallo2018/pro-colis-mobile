@@ -86,26 +86,4 @@ class WalletNotifier extends StateNotifier<WalletState> {
     }
   }
 
-  Future<bool> acceptDelivery({
-    required String driverId,
-    required String parcelId,
-    required double deliveryAmount,
-  }) async {
-    try {
-      final result = await _apiService.consumeDeliveryCommission(
-        driverId: driverId,
-        parcelId: parcelId,
-        deliveryAmount: deliveryAmount,
-      );
-      if (result['success'] == true) {
-        state = state.copyWith(
-          balance: double.tryParse(result['newBalance']?.toString() ?? '') ?? state.balance,
-        );
-        return true;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
 }

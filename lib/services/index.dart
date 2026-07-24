@@ -10,5 +10,5 @@ export 'notification_service.dart';
 export 'paydunya_config_service.dart';
 export 'places_service.dart';
 export 'push_notification_service.dart';
-export 'api/index.dart';
+export 'api/api.dart';
 

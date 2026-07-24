@@ -52,6 +52,14 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   List<Garage> _garages = [];
   String? _departureGarageId;
   String? _arrivalGarageId;
+
+  // Repli "Autre lieu" : résolution d'un lieu Google Places en zone (pending).
+  final _departurePlaceCtrl = TextEditingController();
+  final _arrivalPlaceCtrl = TextEditingController();
+  PlaceResult? _pendingDeparturePlace;
+  PlaceResult? _pendingArrivalPlace;
+  bool _resolvingDeparture = false;
+  bool _resolvingArrival = false;
   bool _isFreeMode = true;
   List<User> _drivers = [];
   User? _selectedDriver;
@@ -89,6 +97,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     _weightCtrl.dispose();
     _proposedPriceCtrl.dispose();
     _descriptionCtrl.dispose();
+    _departurePlaceCtrl.dispose();
+    _arrivalPlaceCtrl.dispose();
     _recorder.dispose();
     _player.dispose();
     super.dispose();
@@ -123,6 +133,51 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       _detectingZone = false;
       _detectedZone = zones.isNotEmpty ? zones.first : null;
     });
+  }
+
+  /// Résout le lieu Google Places choisi en zone (création "pending" côté API),
+  /// l'ajoute à la liste et l'affecte au départ ou à l'arrivée.
+  Future<void> _resolvePlaceToField({required bool departure, required double lat, required double lng}) async {
+    final place = departure ? _pendingDeparturePlace : _pendingArrivalPlace;
+    if (place == null) return;
+    setState(() {
+      if (departure) {
+        _resolvingDeparture = true;
+      } else {
+        _resolvingArrival = true;
+      }
+    });
+    final garage = await _zonesApi.resolvePlaceAsGarage(
+      placeId: place.placeId.isNotEmpty ? place.placeId : null,
+      name: place.mainText.isNotEmpty ? place.mainText : place.description,
+      latitude: lat,
+      longitude: lng,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (departure) {
+        _resolvingDeparture = false;
+      } else {
+        _resolvingArrival = false;
+      }
+      if (garage != null) {
+        if (!_garages.any((g) => g.id == garage.id)) {
+          _garages = [..._garages, garage];
+        }
+        if (departure) {
+          _departureGarageId = garage.id;
+          _selectedDriver = null;
+        } else {
+          _arrivalGarageId = garage.id;
+        }
+      }
+    });
+    if (garage != null && departure) _loadDriversForGarage(garageId: garage.id);
+    if (garage == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible de résoudre ce lieu, réessayez.')),
+      );
+    }
   }
 
   Garage? _garageById(String? id) {
@@ -547,6 +602,31 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           onArrivalChanged: (g) {
             setState(() => _arrivalGarageId = g?.id);
           },
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Zone introuvable ? Ajoutez un lieu (Google Places)',
+          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.slate500),
+        ),
+        const SizedBox(height: 8),
+        LocationAutocomplete(
+          controller: _departurePlaceCtrl,
+          label: _resolvingDeparture ? 'Résolution du lieu…' : 'Autre lieu de départ',
+          prefixIcon: Icons.add_location_alt_rounded,
+          hint: 'Ville / adresse de départ',
+          googleApiKey: PlacesService.googleApiKey,
+          onPlaceSelected: (p) => _pendingDeparturePlace = p,
+          onCoordinates: (lat, lng) => _resolvePlaceToField(departure: true, lat: lat, lng: lng),
+        ),
+        const SizedBox(height: 8),
+        LocationAutocomplete(
+          controller: _arrivalPlaceCtrl,
+          label: _resolvingArrival ? 'Résolution du lieu…' : "Autre lieu d'arrivée",
+          prefixIcon: Icons.add_location_alt_rounded,
+          hint: "Ville / adresse d'arrivée",
+          googleApiKey: PlacesService.googleApiKey,
+          onPlaceSelected: (p) => _pendingArrivalPlace = p,
+          onCoordinates: (lat, lng) => _resolvePlaceToField(departure: false, lat: lat, lng: lng),
         ),
         const SizedBox(height: 20),
         _sectionHeader('Mode de livraison', Icons.settings_rounded),

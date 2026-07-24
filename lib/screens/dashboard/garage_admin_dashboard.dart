@@ -392,7 +392,14 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(child: SizedBox()),
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.support_agent_rounded,
+                  label: 'Support',
+                  tone: PcTone.primary,
+                  onTap: () => context.push('/garage/support'),
+                ),
+              ),
             ],
           ),
         ],

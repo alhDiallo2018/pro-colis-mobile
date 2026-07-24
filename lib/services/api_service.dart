@@ -995,6 +995,58 @@ class ApiService {
     }
   }
 
+  // ==================== SUPPORT ADMIN ====================
+  // Côté admin/super-admin : gérer et répondre aux conversations de support.
+  // Aligné sur la webapp (AdminSupportScreen.tsx / messages.ts).
+
+  /// Liste toutes les conversations de support (admin/super-admin).
+  Future<List<Map<String, dynamic>>> adminSupportConversations() async {
+    try {
+      final response =
+          await _dio.get('/messages/admin/support/conversations');
+      final responseData = _handleResponse(response);
+      final data = responseData['data'];
+      if (data is List) {
+        return data.map((e) => e as Map<String, dynamic>).toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Fil de discussion entre un utilisateur de support et un utilisateur.
+  /// GET /messages/admin/support/conversations/:supportUserId/:userId
+  Future<List<Map<String, dynamic>>> adminSupportThread(
+      String supportUserId, String userId) async {
+    try {
+      final response = await _dio.get(
+          '/messages/admin/support/conversations/$supportUserId/$userId');
+      final responseData = _handleResponse(response);
+      final data = responseData['data'];
+      final messages = (data is Map<String, dynamic>) ? data['messages'] : null;
+      if (messages is List) {
+        return messages.map((e) => e as Map<String, dynamic>).toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Répond en tant que support (texte et/ou pièce jointe audio/photo/vidéo).
+  /// POST /messages/admin/support/reply
+  Future<Map<String, dynamic>> adminSupportReply(
+      Map<String, dynamic> data) async {
+    try {
+      final response =
+          await _dio.post('/messages/admin/support/reply', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ==================== NOTIFICATIONS ====================
 
   Future<List<Map<String, dynamic>>> getNotifications({int limit = 20}) async {
@@ -1206,29 +1258,6 @@ class ApiService {
         'points': data['amount'],
         'method': data['method'] ?? 'cash',
         if (data['phone'] != null) 'phoneNumber': data['phone'],
-      });
-      return _handleResponse(response);
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
-
-  Future<Map<String, dynamic>> consumeDeliveryCommission({
-    required String driverId,
-    required String parcelId,
-    required double deliveryAmount,
-  }) async {
-    try {
-      if (isMockMode) {
-        return {
-          'success': true,
-          'message': 'Commission déduite',
-          'newBalance': 4750,
-        };
-      }
-      final response = await _dio.post('/driver/wallet/consume', data: {
-        'parcelId': parcelId,
-        'deliveryAmount': deliveryAmount,
       });
       return _handleResponse(response);
     } catch (e) {
@@ -1562,6 +1591,158 @@ class ApiService {
     try {
       final response = await _dio.delete('/super-admin/zones/$zoneId');
       return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Résout un lieu Google Places en zone (création "pending" si nécessaire) et
+  /// renvoie un Garage (type attendu par le RoutePicker / les sélecteurs).
+  Future<Garage?> resolvePlaceZone({
+    String? placeId,
+    required String name,
+    required double latitude,
+    required double longitude,
+    String? country,
+    String? region,
+    String? city,
+  }) async {
+    try {
+      final response = await _dio.post('/zones/resolve', data: {
+        if (placeId != null) 'placeId': placeId,
+        'name': name,
+        'latitude': latitude,
+        'longitude': longitude,
+        if (country != null) 'country': country,
+        if (region != null) 'region': region,
+        if (city != null) 'city': city,
+      });
+      final data = _handleResponse(response);
+      final z = data['data'];
+      return z is Map ? Garage.fromJson(Map<String, dynamic>.from(z)) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Admin : approuver / rejeter une zone en attente (status: approved|rejected).
+  Future<Map<String, dynamic>> setZoneStatus(String zoneId, String status) async {
+    try {
+      final response = await _dio
+          .patch('/super-admin/zones/$zoneId/status', data: {'status': status});
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ===== Vérifications d'identité chauffeur (KYC) — revue admin =====
+
+  Future<List<Map<String, dynamic>>> getIdentityVerifications({String? status}) async {
+    try {
+      final response = await _dio.get('/super-admin/identity-verifications',
+          queryParameters: {if (status != null) 'status': status});
+      final data = _handleResponse(response);
+      final list = data['verifications'] ?? data['data'] ?? [];
+      return List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> approveIdentity(String verificationId) async {
+    try {
+      final response = await _dio
+          .post('/super-admin/identity-verifications/$verificationId/approve');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> rejectIdentity(String verificationId, String reason) async {
+    try {
+      final response = await _dio.post(
+          '/super-admin/identity-verifications/$verificationId/reject',
+          data: {'reason': reason});
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ===== Assistances (journal des interactions support) =====
+
+  Future<Map<String, dynamic>> getAssistances(
+      {String? status, String? search}) async {
+    try {
+      final response = await _dio.get('/super-admin/assistances', queryParameters: {
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
+      return _handleResponse(response);
+    } catch (e) {
+      return {'assistances': [], 'summary': {}};
+    }
+  }
+
+  Future<Map<String, dynamic>> createAssistance(Map<String, dynamic> data) async {
+    try {
+      return _handleResponse(await _dio.post('/super-admin/assistances', data: data));
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAssistance(String id, Map<String, dynamic> data) async {
+    try {
+      return _handleResponse(await _dio.put('/super-admin/assistances/$id', data: data));
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteAssistance(String id) async {
+    try {
+      return _handleResponse(await _dio.delete('/super-admin/assistances/$id'));
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ===== Dépenses =====
+
+  Future<Map<String, dynamic>> getExpenses({String? status, String? search}) async {
+    try {
+      final response = await _dio.get('/super-admin/expenses', queryParameters: {
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
+      return _handleResponse(response);
+    } catch (e) {
+      return {'expenses': [], 'summary': {}};
+    }
+  }
+
+  Future<Map<String, dynamic>> createExpense(Map<String, dynamic> data) async {
+    try {
+      return _handleResponse(await _dio.post('/super-admin/expenses', data: data));
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateExpense(String id, Map<String, dynamic> data) async {
+    try {
+      return _handleResponse(await _dio.put('/super-admin/expenses/$id', data: data));
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteExpense(String id) async {
+    try {
+      return _handleResponse(await _dio.delete('/super-admin/expenses/$id'));
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }

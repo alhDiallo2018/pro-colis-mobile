@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
@@ -264,6 +265,34 @@ class _VehicleDocumentsScreenState
 
   // ==================== BUILD ====================
 
+  Widget _buildVerificationBanner() {
+    final verified = ref.watch(authProvider).user?.isVerified ?? false;
+    final bg = verified ? AppTheme.green50 : AppTheme.amber50;
+    final fg = verified ? AppTheme.green700 : AppTheme.amber700;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: fg.withAlpha(60)),
+      ),
+      child: Row(
+        children: [
+          Icon(verified ? Icons.verified_rounded : Icons.gpp_maybe_rounded, color: fg, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              verified
+                  ? 'Identité vérifiée — vous pouvez enchérir et publier des annonces.'
+                  : "Identité non vérifiée. Envoyez vos documents ci-dessous ; un administrateur les validera.",
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: fg),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -279,6 +308,8 @@ class _VehicleDocumentsScreenState
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 104),
                 children: [
+                  _buildVerificationBanner(),
+                  const SizedBox(height: 12),
                   const PcSectionHeader('Véhicule'),
                   _buildVehicleCard(),
                   const SizedBox(height: 18),

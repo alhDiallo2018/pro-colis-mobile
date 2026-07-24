@@ -114,6 +114,7 @@ class User {
   // Vérifications
   final bool isEmailVerified;
   final bool isPhoneVerified;
+  final bool isVerified;
   final bool isProfileComplete;
   
   // Dates
@@ -145,6 +146,7 @@ class User {
     this.gender,
     this.isEmailVerified = false,
     this.isPhoneVerified = false,
+    this.isVerified = false,
     this.isProfileComplete = false,
     this.rating,
     this.totalDeliveries,
@@ -223,6 +225,7 @@ class User {
           : null,
       isEmailVerified: json['isEmailVerified'] ?? json['is_email_verified'] ?? false,
       isPhoneVerified: json['isPhoneVerified'] ?? json['is_phone_verified'] ?? false,
+      isVerified: json['isVerified'] ?? json['is_verified'] ?? false,
       isProfileComplete: json['isProfileComplete'] ?? json['is_profile_complete'] ?? false,
       rating: parseDouble(json['rating']),
       totalDeliveries: parseInt(json['totalDeliveries']) ?? parseInt(json['total_deliveries']),
@@ -258,6 +261,7 @@ class User {
     'vehicleYear': vehicleYear,
     'driverStatus': driverStatus?.value,
     'gender': gender?.value,
+    'isVerified': isVerified,
     'isEmailVerified': isEmailVerified,
     'isPhoneVerified': isPhoneVerified,
     'isProfileComplete': isProfileComplete,
@@ -420,6 +424,7 @@ class User {
     DriverStatus? driverStatus,
     Gender? gender,
     bool? isEmailVerified,
+    bool? isVerified,
     bool? isPhoneVerified,
     bool? isProfileComplete,
     double? rating,
@@ -454,6 +459,7 @@ class User {
       driverStatus: driverStatus ?? this.driverStatus,
       gender: gender ?? this.gender,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
+      isVerified: isVerified ?? this.isVerified,
       isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
       rating: rating ?? this.rating,

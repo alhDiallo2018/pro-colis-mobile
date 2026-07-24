@@ -13,6 +13,9 @@ import '../screens/settings/notification_preferences_screen.dart';
 import '../screens/super-admin/brevo_config_screen.dart';
 import '../screens/super-admin/paydunya_config_screen.dart';
 import '../screens/super-admin/broadcasts_page.dart';
+import '../screens/super-admin/assistances_screen.dart';
+import '../screens/super-admin/expenses_screen.dart';
+import '../screens/super-admin/identity_verifications_screen.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/dashboard/notifications/notifications_screen.dart';
@@ -54,6 +57,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/shared/messages_screen.dart';
 import '../screens/shared/support_chat_screen.dart';
+import '../screens/shared/admin_support_screen.dart';
 import '../screens/client/client_libre_service_screen.dart';
 import '../screens/super-admin/add_points_dialog.dart';
 import '../screens/super-admin/remove_points_dialog.dart';
@@ -354,6 +358,19 @@ class AppRouter {
           builder: (context, state) => const NotificationsScreen(),
         ),
 
+        // Gestion du support (aligné sur le web) : garde par préfixe de rôle
+        // — /admin → super-admin, /garage → admin ou super-admin.
+        GoRoute(
+          path: '/admin/support',
+          name: 'admin-support',
+          builder: (context, state) => const AdminSupportScreen(),
+        ),
+        GoRoute(
+          path: '/garage/support',
+          name: 'garage-support',
+          builder: (context, state) => const AdminSupportScreen(),
+        ),
+
         GoRoute(
           path: '/garage/assignments',
           name: 'garage-assignments',
@@ -505,6 +522,21 @@ class AppRouter {
           path: '/admin/broadcasts',
           name: 'admin-broadcasts',
           builder: (context, state) => const BroadcastsPage(),
+        ),
+        GoRoute(
+          path: '/admin/assistances',
+          name: 'admin-assistances',
+          builder: (context, state) => const AssistancesScreen(),
+        ),
+        GoRoute(
+          path: '/admin/expenses',
+          name: 'admin-expenses',
+          builder: (context, state) => const ExpensesScreen(),
+        ),
+        GoRoute(
+          path: '/admin/verifications',
+          name: 'admin-verifications',
+          builder: (context, state) => const IdentityVerificationsScreen(),
         ),
       ],
     );

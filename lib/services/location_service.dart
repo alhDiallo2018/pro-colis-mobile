@@ -57,7 +57,8 @@ class LocationService {
         receiveTimeout: const Duration(seconds: 15),
       ));
 
-      await dio.put('/driver/location', data: {
+      // Le backend expose POST /driver/location (un PUT renvoie 404).
+      await dio.post('/driver/location', data: {
         'latitude': latitude,
         'longitude': longitude,
       });
