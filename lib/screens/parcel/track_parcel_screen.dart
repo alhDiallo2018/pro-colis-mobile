@@ -483,7 +483,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           const SizedBox(height: 8),
           _buildReceiptInfoRow('📦 Poids', parcel.formattedWeight),
           const SizedBox(height: 8),
-          _buildReceiptInfoRow('💰 Montant', parcel.formattedPrice),
+          _buildReceiptInfoRow('💰 Montant', parcel.formattedAgreedPrice),
           if (isDelivered && parcel.deliveryDate != null) ...[
             const SizedBox(height: 8),
             _buildReceiptInfoRow(
@@ -597,7 +597,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             '🔹 Statut: ${_trackedParcel!.status.label}\n'
             '🔹 Expéditeur: ${_trackedParcel!.senderName}\n'
             '🔹 Destinataire: ${_trackedParcel!.receiverName}\n'
-            '🔹 Montant: ${_trackedParcel!.formattedPrice}\n\n'
+            '🔹 Montant: ${_trackedParcel!.formattedAgreedPrice}\n\n'
             '🔗 Suivez votre colis en ligne: $trackingUrl',
         subject: 'Reçu de livraison PRO COLIS',
       );
@@ -1250,7 +1250,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   }
 
   Widget _buildDesignTrackingHero(Parcel parcel) {
-    final price = parcel.negotiatedPrice ?? parcel.price;
+    final price = parcel.agreedPrice;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1508,7 +1508,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   // ==================== CARTE RÉSULTAT (style web) ====================
 
   Widget _buildDesignResultCard(Parcel parcel) {
-    final price = parcel.negotiatedPrice ?? parcel.price;
+    final price = parcel.agreedPrice;
     final weight = parcel.formattedWeight;
     final priceLabel = price == null ? '' : ' · ${_formatMoney(price)}';
 
@@ -1905,7 +1905,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                         const Text('Total',
                             style: TextStyle(fontSize: 10, color: Colors.grey)),
                         Text(
-                          parcel.formattedPrice,
+                          parcel.formattedAgreedPrice,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -1948,6 +1948,8 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               _buildInfoRow(Icons.delivery_dining, 'Chauffeur',
                   parcel.driverName ?? 'Non assigné'),
             ],
+            _buildInfoRow(
+                Icons.payments_outlined, 'Paiement', parcel.paymentChannelLabel),
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 20),

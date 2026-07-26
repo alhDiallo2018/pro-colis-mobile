@@ -257,7 +257,7 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
     final key = name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
     if (_cityFallbacks.containsKey(key)) return _cityFallbacks[key]!;
 
-    // 2) Parse city from garage names like "Garage Dakar Centre" → extract "Dakar"
+    // 2) Parse city from zone names like "Zone Dakar Centre" → extract "Dakar"
     final words = key.split(' ').where((w) => w.length > 2).toList();
     for (final word in words) {
       if (_cityFallbacks.containsKey(word)) return _cityFallbacks[word]!;

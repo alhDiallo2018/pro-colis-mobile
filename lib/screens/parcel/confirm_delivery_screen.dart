@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../models/parcel.dart';
-import '../../models/payment.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/declare_cash_payment_sheet.dart';
 import '../../widgets/pay_commission_dialog.dart';
 
 class ConfirmDeliveryScreen extends ConsumerStatefulWidget {
@@ -31,6 +31,9 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
   String _pin = '';
   bool _isSubmitting = false;
   bool _done = false;
+
+  /// Le chauffeur a déclaré avoir encaissé les espèces à la remise du colis.
+  bool _cashDeclared = false;
 
   @override
   void initState() {
@@ -112,12 +115,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
       }
 
       setState(() => _done = true);
-
-      if (widget.parcel.paymentMethod == PaymentMethod.cash &&
-          widget.parcel.price != null &&
-          widget.parcel.price! > 0) {
-        Future.microtask(() => _showCommissionDialog());
-      }
+      Future.microtask(_runPostDeliveryPaymentFlow);
     } catch (error) {
       debugPrint('Erreur confirmation livraison: $error');
       if (mounted) _showSnack('Erreur lors de la confirmation');
@@ -132,16 +130,59 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
     );
   }
 
+  /// Enchaînement après la remise du colis, selon le mode de règlement.
+  ///
+  /// En espèces encaissées à la livraison, le chauffeur déclare d'abord le
+  /// montant reçu — c'est la seule trace que la plateforme aura de ce paiement —
+  /// puis règle sa commission. Si l'expéditeur avait déjà payé au ramassage, il
+  /// ne reste que la commission. En paiement plateforme, la plateforme encaisse
+  /// et prélève sa part : rien à faire ici.
+  Future<void> _runPostDeliveryPaymentFlow() async {
+    final parcel = widget.parcel;
+    if (!parcel.isCashPayment || parcel.payableAmount <= 0) return;
+
+    if (parcel.resolvedCashCollectionPoint.isAtDelivery &&
+        !parcel.isPaid &&
+        !parcel.isCashDeclared) {
+      final declared = await showDeclareCashPaymentSheet(
+        context,
+        parcel: parcel,
+      );
+      if (!mounted) return;
+      if (declared == true) {
+        setState(() => _cashDeclared = true);
+      } else {
+        // Déclaration reportée : on n'enchaîne pas sur la commission, le
+        // rappel reste affiché sur l'écran de succès et la fiche colis.
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    _showCommissionDialog();
+  }
+
   void _showCommissionDialog() {
     if (!mounted) return;
     showDialog(
       context: context,
       builder: (_) => PayCommissionDialog(
         parcelId: widget.parcel.id,
-        deliveryAmount: widget.parcel.price ?? 0,
+        deliveryAmount: widget.parcel.payableAmount,
         trackingNumber: widget.parcel.trackingNumber,
       ),
     );
+  }
+
+  /// Rappel affiché tant que l'encaissement espèces n'a pas été signalé.
+  bool get _showCashReminder {
+    final parcel = widget.parcel;
+    return parcel.isCashPayment &&
+        parcel.resolvedCashCollectionPoint.isAtDelivery &&
+        parcel.payableAmount > 0 &&
+        !parcel.isPaid &&
+        !parcel.isCashDeclared &&
+        !_cashDeclared;
   }
 
   @override
@@ -309,6 +350,49 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
     );
   }
 
+  Future<void> _openCashDeclaration() async {
+    final declared = await showDeclareCashPaymentSheet(
+      context,
+      parcel: widget.parcel,
+    );
+    if (!mounted || declared != true) return;
+    setState(() => _cashDeclared = true);
+    _showCommissionDialog();
+  }
+
+  Widget _cashBanner({
+    required IconData icon,
+    required Color background,
+    required Color foreground,
+    required String message,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: foreground),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 12.5,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSuccess() {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -376,6 +460,32 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
                   ),
                 ),
               ),
+              if (_cashDeclared) ...[
+                const SizedBox(height: 12),
+                _cashBanner(
+                  icon: Icons.verified_rounded,
+                  background: AppTheme.green50,
+                  foreground: AppTheme.green700,
+                  message:
+                      'Encaissement en espèces déclaré. Un administrateur le validera.',
+                ),
+              ] else if (_showCashReminder) ...[
+                const SizedBox(height: 12),
+                _cashBanner(
+                  icon: Icons.warning_amber_rounded,
+                  background: AppTheme.amber50,
+                  foreground: AppTheme.amber700,
+                  message:
+                      'Cette course est réglée en espèces : signalez le montant '
+                      'encaissé pour qu’elle soit prise en compte.',
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: _openCashDeclaration,
+                  icon: const Icon(Icons.payments_rounded),
+                  label: const Text('Déclarer l’encaissement'),
+                ),
+              ],
               const SizedBox(height: 28),
               ElevatedButton.icon(
                 onPressed: () {

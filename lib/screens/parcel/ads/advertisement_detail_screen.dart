@@ -6,12 +6,14 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/parcel.dart';
+import '../../../models/payment.dart';
 import '../../../models/user.dart';
 import '../../../services/api_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/app_bottom_nav.dart';
 import '../../../widgets/custom_text_field.dart';
 import '../../../widgets/negotiation_chat_widget.dart';
+import '../../../widgets/payment_channel_selector.dart';
 import '../../../widgets/pc_components.dart';
 
 class AdvertisementDetailScreen extends StatefulWidget {
@@ -46,6 +48,16 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   bool _isPlayingAudio = false;
 
   String get _adId => widget.adId ?? widget.parcel?.id ?? '';
+
+  /// Modes de reglement acceptes par le chauffeur sur ce trajet. Vide ou absent
+  /// (annonce anterieure a cette declaration) : les deux sont proposables.
+  List<PaymentChannel> get _adAcceptedChannels {
+    final declared = PaymentChannel.listFrom(
+      _adData?['acceptedPaymentChannels'] ??
+          _adData?['accepted_payment_channels'],
+    );
+    return declared.isEmpty ? PaymentChannel.values.toList() : declared;
+  }
 
   @override
   void initState() {
@@ -444,6 +456,39 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                 color: AppTheme.teal600,
               ),
             ),
+          // Modes de reglement acceptes : le client doit les connaitre avant
+          // de faire son offre, c'est ce qui borne son choix.
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.payments_outlined,
+                    size: 18, color: AppTheme.slate400),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Paiement accepte',
+                    style: AppFonts.manrope(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final channel in _adAcceptedChannels)
+                        PaymentChannelBadge(channel: channel),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           if (createdAt != null)
             _detailRow(
               icon: Icons.schedule_rounded,
@@ -733,6 +778,12 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     _messageController.clear();
     Parcel? selectedParcel;
 
+    // Le client tranche parmi les modes que le chauffeur accepte : le premier
+    // de la liste fait office de defaut.
+    final availableChannels = _adAcceptedChannels;
+    PaymentChannel paymentChannel = availableChannels.first;
+    CashCollectionPoint cashPoint = CashCollectionPoint.receiverDelivery;
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -855,6 +906,21 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                             color: AppTheme.textPrimary,
                           ),
                         ),
+                        const SizedBox(height: 18),
+                        PaymentChannelField(
+                          value: paymentChannel,
+                          available: availableChannels,
+                          onChanged: (channel) => setSheetState(
+                              () => paymentChannel = channel),
+                        ),
+                        if (paymentChannel.isCash) ...[
+                          const SizedBox(height: 16),
+                          CashCollectionPointField(
+                            value: cashPoint,
+                            onChanged: (point) =>
+                                setSheetState(() => cashPoint = point),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         CustomTextField(
                           controller: _messageController,
@@ -886,7 +952,12 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                           loading: _isSubmittingOffer,
                           onPressed: _isSubmittingOffer
                               ? null
-                              : () => _submitOffer(ctx, selectedParcel),
+                              : () => _submitOffer(
+                                    ctx,
+                                    selectedParcel,
+                                    paymentChannel: paymentChannel,
+                                    cashPoint: cashPoint,
+                                  ),
                         ),
                       ],
                     ),
@@ -904,7 +975,12 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     });
   }
 
-  Future<void> _submitOffer(BuildContext sheetContext, Parcel? selectedParcel) async {
+  Future<void> _submitOffer(
+    BuildContext sheetContext,
+    Parcel? selectedParcel, {
+    required PaymentChannel paymentChannel,
+    required CashCollectionPoint cashPoint,
+  }) async {
     final priceText = _priceController.text.trim();
     final price = double.tryParse(priceText);
     if (price == null || price <= 0) {
@@ -928,6 +1004,10 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
             ? _messageController.text.trim()
             : null,
         if (selectedParcel != null) 'parcelId': selectedParcel.id,
+        // Mode de reglement retenu par le client, parmi ceux que le chauffeur
+        // accepte. Fige le canal du colis a l'acceptation de l'offre.
+        'paymentChannel': paymentChannel.value,
+        if (paymentChannel.isCash) 'cashCollectionPoint': cashPoint.value,
       };
 
       final result = await _apiService.createAdvertisementOffer(_adId, data);

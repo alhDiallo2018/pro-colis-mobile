@@ -8,12 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../models/garage.dart';
+import '../../models/payment.dart';
 import '../../services/api_service.dart';
-import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/route_picker.dart';
-import '../../widgets/location_autocomplete.dart';
 
 /// Ouvre le modal de création d'annonce. Renvoie `true` si une annonce a été
 /// publiée (le parent peut alors rafraîchir sa liste).
@@ -46,17 +46,13 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   String? _arrivalId;
   DateTime? _departureAt;
 
-  // Repli "Autre lieu" : résolution Google Places → zone (pending).
-  final _departurePlaceCtrl = TextEditingController();
-  final _arrivalPlaceCtrl = TextEditingController();
-  PlaceResult? _pendingDepPlace;
-  PlaceResult? _pendingArrPlace;
-  bool _resolvingDep = false;
-  bool _resolvingArr = false;
-
   final _weightController = TextEditingController();
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
+
+  /// Modes de règlement acceptés sur ce trajet. Les deux par défaut : le client
+  /// choisira, et restreindre est un acte volontaire du chauffeur.
+  List<PaymentChannel> _acceptedChannels = PaymentChannel.values.toList();
 
   @override
   void initState() {
@@ -69,47 +65,19 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
     _weightController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
-    _departurePlaceCtrl.dispose();
-    _arrivalPlaceCtrl.dispose();
     super.dispose();
   }
 
-  /// Résout le lieu Places choisi en zone (pending), l'ajoute à la liste et
-  /// l'affecte au départ ou à l'arrivée.
-  Future<void> _resolvePlaceToField({required bool departure, required double lat, required double lng}) async {
-    final place = departure ? _pendingDepPlace : _pendingArrPlace;
-    if (place == null) return;
+  /// Zone ajoutée à la volée depuis le sélecteur de trajet : absente de la
+  /// liste publique tant qu'elle n'est pas validée, on l'injecte localement
+  /// pour qu'elle reste sélectionnable.
+  void _addResolvedZone(Garage garage) {
     setState(() {
-      if (departure) {
-        _resolvingDep = true;
-      } else {
-        _resolvingArr = true;
-      }
+      _garages = [..._garages.where((g) => g.id != garage.id), garage];
     });
-    final garage = await _api.resolvePlaceZone(
-      placeId: place.placeId.isNotEmpty ? place.placeId : null,
-      name: place.mainText.isNotEmpty ? place.mainText : place.description,
-      latitude: lat,
-      longitude: lng,
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('« ${garage.name} » ajoutée — validation en attente.')),
     );
-    if (!mounted) return;
-    setState(() {
-      if (departure) {
-        _resolvingDep = false;
-      } else {
-        _resolvingArr = false;
-      }
-      if (garage != null) {
-        if (!_garages.any((g) => g.id == garage.id)) {
-          _garages = [..._garages, garage];
-        }
-        if (departure) {
-          _departureId = garage.id;
-        } else {
-          _arrivalId = garage.id;
-        }
-      }
-    });
   }
 
   Future<void> _loadGarages() async {
@@ -184,6 +152,8 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
       'description': _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
+      'acceptedPaymentChannels':
+          PaymentChannel.toValues(_acceptedChannels),
     };
 
     final result = await _api.createAdvertisement(data);
@@ -324,29 +294,9 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
           onArrivalChanged: (g) {
             setState(() => _arrivalId = g?.id);
           },
-        ),
-        const SizedBox(height: 12),
-        Text('Zone introuvable ? Ajoutez un lieu (Google Places)',
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.slate500)),
-        const SizedBox(height: 8),
-        LocationAutocomplete(
-          controller: _departurePlaceCtrl,
-          label: _resolvingDep ? 'Résolution…' : 'Autre lieu de départ',
-          prefixIcon: Icons.add_location_alt_rounded,
-          hint: 'Ville / adresse de départ',
-          googleApiKey: PlacesService.googleApiKey,
-          onPlaceSelected: (p) => _pendingDepPlace = p,
-          onCoordinates: (lat, lng) => _resolvePlaceToField(departure: true, lat: lat, lng: lng),
-        ),
-        const SizedBox(height: 8),
-        LocationAutocomplete(
-          controller: _arrivalPlaceCtrl,
-          label: _resolvingArr ? 'Résolution…' : "Autre lieu d'arrivée",
-          prefixIcon: Icons.add_location_alt_rounded,
-          hint: "Ville / adresse d'arrivée",
-          googleApiKey: PlacesService.googleApiKey,
-          onPlaceSelected: (p) => _pendingArrPlace = p,
-          onCoordinates: (lat, lng) => _resolvePlaceToField(departure: false, lat: lat, lng: lng),
+          // L'ajout d'un lieu absent se fait depuis le sélecteur lui-même
+          // (recherche Google Places + pointage sur carte).
+          onZoneAdded: _addResolvedZone,
         ),
         const SizedBox(height: 14),
         _fieldLabel('Date et heure de départ'),
@@ -389,7 +339,13 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
+        AcceptedPaymentChannelsField(
+          value: _acceptedChannels,
+          onChanged: (channels) =>
+              setState(() => _acceptedChannels = channels),
+        ),
+        const SizedBox(height: 18),
         _fieldLabel('Description (optionnel)'),
         TextField(
           controller: _descriptionController,

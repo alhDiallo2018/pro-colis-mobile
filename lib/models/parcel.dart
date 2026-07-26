@@ -39,15 +39,16 @@ enum ParcelStatus {
       orElse: () => ParcelStatus.pending,
     );
   }
-  
+
   bool get isFree => this == ParcelStatus.free;
   bool get isPending => this == ParcelStatus.pending;
   bool get isConfirmed => this == ParcelStatus.confirmed;
-  bool get isInProgress => this == ParcelStatus.confirmed || 
-                            this == ParcelStatus.pickedUp || 
-                            this == ParcelStatus.inTransit || 
-                            this == ParcelStatus.arrived || 
-                            this == ParcelStatus.outForDelivery;
+  bool get isInProgress =>
+      this == ParcelStatus.confirmed ||
+      this == ParcelStatus.pickedUp ||
+      this == ParcelStatus.inTransit ||
+      this == ParcelStatus.arrived ||
+      this == ParcelStatus.outForDelivery;
   bool get isCompleted => this == ParcelStatus.delivered;
   bool get isCancelled => this == ParcelStatus.cancelled;
 }
@@ -125,42 +126,56 @@ class Bid {
   factory Bid.fromJson(Map<String, dynamic> json) {
     return Bid(
       id: json['id']?.toString() ?? '',
-      parcelId: json['parcel_id']?.toString() ?? json['parcelId']?.toString() ?? '',
-      driverId: json['driverId']?.toString() ?? json['driver_id']?.toString() ?? '',
-      driverName: json['driverName']?.toString() ?? json['driver_name']?.toString() ?? '',
-      driverPhone: json['driverPhone']?.toString() ?? json['driver_phone']?.toString() ?? '',
+      parcelId:
+          json['parcel_id']?.toString() ?? json['parcelId']?.toString() ?? '',
+      driverId:
+          json['driverId']?.toString() ?? json['driver_id']?.toString() ?? '',
+      driverName: json['driverName']?.toString() ??
+          json['driver_name']?.toString() ??
+          '',
+      driverPhone: json['driverPhone']?.toString() ??
+          json['driver_phone']?.toString() ??
+          '',
       price: _toDouble(json['price']),
       message: json['message']?.toString(),
-      status: json['status'] != null ? BidStatus.fromString(json['status'].toString()) : BidStatus.pending,
-      createdAt: json['createdAt'] != null 
+      status: json['status'] != null
+          ? BidStatus.fromString(json['status'].toString())
+          : BidStatus.pending,
+      createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())
-          : (json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now()),
-      respondedAt: json['respondedAt'] != null 
+          : (json['created_at'] != null
+              ? DateTime.parse(json['created_at'].toString())
+              : DateTime.now()),
+      respondedAt: json['respondedAt'] != null
           ? DateTime.parse(json['respondedAt'].toString())
-          : (json['responded_at'] != null ? DateTime.parse(json['responded_at'].toString()) : null),
-      responseMessage: json['responseMessage']?.toString() ?? json['response_message']?.toString(),
+          : (json['responded_at'] != null
+              ? DateTime.parse(json['responded_at'].toString())
+              : null),
+      responseMessage: json['responseMessage']?.toString() ??
+          json['response_message']?.toString(),
       audioUrl: json['audioUrl']?.toString() ?? json['audio_url']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'parcel_id': parcelId,
-    'driver_id': driverId,
-    'driver_name': driverName,
-    'driver_phone': driverPhone,
-    'price': price,
-    'message': message,
-    'status': status.value,
-    'created_at': createdAt.toIso8601String(),
-    'responded_at': respondedAt?.toIso8601String(),
-    'response_message': responseMessage,
-    'audio_url': audioUrl,
-  };
+        'id': id,
+        'parcelId': parcelId,
+        'driverId': driverId,
+        'driverName': driverName,
+        'driverPhone': driverPhone,
+        'price': price,
+        'message': message,
+        'status': status.value,
+        'createdAt': createdAt.toIso8601String(),
+        'respondedAt': respondedAt?.toIso8601String(),
+        'responseMessage': responseMessage,
+        'audioUrl': audioUrl,
+      };
 
   // Propriétés calculées
   String get formattedPrice => '${price.toStringAsFixed(0)} FCFA';
-  String get formattedDate => '${createdAt.day}/${createdAt.month} à ${createdAt.hour}h${createdAt.minute}';
+  String get formattedDate =>
+      '${createdAt.day}/${createdAt.month} à ${createdAt.hour}h${createdAt.minute}';
   bool get isPending => status == BidStatus.pending;
   bool get isAccepted => status == BidStatus.accepted;
   bool get isRejected => status == BidStatus.rejected;
@@ -201,22 +216,21 @@ class Bid {
 class Parcel {
   final String id;
   final String trackingNumber;
-  
+
   // Expéditeur (client réel)
   final String senderId;
   final String senderName;
   final String senderPhone;
   final String? senderEmail;
-  
+
   // Destinataire lié à un compte existant
-  final String? recipientUserId;
 
   // Destinataire
   final String receiverName;
   final String receiverPhone;
   final String? receiverEmail;
   final String? receiverAddress;
-  
+
   // Détails du colis
   final String description;
   final double weight;
@@ -225,19 +239,19 @@ class Parcel {
   final double? height;
   final ParcelType type;
   final ParcelStatus status;
-  
+
   // Trajet
   final String departureGarageId;
   final String departureGarageName;
   final String? arrivalGarageId;
   final String? arrivalGarageName;
-  
+
   // Chauffeur
   final String? driverId;
   final String? driverName;
   final String? driverPhone;
   final String? driverProfilePhoto;
-  
+
   // Prix et options
   final double? price;
   final double? proposedPrice;
@@ -248,42 +262,60 @@ class Parcel {
   final double? insuranceAmount;
   final bool isUrgent;
   final double? urgentFee;
-  
+
   // MARCHANDAGE (LIBRE SERVICE)
   final bool isFreeForBidding;
   final List<Bid> bids;
   final String? selectedBidId;
-  
+
   // Paiement
   final PaymentMethod? paymentMethod;
   final String? paymentPhoneNumber;
   final String? paymentStatus;
-  
+
+  /// Canal convenu pour cette course : espèces de la main à la main, ou
+  /// encaissement par la plateforme. Absent sur les colis créés avant
+  /// l'introduction du canal — [resolvedPaymentChannel] retombe alors sur
+  /// [paymentMethod].
+  final PaymentChannel? paymentChannel;
+
+  /// Canaux que le chauffeur accepte (déclarés dans son annonce). Le client
+  /// choisit parmi ceux-là ; vide = aucune contrainte connue.
+  final List<PaymentChannel> acceptedPaymentChannels;
+
+  /// En espèces : à quelle étape l'argent est remis au chauffeur.
+  final CashCollectionPoint? cashCollectionPoint;
+
+  /// Montant d'espèces que le chauffeur déclare avoir encaissé, et quand.
+  /// Renseignés par `POST /driver/parcels/:id/declare-cash`.
+  final double? cashCollectedAmount;
+  final DateTime? cashCollectedAt;
+
   // Médias
   final List<String> photoUrls;
   final List<String> videoUrls;
-  final List<String> audioUrls;  // ✅ Messages vocaux du colis
+  final List<String> audioUrls; // ✅ Messages vocaux du colis
   final String? signatureUrl;
-  
+
   // Notes
   final String? notes;
-  
+
   // Dates
   final DateTime? pickupDate;
   final DateTime? deliveryDate;
   final DateTime? estimatedDeliveryDate;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  
+
   // Traçabilité
   final String? createdBy;
   final String? createdByName;
-  
+
   // Annulation
   final String? cancelledBy;
   final String? cancellationReason;
   final DateTime? cancelledAt;
-  
+
   // Événements
   final List<ParcelEvent> events;
 
@@ -294,7 +326,6 @@ class Parcel {
     required this.senderPhone,
     this.senderId = '',
     this.senderEmail,
-    this.recipientUserId,
     required this.receiverName,
     required this.receiverPhone,
     this.receiverEmail,
@@ -329,9 +360,14 @@ class Parcel {
     this.paymentMethod,
     this.paymentPhoneNumber,
     this.paymentStatus,
+    this.paymentChannel,
+    this.acceptedPaymentChannels = const [],
+    this.cashCollectionPoint,
+    this.cashCollectedAmount,
+    this.cashCollectedAt,
     this.photoUrls = const [],
     this.videoUrls = const [],
-    this.audioUrls = const [],  // ✅ 
+    this.audioUrls = const [], // ✅
     this.signatureUrl,
     this.notes,
     this.pickupDate,
@@ -348,7 +384,7 @@ class Parcel {
   });
 
   // ==================== FACTORY CONSTRUCTORS ====================
-  
+
   factory Parcel.fromMinimalJson(Map<String, dynamic> json) {
     return Parcel(
       id: json['id']?.toString() ?? '',
@@ -360,19 +396,28 @@ class Parcel {
       receiverPhone: json['receiverPhone']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       weight: (json['weight'] ?? 0).toDouble(),
-      type: json['type'] != null ? ParcelType.fromString(json['type'].toString()) : ParcelType.package,
-      status: json['status'] != null ? ParcelStatus.fromString(json['status'].toString()) : ParcelStatus.pending,
+      type: json['type'] != null
+          ? ParcelType.fromString(json['type'].toString())
+          : ParcelType.package,
+      status: json['status'] != null
+          ? ParcelStatus.fromString(json['status'].toString())
+          : ParcelStatus.pending,
       departureGarageId: json['departureGarageId']?.toString() ?? '',
       departureGarageName: json['departureGarageName']?.toString() ?? '',
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'].toString()) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'].toString())
+          : DateTime.now(),
     );
   }
 
   factory Parcel.fromJson(Map<String, dynamic> json) {
     String? parseString(dynamic value) => value?.toString();
-    double? parseDouble(dynamic value) => value != null ? (value is double ? value : double.tryParse(value.toString())) : null;
-    DateTime? parseDateTime(dynamic value) => value != null ? DateTime.tryParse(value.toString()) : null;
-    
+    double? parseDouble(dynamic value) => value != null
+        ? (value is double ? value : double.tryParse(value.toString()))
+        : null;
+    DateTime? parseDateTime(dynamic value) =>
+        value != null ? DateTime.tryParse(value.toString()) : null;
+
     List<String> parseList(dynamic value) {
       if (value == null) return [];
       if (value is List) return value.map((e) => e.toString()).toList();
@@ -387,7 +432,7 @@ class Parcel {
       }
       return [];
     }
-    
+
     // Récupérer les offres (bids)
     List<Bid> bids = [];
     if (json['bids'] != null && json['bids'] is List) {
@@ -396,7 +441,7 @@ class Parcel {
           .map((e) => Bid.fromJson(e as Map<String, dynamic>))
           .toList();
     }
-    
+
     // Récupérer les événements
     List<ParcelEvent> events = [];
     if (json['events'] != null && json['events'] is List) {
@@ -413,7 +458,6 @@ class Parcel {
       senderName: parseString(json['senderName']) ?? '',
       senderPhone: parseString(json['senderPhone']) ?? '',
       senderEmail: parseString(json['senderEmail']),
-      recipientUserId: parseString(json['recipientUserId'] ?? json['recipient_user_id']),
       receiverName: parseString(json['receiverName']) ?? '',
       receiverPhone: parseString(json['receiverPhone']) ?? '',
       receiverEmail: parseString(json['receiverEmail']),
@@ -423,8 +467,12 @@ class Parcel {
       length: parseDouble(json['length']),
       width: parseDouble(json['width']),
       height: parseDouble(json['height']),
-      type: json['type'] != null ? ParcelType.fromString(parseString(json['type'])!) : ParcelType.package,
-      status: json['status'] != null ? ParcelStatus.fromString(parseString(json['status'])!) : ParcelStatus.pending,
+      type: json['type'] != null
+          ? ParcelType.fromString(parseString(json['type'])!)
+          : ParcelType.package,
+      status: json['status'] != null
+          ? ParcelStatus.fromString(parseString(json['status'])!)
+          : ParcelStatus.pending,
       departureGarageId: parseString(json['departureGarageId']) ?? '',
       departureGarageName: parseString(json['departureGarageName']) ?? '',
       arrivalGarageId: parseString(json['arrivalGarageId']),
@@ -432,25 +480,42 @@ class Parcel {
       driverId: parseString(json['driverId']),
       driverName: parseString(json['driverName']),
       driverPhone: parseString(json['driverPhone']),
-      driverProfilePhoto: parseString(json['driver']?['profilePhoto']) ?? parseString(json['driverProfilePhoto']),
+      driverProfilePhoto: parseString(json['driver']?['profilePhoto']) ??
+          parseString(json['driverProfilePhoto']),
       price: parseDouble(json['price']),
-      proposedPrice: parseDouble(json['proposedPrice'] ?? json['proposed_price']),
-      negotiatedPrice: parseDouble(json['negotiatedPrice'] ?? json['negotiated_price']),
+      proposedPrice:
+          parseDouble(json['proposedPrice'] ?? json['proposed_price']),
+      negotiatedPrice:
+          parseDouble(json['negotiatedPrice'] ?? json['negotiated_price']),
       deliveryFees: parseDouble(json['deliveryFees']),
       totalAmount: parseDouble(json['totalAmount']),
       isInsured: json['isInsured'] ?? false,
       insuranceAmount: parseDouble(json['insuranceAmount']),
       isUrgent: json['isUrgent'] ?? false,
       urgentFee: parseDouble(json['urgentFee']),
-      isFreeForBidding: json['isFreeForBidding'] ?? json['is_free_for_bidding'] ?? false,
+      isFreeForBidding:
+          json['isFreeForBidding'] ?? json['is_free_for_bidding'] ?? false,
       bids: bids,
-      selectedBidId: parseString(json['selectedBidId'] ?? json['selected_bid_id']),
-      paymentMethod: json['paymentMethod'] != null ? PaymentMethod.fromString(parseString(json['paymentMethod'])!) : null,
+      selectedBidId:
+          parseString(json['selectedBidId'] ?? json['selected_bid_id']),
+      paymentMethod: json['paymentMethod'] != null
+          ? PaymentMethod.fromString(parseString(json['paymentMethod'])!)
+          : null,
       paymentPhoneNumber: parseString(json['paymentPhoneNumber']),
       paymentStatus: parseString(json['paymentStatus']),
+      paymentChannel: PaymentChannel.tryParse(
+          json['paymentChannel'] ?? json['payment_channel']),
+      acceptedPaymentChannels: PaymentChannel.listFrom(
+          json['acceptedPaymentChannels'] ?? json['accepted_payment_channels']),
+      cashCollectionPoint: CashCollectionPoint.tryParse(
+          json['cashCollectionPoint'] ?? json['cash_collection_point']),
+      cashCollectedAmount: parseDouble(
+          json['cashCollectedAmount'] ?? json['cash_collected_amount']),
+      cashCollectedAt:
+          parseDateTime(json['cashCollectedAt'] ?? json['cash_collected_at']),
       photoUrls: parseList(json['photoUrls']),
       videoUrls: parseList(json['videoUrls']),
-      audioUrls: parseList(json['audioUrls']),  // ✅ 
+      audioUrls: parseList(json['audioUrls']), // ✅
       signatureUrl: parseString(json['signatureUrl']),
       notes: parseString(json['notes']),
       pickupDate: parseDateTime(json['pickupDate']),
@@ -468,66 +533,71 @@ class Parcel {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'trackingNumber': trackingNumber,
-    'senderId': senderId,
-    'senderName': senderName,
-    'senderPhone': senderPhone,
-    'senderEmail': senderEmail,
-    'recipientUserId': recipientUserId,
-    'receiverName': receiverName,
-    'receiverPhone': receiverPhone,
-    'receiverEmail': receiverEmail,
-    'receiverAddress': receiverAddress,
-    'description': description,
-    'weight': weight,
-    'length': length,
-    'width': width,
-    'height': height,
-    'type': type.value,
-    'status': status.value,
-    'departureGarageId': departureGarageId,
-    'departureGarageName': departureGarageName,
-    'arrivalGarageId': arrivalGarageId,
-    'arrivalGarageName': arrivalGarageName,
-    'driverId': driverId,
-    'driverName': driverName,
-    'driverPhone': driverPhone,
-    'price': price,
-    'proposedPrice': proposedPrice,
-    'negotiatedPrice': negotiatedPrice,
-    'deliveryFees': deliveryFees,
-    'totalAmount': totalAmount,
-    'isInsured': isInsured,
-    'insuranceAmount': insuranceAmount,
-    'isUrgent': isUrgent,
-    'urgentFee': urgentFee,
-    'isFreeForBidding': isFreeForBidding,
-    'bids': bids.map((b) => b.toJson()).toList(),
-    'selectedBidId': selectedBidId,
-    'paymentMethod': paymentMethod?.value,
-    'paymentPhoneNumber': paymentPhoneNumber,
-    'paymentStatus': paymentStatus,
-    'photoUrls': photoUrls,
-    'videoUrls': videoUrls,
-    'audioUrls': audioUrls,  // ✅ 
-    'signatureUrl': signatureUrl,
-    'notes': notes,
-    'pickupDate': pickupDate?.toIso8601String(),
-    'deliveryDate': deliveryDate?.toIso8601String(),
-    'estimatedDeliveryDate': estimatedDeliveryDate?.toIso8601String(),
-    'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt?.toIso8601String(),
-    'createdBy': createdBy,
-    'createdByName': createdByName,
-    'cancelledBy': cancelledBy,
-    'cancellationReason': cancellationReason,
-    'cancelledAt': cancelledAt?.toIso8601String(),
-    'events': events.map((e) => e.toJson()).toList(),
-  };
+        'id': id,
+        'trackingNumber': trackingNumber,
+        'senderId': senderId,
+        'senderName': senderName,
+        'senderPhone': senderPhone,
+        'senderEmail': senderEmail,
+        'receiverName': receiverName,
+        'receiverPhone': receiverPhone,
+        'receiverEmail': receiverEmail,
+        'receiverAddress': receiverAddress,
+        'description': description,
+        'weight': weight,
+        'length': length,
+        'width': width,
+        'height': height,
+        'type': type.value,
+        'status': status.value,
+        'departureGarageId': departureGarageId,
+        'departureGarageName': departureGarageName,
+        'arrivalGarageId': arrivalGarageId,
+        'arrivalGarageName': arrivalGarageName,
+        'driverId': driverId,
+        'driverName': driverName,
+        'driverPhone': driverPhone,
+        'price': price,
+        'proposedPrice': proposedPrice,
+        'negotiatedPrice': negotiatedPrice,
+        'deliveryFees': deliveryFees,
+        'totalAmount': totalAmount,
+        'isInsured': isInsured,
+        'insuranceAmount': insuranceAmount,
+        'isUrgent': isUrgent,
+        'urgentFee': urgentFee,
+        'isFreeForBidding': isFreeForBidding,
+        'bids': bids.map((b) => b.toJson()).toList(),
+        'selectedBidId': selectedBidId,
+        'paymentMethod': paymentMethod?.value,
+        'paymentPhoneNumber': paymentPhoneNumber,
+        'paymentStatus': paymentStatus,
+        'paymentChannel': paymentChannel?.value,
+        'acceptedPaymentChannels':
+            PaymentChannel.toValues(acceptedPaymentChannels),
+        'cashCollectionPoint': cashCollectionPoint?.value,
+        'cashCollectedAmount': cashCollectedAmount,
+        'cashCollectedAt': cashCollectedAt?.toIso8601String(),
+        'photoUrls': photoUrls,
+        'videoUrls': videoUrls,
+        'audioUrls': audioUrls, // ✅
+        'signatureUrl': signatureUrl,
+        'notes': notes,
+        'pickupDate': pickupDate?.toIso8601String(),
+        'deliveryDate': deliveryDate?.toIso8601String(),
+        'estimatedDeliveryDate': estimatedDeliveryDate?.toIso8601String(),
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt?.toIso8601String(),
+        'createdBy': createdBy,
+        'createdByName': createdByName,
+        'cancelledBy': cancelledBy,
+        'cancellationReason': cancellationReason,
+        'cancelledAt': cancelledAt?.toIso8601String(),
+        'events': events.map((e) => e.toJson()).toList(),
+      };
 
   // ==================== PROPRIÉTÉS CALCULÉES ====================
-  
+
   bool get isPending => status == ParcelStatus.pending;
   bool get isFree => status == ParcelStatus.free;
   bool get isConfirmed => status == ParcelStatus.confirmed;
@@ -537,29 +607,31 @@ class Parcel {
   bool get isOutForDelivery => status == ParcelStatus.outForDelivery;
   bool get isDelivered => status == ParcelStatus.delivered;
   bool get isCancelled => status == ParcelStatus.cancelled;
-  
-  bool get isInProgress => status == ParcelStatus.confirmed || 
-                            status == ParcelStatus.pickedUp || 
-                            status == ParcelStatus.inTransit || 
-                            status == ParcelStatus.arrived || 
-                            status == ParcelStatus.outForDelivery;
-  
-  bool get isFinished => status == ParcelStatus.delivered || status == ParcelStatus.cancelled;
-  
+
+  bool get isInProgress =>
+      status == ParcelStatus.confirmed ||
+      status == ParcelStatus.pickedUp ||
+      status == ParcelStatus.inTransit ||
+      status == ParcelStatus.arrived ||
+      status == ParcelStatus.outForDelivery;
+
+  bool get isFinished =>
+      status == ParcelStatus.delivered || status == ParcelStatus.cancelled;
+
   bool get hasDriver => driverId != null && driverId!.isNotEmpty;
   bool get hasClient => senderId.isNotEmpty;
-  
+
   bool get hasBids => bids.isNotEmpty;
   int get bidsCount => bids.length;
-  
+
   bool get hasAudio => audioUrls.isNotEmpty;
   int get audioCount => audioUrls.length;
-  
+
   Bid? get bestBid {
     if (bids.isEmpty) return null;
     return bids.reduce((a, b) => a.price > b.price ? a : b);
   }
-  
+
   Bid? get selectedBid {
     if (selectedBidId == null) return null;
     try {
@@ -568,44 +640,134 @@ class Parcel {
       return null;
     }
   }
-  
+
   List<Bid> get pendingBids => bids.where((b) => b.isPending).toList();
   List<Bid> get acceptedBids => bids.where((b) => b.isAccepted).toList();
   List<Bid> get rejectedBids => bids.where((b) => b.isRejected).toList();
-  
+
   bool get isPaid => paymentStatus == 'completed' || paymentStatus == 'paid';
-  
+
+  /// Montant réellement convenu entre le client et le chauffeur.
+  ///
+  /// Le prix affiché à la création (`price` / `proposedPrice`) n'est qu'une base :
+  /// après négociation, le montant qui fait foi est `negotiatedPrice` (mis à jour
+  /// par l'API lors de l'acceptation d'une offre) ou, à défaut, le prix de l'offre
+  /// acceptée. C'est ce montant qui doit être payé et facturé, jamais le prix de base.
+  double? get agreedPrice {
+    if (negotiatedPrice != null && negotiatedPrice! > 0) return negotiatedPrice;
+    final bid =
+        selectedBid ?? (acceptedBids.isNotEmpty ? acceptedBids.first : null);
+    if (bid != null && bid.price > 0) return bid.price;
+    if (price != null && price! > 0) return price;
+    if (proposedPrice != null && proposedPrice! > 0) return proposedPrice;
+    if (totalAmount != null && totalAmount! > 0) return totalAmount;
+    return null;
+  }
+
+  /// Montant à payer (0 si aucun prix n'est défini).
+  double get payableAmount => agreedPrice ?? 0;
+
+  String get formattedAgreedPrice => agreedPrice != null
+      ? '${agreedPrice!.toStringAsFixed(0)} FCFA'
+      : 'Non défini';
+
+  /// Un colis annulé ou déjà réglé ne doit plus proposer de paiement.
+  bool get canBePaid => !isCancelled && !isPaid && payableAmount > 0;
+
+  // ==================== CANAL DE PAIEMENT ====================
+
+  /// Canal effectif de la course. Si le colis ne porte pas de canal explicite
+  /// (données antérieures), on le déduit de la méthode de paiement ; en dernier
+  /// recours on considère un règlement en espèces, qui est l'usage par défaut.
+  PaymentChannel get resolvedPaymentChannel =>
+      paymentChannel ?? paymentMethod?.channel ?? PaymentChannel.cash;
+
+  bool get isCashPayment => resolvedPaymentChannel.isCash;
+  bool get isPlatformPayment => resolvedPaymentChannel.isPlatform;
+
+  /// Étape à laquelle les espèces sont encaissées. Par défaut le destinataire
+  /// paie à la livraison, cas le plus courant.
+  CashCollectionPoint get resolvedCashCollectionPoint =>
+      cashCollectionPoint ?? CashCollectionPoint.receiverDelivery;
+
+  /// Le chauffeur a déclaré l'encaissement, un admin doit encore le valider.
+  bool get isCashDeclared => isCashPayment && paymentStatus == 'processing';
+
+  /// Le règlement passe par la plateforme et reste à effectuer : c'est le seul
+  /// cas où l'on propose au client de payer en ligne.
+  bool get canBePaidOnline => canBePaid && isPlatformPayment;
+
+  /// Le chauffeur doit déclarer un encaissement en espèces à ce stade.
+  ///
+  /// On l'exige une fois le jalon d'encaissement franchi : ramassage effectué si
+  /// c'est l'expéditeur qui paie, livraison faite si c'est le destinataire.
+  bool get needsCashDeclaration {
+    if (!isCashPayment || isCancelled) return false;
+    if (isPaid || isCashDeclared) return false;
+    if (payableAmount <= 0) return false;
+    return resolvedCashCollectionPoint.isAtPickup
+        ? _hasBeenPickedUp
+        : isDelivered;
+  }
+
+  /// Le ramassage est fait dès que le colis a quitté le point de départ.
+  bool get _hasBeenPickedUp =>
+      pickupDate != null ||
+      const {
+        ParcelStatus.pickedUp,
+        ParcelStatus.inTransit,
+        ParcelStatus.arrived,
+        ParcelStatus.outForDelivery,
+        ParcelStatus.delivered,
+      }.contains(status);
+
+  /// Libellé court du mode de règlement, pour les récapitulatifs et les listes.
+  String get paymentChannelLabel {
+    if (isPlatformPayment) return PaymentChannel.platform.label;
+    return '${PaymentChannel.cash.label} · '
+        '${resolvedCashCollectionPoint.payerLabel.toLowerCase()}';
+  }
+
   String get formattedWeight => '${weight.toStringAsFixed(1)} kg';
-  
-  String get formattedPrice => price != null ? '${price!.toStringAsFixed(0)} FCFA' : 'Non défini';
-  
-  String get formattedProposedPrice => proposedPrice != null ? '${proposedPrice!.toStringAsFixed(0)} FCFA' : 'Non défini';
-  
-  String get formattedNegotiatedPrice => negotiatedPrice != null ? '${negotiatedPrice!.toStringAsFixed(0)} FCFA' : 'Non défini';
-  
-  String get formattedTotal => totalAmount != null 
-      ? '${totalAmount!.toStringAsFixed(0)} FCFA' 
+
+  String get formattedPrice =>
+      price != null ? '${price!.toStringAsFixed(0)} FCFA' : 'Non défini';
+
+  String get formattedProposedPrice => proposedPrice != null
+      ? '${proposedPrice!.toStringAsFixed(0)} FCFA'
+      : 'Non défini';
+
+  String get formattedNegotiatedPrice => negotiatedPrice != null
+      ? '${negotiatedPrice!.toStringAsFixed(0)} FCFA'
+      : 'Non défini';
+
+  String get formattedTotal => totalAmount != null
+      ? '${totalAmount!.toStringAsFixed(0)} FCFA'
       : (price != null ? '${price!.toStringAsFixed(0)} FCFA' : '0 FCFA');
-  
-  String get formattedDeliveryFees => deliveryFees != null ? '${deliveryFees!.toStringAsFixed(0)} FCFA' : '0 FCFA';
-  
+
+  String get formattedDeliveryFees => deliveryFees != null
+      ? '${deliveryFees!.toStringAsFixed(0)} FCFA'
+      : '0 FCFA';
+
   double get volume {
     if (length == null || width == null || height == null) return 0;
     return length! * width! * height! / 1000000;
   }
-  
+
   String get formattedVolume => '${volume.toStringAsFixed(2)} m³';
-  
-  String get formattedDate => '${createdAt.day}/${createdAt.month}/${createdAt.year}';
-  
-  String get formattedTime => '${createdAt.hour}:${createdAt.minute.toString().padLeft(2, '0')}';
-  
+
+  String get formattedDate =>
+      '${createdAt.day}/${createdAt.month}/${createdAt.year}';
+
+  String get formattedTime =>
+      '${createdAt.hour}:${createdAt.minute.toString().padLeft(2, '0')}';
+
   String get formattedDateTime => '$formattedDate à $formattedTime';
-  
-  String get formattedDeliveryDate => deliveryDate != null 
-      ? '${deliveryDate!.day}/${deliveryDate!.month}/${deliveryDate!.year}' 
+
+  String get formattedDeliveryDate => deliveryDate != null
+      ? '${deliveryDate!.day}/${deliveryDate!.month}/${deliveryDate!.year}'
       : 'Non livré';
-  
+
   String get statusIcon {
     switch (status) {
       case ParcelStatus.pending:
@@ -628,14 +790,14 @@ class Parcel {
         return '❌';
     }
   }
-  
+
   String get biddingStatusText {
     if (!isFreeForBidding) return 'Non disponible pour marchandage';
     if (selectedBidId != null) return 'Offre acceptée';
     if (bids.isEmpty) return 'Aucune offre pour le moment';
     return '${bids.length} offre(s) reçue(s)';
   }
-  
+
   Color get biddingStatusColor {
     if (!isFreeForBidding) return Colors.grey;
     if (selectedBidId != null) return Colors.green;
@@ -644,7 +806,7 @@ class Parcel {
   }
 
   // ==================== COPY WITH ====================
-  
+
   Parcel copyWith({
     String? id,
     String? trackingNumber,
@@ -652,7 +814,6 @@ class Parcel {
     String? senderName,
     String? senderPhone,
     String? senderEmail,
-    String? recipientUserId,
     String? receiverName,
     String? receiverPhone,
     String? receiverEmail,
@@ -687,6 +848,11 @@ class Parcel {
     PaymentMethod? paymentMethod,
     String? paymentPhoneNumber,
     String? paymentStatus,
+    PaymentChannel? paymentChannel,
+    List<PaymentChannel>? acceptedPaymentChannels,
+    CashCollectionPoint? cashCollectionPoint,
+    double? cashCollectedAmount,
+    DateTime? cashCollectedAt,
     List<String>? photoUrls,
     List<String>? videoUrls,
     List<String>? audioUrls,
@@ -711,7 +877,6 @@ class Parcel {
       senderName: senderName ?? this.senderName,
       senderPhone: senderPhone ?? this.senderPhone,
       senderEmail: senderEmail ?? this.senderEmail,
-      recipientUserId: recipientUserId ?? this.recipientUserId,
       receiverName: receiverName ?? this.receiverName,
       receiverPhone: receiverPhone ?? this.receiverPhone,
       receiverEmail: receiverEmail ?? this.receiverEmail,
@@ -746,6 +911,12 @@ class Parcel {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentPhoneNumber: paymentPhoneNumber ?? this.paymentPhoneNumber,
       paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentChannel: paymentChannel ?? this.paymentChannel,
+      acceptedPaymentChannels:
+          acceptedPaymentChannels ?? this.acceptedPaymentChannels,
+      cashCollectionPoint: cashCollectionPoint ?? this.cashCollectionPoint,
+      cashCollectedAmount: cashCollectedAmount ?? this.cashCollectedAmount,
+      cashCollectedAt: cashCollectedAt ?? this.cashCollectedAt,
       photoUrls: photoUrls ?? this.photoUrls,
       videoUrls: videoUrls ?? this.videoUrls,
       audioUrls: audioUrls ?? this.audioUrls,
@@ -753,7 +924,8 @@ class Parcel {
       notes: notes ?? this.notes,
       pickupDate: pickupDate ?? this.pickupDate,
       deliveryDate: deliveryDate ?? this.deliveryDate,
-      estimatedDeliveryDate: estimatedDeliveryDate ?? this.estimatedDeliveryDate,
+      estimatedDeliveryDate:
+          estimatedDeliveryDate ?? this.estimatedDeliveryDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       createdBy: createdBy ?? this.createdBy,
@@ -764,14 +936,14 @@ class Parcel {
       events: events ?? this.events,
     );
   }
-  
+
   // ==================== MÉTHODES UTILES POUR LE MARCHANDAGE ====================
-  
+
   Parcel addBid(Bid bid) {
     final newBids = [...bids, bid];
     return copyWith(bids: newBids);
   }
-  
+
   Parcel acceptBid(String bidId) {
     final updatedBids = bids.map((b) {
       if (b.id == bidId) {
@@ -782,9 +954,9 @@ class Parcel {
       }
       return b;
     }).toList();
-    
+
     final acceptedBid = updatedBids.firstWhere((b) => b.id == bidId);
-    
+
     return copyWith(
       bids: updatedBids,
       selectedBidId: bidId,
@@ -795,7 +967,7 @@ class Parcel {
       negotiatedPrice: acceptedBid.price,
     );
   }
-  
+
   Parcel rejectBid(String bidId, {String? responseMessage}) {
     final updatedBids = bids.map((b) {
       if (b.id == bidId) {
@@ -807,10 +979,10 @@ class Parcel {
       }
       return b;
     }).toList();
-    
+
     return copyWith(bids: updatedBids);
   }
-  
+
   Parcel setFreeForBidding({double? proposedPrice}) {
     return copyWith(
       isFreeForBidding: true,
@@ -818,7 +990,7 @@ class Parcel {
       proposedPrice: proposedPrice ?? this.proposedPrice,
     );
   }
-  
+
   Parcel closeBidding() {
     return copyWith(isFreeForBidding: false);
   }
@@ -869,7 +1041,7 @@ class ParcelEvent {
         metadata = Map<String, dynamic>.from(json['metadata']);
       }
     }
-    
+
     DateTime parseDate(dynamic dateValue) {
       if (dateValue == null) return DateTime.now();
       if (dateValue is DateTime) return dateValue;
@@ -885,8 +1057,11 @@ class ParcelEvent {
 
     return ParcelEvent(
       id: json['id']?.toString() ?? '',
-      parcelId: json['parcelId']?.toString() ?? json['parcel_id']?.toString() ?? '',
-      status: json['status'] != null ? ParcelStatus.fromString(json['status'].toString()) : ParcelStatus.pending,
+      parcelId:
+          json['parcelId']?.toString() ?? json['parcel_id']?.toString() ?? '',
+      status: json['status'] != null
+          ? ParcelStatus.fromString(json['status'].toString())
+          : ParcelStatus.pending,
       description: json['description']?.toString() ?? '',
       location: json['location']?.toString(),
       locationLat: json['locationLat']?.toString(),
@@ -896,45 +1071,46 @@ class ParcelEvent {
       userRole: json['userRole']?.toString(),
       photoUrl: json['photoUrl']?.toString(),
       metadata: metadata,
-      timestamp: parseDate(json['timestamp'] ?? json['createdAt'] ?? json['created_at']),
+      timestamp: parseDate(
+          json['timestamp'] ?? json['createdAt'] ?? json['created_at']),
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'parcelId': parcelId,
-    'status': status.value,
-    'description': description,
-    'location': location,
-    'locationLat': locationLat,
-    'locationLng': locationLng,
-    'userId': userId,
-    'userName': userName,
-    'userRole': userRole,
-    'photoUrl': photoUrl,
-    'metadata': metadata,
-    'timestamp': timestamp.toIso8601String(),
-  };
-  
+        'id': id,
+        'parcelId': parcelId,
+        'status': status.value,
+        'description': description,
+        'location': location,
+        'locationLat': locationLat,
+        'locationLng': locationLng,
+        'userId': userId,
+        'userName': userName,
+        'userRole': userRole,
+        'photoUrl': photoUrl,
+        'metadata': metadata,
+        'timestamp': timestamp.toIso8601String(),
+      };
+
   String get formattedTime {
     return '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
   }
-  
+
   String get formattedDate {
     return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
   }
-  
+
   String get formattedDateTime {
     return '$formattedDate à $formattedTime';
   }
-  
+
   T? getMetadata<T>(String key) {
     if (metadata.containsKey(key)) {
       return metadata[key] as T?;
     }
     return null;
   }
-  
+
   bool get hasLocation => location != null && location!.isNotEmpty;
   bool get hasPhoto => photoUrl != null && photoUrl!.isNotEmpty;
   bool get hasUser => userName != null && userName!.isNotEmpty;

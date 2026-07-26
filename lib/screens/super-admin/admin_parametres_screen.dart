@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../services/api_service.dart';
+import '../../services/commission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
 
@@ -23,35 +24,111 @@ class _ConfigField {
   final String label;
   final _ConfigFieldType type;
   final String defaultValue;
+  final List<String> options;
+  final bool secret;
 
-  const _ConfigField(this.key, this.label, this.type, this.defaultValue);
+  const _ConfigField(
+    this.key,
+    this.label,
+    this.type,
+    this.defaultValue, {
+    this.options = const [],
+    this.secret = false,
+  });
 }
 
-enum _ConfigFieldType { string, number, boolean }
+enum _ConfigFieldType { string, number, boolean, select }
 
 const _sections = <_ConfigSection>[
   _ConfigSection('Tarification', Icons.payments_rounded, PcTone.amber, [
-    _ConfigField('pricing.baseFee', 'Frais de base (FCFA)', _ConfigFieldType.number, '1000'),
-    _ConfigField('pricing.pricePerKg', 'Prix par kg (FCFA)', _ConfigFieldType.number, '500'),
-    _ConfigField('pricing.urgentFee', 'Frais urgence (FCFA)', _ConfigFieldType.number, '1000'),
-    _ConfigField('pricing.insuranceFee', 'Frais assurance (FCFA)', _ConfigFieldType.number, '1000'),
+    _ConfigField('pricing.baseFee', 'Frais de base (FCFA)',
+        _ConfigFieldType.number, '1000'),
+    _ConfigField('pricing.pricePerKg', 'Prix par kg (FCFA)',
+        _ConfigFieldType.number, '500'),
+    _ConfigField('pricing.urgentFee', 'Frais urgence (FCFA)',
+        _ConfigFieldType.number, '1000'),
+    _ConfigField('pricing.insuranceFee', 'Frais assurance (FCFA)',
+        _ConfigFieldType.number, '1000'),
   ]),
   _ConfigSection('Score & Réputation', Icons.stars_rounded, PcTone.primary, [
-    _ConfigField('score.deliveryCompleted', 'Points par livraison réussie', _ConfigFieldType.number, '50'),
-    _ConfigField('score.signupBonus', 'Points bonus inscription', _ConfigFieldType.number, '100'),
+    _ConfigField('score.deliveryCompleted', 'Points par livraison réussie',
+        _ConfigFieldType.number, '120'),
+    _ConfigField('score.signupBonus', 'Points bonus inscription',
+        _ConfigFieldType.number, '0'),
+    _ConfigField('score.cfaPerPoint', 'Équivalent CFA par point (FCFA)',
+        _ConfigFieldType.number, '1'),
+    _ConfigField('score.commitmentFee', 'Points de frais d’engagement',
+        _ConfigFieldType.number, '1'),
+    _ConfigField('score.standardThreshold', 'Seuil niveau Standard (points)',
+        _ConfigFieldType.number, '100'),
+    _ConfigField('score.premiumThreshold', 'Seuil niveau Premium (points)',
+        _ConfigFieldType.number, '500'),
+    _ConfigField('score.eliteThreshold', 'Seuil niveau Elite (points)',
+        _ConfigFieldType.number, '1000'),
+  ]),
+  _ConfigSection('Finances — Retraits', Icons.savings_rounded, PcTone.green, [
+    _ConfigField('withdrawal.minAmount', 'Montant minimum de retrait (FCFA)',
+        _ConfigFieldType.number, '500'),
+    _ConfigField('withdrawal.maxAmount', 'Montant maximum (0 = illimité)',
+        _ConfigFieldType.number, '0'),
+  ]),
+  _ConfigSection('Finances — Commission', Icons.percent_rounded, PcTone.amber, [
+    _ConfigField(
+      'commission.insufficient_rule',
+      'Règle si solde insuffisant',
+      _ConfigFieldType.select,
+      'block',
+      options: ['block', 'warn', 'debt'],
+    ),
+  ]),
+  _ConfigSection(
+      'Finances — Déboursement', Icons.send_rounded, PcTone.primary, [
+    _ConfigField(
+      'disbursement.mode',
+      'Mode de déboursement',
+      _ConfigFieldType.select,
+      'manual',
+      options: ['manual', 'auto'],
+    ),
   ]),
   _ConfigSection('Uploads', Icons.cloud_upload_rounded, PcTone.green, [
-    _ConfigField('uploads.maxPhotoMb', 'Taille max photo (Mo)', _ConfigFieldType.number, '10'),
+    _ConfigField('uploads.maxPhotoMb', 'Taille max photo (Mo)',
+        _ConfigFieldType.number, '10'),
   ]),
   _ConfigSection('Maintenance', Icons.engineering_rounded, PcTone.red, [
-    _ConfigField('maintenance.enabled', 'Mode maintenance', _ConfigFieldType.boolean, 'false'),
+    _ConfigField('maintenance.enabled', 'Mode maintenance',
+        _ConfigFieldType.boolean, 'false'),
   ]),
-  _ConfigSection('PayDunya', Icons.account_balance_wallet_rounded, PcTone.primary, [
-    _ConfigField('paydunya.masterKey', 'Clé principale (Master Key)', _ConfigFieldType.string, ''),
-    _ConfigField('paydunya.privateKey', 'Clé privée (Private Key)', _ConfigFieldType.string, ''),
-    _ConfigField('paydunya.publicKey', 'Clé publique (Public Key)', _ConfigFieldType.string, ''),
-    _ConfigField('paydunya.token', 'Token', _ConfigFieldType.string, ''),
-    _ConfigField('paydunya.mode', 'Mode (test ou live)', _ConfigFieldType.string, 'test'),
+  _ConfigSection(
+      'PayDunya', Icons.account_balance_wallet_rounded, PcTone.primary, [
+    _ConfigField('paydunya.masterKey', 'Clé principale (Master Key)',
+        _ConfigFieldType.string, '',
+        secret: true),
+    _ConfigField('paydunya.privateKey', 'Clé privée (Private Key)',
+        _ConfigFieldType.string, '',
+        secret: true),
+    _ConfigField('paydunya.publicKey', 'Clé publique (Public Key)',
+        _ConfigFieldType.string, '',
+        secret: true),
+    _ConfigField('paydunya.token', 'Token', _ConfigFieldType.string, '',
+        secret: true),
+    _ConfigField('paydunya.mode', 'Mode', _ConfigFieldType.select, 'test',
+        options: ['test', 'live']),
+    _ConfigField('paydunya.disburse.masterKey', 'Disburse — Master Key',
+        _ConfigFieldType.string, '',
+        secret: true),
+    _ConfigField('paydunya.disburse.privateKey', 'Disburse — Private Key',
+        _ConfigFieldType.string, '',
+        secret: true),
+    _ConfigField('paydunya.disburse.publicKey', 'Disburse — Public Key',
+        _ConfigFieldType.string, '',
+        secret: true),
+    _ConfigField('paydunya.disburse.token', 'Disburse — Token',
+        _ConfigFieldType.string, '',
+        secret: true),
+    _ConfigField('paydunya.disburse.mode', 'Disburse — Mode',
+        _ConfigFieldType.select, 'test',
+        options: ['test', 'live']),
   ]),
 ];
 
@@ -66,6 +143,7 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
   final ApiService _apiService = ApiService();
   final Map<String, TextEditingController> _textControllers = {};
   final Map<String, bool> _boolValues = {};
+  final Set<String> _visibleSecrets = {};
   bool _isLoading = true;
   bool _isSaving = false;
   bool _saved = false;
@@ -79,12 +157,18 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
 
   @override
   void dispose() {
-    for (final c in _textControllers.values) { c.dispose(); }
+    for (final c in _textControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _loadConfig() async {
-    setState(() { _isLoading = true; _error = null; _saved = false; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _saved = false;
+    });
     try {
       final result = await _apiService.getAdminConfig();
       final Map<String, dynamic> apiConfig = {};
@@ -101,7 +185,9 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
       }
 
       if (mounted) {
-        for (final c in _textControllers.values) { c.dispose(); }
+        for (final c in _textControllers.values) {
+          c.dispose();
+        }
         _textControllers.clear();
         _boolValues.clear();
 
@@ -117,10 +203,19 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
           }
         }
 
-        setState(() { _isLoading = false; });
+        CommissionService.setInsufficientPolicy(
+          apiConfig['commission.insufficient_rule']?.toString() ?? 'block',
+        );
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
     }
   }
 
@@ -138,6 +233,7 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
             result[field.key] = parsed ?? 0;
             break;
           case _ConfigFieldType.string:
+          case _ConfigFieldType.select:
             result[field.key] = _textControllers[field.key]?.text.trim() ?? '';
             break;
         }
@@ -147,18 +243,24 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
   }
 
   Future<void> _saveConfig() async {
-    setState(() { _isSaving = true; _saved = false; });
+    setState(() {
+      _isSaving = true;
+      _saved = false;
+    });
     try {
       final config = _collectFormValues();
       final result = await _apiService.updateAdminConfig(config);
       if (mounted) {
         if (result['success'] == true) {
+          CommissionService.setInsufficientPolicy(
+            config['commission.insufficient_rule']?.toString() ?? 'block',
+          );
           setState(() => _saved = true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                  result['message']?.toString() ?? 'Erreur lors de l\'enregistrement'),
+              content: Text(result['message']?.toString() ??
+                  'Erreur lors de l\'enregistrement'),
               backgroundColor: AppTheme.error,
             ),
           );
@@ -167,7 +269,8 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
+          SnackBar(
+              content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
         );
       }
     } finally {
@@ -219,12 +322,14 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 44, height: 44,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
             color: AppTheme.teal50,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
-          child: const Icon(Icons.settings_rounded, size: 24, color: AppTheme.primary),
+          child: const Icon(Icons.settings_rounded,
+              size: 24, color: AppTheme.primary),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -233,13 +338,16 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
             children: [
               Text('Configuration système',
                   style: AppFonts.plusJakartaSans(
-                      fontSize: 18, fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
                       color: AppTheme.textPrimary)),
               const SizedBox(height: 3),
               Text('Ajustez les paramètres de la plateforme puis enregistrez.',
                   style: AppFonts.manrope(
-                      fontSize: 13, fontWeight: FontWeight.w500,
-                      color: AppTheme.slate500, height: 1.4)),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.slate500,
+                      height: 1.4)),
             ],
           ),
         ),
@@ -258,7 +366,8 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
           Row(
             children: [
               Container(
-                width: 34, height: 34,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   color: bg,
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
@@ -268,7 +377,8 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
               const SizedBox(width: 10),
               Text(section.title,
                   style: AppFonts.plusJakartaSans(
-                      fontSize: 15.5, fontWeight: FontWeight.w700,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary)),
               const Spacer(),
               PcBadge('${section.fields.length}', tone: section.tone),
@@ -291,7 +401,8 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
           Expanded(
             child: Text(field.label,
                 style: AppFonts.plusJakartaSans(
-                    fontSize: 13.5, fontWeight: FontWeight.w600,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
                     color: AppTheme.slate700)),
           ),
           const SizedBox(width: 12),
@@ -309,16 +420,49 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
     }
 
     final isNumber = field.type == _ConfigFieldType.number;
+    if (field.type == _ConfigFieldType.select) {
+      final controller = _textControllers[field.key]!;
+      final current = field.options.contains(controller.text)
+          ? controller.text
+          : field.defaultValue;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(field.label,
+              style: AppFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.slate700)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: current,
+            items: field.options
+                .map((option) => DropdownMenuItem(
+                      value: option,
+                      child: Text(option),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              if (value != null) controller.text = value;
+            },
+          ),
+        ],
+      );
+    }
+
+    final secretVisible = _visibleSecrets.contains(field.key);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(field.label,
             style: AppFonts.plusJakartaSans(
-                fontSize: 13.5, fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
                 color: AppTheme.slate700)),
         const SizedBox(height: 8),
         TextField(
           controller: _textControllers[field.key],
+          obscureText: field.secret && !secretVisible,
           keyboardType: isNumber
               ? const TextInputType.numberWithOptions(decimal: true)
               : TextInputType.text,
@@ -328,11 +472,29 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
           style: isNumber
               ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
               : AppFonts.manrope(
-                  fontSize: 14, fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                   color: AppTheme.textPrimary),
           decoration: InputDecoration(
-            hintText: isNumber ? 'Saisir une valeur numérique' : 'Saisir une valeur',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            hintText:
+                isNumber ? 'Saisir une valeur numérique' : 'Saisir une valeur',
+            suffixIcon: field.secret
+                ? IconButton(
+                    tooltip: secretVisible ? 'Masquer' : 'Afficher',
+                    icon: Icon(secretVisible
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined),
+                    onPressed: () {
+                      setState(() {
+                        secretVisible
+                            ? _visibleSecrets.remove(field.key)
+                            : _visibleSecrets.add(field.key);
+                      });
+                    },
+                  )
+                : null,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
       ],
@@ -356,7 +518,8 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
               child: Text('✓ Configuration enregistrée.',
                   style: TextStyle(
                       color: AppTheme.green600,
-                      fontSize: 13, fontWeight: FontWeight.w600)),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
             ),
           PcButton(
             _isSaving ? 'Enregistrement...' : 'Enregistrer',
@@ -376,8 +539,8 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
       tone: PcTone.red,
       title: 'Erreur de chargement',
       message: _error,
-      action: PcButton('Réessayer', icon: Icons.refresh_rounded,
-          onPressed: _loadConfig),
+      action: PcButton('Réessayer',
+          icon: Icons.refresh_rounded, onPressed: _loadConfig),
     );
   }
 

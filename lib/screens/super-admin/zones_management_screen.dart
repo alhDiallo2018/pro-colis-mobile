@@ -166,7 +166,8 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
     final nameCtrl = TextEditingController(text: zone?.name ?? '');
     final latCtrl = TextEditingController(text: zone != null ? zone.latitude.toString() : '');
     final lngCtrl = TextEditingController(text: zone != null ? zone.longitude.toString() : '');
-    final radiusCtrl = TextEditingController(text: zone != null ? zone.radius.toString() : '5000');
+    final radiusCtrl = TextEditingController(
+        text: (zone?.radiusKm ?? kDefaultZoneRadiusKm).toString());
     final cityCtrl = TextEditingController(text: zone?.city ?? '');
     final countryCtrl = TextEditingController(text: zone?.country ?? '');
     String type = zone?.type ?? 'CIRCLE';
@@ -210,7 +211,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
                 const SizedBox(height: 10),
                 CustomTextField(controller: lngCtrl, label: 'Longitude', keyboardType: TextInputType.number),
                 const SizedBox(height: 10),
-                CustomTextField(controller: radiusCtrl, label: 'Rayon (m)', keyboardType: TextInputType.number),
+                CustomTextField(controller: radiusCtrl, label: 'Rayon (km)', keyboardType: TextInputType.number),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -236,18 +237,22 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
               onPressed: () async {
                 final lat = double.tryParse(latCtrl.text);
                 final lng = double.tryParse(lngCtrl.text);
-                final r = int.tryParse(radiusCtrl.text);
+                final r = double.tryParse(radiusCtrl.text);
                 if (nameCtrl.text.isEmpty || lat == null || lng == null) return;
+                final placeId = picked?.placeId ?? zone?.placeId;
                 final payload = {
                   'name': nameCtrl.text.trim(),
                   'latitude': lat,
                   'longitude': lng,
-                  'radius': r ?? 5000,
+                  'radiusKm': r ?? kDefaultZoneRadiusKm,
                   'type': type,
                   'isActive': isActive,
                   'city': cityCtrl.text.trim().isNotEmpty ? cityCtrl.text.trim() : null,
                   'country': countryCtrl.text.trim().isNotEmpty ? countryCtrl.text.trim() : null,
                   'displayName': nameCtrl.text.trim(),
+                  // `zones.place_id` est unique côté API : le transmettre rend la
+                  // création idempotente pour un même lieu Google.
+                  if (placeId != null && placeId.isNotEmpty) 'placeId': placeId,
                 };
                 Navigator.pop(ctx);
                 try {
@@ -403,7 +408,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
       title: Text(z.displayName ?? z.name, style: AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w700)),
       subtitle: Text([
         if (z.city != null) z.city,
-        if (z.type == 'CIRCLE') 'Rayon ${(z.radius / 1000).toStringAsFixed(1)} km',
+        if (z.type == 'CIRCLE') 'Rayon ${z.radiusKm.toStringAsFixed(1)} km',
         '${z.driversCount} chauffeur(s)',
       ].join(' · '), style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
       trailing: Row(

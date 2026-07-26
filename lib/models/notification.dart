@@ -1,147 +1,112 @@
 // lib/models/notification.dart
 import 'package:flutter/material.dart';
 
+/// Vocabulaire réellement persisté par l'API.
+///
+/// Les métadonnées visuelles sont regroupées ici pour que toute nouvelle valeur
+/// de transport soit ajoutée une seule fois, sans multiplier les `switch`
+/// divergents entre les écrans.
 enum NotificationType {
-  bidCreated,
-  bidAccepted,
-  bidRejected,
-  parcelStatus,
-  parcelCreated,
-  driverAssigned,
-  deliveryConfirmed,
-  message,
-  system,
-  info,
-}
+  // Offres et enchères.
+  bidCreated('bid_created', 'Nouvelle offre', Icons.gavel, Colors.purple),
+  bidAccepted(
+      'bid_accepted', 'Offre acceptée', Icons.check_circle, Colors.green),
+  adOffer('ad_offer', 'Nouvelle offre', Icons.local_offer, Colors.purple),
+  adOfferAccepted(
+      'ad_offer_accepted', 'Offre acceptée', Icons.check_circle, Colors.green),
+  adOfferRejected(
+      'ad_offer_rejected', 'Offre refusée', Icons.cancel, Colors.red),
 
-extension NotificationTypeExtension on NotificationType {
-  String get value {
-    switch (this) {
-      case NotificationType.bidCreated:
-        return 'bid_created';
-      case NotificationType.bidAccepted:
-        return 'bid_accepted';
-      case NotificationType.bidRejected:
-        return 'bid_rejected';
-      case NotificationType.parcelStatus:
-        return 'parcel_status';
-      case NotificationType.parcelCreated:
-        return 'parcel_created';
-      case NotificationType.driverAssigned:
-        return 'driver_assigned';
-      case NotificationType.deliveryConfirmed:
-        return 'delivery_confirmed';
-      case NotificationType.message:
-        return 'message';
-      case NotificationType.system:
-        return 'system';
-      case NotificationType.info:
-        return 'info';
-    }
-  }
+  // Colis et livraisons.
+  parcelDelivered(
+      'parcel_delivered', 'Colis livré', Icons.inventory_2, Colors.green),
+  driverAssigned('driver_assigned', 'Chauffeur assigné', Icons.delivery_dining,
+      Colors.orange),
+  deliveryCompleted(
+      'delivery_completed', 'Livraison terminée', Icons.task_alt, Colors.green),
+  deliveryPaid('delivery_paid', 'Livraison payée', Icons.paid, Colors.green),
 
-  String get label {
-    switch (this) {
-      case NotificationType.bidCreated:
-        return '💰 Nouvelle offre';
-      case NotificationType.bidAccepted:
-        return '✅ Offre acceptée';
-      case NotificationType.bidRejected:
-        return '❌ Offre refusée';
-      case NotificationType.parcelStatus:
-        return '📦 Mise à jour colis';
-      case NotificationType.parcelCreated:
-        return '📦 Nouveau colis';
-      case NotificationType.driverAssigned:
-        return '🚚 Chauffeur assigné';
-      case NotificationType.deliveryConfirmed:
-        return '✅ Livraison confirmée';
-      case NotificationType.message:
-        return '💬 Nouveau message';
-      case NotificationType.system:
-        return '⚙️ Système';
-      default:
-        return '🔔 Notification';
-    }
-  }
+  // Paiements.
+  paymentConfirmed(
+      'payment_confirmed', 'Paiement confirmé', Icons.verified, Colors.green),
+  paymentCash(
+      'payment_cash', 'Paiement en espèces', Icons.payments, Colors.teal),
 
-  IconData get icon {
-    switch (this) {
-      case NotificationType.bidCreated:
-        return Icons.gavel;
-      case NotificationType.bidAccepted:
-        return Icons.check_circle;
-      case NotificationType.bidRejected:
-        return Icons.cancel;
-      case NotificationType.parcelStatus:
-        return Icons.local_shipping;
-      case NotificationType.parcelCreated:
-        return Icons.inventory;
-      case NotificationType.driverAssigned:
-        return Icons.delivery_dining;
-      case NotificationType.deliveryConfirmed:
-        return Icons.task_alt;
-      case NotificationType.message:
-        return Icons.message;
-      case NotificationType.system:
-        return Icons.settings;
-      default:
-        return Icons.notifications;
-    }
-  }
+  // Messages, assistance et sécurité.
+  message('message', 'Nouveau message', Icons.message, Colors.indigo),
+  supportReply(
+      'support_reply', 'Réponse du support', Icons.support_agent, Colors.blue),
+  pinReset('pin_reset', 'Code PIN réinitialisé', Icons.lock_reset, Colors.blue),
 
-  Color get color {
-    switch (this) {
-      case NotificationType.bidCreated:
-        return Colors.purple;
-      case NotificationType.bidAccepted:
-        return Colors.green;
-      case NotificationType.bidRejected:
-        return Colors.red;
-      case NotificationType.parcelStatus:
-        return Colors.blue;
-      case NotificationType.parcelCreated:
-        return Colors.teal;
-      case NotificationType.driverAssigned:
-        return Colors.orange;
-      case NotificationType.deliveryConfirmed:
-        return Colors.green;
-      case NotificationType.message:
-        return Colors.indigo;
-      case NotificationType.system:
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
+  // Portefeuille, commissions et score.
+  deposit('deposit', 'Dépôt', Icons.account_balance_wallet, Colors.green),
+  commission('commission', 'Commission', Icons.percent, Colors.orange),
+  commissionPaid(
+      'commission_paid', 'Commission payée', Icons.paid, Colors.green),
+  commissionDeduction('commission_deduction', 'Commission prélevée',
+      Icons.remove_circle, Colors.orange),
+  commitmentFee('commitment_fee', 'Frais d’engagement', Icons.receipt_long,
+      Colors.orange),
+  commitmentRefund('commitment_refund', 'Frais remboursés',
+      Icons.currency_exchange, Colors.green),
+  purchase('purchase', 'Achat', Icons.shopping_bag, Colors.orange),
+  refund('refund', 'Remboursement', Icons.currency_exchange, Colors.green),
+  scoreCredited('score_credited', 'Points crédités', Icons.stars, Colors.amber),
+  walletRecharged('wallet_recharged', 'Portefeuille rechargé', Icons.add_card,
+      Colors.green),
+  walletDebited(
+      'wallet_debited', 'Portefeuille débité', Icons.money_off, Colors.orange),
+
+  // Retraits.
+  withdrawal('withdrawal', 'Retrait', Icons.account_balance, Colors.blue),
+  withdrawalRequested(
+      'withdrawal_requested', 'Retrait demandé', Icons.schedule, Colors.orange),
+  withdrawalCompleted('withdrawal_completed', 'Retrait effectué',
+      Icons.check_circle, Colors.green),
+  withdrawalFailed(
+      'withdrawal_failed', 'Retrait échoué', Icons.error, Colors.red),
+  withdrawalCancelled(
+      'withdrawal_cancelled', 'Retrait annulé', Icons.cancel, Colors.red),
+
+  // Actions administratives.
+  adminCredit(
+      'admin_credit', 'Crédit administrateur', Icons.add_circle, Colors.green),
+  adminDebit(
+      'admin_debit', 'Débit administrateur', Icons.remove_circle, Colors.red),
+  adminDriverCredited('admin_driver_credited', 'Chauffeur crédité',
+      Icons.account_balance_wallet, Colors.green),
+  adminPaymentConfirmed('admin_payment_confirmed', 'Paiement validé',
+      Icons.verified_user, Colors.green),
+
+  // Valeurs historiques encore présentes dans certains caches mobiles.
+  bidRejected('bid_rejected', 'Offre refusée', Icons.cancel, Colors.red),
+  parcelStatus(
+      'parcel_status', 'Mise à jour colis', Icons.local_shipping, Colors.blue),
+  parcelCreated(
+      'parcel_created', 'Nouveau colis', Icons.inventory, Colors.teal),
+  deliveryConfirmed('delivery_confirmed', 'Livraison confirmée', Icons.task_alt,
+      Colors.green),
+  system('system', 'Système', Icons.settings, Colors.grey),
+  info('info', 'Notification', Icons.notifications, Colors.grey);
+
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const NotificationType(this.value, this.label, this.icon, this.color);
+
+  static NotificationType fromString(String value) {
+    final normalized = value.trim().toLowerCase();
+    return NotificationType.values.firstWhere(
+      (type) => type.value == normalized,
+      orElse: () => NotificationType.info,
+    );
   }
 }
 
-// ✅ CORRECTION: Extension sur String pour parser NotificationType
 extension NotificationTypeParser on String {
-  NotificationType toNotificationType() {
-    switch (this) {
-      case 'bid_created':
-        return NotificationType.bidCreated;
-      case 'bid_accepted':
-        return NotificationType.bidAccepted;
-      case 'bid_rejected':
-        return NotificationType.bidRejected;
-      case 'parcel_status':
-        return NotificationType.parcelStatus;
-      case 'parcel_created':
-        return NotificationType.parcelCreated;
-      case 'driver_assigned':
-        return NotificationType.driverAssigned;
-      case 'delivery_confirmed':
-        return NotificationType.deliveryConfirmed;
-      case 'message':
-        return NotificationType.message;
-      case 'system':
-        return NotificationType.system;
-      default:
-        return NotificationType.info;
-    }
-  }
+  NotificationType toNotificationType() => NotificationType.fromString(this);
 }
 
 enum NotificationPriority {
@@ -224,7 +189,8 @@ class Notification {
       parcelId: json['parcel_id']?.toString() ?? json['parcelId']?.toString(),
       bidId: json['bid_id']?.toString() ?? json['bidId']?.toString(),
       senderId: json['sender_id']?.toString() ?? json['senderId']?.toString(),
-      senderName: json['sender_name']?.toString() ?? json['senderName']?.toString(),
+      senderName:
+          json['sender_name']?.toString() ?? json['senderName']?.toString(),
       // ✅ CORRECTION: Utilisation de toNotificationType() sur String
       type: json['type'] != null
           ? json['type'].toString().toNotificationType()
@@ -251,21 +217,21 @@ class Notification {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'user_id': userId,
-    'parcel_id': parcelId,
-    'bid_id': bidId,
-    'sender_id': senderId,
-    'sender_name': senderName,
-    'type': type.value,
-    'title': title,
-    'body': body,
-    'data': data,
-    'is_read': isRead,
-    'priority': priority.value,
-    'created_at': createdAt.toIso8601String(),
-    'read_at': readAt?.toIso8601String(),
-  };
+        'id': id,
+        'userId': userId,
+        'parcelId': parcelId,
+        'bidId': bidId,
+        'senderId': senderId,
+        'senderName': senderName,
+        'type': type.value,
+        'title': title,
+        'body': body,
+        'data': data,
+        'isRead': isRead,
+        'priority': priority.value,
+        'createdAt': createdAt.toIso8601String(),
+        'readAt': readAt?.toIso8601String(),
+      };
 
   // Propriétés calculées
   String get formattedDate {

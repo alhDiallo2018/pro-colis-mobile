@@ -2,6 +2,8 @@ import 'package:intl/intl.dart';
 
 final _nf = NumberFormat('#,##0', 'fr_FR');
 
+String formatAmount(num value) => _nf.format(value.round());
+
 String formatFcfa(num? amount) {
   if (amount == null) return '—';
   return '${_nf.format(amount.round())} FCFA';

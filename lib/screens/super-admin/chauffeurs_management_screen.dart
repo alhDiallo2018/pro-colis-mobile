@@ -11,7 +11,10 @@ import '../../widgets/pc_components.dart';
 /// Liste globale des chauffeurs (super-admin), alignée sur ChauffeursPage.tsx.
 /// Avatar + nom + ville/téléphone + note/livraisons + badge de statut.
 class ChauffeursManagementScreen extends ConsumerStatefulWidget {
-  const ChauffeursManagementScreen({super.key});
+  /// Rendu à l'intérieur d'un dashboard qui porte déjà sa barre d'onglets.
+  final bool embedded;
+
+  const ChauffeursManagementScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<ChauffeursManagementScreen> createState() =>
@@ -100,7 +103,7 @@ class _ChauffeursManagementScreenState
     final filtered = _filtered;
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      bottomNavigationBar: const AppBottomNav(),
+      bottomNavigationBar: widget.embedded ? null : const AppBottomNav(),
       appBar: AppBar(
         title: Text(
           'Chauffeurs${total > 0 ? ' · $total' : ''}',

@@ -313,11 +313,11 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
                         label: 'Modèle du véhicule',
                         value: driver.vehicleModel!,
                       ),
-                    if (driver.vehicleColor != null && driver.vehicleColor!.isNotEmpty)
+                    if (driver.vehicleType != null && driver.vehicleType!.isNotEmpty)
                       _buildDetailTile(
-                        icon: Icons.color_lens_outlined,
-                        label: 'Couleur du véhicule',
-                        value: driver.vehicleColor!,
+                        icon: Icons.category_outlined,
+                        label: 'Type de véhicule',
+                        value: driver.vehicleType!,
                       ),
                     _buildDetailTile(
                       icon: Icons.star_outline_rounded,

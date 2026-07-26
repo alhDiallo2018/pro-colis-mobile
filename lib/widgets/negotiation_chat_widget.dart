@@ -189,15 +189,49 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     if (mounted) setState(() => _sending = false);
   }
 
-  void _handleAcceptPrice(int amount) async {
-    final body = '$_prixPrefix:$amount:Accepté à $_fcfa(amount.toDouble()) FCFA';
+  Future<void> _handleAcceptPrice(int amount) async {
+    final body =
+        '$_prixPrefix:$amount:Accepté à ${_fcfa(amount.toDouble())} FCFA';
     await _send(body: body);
+
+    // 1. On fige le montant convenu sur l'offre…
     if (widget.bidId != null) {
       await _api.negotiateBid(widget.bidId!, {
         'price': amount, 'message': 'Offre acceptée',
       });
+    } else if (widget.offerId != null && widget.advertisementId != null) {
+      await _api.negotiateAdvertisementOffer(
+        widget.advertisementId!,
+        widget.offerId!,
+        {'price': amount, 'message': 'Offre acceptée'},
+      );
     }
+
+    // 2. …puis on valide l'acceptation pour que le colis retienne ce montant
+    // (`negotiatedPrice` + `selectedBidId`) : sans cela le paiement resterait
+    // basé sur le prix de départ et non sur le prix négocié.
+    Map<String, dynamic>? result;
+    if (widget.bidId != null && widget.parcelId != null) {
+      result = await _api.acceptBid(widget.parcelId!, widget.bidId!);
+    } else if (widget.offerId != null && widget.advertisementId != null) {
+      result = await _api.acceptAdvertisementOffer(
+          widget.advertisementId!, widget.offerId!);
+    }
+
+    if (result != null && result['success'] == false && mounted) {
+      _showSnack(result['message']?.toString() ??
+          'Le prix a été enregistré mais l\'acceptation a échoué');
+    }
+
+    await _loadParcel();
     widget.onChanged?.call();
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
   }
 
   void _handleCounterPrice(int amount) {

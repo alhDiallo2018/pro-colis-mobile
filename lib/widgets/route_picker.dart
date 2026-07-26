@@ -16,6 +16,9 @@ class RoutePicker extends StatefulWidget {
   final Garage? initialArrival;
   final ValueChanged<Garage?> onDepartureChanged;
   final ValueChanged<Garage?> onArrivalChanged;
+  /// Zone ajoutée à la volée depuis le sélecteur. Le parent doit l'injecter
+  /// dans sa liste `garages`, sinon elle disparaît du picker au prochain rendu.
+  final ValueChanged<Garage>? onZoneAdded;
   final bool showLabels;
   final String departureLabel;
   final String arrivalLabel;
@@ -27,6 +30,7 @@ class RoutePicker extends StatefulWidget {
     this.initialArrival,
     required this.onDepartureChanged,
     required this.onArrivalChanged,
+    this.onZoneAdded,
     this.showLabels = true,
     this.departureLabel = 'Départ',
     this.arrivalLabel = 'Arrivée',
@@ -58,6 +62,14 @@ class _RoutePickerState extends State<RoutePicker> {
     }
   }
 
+  /// Une zone absente de `garages` vient d'être ajoutée à la volée : le parent
+  /// doit l'enregistrer avant qu'on la sélectionne.
+  void _announceIfNew(Garage picked) {
+    if (!widget.garages.any((g) => g.id == picked.id)) {
+      widget.onZoneAdded?.call(picked);
+    }
+  }
+
   Future<void> _pickDeparture() async {
     final result = await GaragePickerSheet.show(
       context: context,
@@ -65,8 +77,10 @@ class _RoutePickerState extends State<RoutePicker> {
       exclude: _arrival,
       initial: _departure,
       title: 'Zone de départ',
+      allowAddZone: widget.onZoneAdded != null,
     );
     if (result != null) {
+      _announceIfNew(result);
       setState(() => _departure = result);
       widget.onDepartureChanged(result);
     }
@@ -79,8 +93,10 @@ class _RoutePickerState extends State<RoutePicker> {
       exclude: _departure,
       initial: _arrival,
       title: "Zone d'arrivée",
+      allowAddZone: widget.onZoneAdded != null,
     );
     if (result != null) {
+      _announceIfNew(result);
       setState(() => _arrival = result);
       widget.onArrivalChanged(result);
     }

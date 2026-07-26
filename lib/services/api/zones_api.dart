@@ -55,11 +55,15 @@ class ZonesApi {
     }
   }
 
-  /// Idem resolveZone mais renvoie un Garage (type attendu par le RoutePicker),
-  /// pour injecter directement la zone résolue dans la liste sélectionnable.
+  /// Idem resolveZone mais renvoie le **garage miroir** de la zone, seul
+  /// identifiant accepté par `departureGarageId` / `arrivalGarageId`.
+  ///
+  /// La zone elle-même (`data`) ne convient pas : colis et annonces référencent
+  /// `garages.id`, pas `zones.id`.
   Future<Garage?> resolvePlaceAsGarage({
     String? placeId,
     required String name,
+    String? displayName,
     required double latitude,
     required double longitude,
     String? country,
@@ -70,6 +74,7 @@ class ZonesApi {
       final res = await client.dio.post('/zones/resolve', data: {
         if (placeId != null) 'placeId': placeId,
         'name': name,
+        if (displayName != null) 'displayName': displayName,
         'latitude': latitude,
         'longitude': longitude,
         if (country != null) 'country': country,
@@ -77,8 +82,8 @@ class ZonesApi {
         if (city != null) 'city': city,
       });
       final data = client.handle(res);
-      final z = data['data'];
-      return z is Map ? Garage.fromJson(Map<String, dynamic>.from(z)) : null;
+      final mirror = data['garage'];
+      return mirror is Map ? Garage.fromJson(Map<String, dynamic>.from(mirror)) : null;
     } catch (e) {
       return null;
     }

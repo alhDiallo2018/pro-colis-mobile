@@ -16,12 +16,14 @@ import 'package:record/record.dart';
 
 import '../../models/garage.dart';
 import '../../models/parcel.dart';
+import '../../models/payment.dart';
 import '../../models/user.dart';
 import '../../models/voice_message.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/route_picker.dart';
 import '../../widgets/location_autocomplete.dart';
@@ -81,6 +83,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   // Prix proposé (éditable).
   final _priceController = TextEditingController();
   bool _priceEdited = false;
+
+  // Règlement : canal choisi, et en espèces qui remet l'argent au chauffeur.
+  PaymentChannel _paymentChannel = PaymentChannel.cash;
+  CashCollectionPoint _cashCollectionPoint =
+      CashCollectionPoint.receiverDelivery;
 
   // Mode de livraison : 'free' (annonce) ou 'driver' (chauffeur choisi).
   String _mode = 'free';
@@ -397,6 +404,15 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     return null;
   }
 
+  /// Zone ajoutée à la volée : elle n'est pas encore dans la liste publique
+  /// (validation en attente), on l'injecte localement pour la rendre
+  /// sélectionnable immédiatement.
+  void _addResolvedZone(Garage garage) {
+    setState(() {
+      _garages = [..._garages.where((g) => g.id != garage.id), garage];
+    });
+  }
+
   bool get _step1Valid =>
       _departureId != null &&
       _arrivalId != null &&
@@ -445,6 +461,12 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       'isInsured': _insurance,
       'isFreeForBidding': !isDriverMode,
       'audioUrls': <String>[],
+      // Règlement : le canal fait foi ; `paymentMethod` reste renseigné pour la
+      // compatibilité avec l'API et les écrans qui le lisent encore.
+      'paymentChannel': _paymentChannel.value,
+      'paymentMethod': _paymentChannel.defaultMethod.value,
+      if (_paymentChannel.isCash)
+        'cashCollectionPoint': _cashCollectionPoint.value,
     };
 
     if (isDriverMode && driver != null) {
@@ -616,6 +638,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           onArrivalChanged: (g) {
             setState(() => _arrivalId = g?.id);
           },
+          onZoneAdded: _addResolvedZone,
         ),
         if (_departureId != null && _departureId == _arrivalId) ...[
           const SizedBox(height: 12),
@@ -991,6 +1014,23 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           style: AppFonts.manrope(
               fontSize: 12, color: AppTheme.textSecondary),
         ),
+        const SizedBox(height: 20),
+        PaymentChannelField(
+          value: _paymentChannel,
+          onChanged: (channel) => setState(() => _paymentChannel = channel),
+          footnote: _mode == 'driver'
+              ? 'Le chauffeur doit accepter ce mode pour confirmer la course.'
+              : 'Les chauffeurs qui n’acceptent pas ce mode ne pourront pas '
+                  'répondre à votre annonce.',
+        ),
+        if (_paymentChannel.isCash) ...[
+          const SizedBox(height: 16),
+          CashCollectionPointField(
+            value: _cashCollectionPoint,
+            onChanged: (point) =>
+                setState(() => _cashCollectionPoint = point),
+          ),
+        ],
         const SizedBox(height: 18),
         _buildAttachments(),
       ],
@@ -1082,6 +1122,12 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                     ? '—'
                     : '${_weight.text.trim()} kg'),
             _recapRow('Prix', priceText, mono: true),
+            _recapRow(
+              'Paiement',
+              _paymentChannel.isCash
+                  ? '${_paymentChannel.label} · ${_cashCollectionPoint.payerLabel.toLowerCase()}'
+                  : _paymentChannel.label,
+            ),
             if (_description.text.trim().isNotEmpty)
               _recapRow('Description', _description.text.trim()),
           ],

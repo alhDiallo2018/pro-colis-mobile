@@ -39,7 +39,6 @@ class _DriverParametresScreenState
   final _modelController = TextEditingController();
   final _typeController = TextEditingController();
   final _capacityController = TextEditingController();
-  Map<String, dynamic>? _vehicle;
 
   // PIN fields
   final _currentPinController = TextEditingController();
@@ -126,50 +125,63 @@ class _DriverParametresScreenState
     super.dispose();
   }
 
+  /// Le véhicule vit dans sa propre table côté backend (GET /driver/vehicle) :
+  /// il n'est pas exposé par /auth/me, on ne peut donc pas le lire depuis
+  /// l'utilisateur courant.
   Future<void> _loadVehicle() async {
     setState(() => _isLoading = true);
     try {
-      final user = ref.read(authProvider).user;
-      if (user != null && mounted) {
-        setState(() {
-          _plateController.text = user.vehiclePlate ?? '';
-          _modelController.text = user.vehicleModel ?? '';
-          _typeController.text = user.vehicleModel ?? '';
-          _capacityController.text = user.vehicleYear?.toString() ?? '';
-          _isLoading = false;
-        });
-      } else {
-        if (mounted) setState(() => _isLoading = false);
-      }
+      final vehicle = await _apiService.getDriverVehicle();
+      if (!mounted) return;
+      setState(() {
+        _plateController.text = vehicle?['plateNumber']?.toString() ?? '';
+        _modelController.text = vehicle?['model']?.toString() ?? '';
+        _typeController.text = vehicle?['type']?.toString() ?? '';
+        final capacity = vehicle?['capacity'];
+        _capacityController.text =
+            (capacity == null || capacity == 0) ? '' : capacity.toString();
+        _isLoading = false;
+      });
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _saveVehicle() async {
+    final plate = _plateController.text.trim();
+    final model = _modelController.text.trim();
+    final type = _typeController.text.trim();
+
+    // Le backend rejette ces trois champs s'ils sont vides : on prévient ici
+    // plutôt que de laisser passer une erreur de validation opaque.
+    if (plate.isEmpty || model.isEmpty || type.isEmpty) {
+      _showError('Plaque, modèle et type sont obligatoires');
+      return;
+    }
+
     setState(() => _isSaving = true);
     try {
-      await _apiService.updateProfile(UserRole.driver, {
-        'vehiclePlate': _plateController.text.trim(),
-        'vehicleModel': _modelController.text.trim(),
-        'vehicleColor': _typeController.text.trim(),
-        'vehicleYear': int.tryParse(_capacityController.text.trim()) ?? 0,
+      final result = await _apiService.upsertVehicle({
+        'plateNumber': plate,
+        'model': model,
+        'type': type,
+        'capacity': int.tryParse(_capacityController.text.trim()) ?? 0,
       });
-      if (mounted) {
+
+      if (!mounted) return;
+
+      if (result['success'] == false) {
+        _showError(result['message']?.toString() ?? 'Enregistrement impossible');
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Véhicule enregistré'),
               backgroundColor: AppTheme.green600),
         );
-        await ref.read(authProvider.notifier).refreshUser();
         await _loadVehicle();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
-        );
-      }
+      if (mounted) _showError('Erreur: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

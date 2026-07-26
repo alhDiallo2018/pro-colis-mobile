@@ -10,20 +10,27 @@ import '../../data/country_data.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_logo.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/location_autocomplete.dart';
 import '../../widgets/pc_components.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
-  const RegisterPage({super.key});
+  final String initialRole;
+
+  const RegisterPage({
+    super.key,
+    this.initialRole = 'client',
+  });
 
   @override
   ConsumerState<RegisterPage> createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
-  String _role = 'client';
+  late String _role;
   final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _cityController = TextEditingController();
   final _phoneController = TextEditingController();
   final _pinController = TextEditingController();
@@ -32,12 +39,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   String _selectedCountryCode = '+221';
   CountryInfo? _selectedCountry;
-  String _countrySearchQuery = '';
-  final _countrySearchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    // L'onboarding ne peut présélectionner que les deux rôles ouverts à
+    // l'inscription publique. Les rôles administratifs restent protégés.
+    _role = widget.initialRole == 'driver' ? 'driver' : 'client';
     _selectedCountry = allCountries.firstWhere(
       (c) => c.dialCode == '+221',
       orElse: () => allCountries.first,
@@ -48,22 +56,30 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   @override
   void dispose() {
     _fullNameController.dispose();
+    _emailController.dispose();
     _cityController.dispose();
     _phoneController.dispose();
     _pinController.dispose();
-    _countrySearchController.dispose();
     super.dispose();
   }
 
   bool get _pinValid => RegExp(r'^\d{6}$').hasMatch(_pinController.text);
+  bool get _emailValid {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return true;
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
+  }
+
   bool get _canSubmit =>
       _fullNameController.text.trim().length >= 2 &&
       _phoneController.text.trim().length >= 8 &&
+      _emailValid &&
       _pinValid &&
       _accepted;
 
   String _getFullPhone() {
-    final phone = _phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    final phone =
+        _phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
     return '$_selectedCountryCode$phone';
   }
 
@@ -72,22 +88,30 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     setState(() => _isLoading = true);
 
-    final result = await ref.read(authProvider.notifier).register(
-          phone: _getFullPhone(),
-          fullName: _fullNameController.text.trim(),
-          pin: _pinController.text,
-          role: _role,
-          city: _cityController.text.trim().isNotEmpty
-              ? _cityController.text.trim()
-              : null,
-        );
+    // L'inscription déclenche un appel réseau critique. Le try/catch garde
+    // l'écran dans un état cohérent et journalise aussi les erreurs inattendues
+    // qui n'auraient pas été normalisées par le provider d'authentification.
+    try {
+      final result = await ref.read(authProvider.notifier).register(
+            phone: _getFullPhone(),
+            fullName: _fullNameController.text.trim(),
+            email: _emailController.text.trim().isEmpty
+                ? null
+                : _emailController.text.trim().toLowerCase(),
+            pin: _pinController.text,
+            role: _role,
+            city: _cityController.text.trim().isNotEmpty
+                ? _cityController.text.trim()
+                : null,
+          );
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+      if (!mounted) return;
 
-    if (result['success'] == true) {
-      GoRouter.of(context).go('/dashboard');
-    } else {
+      if (result['success'] == true) {
+        GoRouter.of(context).go('/dashboard');
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message']?.toString() ?? 'Erreur inscription'),
@@ -95,6 +119,28 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } catch (error, stackTrace) {
+      debugPrint('[RegisterPage] Échec inattendu de l’inscription : $error');
+      debugPrintStack(
+        label: '[RegisterPage] Trace de l’erreur d’inscription',
+        stackTrace: stackTrace,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'L’inscription a échoué. Vérifiez votre connexion et réessayez.',
+            ),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -110,7 +156,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _TranslucentBackButton(onTap: () => Navigator.pop(context)),
+                Row(
+                  children: [
+                    _TranslucentBackButton(
+                      onTap: () => context.go('/landing'),
+                    ),
+                    const Spacer(),
+                    AppBrandLink(
+                      onTap: () => context.go('/landing'),
+                      logoSize: 24,
+                      fontSize: 15,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 18),
                 Text(
                   'Créer un compte',
@@ -125,7 +183,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 Text(
                   'Quelques informations et vous êtes prêt.',
                   style: AppFonts.manrope(
-                    color: Colors.white.withOpacity( 0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -138,202 +196,214 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Rôle
-                  Text(
-                    'Je suis…',
-                    style: AppFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.slate600,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _RoleTile(
-                          selected: _role == 'client',
-                          iconSelected: Icons.inventory_2,
-                          iconIdle: Icons.inventory_2_outlined,
-                          label: 'Expéditeur',
-                          onTap: () => setState(() => _role = 'client'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _RoleTile(
-                          selected: _role == 'driver',
-                          iconSelected: Icons.local_shipping,
-                          iconIdle: Icons.local_shipping_outlined,
-                          label: 'Chauffeur',
-                          onTap: () => setState(() => _role = 'driver'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Nom
-                  CustomTextField(
-                    controller: _fullNameController,
-                    label: 'Nom complet',
-                    prefixIcon: Icons.badge_outlined,
-                    hint: 'Ex : Aïcha Mballa',
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Ville
-                  LocationAutocomplete(
-                    controller: _cityController,
-                    label: 'Ville',
-                    prefixIcon: Icons.location_on_outlined,
-                    hint: 'Rechercher votre ville...',
-                    googleApiKey: PlacesService.googleApiKey,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Téléphone (préfixe pays) + PIN
-                  Row(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Téléphone',
-                              style: AppFonts.plusJakartaSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.slate600,
+                      // Rôle
+                      Text(
+                        'Je suis…',
+                        style: AppFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.slate600,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _RoleTile(
+                              selected: _role == 'client',
+                              iconSelected: Icons.inventory_2,
+                              iconIdle: Icons.inventory_2_outlined,
+                              label: 'Expéditeur',
+                              onTap: () => setState(() => _role = 'client'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _RoleTile(
+                              selected: _role == 'driver',
+                              iconSelected: Icons.local_shipping,
+                              iconIdle: Icons.local_shipping_outlined,
+                              label: 'Chauffeur',
+                              onTap: () => setState(() => _role = 'driver'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Nom
+                      CustomTextField(
+                        controller: _fullNameController,
+                        label: 'Nom complet',
+                        prefixIcon: Icons.badge_outlined,
+                        hint: 'Ex : Aïcha Mballa',
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // L'e-mail reste facultatif, mais une valeur renseignée doit
+                      // être valide avant de permettre l'envoi du formulaire.
+                      CustomTextField(
+                        controller: _emailController,
+                        label: 'E-mail (facultatif)',
+                        prefixIcon: Icons.alternate_email_rounded,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        hint: 'Ex : aicha@email.com',
+                        helperText: _emailController.text.trim().isEmpty
+                            ? 'Utile pour recevoir vos confirmations et alertes.'
+                            : null,
+                        errorText: _emailValid
+                            ? null
+                            : 'Saisissez une adresse e-mail valide.',
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Ville
+                      LocationAutocomplete(
+                        controller: _cityController,
+                        label: 'Ville',
+                        prefixIcon: Icons.location_on_outlined,
+                        hint: 'Rechercher votre ville...',
+                        googleApiKey: PlacesService.googleApiKey,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Le téléphone et le PIN occupent chacun la largeur entière :
+                      // le sélecteur pays ne peut ainsi plus comprimer le numéro
+                      // ni provoquer un débordement sur les petits iPhone.
+                      Text(
+                        'Téléphone',
+                        style: AppFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.slate600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _PhoneField(
+                        controller: _phoneController,
+                        countryCode: _selectedCountryCode,
+                        selectedCountry: _selectedCountry,
+                        onCountryChanged: (c) {
+                          setState(() {
+                            _selectedCountryCode = c.dialCode;
+                            _selectedCountry = c;
+                          });
+                        },
+                        onChanged: () => setState(() {}),
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: _pinController,
+                        label: 'Code PIN',
+                        prefixIcon: Icons.lock_outline,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        showCounter: false,
+                        hint: '6 chiffres',
+                        style: AppTheme.mono(fontSize: 16),
+                        onChanged: (value) {
+                          final cleaned =
+                              value.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (cleaned != value) {
+                            _pinController.text = cleaned;
+                            _pinController.selection =
+                                TextSelection.fromPosition(
+                              TextPosition(offset: cleaned.length),
+                            );
+                          }
+                          setState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Conditions
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: Checkbox(
+                              value: _accepted,
+                              onChanged: (v) =>
+                                  setState(() => _accepted = v ?? false),
+                              activeColor: AppTheme.primary,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppTheme.radiusXs),
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            _PhoneField(
-                              controller: _phoneController,
-                              countryCode: _selectedCountryCode,
-                              selectedCountry: _selectedCountry,
-                              onCountryChanged: (c) {
-                                setState(() {
-                                  _selectedCountryCode = c.dialCode;
-                                  _selectedCountry = c;
-                                });
-                              },
-                              onChanged: () => setState(() {}),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: CustomTextField(
-                          controller: _pinController,
-                          label: 'Code PIN',
-                          prefixIcon: Icons.lock_outline,
-                          keyboardType: TextInputType.number,
-                          maxLength: 6,
-                          hint: '6 chiffres',
-                          style: AppTheme.mono(fontSize: 16),
-                          onChanged: (value) {
-                            final cleaned =
-                                value.replaceAll(RegExp(r'[^0-9]'), '');
-                            if (cleaned != value) {
-                              _pinController.text = cleaned;
-                              _pinController.selection =
-                                  TextSelection.fromPosition(
-                                TextPosition(offset: cleaned.length),
-                              );
-                            }
-                            setState(() {});
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Conditions
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: Checkbox(
-                          value: _accepted,
-                          onChanged: (v) =>
-                              setState(() => _accepted = v ?? false),
-                          activeColor: AppTheme.primary,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusXs),
                           ),
-                        ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () =>
+                                  setState(() => _accepted = !_accepted),
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  'J\'accepte les conditions de transport et la politique de confidentialité.',
+                                  style: AppFonts.manrope(
+                                    fontSize: 12.5,
+                                    height: 1.4,
+                                    color: AppTheme.slate500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _accepted = !_accepted),
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              'J\'accepte les conditions de transport et la politique de confidentialité.',
+                      const SizedBox(height: 20),
+
+                      // Soumettre
+                      PcButton(
+                        'Créer mon compte',
+                        icon: Icons.person_add_alt_1,
+                        block: true,
+                        size: PcButtonSize.lg,
+                        loading: _isLoading,
+                        onPressed: _canSubmit ? _register : null,
+                      ),
+                      const SizedBox(height: 20),
+
+                      Center(
+                        child: TextButton(
+                          onPressed: () => context.go('/login'),
+                          child: RichText(
+                            text: TextSpan(
                               style: AppFonts.manrope(
-                                fontSize: 12.5,
-                                height: 1.4,
+                                fontSize: 14,
                                 color: AppTheme.slate500,
                               ),
+                              children: [
+                                const TextSpan(text: 'Déjà un compte ? '),
+                                TextSpan(
+                                  text: 'Se connecter',
+                                  style: AppFonts.plusJakartaSans(
+                                    color: AppTheme.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-
-                  // Soumettre
-                  PcButton(
-                    'Créer mon compte',
-                    icon: Icons.person_add_alt_1,
-                    block: true,
-                    size: PcButtonSize.lg,
-                    loading: _isLoading,
-                    onPressed: _canSubmit ? _register : null,
-                  ),
-                  const SizedBox(height: 20),
-
-                  Center(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: RichText(
-                        text: TextSpan(
-                          style: AppFonts.manrope(
-                            fontSize: 14,
-                            color: AppTheme.slate500,
-                          ),
-                          children: [
-                            const TextSpan(text: 'Déjà un compte ? '),
-                            TextSpan(
-                              text: 'Se connecter',
-                              style: AppFonts.plusJakartaSans(
-                                color: AppTheme.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -354,7 +424,7 @@ class _TranslucentBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity( 0.16),
+      color: Colors.white.withValues(alpha: 0.16),
       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
       child: InkWell(
         onTap: onTap,
@@ -486,7 +556,8 @@ class _PhoneFieldState extends State<_PhoneField> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       child: TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
@@ -518,11 +589,19 @@ class _PhoneFieldState extends State<_PhoneField> {
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {
                           final country = filtered[index];
-                          final isSelected = widget.selectedCountry?.code == country.code;
+                          final isSelected =
+                              widget.selectedCountry?.code == country.code;
                           return ListTile(
-                            leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
-                            title: Text(country.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            trailing: Text(country.dialCode, style: AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.slate600)),
+                            leading: Text(country.flag,
+                                style: const TextStyle(fontSize: 24)),
+                            title: Text(country.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            trailing: Text(country.dialCode,
+                                style: AppTheme.mono(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.slate600)),
                             selected: isSelected,
                             selectedTileColor: AppTheme.teal50,
                             onTap: () {
@@ -570,9 +649,11 @@ class _PhoneFieldState extends State<_PhoneField> {
                 const SizedBox(width: 4),
                 Text(
                   widget.countryCode,
-                  style: AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w600),
+                  style:
+                      AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
-                const Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.slate500),
+                const Icon(Icons.arrow_drop_down,
+                    size: 18, color: AppTheme.slate500),
               ],
             ),
           ),
@@ -588,7 +669,8 @@ class _PhoneFieldState extends State<_PhoneField> {
               hintText: '77 123 45 67',
               filled: true,
               fillColor: AppTheme.cardColor,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             ),
           ),
         ),

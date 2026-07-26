@@ -10,6 +10,7 @@ import 'package:geolocator/geolocator.dart';
 import '../models/garage.dart';
 import '../theme/app_theme.dart';
 import 'pc_components.dart';
+import 'zone_picker_sheet.dart';
 
 class GaragePickerSheet {
   static Future<Garage?> show({
@@ -18,6 +19,7 @@ class GaragePickerSheet {
     Garage? exclude,
     Garage? initial,
     String title = 'Choisir une zone',
+    bool allowAddZone = true,
   }) async {
     return showModalBottomSheet<Garage>(
       context: context,
@@ -28,6 +30,7 @@ class GaragePickerSheet {
         exclude: exclude,
         initial: initial,
         title: title,
+        allowAddZone: allowAddZone,
       ),
     );
   }
@@ -38,12 +41,14 @@ class _GaragePickerSheetContent extends StatefulWidget {
   final Garage? exclude;
   final Garage? initial;
   final String title;
+  final bool allowAddZone;
 
   const _GaragePickerSheetContent({
     required this.garages,
     this.exclude,
     this.initial,
     required this.title,
+    this.allowAddZone = true,
   });
 
   @override
@@ -86,6 +91,53 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
 
   void _confirm() {
     if (_selected != null) Navigator.pop(context, _selected);
+  }
+
+  /// Ouvre le sélecteur Google Places / carte et renvoie directement la zone
+  /// ajoutée à l'appelant : inutile de repasser par la liste, qui ne la
+  /// contient pas encore.
+  Future<void> _addZone() async {
+    final garage = await ZonePickerSheet.show(
+      context: context,
+      initialQuery: _query.trim().isEmpty ? null : _query.trim(),
+    );
+    if (garage != null && mounted) Navigator.pop(context, garage);
+  }
+
+  Widget _addZoneButton({bool emphasized = false}) {
+    final label = _query.trim().isEmpty
+        ? 'Ma zone n’est pas dans la liste…'
+        : 'Ajouter « ${_query.trim()} » comme nouveau lieu';
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: emphasized ? 4 : 8),
+      child: GestureDetector(
+        onTap: _addZone,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.teal50,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(color: AppTheme.teal100),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.add_location_alt_rounded,
+                  size: 20, color: AppTheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(label,
+                    style: AppFonts.plusJakartaSans(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.teal700)),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 20, color: AppTheme.primary),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _findNearest() async {
@@ -256,18 +308,25 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                 const SizedBox(height: 12),
                 Expanded(
                   child: _filtered.isEmpty
-                      ? Center(
-                          child: PcEmptyState(
-                            icon: Icons.search_off_rounded,
-                            title: 'Aucun résultat',
-                            message: 'Aucune zone ne correspond à "$_query".',
-                          ),
+                      ? ListView(
+                          controller: scrollCtrl,
+                          children: [
+                            PcEmptyState(
+                              icon: Icons.search_off_rounded,
+                              title: 'Aucun résultat',
+                              message: _query.isEmpty
+                                  ? 'Aucune zone disponible pour le moment.'
+                                  : 'Aucune zone ne correspond à "$_query".',
+                            ),
+                            if (widget.allowAddZone) _addZoneButton(emphasized: true),
+                          ],
                         )
                       : ListView.builder(
                           controller: scrollCtrl,
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                          itemCount: cities.length,
+                          itemCount: cities.length + (widget.allowAddZone ? 1 : 0),
                           itemBuilder: (_, ci) {
+                            if (ci == cities.length) return _addZoneButton();
                             final city = cities[ci];
                             final list = _grouped[city]!;
                             return Column(

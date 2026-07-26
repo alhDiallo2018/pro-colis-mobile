@@ -11,10 +11,13 @@ User _testUser({String fullName = 'John Doe'}) {
     fullName: fullName,
     role: UserRole.client,
     status: UserStatus.active,
+    createdAt: DateTime(2026),
   );
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('AuthState', () {
     test('initial state is unauthenticated', () {
       final state = AuthState.initial();

@@ -18,9 +18,12 @@ import '../../widgets/location_autocomplete.dart';
 import '../../services/api_service.dart';
 import '../../screens/settings/settings_screen.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/role_identity.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
+import 'role_profile_sections.dart';
+import 'address_book_cards.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -39,6 +42,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isLoading = false;
   bool _isInitialized = false;
 
+  /// Statistiques chauffeur issues de GET /driver/stats. Les compteurs portés
+  /// par l'utilisateur (`totalDeliveries`, `completedDeliveries`, `rating`) ne
+  /// sont pas maintenus par le backend et valent 0 : les afficher tels quels
+  /// donnerait des chiffres faux.
+
   // Feedback intégré au formulaire (à la manière du Toast web).
   bool _profileSaved = false;
   String? _profileError;
@@ -47,18 +55,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (imagePath == null || imagePath.isEmpty) return '';
     return ApiService.resolveMediaUrl(imagePath);
   }
+
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
   final _regionController = TextEditingController();
-
-  // Contrôleurs chauffeur
-  final _vehiclePlateController = TextEditingController();
-  final _vehicleModelController = TextEditingController();
-  final _vehicleColorController = TextEditingController();
-  final _vehicleYearController = TextEditingController();
 
   // Contrôleurs PIN
   final _currentPinController = TextEditingController();
@@ -106,10 +109,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _addressController.text = _user.address ?? '';
     _cityController.text = _user.city ?? '';
     _regionController.text = _user.region ?? '';
-    _vehiclePlateController.text = _user.vehiclePlate ?? '';
-    _vehicleModelController.text = _user.vehicleModel ?? '';
-    _vehicleColorController.text = _user.vehicleColor ?? '';
-    _vehicleYearController.text = _user.vehicleYear?.toString() ?? '';
   }
 
   @override
@@ -120,16 +119,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _addressController.dispose();
     _cityController.dispose();
     _regionController.dispose();
-    _vehiclePlateController.dispose();
-    _vehicleModelController.dispose();
-    _vehicleColorController.dispose();
-    _vehicleYearController.dispose();
     _currentPinController.dispose();
     _newPinController.dispose();
     _confirmPinController.dispose();
     super.dispose();
   }
-
 
   Future<void> _pickImage() async {
     try {
@@ -260,33 +254,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         'region': _regionController.text.trim(),
       };
 
-      if (_user.role == UserRole.driver) {
-        data['vehiclePlate'] = _vehiclePlateController.text.trim();
-        data['vehicleModel'] = _vehicleModelController.text.trim();
-        data['vehicleColor'] = _vehicleColorController.text.trim();
-        if (_vehicleYearController.text.trim().isNotEmpty) {
-          data['vehicleYear'] =
-              int.tryParse(_vehicleYearController.text.trim());
-        }
-      }
+      // Le véhicule n'est pas porté par le profil : il a sa propre ressource
+      // (PUT /driver/vehicle, écran Paramètres). L'endpoint profil ignore
+      // silencieusement ces champs — les envoyer ferait croire à une
+      // sauvegarde qui n'a pas lieu.
 
-      String endpoint;
-      switch (_user.role) {
-        case UserRole.client:
-          endpoint = '/client/profile';
-          break;
-        case UserRole.driver:
-          endpoint = '/driver/profile';
-          break;
-        case UserRole.admin:
-          endpoint = '/garage-admin/profile';
-          break;
-        case UserRole.superAdmin:
-          endpoint = '/super-admin/profile';
-          break;
-      }
-
-      final response = await apiService.updateProfileByRole(endpoint, data);
+      // L'endpoint dépend du rôle : il est porté par l'enum pour qu'un nouveau
+      // rôle ne laisse pas un `switch` incomplet derrière lui.
+      final response = await apiService.updateProfileByRole(
+        _user.role.profileEndpoint,
+        data,
+      );
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -400,7 +378,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Profil'),
+        title: Text(_titleForRole(_user.role)),
         backgroundColor: AppTheme.cardColor,
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
@@ -419,7 +397,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           _buildHeaderCard(),
           const SizedBox(height: 16),
-          _buildStatsRow(),
+          // Statistiques et bloc métier dépendent du rôle : un client ne voit
+          // plus « Livraisons totales », un agent support voit ses tickets.
+          RoleStatsRow(user: _user),
+          const SizedBox(height: 16),
+          RoleProfileSectionCard(user: _user),
+          const SizedBox(height: 16),
+          const AddressBookCard(),
+          const SizedBox(height: 16),
+          const FavoriteGaragesCard(),
+          const SizedBox(height: 16),
+          const PcSectionHeader('Raccourcis'),
+          RoleQuickLinksCard(role: _user.role),
           const SizedBox(height: 16),
           _buildInfoCard(),
           const SizedBox(height: 16),
@@ -443,49 +432,127 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  // ---- En-tête (avatar + nom + rôle + téléphone) ----
+  // ---- En-tête (avatar + nom + rôle + accroche + téléphone) ----
+
+  /// Titre de l'AppBar : « Profil » seul ne dit pas à un agent support de quel
+  /// espace il s'agit lorsqu'il jongle entre plusieurs comptes.
+  String _titleForRole(UserRole role) {
+    switch (role) {
+      case UserRole.client:
+      case UserRole.driver:
+        return 'Mon profil';
+      case UserRole.admin:
+      case UserRole.supportTechnique:
+      case UserRole.supportCommercial:
+      case UserRole.support:
+      case UserRole.superAdmin:
+        return 'Profil · ${role.identity.label}';
+    }
+  }
 
   Widget _buildHeaderCard() {
+    final identity = _user.identity;
+
     return PcCard(
-      padding: const EdgeInsets.all(20),
-      child: Row(
+      padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          _buildHeaderAvatar(),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+          // Bandeau aux couleurs du rôle : reconnaissable d'un coup d'œil.
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            decoration: BoxDecoration(
+              gradient: identity.gradient,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppTheme.radiusMd),
+              ),
+            ),
+            child: Row(
               children: [
-                Text(
-                  _user.fullName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.plusJakartaSans(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                    height: 1.15,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    PcBadge(_user.role.label, tone: PcTone.primary),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        _user.phone,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTheme.mono(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.textSecondary,
+                Icon(identity.icon, size: 20, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        identity.spaceName,
+                        style: AppFonts.plusJakartaSans(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        identity.tagline,
+                        style: AppFonts.manrope(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withAlpha(215),
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                _buildHeaderAvatar(),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _user.fullName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.plusJakartaSans(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textPrimary,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          PcBadge(identity.label, tone: identity.tone),
+                          // Le statut n'a de sens qu'en disponibilité chauffeur
+                          // ou en compte suspendu : l'afficher partout
+                          // reviendrait à répéter « Actif » sans information.
+                          if (_user.isDriver || !_user.isActive)
+                            PcBadge(
+                              _user.statusText,
+                              tone: _user.isActive ? PcTone.green : PcTone.red,
+                            ),
+                          Text(
+                            _user.formattedPhone,
+                            style: AppTheme.mono(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_user.garageName != null &&
+                          _user.garageName!.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        PcMeta(Icons.garage_rounded, _user.garageName!),
+                      ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -538,7 +605,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         clipBehavior: Clip.none,
         children: [
           SizedBox(width: d, height: d, child: base),
-          // Pastille en ligne (statut).
+          // Pastille de statut : doit refléter le statut réel du chauffeur,
+          // pas un « en ligne » systématique.
           Positioned(
             right: 2,
             top: 2,
@@ -546,7 +614,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               width: 15,
               height: 15,
               decoration: BoxDecoration(
-                color: AppTheme.green500,
+                color: _user.statusColor,
                 shape: BoxShape.circle,
                 border: Border.all(color: AppTheme.cardColor, width: 2.5),
               ),
@@ -590,47 +658,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _fallbackAvatar(double d) =>
-      PcAvatar(_user.fullName, size: d);
-
-  // ---- Statistiques (points / colis) ----
-
-  Widget _buildStatsRow() {
-    final totalDeliveries = _user.totalDeliveries ?? 0;
-    final completedDeliveries = _user.completedDeliveries ?? 0;
-    final rating = _user.rating;
-
-    return Row(
-      children: [
-        Expanded(
-          child: PcStatBox(
-            icon: Icons.local_shipping_rounded,
-            value: totalDeliveries.toString(),
-            label: 'Livraisons totales',
-            tone: PcTone.primary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: PcStatBox(
-            icon: Icons.check_circle_rounded,
-            value: completedDeliveries.toString(),
-            label: 'Livrées',
-            tone: PcTone.green,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: PcStatBox(
-            icon: Icons.star_rounded,
-            value: rating != null ? rating.toStringAsFixed(1) : '-',
-            label: 'Note',
-            tone: PcTone.amber,
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _fallbackAvatar(double d) => PcAvatar(_user.fullName, size: d);
 
   // ---- Informations personnelles (formulaire éditable) ----
 
@@ -706,6 +734,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+          _formField(
+            controller: _regionController,
+            label: 'Région',
+            icon: Icons.map_rounded,
           ),
           if (_profileError != null) ...[
             const SizedBox(height: 14),

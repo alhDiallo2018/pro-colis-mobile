@@ -13,7 +13,11 @@ import '../parcel/parcel_detail_screen.dart';
 /// Liste globale des colis (super-admin), alignée sur ColisPage.tsx du web.
 /// Filtre par groupe de statut + recherche (suivi / ville) + cartes ParcelCard.
 class ColisManagementScreen extends ConsumerStatefulWidget {
-  const ColisManagementScreen({super.key});
+  /// Rendu à l'intérieur d'un dashboard qui porte déjà sa barre d'onglets :
+  /// on n'ajoute alors pas de seconde barre de navigation.
+  final bool embedded;
+
+  const ColisManagementScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<ColisManagementScreen> createState() =>
@@ -137,7 +141,7 @@ class _ColisManagementScreenState extends ConsumerState<ColisManagementScreen> {
     final filtered = _filtered;
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      bottomNavigationBar: const AppBottomNav(),
+      bottomNavigationBar: widget.embedded ? null : const AppBottomNav(),
       appBar: AppBar(
         title: Text(
           'Colis${total > 0 ? ' · $total' : ''}',

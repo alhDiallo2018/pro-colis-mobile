@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
-import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
 import 'package:procolis/screens/profile/profile_screen.dart';
 
 import '../../models/parcel.dart';
@@ -124,12 +123,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: Column(
-        children: [
-          const BroadcastBanner(),
-          Expanded(child: _buildBody()),
-        ],
-      ),
+      body: _buildBody(),
       bottomNavigationBar: _buildBottomNavBar(),
       floatingActionButton: PcFab(
         icon: Icons.assignment_turned_in_rounded,
@@ -145,29 +139,33 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
     }
     if (_error != null) return _buildErrorView();
 
-    return Column(
-      children: [
-        _buildHeader(),
-        Expanded(
-          child: Column(
-            children: [
-              _buildStatsGrid(),
-              _buildTabs(),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _PendingParcelsTab(parcels: _parcels, drivers: _drivers, onRefresh: _loadData),
-                    _DriversTab(drivers: _drivers, onRefresh: _loadData),
-                    _InProgressTab(parcels: _parcels, onRefresh: _loadData),
-                    _HistoryTab(parcels: _parcels, onRefresh: _loadData),
-                  ],
-                ),
-              ),
-            ],
-          ),
+    // Le NestedScrollView partage le geste vertical entre l'en-tête et la liste
+    // active. Les blocs de synthèse peuvent ainsi sortir de l'écran au lieu de
+    // réduire la liste à une zone minuscule sur les petits appareils.
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        SliverToBoxAdapter(child: _buildHeader()),
+        // Positionne l'annonce sous l'en-tête de gestion de zone.
+        const SliverToBoxAdapter(child: BroadcastBanner()),
+        SliverToBoxAdapter(child: _buildStatsGrid()),
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _GarageTabsHeaderDelegate(child: _buildTabs()),
         ),
       ],
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _PendingParcelsTab(
+            parcels: _parcels,
+            drivers: _drivers,
+            onRefresh: _loadData,
+          ),
+          _DriversTab(drivers: _drivers, onRefresh: _loadData),
+          _InProgressTab(parcels: _parcels, onRefresh: _loadData),
+          _HistoryTab(parcels: _parcels, onRefresh: _loadData),
+        ],
+      ),
     );
   }
 
@@ -450,6 +448,36 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
       ],
     );
   }
+}
+
+// Maintient les filtres accessibles pendant que les longues listes défilent.
+class _GarageTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  const _GarageTabsHeaderDelegate({required this.child});
+
+  @override
+  double get minExtent => kTextTabBarHeight;
+
+  @override
+  double get maxExtent => kTextTabBarHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(
+      color: AppTheme.cardColor,
+      elevation: overlapsContent ? 1 : 0,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _GarageTabsHeaderDelegate oldDelegate) =>
+      oldDelegate.child != child;
 }
 
 // ==================== HEADER ICON BUTTON (hero) ====================

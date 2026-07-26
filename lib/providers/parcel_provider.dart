@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/parcel.dart';
+import '../models/user.dart';
 import '../services/api_service.dart';
 
 final parcelProvider =
@@ -45,6 +46,85 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
+  }
+
+  /// Charge les deux directions ensemble, puis les reclasse avec l'identité du
+  /// client. Cette vérification locale empêche une réponse serveur mal filtrée
+  /// de placer les colis expédiés dans l'onglet « Reçus ».
+  Future<void> loadClientParcels(
+    User client, {
+    String? status,
+  }) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final results = await Future.wait([
+        _apiService.getSentParcels(status: status),
+        _apiService.getReceivedParcels(status: status),
+      ]);
+
+      // Les deux endpoints peuvent contenir le même colis selon la version de
+      // l'API. La fusion permet de reconstituer une source fiable avant de
+      // séparer expéditeur et destinataire.
+      final byId = <String, Parcel>{};
+      for (final parcel in [...results[0], ...results[1]]) {
+        byId[parcel.id] = parcel;
+      }
+
+      final sent = <Parcel>[];
+      final received = <Parcel>[];
+      for (final parcel in byId.values) {
+        final sentByClient = _isSentBy(parcel, client);
+        final receivedByClient = _isReceivedBy(parcel, client);
+
+        if (sentByClient) sent.add(parcel);
+        // Un envoi à soi-même reste classé dans « Envoyés » afin que les deux
+        // onglets restent mutuellement exclusifs.
+        if (receivedByClient && !sentByClient) received.add(parcel);
+      }
+
+      state = state.copyWith(
+        sentParcels: sent,
+        receivedParcels: received,
+        isLoading: false,
+        error: null,
+      );
+    } catch (e) {
+      debugPrint('❌ Erreur classement des colis client: $e');
+      state = state.copyWith(error: e.toString(), isLoading: false);
+    }
+  }
+
+  bool _isSentBy(Parcel parcel, User client) {
+    if (parcel.senderId.isNotEmpty && parcel.senderId == client.id) return true;
+    if (_samePhone(parcel.senderPhone, client.phone)) return true;
+    return _sameEmail(parcel.senderEmail, client.email);
+  }
+
+  bool _isReceivedBy(Parcel parcel, User client) {
+    if (_samePhone(parcel.receiverPhone, client.phone)) return true;
+    return _sameEmail(parcel.receiverEmail, client.email);
+  }
+
+  /// Les numéros sénégalais peuvent arriver avec espaces, préfixe `+221` ou
+  /// sans indicatif. Comparer les neuf derniers chiffres couvre ces formats.
+  bool _samePhone(String? first, String? second) {
+    String normalize(String? value) {
+      final digits = value?.replaceAll(RegExp(r'\D'), '') ?? '';
+      if (digits.length < 9) return digits;
+      return digits.substring(digits.length - 9);
+    }
+
+    final normalizedFirst = normalize(first);
+    final normalizedSecond = normalize(second);
+    return normalizedFirst.isNotEmpty &&
+        normalizedFirst == normalizedSecond;
+  }
+
+  bool _sameEmail(String? first, String? second) {
+    final normalizedFirst = first?.trim().toLowerCase() ?? '';
+    final normalizedSecond = second?.trim().toLowerCase() ?? '';
+    return normalizedFirst.isNotEmpty &&
+        normalizedFirst == normalizedSecond;
   }
 
   Future<void> loadDriverParcels() async {

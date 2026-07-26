@@ -29,6 +29,50 @@ class PlaceResult {
   }
 }
 
+/// Découpage administratif d'un lieu, extrait des `address_components` Google.
+class PlaceDetails {
+  final String? placeId;
+  final String? formattedAddress;
+  final String? city;
+  final String? region;
+  final String? country;
+
+  const PlaceDetails({
+    this.placeId,
+    this.formattedAddress,
+    this.city,
+    this.region,
+    this.country,
+  });
+
+  /// Les types sont classés du plus précis au plus large : on garde le premier
+  /// qui matche pour éviter qu'un département n'écrase une ville.
+  static String? _pick(List components, List<String> types) {
+    for (final type in types) {
+      for (final c in components) {
+        final ts = (c['types'] as List?)?.cast<String>() ?? const [];
+        if (ts.contains(type)) return c['long_name'] as String?;
+      }
+    }
+    return null;
+  }
+
+  factory PlaceDetails.fromComponents(
+    List? components, {
+    String? placeId,
+    String? formattedAddress,
+  }) {
+    final list = components ?? const [];
+    return PlaceDetails(
+      placeId: placeId,
+      formattedAddress: formattedAddress,
+      city: _pick(list, ['locality', 'postal_town', 'administrative_area_level_2']),
+      region: _pick(list, ['administrative_area_level_1']),
+      country: _pick(list, ['country']),
+    );
+  }
+}
+
 class LocationAutocomplete extends StatefulWidget {
   final TextEditingController controller;
   final String label;
@@ -38,6 +82,10 @@ class LocationAutocomplete extends StatefulWidget {
   final String googleApiKey;
   final void Function(PlaceResult place)? onPlaceSelected;
   final void Function(double lat, double lng)? onCoordinates;
+  /// Découpage administratif du lieu résolu (ville / région / pays). Sans lui,
+  /// les zones créées à la volée arrivent sans ville et deviennent illisibles
+  /// dans les sélecteurs de trajet.
+  final void Function(double lat, double lng, PlaceDetails details)? onPlaceDetails;
   final bool showGeolocate;
   final String? Function(String?)? validator;
   final bool autofocus;
@@ -53,6 +101,7 @@ class LocationAutocomplete extends StatefulWidget {
     required this.googleApiKey,
     this.onPlaceSelected,
     this.onCoordinates,
+    this.onPlaceDetails,
     this.showGeolocate = true,
     this.validator,
     this.autofocus = false,
@@ -212,24 +261,33 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   }
 
   Future<void> _fetchPlaceCoordinates(String placeId) async {
-    if (widget.onCoordinates == null) return;
+    if (widget.onCoordinates == null && widget.onPlaceDetails == null) return;
     try {
       final response = await _dio.get(
         'https://maps.googleapis.com/maps/api/place/details/json',
         queryParameters: {
           'place_id': placeId,
-          'fields': 'geometry',
+          'fields': 'geometry,address_components,formatted_address',
           'key': widget.googleApiKey,
         },
       );
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['status'] == 'OK') {
-          final location = data['result']['geometry']['location'];
+          final result = data['result'];
+          final location = result['geometry']?['location'];
           if (location != null) {
-            widget.onCoordinates?.call(
-              (location['lat'] as num).toDouble(),
-              (location['lng'] as num).toDouble(),
+            final lat = (location['lat'] as num).toDouble();
+            final lng = (location['lng'] as num).toDouble();
+            widget.onCoordinates?.call(lat, lng);
+            widget.onPlaceDetails?.call(
+              lat,
+              lng,
+              PlaceDetails.fromComponents(
+                result['address_components'] as List?,
+                placeId: placeId,
+                formattedAddress: result['formatted_address'] as String?,
+              ),
             );
           }
         }
@@ -263,13 +321,23 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
         if (response.statusCode == 200) {
           final data = response.data;
           if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
-            final components = data['results'][0]['address_components'] as List?;
+            final first = data['results'][0];
+            final components = first['address_components'] as List?;
             final addr = components != null
                 ? _buildAddressFromComponents(components)
-                : data['results'][0]['formatted_address'] as String?;
+                : first['formatted_address'] as String?;
             if (addr != null) {
               widget.controller.text = addr;
             }
+            widget.onPlaceDetails?.call(
+              lat,
+              lng,
+              PlaceDetails.fromComponents(
+                components,
+                placeId: first['place_id'] as String?,
+                formattedAddress: first['formatted_address'] as String?,
+              ),
+            );
           } else {
             if (data['status'] == 'REQUEST_DENIED' && mounted && !_billingWarningShown) {
               _billingWarningShown = true;

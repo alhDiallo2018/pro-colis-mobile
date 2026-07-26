@@ -165,7 +165,7 @@ class MentionsLegalesPage extends StatelessWidget {
           _bodyText(
             'Les chauffeurs doivent fournir les documents requis : permis de '
             'conduire, carte grise, assurance, pièce d\'identité. La vérification '
-            'est effectuée par ProColis via des garages partenaires.',
+            'est effectuée par ProColis via des zones partenaires.',
           ),
           _bodyText(
             'Les chauffeurs s\'engagent à respecter les délais convenus, à '

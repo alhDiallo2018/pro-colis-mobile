@@ -26,7 +26,7 @@ CREATE TABLE users (
   full_name TEXT NOT NULL,
   password_hash TEXT,
   pin_hash TEXT,
-  role TEXT NOT NULL CHECK (role IN ('client', 'driver', 'admin', 'super_admin')),
+  role TEXT NOT NULL CHECK (role IN ('client', 'driver', 'admin', 'support_technique', 'support_commercial', 'super_admin')),
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'deleted')),
   profile_photo TEXT,
   address TEXT,
@@ -129,6 +129,19 @@ CREATE TABLE parcels (
   payment_method TEXT CHECK (payment_method IN ('wave', 'freemMoney', 'orange_money', 'card', 'cash')),
   payment_phone_number TEXT,
   payment_status TEXT,
+  -- Canal de reglement convenu. 'cash' = de la main a la main, la plateforme
+  -- n'encaisse rien ; 'platform' = encaisse par la plateforme puis reverse au
+  -- chauffeur net de commission. NULL sur les colis anterieurs : deduire alors
+  -- le canal de payment_method.
+  payment_channel TEXT CHECK (payment_channel IN ('cash', 'platform')),
+  -- Canaux acceptes par le chauffeur, repris de son annonce. Le client choisit
+  -- parmi eux. Tableau vide = aucune contrainte declaree.
+  accepted_payment_channels TEXT[] NOT NULL DEFAULT '{}',
+  -- En especes uniquement : a quelle etape l'argent est remis au chauffeur.
+  cash_collection_point TEXT CHECK (cash_collection_point IN ('sender_pickup', 'receiver_delivery')),
+  -- Montant declare encaisse par le chauffeur, et date de la declaration.
+  cash_collected_amount NUMERIC(12,2),
+  cash_collected_at TIMESTAMPTZ,
   signature_url TEXT,
   notes TEXT,
   pickup_date TIMESTAMPTZ,
@@ -215,14 +228,27 @@ CREATE TABLE payments (
   amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
   currency TEXT NOT NULL DEFAULT 'XOF',
   method TEXT NOT NULL CHECK (method IN ('wave', 'freemMoney', 'orange_money', 'card', 'cash')),
+  -- Canal de reglement. Redondant avec method (seul 'cash' est hors plateforme)
+  -- mais explicite, et deduit de method quand il n'est pas fourni.
+  channel TEXT CHECK (channel IN ('cash', 'platform')),
+  -- Pour un paiement en especes, 'processing' signifie « encaissement declare
+  -- par le chauffeur, en attente de validation par un admin ».
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'refunded')),
   transaction_id TEXT UNIQUE,
   phone_number TEXT,
   reference TEXT UNIQUE,
   metadata JSONB NOT NULL DEFAULT '{}',
   receipt_url TEXT,
+  -- Declaration d'encaissement especes faite par le chauffeur.
+  cash_collection_point TEXT CHECK (cash_collection_point IN ('sender_pickup', 'receiver_delivery')),
+  declared_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  declared_at TIMESTAMPTZ,
+  declaration_note TEXT,
+  declaration_proof_url TEXT,
+  -- Reconciliation admin : qui a valide (ou rejete) la declaration, et quand.
   validated_by UUID REFERENCES users(id) ON DELETE SET NULL,
   validated_at TIMESTAMPTZ,
+  rejection_reason TEXT,
   completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -316,6 +342,9 @@ CREATE TABLE advertisements (
   description TEXT,
   audio_url TEXT,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed', 'cancelled')),
+  -- Modes de reglement acceptes par le chauffeur sur ce trajet. Le client
+  -- choisit parmi eux. Tableau vide = non declare, les deux sont proposables.
+  accepted_payment_channels TEXT[] NOT NULL DEFAULT '{}',
   metadata JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -1,13 +1,21 @@
+/// Rayon par défaut d'une zone, aligné sur `DEFAULT_RADIUS_KM`
+/// (`ProColis-Api/src/modules/zones/zone.controller.js`).
+const double kDefaultZoneRadiusKm = 30;
+
 class Zone {
   final String id;
   final String name;
   final String? displayName;
   final String? placeId;
   final String? country;
+  final String? region;
   final String? city;
   final double latitude;
   final double longitude;
-  final int radius;
+
+  /// Rayon en **kilomètres**. L'API sérialise `radius` et `radiusKm` à partir
+  /// de la colonne `zones.radius_km` : les deux sont en km, jamais en mètres.
+  final double radiusKm;
   final List<List<double>>? boundary;
   final String type;
   final bool isActive;
@@ -26,10 +34,11 @@ class Zone {
     this.displayName,
     this.placeId,
     this.country,
+    this.region,
     this.city,
     required this.latitude,
     required this.longitude,
-    this.radius = 5000,
+    this.radiusKm = kDefaultZoneRadiusKm,
     this.boundary,
     this.type = 'CIRCLE',
     this.isActive = true,
@@ -84,10 +93,15 @@ class Zone {
       displayName: json['displayName']?.toString() ?? json['display_name']?.toString(),
       placeId: json['placeId']?.toString() ?? json['place_id']?.toString(),
       country: json['country']?.toString(),
+      region: json['region']?.toString(),
       city: json['city']?.toString(),
       latitude: parseDouble(json['latitude']),
       longitude: parseDouble(json['longitude']),
-      radius: parseInt(json['radius']) ?? 5000,
+      radiusKm: json['radiusKm'] != null
+          ? parseDouble(json['radiusKm'])
+          : json['radius'] != null
+              ? parseDouble(json['radius'])
+              : kDefaultZoneRadiusKm,
       boundary: parseBoundary(json['boundary']),
       type: json['type']?.toString() ?? 'CIRCLE',
       isActive: (json['isActive'] ?? json['is_active'] ?? true) != false,
@@ -106,20 +120,24 @@ class Zone {
     );
   }
 
+  /// Clés en camelCase : `zonePayload` côté API
+  /// (`src/modules/zones/zone.controller.js`) ne lit que cette forme et ignore
+  /// silencieusement le snake_case.
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
-    'display_name': displayName,
-    'place_id': placeId,
+    'displayName': displayName,
+    'placeId': placeId,
     'country': country,
+    'region': region,
     'city': city,
     'latitude': latitude,
     'longitude': longitude,
-    'radius': radius,
+    'radiusKm': radiusKm,
     'boundary': boundary,
     'type': type,
-    'is_active': isActive,
-    'parent_id': parentId,
+    'isActive': isActive,
+    'parentId': parentId,
     'metadata': metadata,
   };
 }

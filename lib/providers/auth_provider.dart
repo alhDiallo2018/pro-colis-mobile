@@ -9,7 +9,6 @@ import 'dart:async';
 
 import '../models/user.dart';
 import '../services/api_service.dart';
-import '../services/auth_notifier.dart';
 import '../services/push_notification_service.dart';
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
@@ -42,7 +41,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _apiService.getCurrentUser();
       state = AuthState.authenticated(user);
       _registerPushToken();
-    } catch (e) {
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[AuthNotifier] Impossible de restaurer la session : $error',
+      );
+      debugPrintStack(
+        label: '[AuthNotifier] Trace de restauration de session',
+        stackTrace: stackTrace,
+      );
       await _apiService.clearToken();
       state = AuthState.unauthenticated();
     }
@@ -68,17 +74,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final User user = userData != null
             ? User.fromJson(userData)
             : await _apiService.getCurrentUser();
+        debugPrint(
+          '[AuthNotifier] Connexion réussie, rôle résolu : ${user.role.value}',
+        );
         state = AuthState.authenticated(user);
         _registerPushToken();
         return {'success': true};
       } else {
-        state = AuthState.error(
-            result['message']?.toString() ?? 'PIN incorrect');
+        state =
+            AuthState.error(result['message']?.toString() ?? 'PIN incorrect');
         return {'success': false, 'message': result['message']};
       }
-    } catch (e) {
-      state = AuthState.error(e.toString());
-      return {'success': false, 'message': e.toString()};
+    } catch (error, stackTrace) {
+      debugPrint('[AuthNotifier] Échec de la connexion PIN : $error');
+      debugPrintStack(
+        label: '[AuthNotifier] Trace de connexion PIN',
+        stackTrace: stackTrace,
+      );
+      state = AuthState.error(error.toString());
+      return {'success': false, 'message': error.toString()};
     }
   }
 
@@ -160,8 +174,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _apiService.getCurrentUser();
       state = AuthState.authenticated(user);
-    } catch (e) {
-      // ignore silently
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[AuthNotifier] Impossible d’actualiser l’utilisateur : $error',
+      );
+      debugPrintStack(
+        label: '[AuthNotifier] Trace d’actualisation utilisateur',
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -246,6 +266,17 @@ class AuthState {
   bool get isClient => user?.role == UserRole.client;
   bool get isDriver => user?.role == UserRole.driver;
   bool get isAdmin => user?.role == UserRole.admin;
+  bool get isSupportTechnique => user?.role == UserRole.supportTechnique;
+  bool get isSupportCommercial => user?.role == UserRole.supportCommercial;
+
+  /// Rôle `support` générique de l'enum Prisma, distinct des deux rôles
+  /// spécialisés. Il atterrit sur `/support-admin`, comme côté web.
+  bool get isSupportShared => user?.role == UserRole.support;
+
+  /// Équivalent de `SUPPORT_ROLES` du web : les trois rôles support réunis.
+  /// Ne comprend pas `super_admin`, qui a son propre espace.
+  bool get isSupport =>
+      isSupportShared || isSupportTechnique || isSupportCommercial;
   bool get isSuperAdmin => user?.role == UserRole.superAdmin;
   String get displayName => user?.fullName.split(' ').first ?? 'Utilisateur';
 

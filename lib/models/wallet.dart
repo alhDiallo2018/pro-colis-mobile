@@ -6,20 +6,28 @@ double _toDouble(dynamic value) {
   return double.tryParse(value.toString()) ?? 0;
 }
 
+/// Valeurs alignées sur l'enum Prisma `WalletTransactionType`
+/// (`ProColis-Api/prisma/schema.prisma`). L'API écrit ces types en minuscules.
 enum WalletTransactionType {
-  deposit('DEPOSIT', 'Recharge'),
-  commission('COMMISSION', 'Commission'),
-  refund('REFUND', 'Remboursement'),
-  adjustment('ADJUSTMENT', 'Ajustement'),
-  bonus('BONUS', 'Bonus');
+  deposit('deposit', 'Recharge'),
+  commission('commission', 'Commission'),
+  bonus('bonus', 'Bonus'),
+  adjustment('adjustment', 'Ajustement'),
+  refund('refund', 'Remboursement'),
+  correction('correction', 'Correction'),
+  penalty('penalty', 'Pénalité'),
+  withdrawal('withdrawal', 'Retrait');
 
   final String value;
   final String label;
   const WalletTransactionType(this.value, this.label);
 
-  static WalletTransactionType fromString(String v) =>
-      WalletTransactionType.values.firstWhere((e) => e.value == v,
-          orElse: () => WalletTransactionType.adjustment);
+  static WalletTransactionType fromString(String v) {
+    final normalized = v.trim().toLowerCase();
+    return WalletTransactionType.values.firstWhere(
+        (e) => e.value == normalized,
+        orElse: () => WalletTransactionType.adjustment);
+  }
 }
 
 /// Transaction du portefeuille chauffeur

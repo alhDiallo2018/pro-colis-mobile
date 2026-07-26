@@ -1,17 +1,21 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/broadcast.dart';
+import '../../models/user.dart';
 import '../../providers/broadcast_provider.dart';
-import '../../services/api_service.dart';
+import '../../services/broadcast_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
-import '../../widgets/procolis_design_system.dart';
+
+String _formatBroadcastDate(DateTime? date) {
+  if (date == null) return '';
+  return '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+}
 
 class BroadcastsPage extends ConsumerStatefulWidget {
   const BroadcastsPage({super.key});
@@ -21,7 +25,7 @@ class BroadcastsPage extends ConsumerStatefulWidget {
 }
 
 class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
-  final ApiService _api = ApiService();
+  final BroadcastService _broadcastService = BroadcastService();
   List<Broadcast> _list = [];
   Broadcast? _editing;
   bool _loading = true;
@@ -36,56 +40,21 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final config = await _api.getAdminConfig();
+      final broadcasts = await _broadcastService.adminLoadBroadcasts();
       if (mounted) {
         setState(() {
-          _list = _extractBroadcastsForPage(config);
+          _list = broadcasts;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) {
-        setState(() { _list = []; _loading = false; });
+        setState(() {
+          _list = [];
+          _loading = false;
+        });
       }
     }
-  }
-
-  List<Broadcast> _extractBroadcastsForPage(Map<String, dynamic> response) {
-    final keys = ['config', 'data'];
-    for (final k in keys) {
-      final val = response[k];
-      if (val is List) {
-        for (final item in val) {
-          if (item is Map<String, dynamic> && item['key'] == 'broadcasts') {
-            final raw = item['value'];
-            if (raw is String) {
-              try {
-                final decoded = jsonDecode(raw);
-                if (decoded is List) {
-                  return decoded
-                      .map((b) => Broadcast.fromJson(b as Map<String, dynamic>))
-                      .toList();
-                }
-              } catch (_) {}
-            }
-            if (raw is List) {
-              return raw
-                  .map((b) => Broadcast.fromJson(b as Map<String, dynamic>))
-                  .toList();
-            }
-          }
-        }
-      }
-      if (val is Map<String, dynamic>) {
-        final broadcasts = val['broadcasts'];
-        if (broadcasts is List) {
-          return broadcasts
-              .map((b) => Broadcast.fromJson(b as Map<String, dynamic>))
-              .toList();
-        }
-      }
-    }
-    return [];
   }
 
   void _persist(List<Broadcast> next) {
@@ -96,27 +65,27 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
 
   Future<void> _cacheAndSave(List<Broadcast> broadcasts) async {
     try {
-      await _api.updateAdminConfig({
-        'broadcasts': broadcasts.map((b) => b.toJson()).toList(),
-      });
-    } catch (_) {}
-    try {
-      final sp = await SharedPreferences.getInstance();
-      final encoded = jsonEncode(broadcasts.map((b) => b.toJson()).toList());
-      await sp.setString('procolis-broadcasts', encoded);
+      await _broadcastService.adminSaveBroadcasts(broadcasts);
     } catch (_) {}
   }
 
   void _save(Broadcast b) {
     final next = b.id.isNotEmpty
         ? _list.map((x) => x.id == b.id ? b : x).toList()
-        : [..._list, b.copyWith(
-            id: DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
-                (DateTime.now().microsecondsSinceEpoch % 1000000).toRadixString(36),
-            createdAt: DateTime.now().toIso8601String().substring(0, 10),
-          )];
+        : [
+            ..._list,
+            b.copyWith(
+              id: DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
+                  (DateTime.now().microsecondsSinceEpoch % 1000000)
+                      .toRadixString(36),
+              createdAt: DateTime.now(),
+            )
+          ];
     _persist(next);
-    setState(() { _editing = null; _saved = true; });
+    setState(() {
+      _editing = null;
+      _saved = true;
+    });
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _saved = false);
     });
@@ -127,11 +96,13 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
   }
 
   void _toggle(String id) {
-    _persist(_list.map((x) => x.id == id ? x.copyWith(active: !x.active) : x).toList());
+    _persist(_list
+        .map((x) => x.id == id ? x.copyWith(active: !x.active) : x)
+        .toList());
   }
 
   Broadcast _empty() {
-    final now = DateTime.now().toIso8601String().substring(0, 10);
+    final now = DateTime.now();
     return Broadcast(
       id: '',
       title: '',
@@ -141,7 +112,7 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
       type: 'info',
       active: true,
       startsAt: now,
-      endsAt: DateTime.now().add(const Duration(days: 7)).toIso8601String().substring(0, 10),
+      endsAt: now.add(const Duration(days: 7)),
       createdAt: now,
     );
   }
@@ -169,8 +140,15 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Bandeaux d'information", style: AppFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-                          Text('Diffusez un message ciblé dans la barre supérieure.', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
+                          Text("Bandeaux d'information",
+                              style: AppFonts.plusJakartaSans(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.textPrimary)),
+                          Text(
+                              'Diffusez un message ciblé dans la barre supérieure.',
+                              style: AppFonts.manrope(
+                                  fontSize: 13, color: AppTheme.textSecondary)),
                         ],
                       ),
                     ),
@@ -179,7 +157,9 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                       'Nouveau',
                       icon: Icons.add,
                       variant: PcButtonVariant.primary,
-                      onPressed: _editing != null ? null : () => setState(() => _editing = _empty()),
+                      onPressed: _editing != null
+                          ? null
+                          : () => setState(() => _editing = _empty()),
                     ),
                   ],
                 ),
@@ -193,9 +173,12 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.check_circle, color: AppTheme.green600, size: 18),
+                        Icon(Icons.check_circle,
+                            color: AppTheme.green600, size: 18),
                         const SizedBox(width: 8),
-                        Text('Bandeau enregistré.', style: AppFonts.manrope(fontSize: 13, color: AppTheme.green700)),
+                        Text('Bandeau enregistré.',
+                            style: AppFonts.manrope(
+                                fontSize: 13, color: AppTheme.green700)),
                       ],
                     ),
                   ),
@@ -213,7 +196,9 @@ class _BroadcastsPageState extends ConsumerState<BroadcastsPage> {
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.all(48),
-                      child: Text('Aucun bandeau pour le moment.', style: AppFonts.manrope(fontSize: 14, color: AppTheme.slate400)),
+                      child: Text('Aucun bandeau pour le moment.',
+                          style: AppFonts.manrope(
+                              fontSize: 14, color: AppTheme.slate400)),
                     ),
                   ),
                 ..._list.map((b) => _BroadcastTile(
@@ -287,19 +272,31 @@ class _BroadcastTile extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        broadcast.title.isNotEmpty ? broadcast.title : 'Sans titre',
+                        broadcast.title.isNotEmpty
+                            ? broadcast.title
+                            : 'Sans titre',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                        style: AppFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary),
                       ),
                     ),
                     if (broadcast.scroll)
                       Padding(
                         padding: const EdgeInsets.only(left: 6),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(color: AppTheme.teal50, borderRadius: BorderRadius.circular(99)),
-                          child: Text('DÉFILANT', style: AppFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                              color: AppTheme.teal50,
+                              borderRadius: BorderRadius.circular(99)),
+                          child: Text('DÉFILANT',
+                              style: AppFonts.manrope(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.primary)),
                         ),
                       ),
                   ],
@@ -309,14 +306,16 @@ class _BroadcastTile extends StatelessWidget {
                   broadcast.message,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
+                  style: AppFonts.manrope(
+                      fontSize: 13, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${broadcast.targetRoles.map(broadcastRoleLabel).join(", ")} · ${broadcast.startsAt} → ${broadcast.endsAt}',
+                  '${broadcast.targetRoles.map(broadcastRoleLabel).join(", ")} · ${_formatBroadcastDate(broadcast.startsAt)} → ${_formatBroadcastDate(broadcast.endsAt)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppFonts.manrope(fontSize: 11, color: AppTheme.slate400),
+                  style:
+                      AppFonts.manrope(fontSize: 11, color: AppTheme.slate400),
                 ),
               ],
             ),
@@ -330,17 +329,25 @@ class _BroadcastTile extends StatelessWidget {
                 GestureDetector(
                   onTap: onToggle,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: broadcast.active ? AppTheme.green50 : AppTheme.slate100,
+                      color: broadcast.active
+                          ? AppTheme.green50
+                          : AppTheme.slate100,
                       borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: broadcast.active ? AppTheme.green600 : AppTheme.slate300),
+                      border: Border.all(
+                          color: broadcast.active
+                              ? AppTheme.green600
+                              : AppTheme.slate300),
                     ),
                     child: Text(
                       broadcast.active ? 'Actif' : 'Inactif',
                       style: AppFonts.manrope(
-                        fontSize: 11, 
-                        color: broadcast.active ? AppTheme.green600 : AppTheme.slate400, 
+                        fontSize: 11,
+                        color: broadcast.active
+                            ? AppTheme.green600
+                            : AppTheme.slate400,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -352,12 +359,14 @@ class _BroadcastTile extends StatelessWidget {
                   children: [
                     GestureDetector(
                       onTap: onEdit,
-                      child: Icon(Icons.edit, size: 18, color: AppTheme.slate400),
+                      child:
+                          Icon(Icons.edit, size: 18, color: AppTheme.slate400),
                     ),
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: onDelete,
-                      child: Icon(Icons.delete, size: 18, color: AppTheme.red500),
+                      child:
+                          Icon(Icons.delete, size: 18, color: AppTheme.red500),
                     ),
                   ],
                 ),
@@ -408,7 +417,10 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         children: [
           Text(
             _b.id.isNotEmpty ? 'Modifier le bandeau' : 'Nouveau bandeau',
-            style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            style: AppFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -430,13 +442,23 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             onChanged: (v) => _b = _b.copyWith(message: v),
           ),
           const SizedBox(height: 14),
-          Text('Type', style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          Text('Type',
+              style: AppFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             children: ['info', 'warning', 'success', 'promo'].map((t) {
               final selected = _b.type == t;
-              final label = {'info': 'Info', 'warning': 'Alerte', 'success': 'Succès', 'promo': 'Promo'}[t] ?? t;
+              final label = {
+                    'info': 'Info',
+                    'warning': 'Alerte',
+                    'success': 'Succès',
+                    'promo': 'Promo'
+                  }[t] ??
+                  t;
               return ChoiceChip(
                 label: Text(label),
                 selected: selected,
@@ -458,17 +480,25 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             children: [
               Checkbox(
                 value: _b.scroll,
-                onChanged: (v) => setState(() => _b = _b.copyWith(scroll: v == true)),
+                onChanged: (v) =>
+                    setState(() => _b = _b.copyWith(scroll: v == true)),
               ),
-              Text('Faire défiler le message', style: AppFonts.manrope(fontSize: 13, color: AppTheme.textPrimary)),
+              Text('Faire défiler le message',
+                  style: AppFonts.manrope(
+                      fontSize: 13, color: AppTheme.textPrimary)),
             ],
           ),
           const SizedBox(height: 14),
-          Text('Cibler les rôles', style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          Text('Cibler les rôles',
+              style: AppFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 12,
-            children: ['client', 'driver', 'admin', 'super_admin'].map((r) {
+            // Dérivé de l'enum : un nouveau rôle devient ciblable sans retouche.
+            children: UserRole.values.map((role) => role.value).map((r) {
               final checked = _b.targetRoles.contains(r);
               return Row(
                 mainAxisSize: MainAxisSize.min,
@@ -483,7 +513,9 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                       });
                     },
                   ),
-                  Text(broadcastRoleLabel(r), style: AppFonts.manrope(fontSize: 13, color: AppTheme.textPrimary)),
+                  Text(broadcastRoleLabel(r),
+                      style: AppFonts.manrope(
+                          fontSize: 13, color: AppTheme.textPrimary)),
                 ],
               );
             }).toList(),
@@ -493,17 +525,29 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             children: [
               Expanded(
                 child: TextField(
-                  decoration: const InputDecoration(labelText: 'Du', hintText: 'AAAA-MM-JJ'),
-                  controller: TextEditingController(text: _b.startsAt),
-                  onChanged: (v) => _b = _b.copyWith(startsAt: v),
+                  decoration: const InputDecoration(
+                      labelText: 'Du', hintText: 'AAAA-MM-JJ'),
+                  controller: TextEditingController(
+                    text: _formatBroadcastDate(_b.startsAt),
+                  ),
+                  onChanged: (v) {
+                    final parsed = DateTime.tryParse(v);
+                    if (parsed != null) _b = _b.copyWith(startsAt: parsed);
+                  },
                 ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: TextField(
-                  decoration: const InputDecoration(labelText: 'Au', hintText: 'AAAA-MM-JJ'),
-                  controller: TextEditingController(text: _b.endsAt),
-                  onChanged: (v) => _b = _b.copyWith(endsAt: v),
+                  decoration: const InputDecoration(
+                      labelText: 'Au', hintText: 'AAAA-MM-JJ'),
+                  controller: TextEditingController(
+                    text: _formatBroadcastDate(_b.endsAt),
+                  ),
+                  onChanged: (v) {
+                    final parsed = DateTime.tryParse(v);
+                    if (parsed != null) _b = _b.copyWith(endsAt: parsed);
+                  },
                 ),
               ),
             ],
@@ -512,13 +556,18 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              PcButton('Annuler', icon: Icons.close, variant: PcButtonVariant.secondary, onPressed: widget.onCancel),
+              PcButton('Annuler',
+                  icon: Icons.close,
+                  variant: PcButtonVariant.secondary,
+                  onPressed: widget.onCancel),
               const SizedBox(width: 10),
               PcButton(
                 _b.id.isNotEmpty ? 'Modifier' : 'Créer',
                 icon: Icons.check,
                 variant: PcButtonVariant.primary,
-                onPressed: _b.message.trim().isNotEmpty ? () => widget.onSave(_b) : null,
+                onPressed: _b.message.trim().isNotEmpty
+                    ? () => widget.onSave(_b)
+                    : null,
               ),
             ],
           ),

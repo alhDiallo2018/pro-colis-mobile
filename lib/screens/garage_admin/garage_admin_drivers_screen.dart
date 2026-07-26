@@ -311,13 +311,13 @@ class _DriverCard extends StatelessWidget {
               ),
             if (driver.vehicleModel != null && driver.vehicleModel!.isNotEmpty)
               _InfoRow(icon: Icons.directions_car_outlined, label: 'Modèle', value: driver.vehicleModel!),
-            if (driver.vehicleColor != null && driver.vehicleColor!.isNotEmpty)
-              _InfoRow(icon: Icons.color_lens_outlined, label: 'Couleur', value: driver.vehicleColor!),
-            if (driver.vehicleYear != null)
+            if (driver.vehicleType != null && driver.vehicleType!.isNotEmpty)
+              _InfoRow(icon: Icons.category_outlined, label: 'Type', value: driver.vehicleType!),
+            if (driver.vehicleCapacity != null && driver.vehicleCapacity! > 0)
               _InfoRow(
-                icon: Icons.calendar_today_outlined,
-                label: 'Année',
-                value: driver.vehicleYear!.toString(),
+                icon: Icons.scale_outlined,
+                label: 'Capacité',
+                value: '${driver.vehicleCapacity} kg',
                 mono: true,
               ),
             _InfoRow(

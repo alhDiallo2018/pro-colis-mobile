@@ -63,25 +63,21 @@ class _VehicleDocumentsScreenState
     _loadInitial();
   }
 
-  /// Chargement best-effort depuis les données utilisateur.
+  /// Le véhicule est une entité à part côté backend (GET /driver/vehicle) et
+  /// n'est pas exposé par /auth/me : il faut donc l'appeler explicitement,
+  /// sinon la carte véhicule reste vide alors que la donnée existe.
   Future<void> _loadInitial() async {
     try {
-      final user = ref.read(authProvider).user;
+      final results = await Future.wait([
+        _api.getDriverVehicle(),
+        _api.getIdentityStatus(),
+      ]);
       if (!mounted) return;
+      final vehicle = results[0];
+      final identityStatus = results[1];
       setState(() {
-        if (user != null) {
-          final plate = user.vehiclePlate;
-          final model = user.vehicleModel;
-          final color = user.vehicleColor;
-          if (plate != null || model != null || color != null) {
-            _vehicle = {
-              'plateNumber': plate ?? '',
-              'model': model ?? '',
-              'type': color ?? '',
-              'capacity': user.vehicleYear ?? 0,
-            };
-          }
-        }
+        _vehicle = vehicle;
+        _prefillFromIdentity(identityStatus);
         _loading = false;
       });
     } catch (_) {
@@ -89,25 +85,35 @@ class _VehicleDocumentsScreenState
     }
   }
 
-  /// Tente de reconstruire les URLs déjà connues depuis /identity/status.
-  /// Format attendu (souple) : { identity: { documents: [ { documentType,
-  /// side, url } ] } } — sinon on démarre à vide.
+  /// Reconstruit les URLs déjà téléversées depuis GET /identity/status.
+  ///
+  /// Le backend renvoie `documents` : une ligne par type de document officiel
+  /// (portant ses deux faces) et autant de lignes que de photos de véhicule.
   void _prefillFromIdentity(Map<String, dynamic>? status) {
     if (status == null) return;
-    final identity = status['identity'];
-    if (identity is! Map) return;
-    final docs = identity['documents'];
-    if (docs is! List) return;
-    for (final d in docs) {
-      if (d is! Map) continue;
-      final type = d['documentType']?.toString();
-      final side = d['side']?.toString();
-      final url = d['url']?.toString();
-      if (type == null || url == null || url.isEmpty) continue;
-      if (type == 'vehicle_photo') {
-        if (!_vehiclePhotos.contains(url)) _vehiclePhotos.add(url);
-      } else if (side != null) {
-        _docUrls[_slotKey(type, side)] = url;
+    final documents = status['documents'];
+    if (documents is! List) return;
+
+    // Les documents arrivent du plus récent au plus ancien ; on restitue la
+    // galerie véhicule dans l'ordre d'envoi.
+    for (final doc in documents.reversed) {
+      if (doc is! Map) continue;
+      final type = doc['documentType']?.toString();
+      if (type == null || type.isEmpty) continue;
+
+      final sides = {
+        'front': doc['documentFrontUrl']?.toString(),
+        'back': doc['documentBackUrl']?.toString(),
+      };
+
+      for (final entry in sides.entries) {
+        final url = entry.value;
+        if (url == null || url.isEmpty) continue;
+        if (type == 'vehicle_photo') {
+          if (!_vehiclePhotos.contains(url)) _vehiclePhotos.add(url);
+        } else {
+          _docUrls[_slotKey(type, entry.key)] = url;
+        }
       }
     }
   }

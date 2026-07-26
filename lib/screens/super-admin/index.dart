@@ -2,6 +2,7 @@ export 'add_points_dialog.dart';
 export 'admin_parametres_screen.dart';
 export 'brevo_config_screen.dart';
 export 'broadcasts_page.dart';
+export 'cash_declarations_screen.dart';
 export 'chauffeurs_management_screen.dart';
 export 'classement_screen.dart';
 export 'colis_management_screen.dart';

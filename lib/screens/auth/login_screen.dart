@@ -65,7 +65,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             orElse: () => _selectedCountry ?? allCountries.first,
           );
         }
-        if (rememberMe && savedIdentifier != null && savedIdentifier.isNotEmpty) {
+        if (rememberMe &&
+            savedIdentifier != null &&
+            savedIdentifier.isNotEmpty) {
           _identifierController.text = savedIdentifier;
         }
       });
@@ -168,7 +170,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       child: TextField(
                         controller: _countrySearchController,
                         decoration: InputDecoration(
@@ -179,7 +182,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   icon: const Icon(Icons.clear),
                                   onPressed: () {
                                     _countrySearchController.clear();
-                                    setModalState(() => _countrySearchQuery = '');
+                                    setModalState(
+                                        () => _countrySearchQuery = '');
                                   },
                                 )
                               : null,
@@ -202,16 +206,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {
                           final country = filtered[index];
-                          final isSelected = _selectedCountry?.code == country.code;
+                          final isSelected =
+                              _selectedCountry?.code == country.code;
                           return ListTile(
-                            leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
-                            title: Text(country.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            trailing: Text(country.dialCode, style: AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.slate600)),
+                            leading: Text(country.flag,
+                                style: const TextStyle(fontSize: 24)),
+                            title: Text(country.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            trailing: Text(country.dialCode,
+                                style: AppTheme.mono(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.slate600)),
                             selected: isSelected,
                             selectedTileColor: AppTheme.teal50,
                             onTap: () {
                               setState(() => _selectedCountry = country);
-                              _saveIdentifier(_identifierController.text.trim());
+                              _saveIdentifier(
+                                  _identifierController.text.trim());
                               _countrySearchController.clear();
                               Navigator.pop(ctx);
                             },
@@ -283,7 +296,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           decoration: BoxDecoration(
                             color: AppTheme.cardColor,
                             border: Border.all(color: AppTheme.slate200),
-                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusMd),
                           ),
                           alignment: Alignment.center,
                           child: Row(
@@ -366,8 +380,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         value: _rememberMe,
                         onChanged: (value) async {
                           setState(() => _rememberMe = value ?? false);
-                          final prefs =
-                              await SharedPreferences.getInstance();
+                          final prefs = await SharedPreferences.getInstance();
                           await prefs.setBool('remember_me', _rememberMe);
                           if (!_rememberMe) {
                             await prefs.remove('saved_identifier');
@@ -375,8 +388,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         },
                         activeColor: AppTheme.primary,
                         visualDensity: VisualDensity.compact,
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         shape: RoundedRectangleBorder(
                             borderRadius:
                                 BorderRadius.circular(AppTheme.radiusXs)),
@@ -472,27 +484,8 @@ class _AuthHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity( 0.16),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const AppLogo(size: 30, isWhite: true),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'SENDPROCOLIS',
-                style: AppFonts.plusJakartaSans(
-                  color: Colors.white,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
+          AppBrandLink(
+            onTap: () => context.go('/landing'),
           ),
           const SizedBox(height: 30),
           Text(
@@ -509,7 +502,7 @@ class _AuthHero extends StatelessWidget {
           Text(
             'Connectez-vous pour créer des colis, comparer les offres et suivre vos livraisons.',
             style: AppFonts.manrope(
-              color: Colors.white.withOpacity( 0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 14,
               height: 1.5,
             ),

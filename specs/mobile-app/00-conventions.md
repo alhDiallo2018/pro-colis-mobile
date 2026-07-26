@@ -119,3 +119,15 @@ Methodes paiement :
 ```text
 wave, freemMoney, orange_money, card, cash
 ```
+
+Canaux de reglement :
+
+```text
+cash, platform
+```
+
+Point d'encaissement en especes :
+
+```text
+sender_pickup, receiver_delivery
+```

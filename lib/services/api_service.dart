@@ -51,10 +51,14 @@ class ApiService {
   ApiClient? _apiClient;
   PaydunyaApi? _paydunyaApi;
   CommissionApi? _commissionApi;
+  CashPaymentsApi? _cashPaymentsApi;
 
   ApiClient get _client => _apiClient ??= ApiClient(dioOverride: _dio);
   PaydunyaApi get _modularPaydunya => _paydunyaApi ??= PaydunyaApi(_client);
-  CommissionApi get _modularCommission => _commissionApi ??= CommissionApi(_client);
+  CommissionApi get _modularCommission =>
+      _commissionApi ??= CommissionApi(_client);
+  CashPaymentsApi get _modularCash =>
+      _cashPaymentsApi ??= CashPaymentsApi(_client);
 
   ApiService() {
     _dio.options.baseUrl = baseUrl;
@@ -229,7 +233,11 @@ class ApiService {
         return {
           'success': true,
           'userId': 'mock-new-user',
-          'user': {'id': 'mock-new-user', 'fullName': payload['fullName'], 'role': payload['role'] ?? 'client'},
+          'user': {
+            'id': 'mock-new-user',
+            'fullName': payload['fullName'],
+            'role': payload['role'] ?? 'client'
+          },
         };
       }
       final response = await _dio.post('/auth/register', data: payload);
@@ -265,6 +273,23 @@ class ApiService {
 
   // ==================== PARCELS ====================
 
+  /// Convertit une liste de colis quelle que soit la forme de réponse utilisée
+  /// par l'API. Les versions récentes peuvent renvoyer une clé directionnelle
+  /// (`sent`/`received`), tandis que les anciennes utilisent `parcels`.
+  List<Parcel> _parseParcelList(
+    Map<String, dynamic> responseData, {
+    String? direction,
+  }) {
+    final rawList = direction != null && responseData[direction] is List
+        ? responseData[direction] as List
+        : (responseData['parcels'] as List?) ?? const [];
+
+    return rawList
+        .whereType<Map>()
+        .map((json) => Parcel.fromJson(Map<String, dynamic>.from(json)))
+        .toList();
+  }
+
   Future<List<Parcel>> getMyParcels({String? status}) async {
     try {
       if (isMockMode) {
@@ -278,14 +303,21 @@ class ApiService {
       final response = await _dio.get('/client/parcels/my-parcels',
           queryParameters: queryParams);
       final responseData = _handleResponse(response);
-      final sent = (responseData['sent'] as List?) ?? [];
-      final received = (responseData['received'] as List?) ?? [];
-      final all = [...sent, ...received];
-      return all
-          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
-          .toList();
+      final grouped = [
+        ..._parseParcelList(responseData, direction: 'sent'),
+        ..._parseParcelList(responseData, direction: 'received'),
+      ];
+      final parcels = grouped.isNotEmpty
+          ? grouped
+          : _parseParcelList(responseData);
+
+      // Un colis envoyé à soi-même peut être présent dans les deux groupes.
+      // On le déduplique ici pour ne pas fausser les compteurs du dashboard.
+      final seen = <String>{};
+      return parcels.where((parcel) => seen.add(parcel.id)).toList();
     } catch (e) {
-      debugPrint("❌ [API] getMyParcels failed: $e"); return [];
+      debugPrint("❌ [API] getMyParcels failed: $e");
+      return [];
     }
   }
 
@@ -293,15 +325,13 @@ class ApiService {
     try {
       final params = <String, dynamic>{'filter': 'sent'};
       if (status != null && status.isNotEmpty) params['status'] = status;
-      final response = await _dio.get('/client/parcels/my-parcels',
-          queryParameters: params);
+      final response =
+          await _dio.get('/client/parcels/my-parcels', queryParameters: params);
       final responseData = _handleResponse(response);
-      final list = (responseData['parcels'] as List?) ?? [];
-      return list
-          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
-          .toList();
+      return _parseParcelList(responseData, direction: 'sent');
     } catch (e) {
-      debugPrint("❌ [API] getSentParcels failed: $e"); return [];
+      debugPrint("❌ [API] getSentParcels failed: $e");
+      return [];
     }
   }
 
@@ -309,15 +339,13 @@ class ApiService {
     try {
       final params = <String, dynamic>{'filter': 'received'};
       if (status != null && status.isNotEmpty) params['status'] = status;
-      final response = await _dio.get('/client/parcels/my-parcels',
-          queryParameters: params);
+      final response =
+          await _dio.get('/client/parcels/my-parcels', queryParameters: params);
       final responseData = _handleResponse(response);
-      final list = (responseData['parcels'] as List?) ?? [];
-      return list
-          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
-          .toList();
+      return _parseParcelList(responseData, direction: 'received');
     } catch (e) {
-      debugPrint("❌ [API] getReceivedParcels failed: $e"); return [];
+      debugPrint("❌ [API] getReceivedParcels failed: $e");
+      return [];
     }
   }
 
@@ -342,8 +370,7 @@ class ApiService {
       if (isMockMode) {
         return MockData.parcels.first;
       }
-      final response =
-          await _dio.post('/client/parcels/create', data: data);
+      final response = await _dio.post('/client/parcels/create', data: data);
       final responseData = _handleResponse(response);
       final parcel = responseData['parcel'];
       if (parcel != null) {
@@ -373,12 +400,14 @@ class ApiService {
       if (isMockMode) return MockData.freeParcels();
       final response = await _dio.get('/public/parcels/free');
       final responseData = _handleResponse(response);
-      final List<dynamic> parcelsData = (responseData['parcels'] ?? responseData['data'] ?? []) as List;
+      final List<dynamic> parcelsData =
+          (responseData['parcels'] ?? responseData['data'] ?? []) as List;
       return parcelsData
           .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      debugPrint("❌ [API] getFreeParcels failed: $e"); return [];
+      debugPrint("❌ [API] getFreeParcels failed: $e");
+      return [];
     }
   }
 
@@ -403,8 +432,8 @@ class ApiService {
         return ParcelEvent(
           id: json['id']?.toString() ?? '',
           parcelId: json['parcelId']?.toString() ?? '',
-          status: ParcelStatus.fromString(
-              json['status']?.toString() ?? 'pending'),
+          status:
+              ParcelStatus.fromString(json['status']?.toString() ?? 'pending'),
           description: json['description']?.toString() ?? '',
           location: json['location']?.toString(),
           userId: json['userId']?.toString(),
@@ -415,7 +444,8 @@ class ApiService {
               ? Map<String, dynamic>.from(json['metadata'])
               : {},
           timestamp: json['timestamp'] != null
-              ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()
+              ? DateTime.tryParse(json['timestamp'].toString()) ??
+                  DateTime.now()
               : DateTime.now(),
         );
       }).toList();
@@ -457,8 +487,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> acceptBid(
-      String parcelId, String bidId) async {
+  Future<Map<String, dynamic>> acceptBid(String parcelId, String bidId) async {
     try {
       final response =
           await _dio.post('/client/parcels/$parcelId/bids/$bidId/accept');
@@ -473,7 +502,9 @@ class ApiService {
     try {
       final response = await _dio.post(
         '/client/parcels/$parcelId/bids/$bidId/reject',
-        data: responseMessage != null ? {'responseMessage': responseMessage} : null,
+        data: responseMessage != null
+            ? {'responseMessage': responseMessage}
+            : null,
       );
       return _handleResponse(response);
     } catch (e) {
@@ -549,9 +580,8 @@ class ApiService {
   Future<Map<String, dynamic>> createAdvertisementOffer(
       String advertisementId, Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post(
-          '/advertisements/$advertisementId/offers',
-          data: data);
+      final response = await _dio
+          .post('/advertisements/$advertisementId/offers', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -581,8 +611,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> negotiateAdvertisementOffer(
-      String advertisementId, String offerId,
-      Map<String, dynamic> data) async {
+      String advertisementId, String offerId, Map<String, dynamic> data) async {
     try {
       final response = await _dio.post(
           '/advertisements/$advertisementId/offers/$offerId/negotiate',
@@ -626,8 +655,8 @@ class ApiService {
   }
 
   // Lifecycle steps: confirm, pickup, transit, arrived, out-for-delivery, deliver
-  Future<Map<String, dynamic>> advanceParcel(
-      String parcelId, String step, {String? location, String? otp}) async {
+  Future<Map<String, dynamic>> advanceParcel(String parcelId, String step,
+      {String? location, String? otp}) async {
     try {
       final data = <String, dynamic>{};
       if (location != null) data['location'] = location;
@@ -799,18 +828,38 @@ class ApiService {
 
   // ==================== GARAGES (PUBLIC) ====================
 
+  static const int _garagePageSize = 100; // maximum accepté par l'API
+  static const int _garageMaxPages = 20;
+
+  /// Liste publique des zones (sélecteurs de trajet).
+  ///
+  /// La route est paginée (20 par défaut) : sans parcours complet des pages,
+  /// les sélecteurs n'affichent qu'une fraction des zones et l'utilisateur croit
+  /// à tort que la sienne n'existe pas.
   Future<List<Garage>> getAllGarages() async {
+    final all = <Garage>[];
     try {
-      final response = await _dio.get('/public/garages');
-      final responseData = _handleResponse(response);
-      final List<dynamic> garagesData =
-          responseData['garages'] ?? responseData['data'] ?? [];
-      return garagesData
-          .map((json) => Garage.fromJson(json as Map<String, dynamic>))
-          .toList();
+      var page = 1;
+      var totalPages = 1;
+      while (page <= totalPages && page <= _garageMaxPages) {
+        final response = await _dio.get('/public/garages',
+            queryParameters: {'page': page, 'limit': _garagePageSize});
+        final responseData = _handleResponse(response);
+        final List<dynamic> batch =
+            responseData['garages'] ?? responseData['data'] ?? [];
+        all.addAll(batch.map(
+            (json) => Garage.fromJson(Map<String, dynamic>.from(json as Map))));
+        final pagination = responseData['pagination'];
+        totalPages =
+            pagination is Map ? (pagination['totalPages'] as int? ?? 1) : 1;
+        // Une API qui ignorerait la pagination renverrait la même page en boucle.
+        if (batch.length < _garagePageSize) break;
+        page++;
+      }
     } catch (e) {
-      debugPrint("❌ [API] getAllGarages failed: $e"); return [];
+      debugPrint("❌ [API] getAllGarages failed: $e");
     }
+    return all;
   }
 
   // ==================== USERS / PROFILE ====================
@@ -818,22 +867,8 @@ class ApiService {
   Future<Map<String, dynamic>> updateProfile(
       UserRole role, Map<String, dynamic> data) async {
     try {
-      String endpoint;
-      switch (role) {
-        case UserRole.client:
-          endpoint = '/client/profile';
-          break;
-        case UserRole.driver:
-          endpoint = '/driver/profile';
-          break;
-        case UserRole.admin:
-          endpoint = '/garage-admin/profile';
-          break;
-        case UserRole.superAdmin:
-          endpoint = '/super-admin/profile';
-          break;
-      }
-      final response = await _dio.put(endpoint, data: data);
+      // Endpoint porté par l'enum : voir UserRole.profileEndpoint.
+      final response = await _dio.put(role.profileEndpoint, data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -855,8 +890,8 @@ class ApiService {
 
   Future<Map<String, dynamic>> updateDriverStatus(String status) async {
     try {
-      final response = await _dio.put('/driver/profile',
-          data: {'driverStatus': status});
+      final response =
+          await _dio.put('/driver/profile', data: {'driverStatus': status});
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -884,6 +919,28 @@ class ApiService {
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ==================== STATISTIQUES CHAUFFEUR ====================
+
+  /// Statistiques chauffeur calculées côté serveur — GET /driver/stats.
+  ///
+  /// À utiliser plutôt que les compteurs `User.totalDeliveries` /
+  /// `completedDeliveries` / `rating` : ces colonnes ne sont pas remises à jour
+  /// par le backend et valent 0, alors que cet endpoint calcule les valeurs
+  /// réelles à partir des colis. Clés : assignedParcels, activeParcels,
+  /// completedDeliveries, rating, scoreBalance, pendingBids, openAdvertisements.
+  Future<Map<String, dynamic>> getDriverStats() async {
+    try {
+      final response = await _dio.get('/driver/stats');
+      final responseData = _handleResponse(response);
+      final stats = responseData['stats'];
+      if (stats is Map) return Map<String, dynamic>.from(stats);
+      return {};
+    } catch (e) {
+      debugPrint('❌ [API] getDriverStats failed: $e');
+      return {};
     }
   }
 
@@ -958,14 +1015,13 @@ class ApiService {
 
   // ==================== MESSAGES ====================
 
-  Future<List<Map<String, dynamic>>> getMessagesThread(
-      String peerId, {String? parcelId}) async {
+  Future<List<Map<String, dynamic>>> getMessagesThread(String peerId,
+      {String? parcelId}) async {
     try {
-      final response = await _dio.get('/messages/thread',
-          queryParameters: {
-            'peerId': peerId,
-            if (parcelId != null) 'parcelId': parcelId,
-          });
+      final response = await _dio.get('/messages/thread', queryParameters: {
+        'peerId': peerId,
+        if (parcelId != null) 'parcelId': parcelId,
+      });
       final responseData = _handleResponse(response);
       final List<dynamic> messagesData = responseData['messages'] ?? [];
       return messagesData.map((json) => json as Map<String, dynamic>).toList();
@@ -1002,8 +1058,7 @@ class ApiService {
   /// Liste toutes les conversations de support (admin/super-admin).
   Future<List<Map<String, dynamic>>> adminSupportConversations() async {
     try {
-      final response =
-          await _dio.get('/messages/admin/support/conversations');
+      final response = await _dio.get('/messages/admin/support/conversations');
       final responseData = _handleResponse(response);
       final data = responseData['data'];
       if (data is List) {
@@ -1020,8 +1075,8 @@ class ApiService {
   Future<List<Map<String, dynamic>>> adminSupportThread(
       String supportUserId, String userId) async {
     try {
-      final response = await _dio.get(
-          '/messages/admin/support/conversations/$supportUserId/$userId');
+      final response = await _dio
+          .get('/messages/admin/support/conversations/$supportUserId/$userId');
       final responseData = _handleResponse(response);
       final data = responseData['data'];
       final messages = (data is Map<String, dynamic>) ? data['messages'] : null;
@@ -1074,8 +1129,7 @@ class ApiService {
 
   Future<bool> markNotificationAsRead(String notificationId) async {
     try {
-      final response =
-          await _dio.patch('/notifications/$notificationId/read');
+      final response = await _dio.patch('/notifications/$notificationId/read');
       return _handleResponse(response)['success'] == true;
     } catch (e) {
       return false;
@@ -1102,9 +1156,11 @@ class ApiService {
     }
   }
 
-  Future<bool> updateNotificationPreferences(List<Map<String, dynamic>> prefs) async {
+  Future<bool> updateNotificationPreferences(
+      List<Map<String, dynamic>> prefs) async {
     try {
-      final response = await _dio.put('/notifications/preferences', data: {'preferences': prefs});
+      final response = await _dio
+          .put('/notifications/preferences', data: {'preferences': prefs});
       return _handleResponse(response)['success'] == true;
     } catch (e) {
       return false;
@@ -1149,8 +1205,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> purchasePoints(
-      Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> purchasePoints(Map<String, dynamic> data) async {
     try {
       final response = await _dio.post('/score/purchase', data: data);
       return _handleResponse(response);
@@ -1339,21 +1394,8 @@ class ApiService {
   Future<Parcel?> getParcelById(String parcelId) async {
     try {
       final currentUser = await getCurrentUser();
-      String endpoint;
-      switch (currentUser.role) {
-        case UserRole.client:
-          endpoint = '/client/parcels/$parcelId';
-          break;
-        case UserRole.driver:
-          endpoint = '/driver/parcels/$parcelId';
-          break;
-        case UserRole.admin:
-          endpoint = '/garage-admin/parcels/$parcelId';
-          break;
-        case UserRole.superAdmin:
-          endpoint = '/super-admin/parcels/$parcelId';
-          break;
-      }
+      // Préfixe porté par l'enum : voir UserRole.apiScope.
+      final endpoint = '/${currentUser.role.apiScope}/parcels/$parcelId';
       final response = await _dio.get(endpoint);
       final responseData = _handleResponse(response);
       if (responseData['parcel'] != null) {
@@ -1425,8 +1467,7 @@ class ApiService {
     String? garageId,
   }) async {
     try {
-      final response =
-          await _dio.put('/super-admin/users/$userId', data: {
+      final response = await _dio.put('/super-admin/users/$userId', data: {
         'fullName': fullName,
         'email': email,
         'phone': phone,
@@ -1457,8 +1498,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> resetUserPinAdmin(String userId) async {
     try {
-      final response =
-          await _dio.post('/super-admin/users/$userId/reset-pin');
+      final response = await _dio.post('/super-admin/users/$userId/reset-pin');
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -1526,8 +1566,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> deleteGarageSuperAdmin(
-      String garageId) async {
+  Future<Map<String, dynamic>> deleteGarageSuperAdmin(String garageId) async {
     try {
       final response = await _dio.delete('/super-admin/garages/$garageId');
       return _handleResponse(response);
@@ -1589,10 +1628,15 @@ class ApiService {
   }
 
   /// Résout un lieu Google Places en zone (création "pending" si nécessaire) et
-  /// renvoie un Garage (type attendu par le RoutePicker / les sélecteurs).
+  /// renvoie son **garage miroir**.
+  ///
+  /// Colis et annonces référencent `garages.id` (clé étrangère), jamais
+  /// `zones.id` : renvoyer la zone produirait un identifiant refusé à la
+  /// création. L'API expose le miroir sous `garage` / `garageId`.
   Future<Garage?> resolvePlaceZone({
     String? placeId,
     required String name,
+    String? displayName,
     required double latitude,
     required double longitude,
     String? country,
@@ -1603,6 +1647,7 @@ class ApiService {
       final response = await _dio.post('/zones/resolve', data: {
         if (placeId != null) 'placeId': placeId,
         'name': name,
+        if (displayName != null) 'displayName': displayName,
         'latitude': latitude,
         'longitude': longitude,
         if (country != null) 'country': country,
@@ -1610,15 +1655,21 @@ class ApiService {
         if (city != null) 'city': city,
       });
       final data = _handleResponse(response);
-      final z = data['data'];
-      return z is Map ? Garage.fromJson(Map<String, dynamic>.from(z)) : null;
+      final mirror = data['garage'];
+      if (mirror is Map) {
+        return Garage.fromJson(Map<String, dynamic>.from(mirror));
+      }
+      debugPrint('❌ [API] resolvePlaceZone: aucun garage miroir renvoyé');
+      return null;
     } catch (e) {
+      debugPrint('❌ [API] resolvePlaceZone failed: $e');
       return null;
     }
   }
 
   /// Admin : approuver / rejeter une zone en attente (status: approved|rejected).
-  Future<Map<String, dynamic>> setZoneStatus(String zoneId, String status) async {
+  Future<Map<String, dynamic>> setZoneStatus(
+      String zoneId, String status) async {
     try {
       final response = await _dio
           .patch('/super-admin/zones/$zoneId/status', data: {'status': status});
@@ -1630,7 +1681,8 @@ class ApiService {
 
   // ===== Vérifications d'identité chauffeur (KYC) — revue admin =====
 
-  Future<List<Map<String, dynamic>>> getIdentityVerifications({String? status}) async {
+  Future<List<Map<String, dynamic>>> getIdentityVerifications(
+      {String? status}) async {
     try {
       final response = await _dio.get('/super-admin/identity-verifications',
           queryParameters: {if (status != null) 'status': status});
@@ -1652,7 +1704,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> rejectIdentity(String verificationId, String reason) async {
+  Future<Map<String, dynamic>> rejectIdentity(
+      String verificationId, String reason) async {
     try {
       final response = await _dio.post(
           '/super-admin/identity-verifications/$verificationId/reject',
@@ -1666,11 +1719,13 @@ class ApiService {
   // ===== Assistances (journal des interactions support) =====
 
   Future<Map<String, dynamic>> getAssistances(
-      {String? status, String? search}) async {
+      {String? status, String? search, bool mine = false}) async {
     try {
-      final response = await _dio.get('/super-admin/assistances', queryParameters: {
+      final response =
+          await _dio.get('/super-admin/assistances', queryParameters: {
         if (status != null && status.isNotEmpty) 'status': status,
         if (search != null && search.isNotEmpty) 'search': search,
+        if (mine) 'mine': 1,
       });
       return _handleResponse(response);
     } catch (e) {
@@ -1678,17 +1733,41 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> createAssistance(Map<String, dynamic> data) async {
+  /// Recherche d'utilisateurs inscrits pour rattacher une assistance au bon
+  /// compte au lieu de retaper les coordonnées de la personne assistée. Sans
+  /// terme de recherche, l'API renvoie les comptes récemment actifs.
+  Future<List<Map<String, dynamic>>> searchAssistanceUsers(
+      String search) async {
     try {
-      return _handleResponse(await _dio.post('/super-admin/assistances', data: data));
+      final response = await _dio.get(
+        '/super-admin/assistances/users/search',
+        queryParameters: {
+          if (search.trim().isNotEmpty) 'search': search.trim()
+        },
+      );
+      final data = _handleResponse(response);
+      return List<Map<String, dynamic>>.from(
+          data['users'] ?? data['data'] ?? []);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> createAssistance(
+      Map<String, dynamic> data) async {
+    try {
+      return _handleResponse(
+          await _dio.post('/super-admin/assistances', data: data));
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> updateAssistance(String id, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> updateAssistance(
+      String id, Map<String, dynamic> data) async {
     try {
-      return _handleResponse(await _dio.put('/super-admin/assistances/$id', data: data));
+      return _handleResponse(
+          await _dio.put('/super-admin/assistances/$id', data: data));
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -1704,9 +1783,11 @@ class ApiService {
 
   // ===== Dépenses =====
 
-  Future<Map<String, dynamic>> getExpenses({String? status, String? search}) async {
+  Future<Map<String, dynamic>> getExpenses(
+      {String? status, String? search}) async {
     try {
-      final response = await _dio.get('/super-admin/expenses', queryParameters: {
+      final response =
+          await _dio.get('/super-admin/expenses', queryParameters: {
         if (status != null && status.isNotEmpty) 'status': status,
         if (search != null && search.isNotEmpty) 'search': search,
       });
@@ -1718,15 +1799,18 @@ class ApiService {
 
   Future<Map<String, dynamic>> createExpense(Map<String, dynamic> data) async {
     try {
-      return _handleResponse(await _dio.post('/super-admin/expenses', data: data));
+      return _handleResponse(
+          await _dio.post('/super-admin/expenses', data: data));
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> updateExpense(String id, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> updateExpense(
+      String id, Map<String, dynamic> data) async {
     try {
-      return _handleResponse(await _dio.put('/super-admin/expenses/$id', data: data));
+      return _handleResponse(
+          await _dio.put('/super-admin/expenses/$id', data: data));
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -1761,7 +1845,8 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> assignDriverToZone(
-      String zoneId, String driverId, {bool isPrimary = false}) async {
+      String zoneId, String driverId,
+      {bool isPrimary = false}) async {
     try {
       final response = await _dio.post(
         '/super-admin/zones/$zoneId/drivers',
@@ -1828,11 +1913,9 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> uploadAndUpdateProfilePhoto(
-      XFile file) async {
+  Future<Map<String, dynamic>> uploadAndUpdateProfilePhoto(XFile file) async {
     try {
-      final photoUrl =
-          await uploadFile(file: file, mediaType: 'photo');
+      final photoUrl = await uploadFile(file: file, mediaType: 'photo');
       if (photoUrl == null) {
         return {'success': false, 'message': 'Erreur upload'};
       }
@@ -1865,9 +1948,11 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> adminWallets({Map<String, dynamic>? params}) async {
+  Future<List<Map<String, dynamic>>> adminWallets(
+      {Map<String, dynamic>? params}) async {
     try {
-      final response = await _dio.get('/super-admin/wallets', queryParameters: params);
+      final response =
+          await _dio.get('/super-admin/wallets', queryParameters: params);
       final responseData = _handleResponse(response);
       final list = responseData['wallets'] ?? responseData['data'] ?? [];
       return List<Map<String, dynamic>>.from(list);
@@ -1886,9 +1971,12 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> adminWalletTransactions(String userId, {Map<String, dynamic>? params}) async {
+  Future<List<Map<String, dynamic>>> adminWalletTransactions(String userId,
+      {Map<String, dynamic>? params}) async {
     try {
-      final response = await _dio.get('/super-admin/wallets/$userId/transactions', queryParameters: params);
+      final response = await _dio.get(
+          '/super-admin/wallets/$userId/transactions',
+          queryParameters: params);
       final responseData = _handleResponse(response);
       final list = responseData['transactions'] ?? responseData['data'] ?? [];
       return List<Map<String, dynamic>>.from(list);
@@ -1897,18 +1985,22 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> adminRechargeWallet(String userId, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> adminRechargeWallet(
+      String userId, Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post('/super-admin/wallets/$userId/recharge', data: data);
+      final response =
+          await _dio.post('/super-admin/wallets/$userId/recharge', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> adminDebitWallet(String userId, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> adminDebitWallet(
+      String userId, Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post('/super-admin/wallets/$userId/debit', data: data);
+      final response =
+          await _dio.post('/super-admin/wallets/$userId/debit', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -1926,18 +2018,22 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> adminUpdateCommissionConfig(Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> adminUpdateCommissionConfig(
+      Map<String, dynamic> data) async {
     try {
-      final response = await _dio.put('/super-admin/commissions/config', data: data);
+      final response =
+          await _dio.put('/super-admin/commissions/config', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<List<Map<String, dynamic>>> adminSimulateCommission(double amount) async {
+  Future<List<Map<String, dynamic>>> adminSimulateCommission(
+      double amount) async {
     try {
-      final response = await _dio.post('/super-admin/commissions/simulate', data: {'amount': amount});
+      final response = await _dio
+          .post('/super-admin/commissions/simulate', data: {'amount': amount});
       final responseData = _handleResponse(response);
       final list = responseData['simulations'] ?? responseData['data'] ?? [];
       return List<Map<String, dynamic>>.from(list);
@@ -1946,9 +2042,11 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> adminPayments({Map<String, dynamic>? params}) async {
+  Future<List<Map<String, dynamic>>> adminPayments(
+      {Map<String, dynamic>? params}) async {
     try {
-      final response = await _dio.get('/super-admin/payments', queryParameters: params);
+      final response =
+          await _dio.get('/super-admin/payments', queryParameters: params);
       final responseData = _handleResponse(response);
       final list = responseData['payments'] ?? responseData['data'] ?? [];
       return List<Map<String, dynamic>>.from(list);
@@ -1965,7 +2063,8 @@ class ApiService {
     String? status,
   }) async {
     try {
-      final response = await _dio.get('/super-admin/withdrawals', queryParameters: {
+      final response =
+          await _dio.get('/super-admin/withdrawals', queryParameters: {
         'page': page,
         'limit': limit,
         if (status != null && status.isNotEmpty) 'status': status,
@@ -1978,7 +2077,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> adminApproveWithdrawal(String withdrawalId) async {
+  Future<Map<String, dynamic>> adminApproveWithdrawal(
+      String withdrawalId) async {
     try {
       final response =
           await _dio.post('/super-admin/withdrawals/$withdrawalId/approve');
@@ -2000,7 +2100,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> adminCompleteWithdrawal(String withdrawalId) async {
+  Future<Map<String, dynamic>> adminCompleteWithdrawal(
+      String withdrawalId) async {
     try {
       final response =
           await _dio.post('/super-admin/withdrawals/$withdrawalId/complete');
@@ -2021,9 +2122,11 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> adminScores({Map<String, dynamic>? params}) async {
+  Future<List<Map<String, dynamic>>> adminScores(
+      {Map<String, dynamic>? params}) async {
     try {
-      final response = await _dio.get('/super-admin/scores', queryParameters: params);
+      final response =
+          await _dio.get('/super-admin/scores', queryParameters: params);
       final responseData = _handleResponse(response);
       final list = responseData['scores'] ?? responseData['data'] ?? [];
       return List<Map<String, dynamic>>.from(list);
@@ -2042,9 +2145,11 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> adminScoreHistory(String userId, {Map<String, dynamic>? params}) async {
+  Future<List<Map<String, dynamic>>> adminScoreHistory(String userId,
+      {Map<String, dynamic>? params}) async {
     try {
-      final response = await _dio.get('/super-admin/scores/$userId/history', queryParameters: params);
+      final response = await _dio.get('/super-admin/scores/$userId/history',
+          queryParameters: params);
       final responseData = _handleResponse(response);
       final list = responseData['transactions'] ?? responseData['data'] ?? [];
       return List<Map<String, dynamic>>.from(list);
@@ -2053,18 +2158,22 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> adminAddPoints(String userId, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> adminAddPoints(
+      String userId, Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post('/super-admin/scores/$userId/add', data: data);
+      final response =
+          await _dio.post('/super-admin/scores/$userId/add', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> adminRemovePoints(String userId, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> adminRemovePoints(
+      String userId, Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post('/super-admin/scores/$userId/remove', data: data);
+      final response =
+          await _dio.post('/super-admin/scores/$userId/remove', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -2094,13 +2203,17 @@ class ApiService {
 
   // ==================== PAYDUNYA ====================
 
-  Future<Map<String, dynamic>> createPaydunyaPayment(
-      String type, {String? parcelId, int? points, double? amount}) async {
+  Future<Map<String, dynamic>> createPaydunyaPayment(String type,
+      {String? parcelId, int? points, double? amount}) async {
     try {
       if (isMockMode) {
-        return {'token': 'mock-paydunya-token', 'paymentUrl': 'https://paydunya.com/mock'};
+        return {
+          'token': 'mock-paydunya-token',
+          'paymentUrl': 'https://paydunya.com/mock'
+        };
       }
-      return _modularPaydunya.createPayment(type, parcelId: parcelId, points: points, amount: amount);
+      return _modularPaydunya.createPayment(type,
+          parcelId: parcelId, points: points, amount: amount);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -2122,7 +2235,15 @@ class ApiService {
   Future<Map<String, dynamic>> estimateCommission(double amount) async {
     if (isMockMode) {
       final commission = (amount * 0.05).clamp(100.0, 500.0);
-      return {'amount': amount, 'commission': commission, 'netAmount': amount - commission, 'percentage': 5, 'minAmount': 100, 'maxAmount': 500, 'profile': 'local'};
+      return {
+        'amount': amount,
+        'commission': commission,
+        'netAmount': amount - commission,
+        'percentage': 5,
+        'minAmount': 100,
+        'maxAmount': 500,
+        'profile': 'local'
+      };
     }
     return _modularCommission.estimate(amount);
   }
@@ -2131,19 +2252,85 @@ class ApiService {
     return _modularCommission.estimateForParcel(parcelId);
   }
 
-  Future<Map<String, dynamic>> payCashCommission(String parcelId, String source, {double? amount}) async {
+  Future<Map<String, dynamic>> payCashCommission(String parcelId, String source,
+      {double? amount}) async {
     if (isMockMode) {
       final commission = (amount ?? 5000) * 0.05;
-      return {'success': true, 'commission': commission, 'newWalletBalance': 5000 - commission};
+      return {
+        'success': true,
+        'commission': commission,
+        'newWalletBalance': 5000 - commission
+      };
     }
-    return _modularCommission.payCashCommission(parcelId, source, amount: amount);
+    return _modularCommission.payCashCommission(parcelId, source,
+        amount: amount);
+  }
+
+  // ==================== ENCAISSEMENTS ESPÈCES ====================
+
+  /// Le chauffeur déclare avoir reçu les espèces d'un colis. Le paiement passe
+  /// en `processing` jusqu'à validation par un admin.
+  Future<Map<String, dynamic>> declareCashCollection(
+    String parcelId, {
+    required double amount,
+    required String collectionPoint,
+    String? note,
+    String? proofUrl,
+  }) async {
+    return _modularCash.declareCollection(
+      parcelId,
+      amount: amount,
+      collectionPoint: collectionPoint,
+      note: note,
+      proofUrl: proofUrl,
+    );
+  }
+
+  /// Encaissements espèces déclarés par le chauffeur connecté.
+  Future<List<Map<String, dynamic>>> driverCashDeclarations() async {
+    return _modularCash.driverDeclarations();
+  }
+
+  /// File de réconciliation admin : encaissements déclarés, non encore validés.
+  Future<List<Map<String, dynamic>>> pendingCashDeclarations({
+    Map<String, dynamic>? params,
+  }) async {
+    return _modularCash.pendingDeclarations(params: params);
+  }
+
+  /// L'admin valide un encaissement déclaré : paiement `completed`, colis payé.
+  Future<Map<String, dynamic>> validateCashDeclaration(String paymentId) async {
+    return _modularCash.validateDeclaration(paymentId);
+  }
+
+  /// L'admin rejette un encaissement déclaré ; le colis reste dû.
+  Future<Map<String, dynamic>> rejectCashDeclaration(
+    String paymentId, {
+    required String reason,
+  }) async {
+    return _modularCash.rejectDeclaration(paymentId, reason: reason);
+  }
+
+  /// Fixe le canal de règlement d'un colis (et le point d'encaissement en
+  /// espèces), typiquement à l'issue de la négociation.
+  Future<Map<String, dynamic>> setParcelPaymentChannel(
+    String parcelId, {
+    required String channel,
+    String? collectionPoint,
+  }) async {
+    return _modularCash.setPaymentChannel(
+      parcelId,
+      channel: channel,
+      collectionPoint: collectionPoint,
+    );
   }
 
   // ==================== MISSING MIRRORED FUNCTIONS ====================
 
   Future<Map<String, dynamic>> confirmCashPayment(String parcelId) async {
     try {
-      final response = await _dio.post('/super-admin/parcels/$parcelId/confirm-cash');
+      final response =
+          await _dio.post('/super-admin/parcels/$parcelId/confirm-cash');
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -2162,7 +2349,8 @@ class ApiService {
 
   Future<Map<String, dynamic>> purchasePointsWithWallet(int points) async {
     try {
-      final response = await _dio.post('/score/purchase/wallet', data: {'points': points});
+      final response =
+          await _dio.post('/score/purchase/wallet', data: {'points': points});
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -2204,7 +2392,8 @@ class ApiService {
       final wallet = await getWallet('');
       return wallet.balance;
     } catch (e) {
-      debugPrint("❌ [API] getDriverWalletBalance failed: $e"); return 0;
+      debugPrint("❌ [API] getDriverWalletBalance failed: $e");
+      return 0;
     }
   }
 }

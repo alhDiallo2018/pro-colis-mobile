@@ -7,9 +7,9 @@ class Broadcast {
   final List<String> targetRoles;
   final String type;
   final bool active;
-  final String startsAt;
-  final String endsAt;
-  final String createdAt;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+  final DateTime createdAt;
 
   const Broadcast({
     required this.id,
@@ -26,6 +26,15 @@ class Broadcast {
   });
 
   factory Broadcast.fromJson(Map<String, dynamic> json) {
+    // Les anciennes versions mettaient en cache des chaînes vides. Le parseur
+    // tolérant permet de relire ces caches tout en exposant de vraies dates aux
+    // règles d'activation.
+    DateTime? parseDate(dynamic value) {
+      final raw = value?.toString().trim();
+      if (raw == null || raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
     return Broadcast(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
@@ -38,9 +47,9 @@ class Broadcast {
           ['client', 'driver'],
       type: json['type']?.toString() ?? 'info',
       active: json['active'] == true,
-      startsAt: json['startsAt']?.toString() ?? '',
-      endsAt: json['endsAt']?.toString() ?? '',
-      createdAt: json['createdAt']?.toString() ?? '',
+      startsAt: parseDate(json['startsAt']),
+      endsAt: parseDate(json['endsAt']),
+      createdAt: parseDate(json['createdAt']) ?? DateTime.now(),
     );
   }
 
@@ -53,9 +62,9 @@ class Broadcast {
         'targetRoles': targetRoles,
         'type': type,
         'active': active,
-        'startsAt': startsAt,
-        'endsAt': endsAt,
-        'createdAt': createdAt,
+        'startsAt': startsAt?.toIso8601String(),
+        'endsAt': endsAt?.toIso8601String(),
+        'createdAt': createdAt.toIso8601String(),
       };
 
   Broadcast copyWith({
@@ -67,9 +76,9 @@ class Broadcast {
     List<String>? targetRoles,
     String? type,
     bool? active,
-    String? startsAt,
-    String? endsAt,
-    String? createdAt,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    DateTime? createdAt,
   }) {
     return Broadcast(
       id: id ?? this.id,

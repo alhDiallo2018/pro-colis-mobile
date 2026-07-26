@@ -13,6 +13,7 @@ import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:procolis/models/garage.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/models/payment.dart';
 import 'package:procolis/models/user.dart';
@@ -29,9 +30,10 @@ import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../widgets/app_logo.dart';
-import '../../widgets/availability_toggle.dart';
 import '../../widgets/bar_chart.dart';
 import '../../widgets/broadcast_banner.dart';
+import '../../widgets/declare_cash_payment_sheet.dart';
+import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../driver/create_annonce_sheet.dart';
@@ -42,6 +44,7 @@ import '../driver/points_screen.dart';
 import '../driver/garage_screen.dart';
 import '../driver/historique_screen.dart';
 import '../driver/vehicle_documents_screen.dart';
+import '../help/help_screen.dart';
 import '../shared/messages_screen.dart';
 import '../parcel/free_parcels_screen.dart';
 import '../parcel/track_parcel_screen.dart';
@@ -90,8 +93,11 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   // Sélecteurs (masqués mais conservés pour les données)
   bool _isUrgent = false;
   bool _isInsured = false;
-  PaymentMethod _paymentMethod = PaymentMethod.cash;
   ParcelType _parcelType = ParcelType.package;
+
+  /// Modes de règlement acceptés sur ce trajet : le client choisira parmi eux.
+  List<PaymentChannel> _acceptedPaymentChannels =
+      PaymentChannel.values.toList();
 
   // Messages vocaux
   final _audioRecorder = Record();
@@ -105,7 +111,6 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   // Informations du chauffeur (masquées mais conservées pour les données)
   String _vehicleModel = '';
   String _vehiclePlate = '';
-  String _vehicleColor = '';
   String _vehicleType = '';
 
   // Lieux existants (pour l'autocomplétion)
@@ -235,8 +240,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
       setState(() {
         _vehicleModel = user.vehicleModel ?? '';
         _vehiclePlate = user.vehiclePlate ?? '';
-        _vehicleColor = user.vehicleColor ?? '';
-        _vehicleType = user.vehicleModel ?? '';
+        _vehicleType = user.vehicleType ?? '';
       });
     }
   }
@@ -576,8 +580,9 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         // Options
         'isUrgent': _isUrgent,
         'isInsured': _isInsured,
-        // Paiement
-        'paymentMethod': _paymentMethod.value,
+        // Paiement : le chauffeur déclare ce qu'il accepte, le client tranchera.
+        'acceptedPaymentChannels':
+            PaymentChannel.toValues(_acceptedPaymentChannels),
         'paymentPhoneNumber': '',
         // Mode libre service
         'isFreeForBidding': true,
@@ -592,7 +597,6 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         // Métadonnées supplémentaires
         'vehicleModel': _vehicleModel,
         'vehiclePlate': _vehiclePlate,
-        'vehicleColor': _vehicleColor,
         'vehicleType': _vehicleType,
         // Messages vocaux
         'audioUrls': uploadedAudioUrls,
@@ -1127,6 +1131,12 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
                 setState(() => _parcelType = value);
               }
             },
+          ),
+          const SizedBox(height: 18),
+          AcceptedPaymentChannelsField(
+            value: _acceptedPaymentChannels,
+            onChanged: (channels) =>
+                setState(() => _acceptedPaymentChannels = channels),
           ),
         ],
       ),
@@ -1727,14 +1737,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: Column(
-        children: [
-          const BroadcastBanner(),
-          Expanded(
-            child: _getScreen(_selectedIndex, user, parcelState),
-          ),
-        ],
-      ),
+      body: _getScreen(_selectedIndex, user, parcelState),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -1886,6 +1889,21 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
   List<Map<String, dynamic>> _ads = [];
   double _weekRevenue = 0;
   List<double> _revenueBars = List<double>.filled(7, 0);
+  Map<String, dynamic> _stats = {};
+
+  /// Livraisons réellement terminées (GET /driver/stats). Les compteurs portés
+  /// par l'utilisateur ne sont pas maintenus par le backend et valent 0.
+  int? get _statsDeliveries {
+    final value = _stats['completedDeliveries'];
+    return value is num ? value.toInt() : null;
+  }
+
+  /// `null` tant qu'aucune note n'a été attribuée.
+  double? get _statsRating {
+    final value = _stats['rating'] ?? widget.user?.rating;
+    if (value is! num || value <= 0) return null;
+    return value.toDouble();
+  }
 
   @override
   void initState() {
@@ -1899,6 +1917,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
       _api.getDriverBidsSent(),
       _api.getMyAdvertisements(),
       _api.getPaymentHistory(),
+      _api.getDriverStats(),
     ]);
     if (!mounted) return;
     final payments = results[3] as List<Map<String, dynamic>>;
@@ -1924,6 +1943,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
       _ads = results[2] as List<Map<String, dynamic>>;
       _revenueBars = bars;
       _weekRevenue = weekTotal;
+      _stats = results[4] as Map<String, dynamic>;
     });
   }
 
@@ -1962,16 +1982,22 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
     final availableParcel = widget.parcelState.freeParcels.isNotEmpty
         ? widget.parcelState.freeParcels.first
         : null;
-    final deliveries = user?.completedDeliveries ?? user?.totalDeliveries ?? 0;
+    final deliveries = _statsDeliveries ??
+        user?.completedDeliveries ??
+        user?.totalDeliveries ??
+        0;
     final activeCount = _activeMissions.length;
     final wallet =
         _walletBalance != null ? '${_fcfa(_walletBalance!)}' : '—';
-    final rating =
-        (user?.rating ?? 4.9).toStringAsFixed(1).replaceAll('.', ',');
+    // Pas de note inventée : un tiret tant qu'aucun client n'a noté.
+    final rating = _statsRating?.toStringAsFixed(1).replaceAll('.', ',') ?? '—';
 
     return Column(
       children: [
         _buildHero(user),
+        // Le bandeau administrateur appartient au contenu du dashboard : il
+        // doit venir après l'AppBar visuelle du chauffeur.
+        const BroadcastBanner(),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: _SearchBar(onSearch: (query) {
@@ -1982,12 +2008,6 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
             }
           }),
         ),
-        const SizedBox(height: 8),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24),
-          child: AvailabilityToggle(),
-        ),
-        const SizedBox(height: 8),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
@@ -2658,8 +2678,7 @@ class _DriverRouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final price =
-        parcel.price ?? parcel.proposedPrice ?? parcel.negotiatedPrice ?? 0;
+    final price = parcel.payableAmount;
     final destination = parcel.arrivalGarageName?.isNotEmpty == true
         ? parcel.arrivalGarageName!
         : 'Arrivée';
@@ -3047,12 +3066,38 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
         _snack(res['message']?.toString() ?? 'Action impossible');
       } else {
         widget.onRefresh();
+        await _promptCashDeclaration(mission, step);
       }
     } catch (_) {
       _snack('Action impossible');
     } finally {
       if (mounted) setState(() => _advancingId = null);
     }
+  }
+
+  /// Sur une course en espèces, l'étape qui déclenche la remise d'argent
+  /// (ramassage si l'expéditeur paie, livraison si c'est le destinataire) doit
+  /// être suivie d'une déclaration d'encaissement : c'est la seule trace que la
+  /// plateforme aura du règlement.
+  Future<void> _promptCashDeclaration(Parcel mission, String step) async {
+    if (!mounted) return;
+    if (!mission.isCashPayment ||
+        mission.isPaid ||
+        mission.isCashDeclared ||
+        mission.payableAmount <= 0) {
+      return;
+    }
+
+    final point = mission.resolvedCashCollectionPoint;
+    final isCollectionStep = (step == 'pickup' && point.isAtPickup) ||
+        (step == 'deliver' && point.isAtDelivery);
+    if (!isCollectionStep) return;
+
+    final declared =
+        await showDeclareCashPaymentSheet(context, parcel: mission);
+    if (!mounted || declared != true) return;
+    _snack('Encaissement déclaré · en attente de validation');
+    widget.onRefresh();
   }
 
   void _snack(String message) {
@@ -3247,7 +3292,7 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
 
 // ==================== TAB PROFIL CHAUFFEUR ====================
 
-class _DriverProfileTabScreen extends ConsumerWidget {
+class _DriverProfileTabScreen extends ConsumerStatefulWidget {
   final User? user;
   final int activeMissionsCount;
 
@@ -3256,13 +3301,120 @@ class _DriverProfileTabScreen extends ConsumerWidget {
     required this.activeMissionsCount,
   });
 
-  int get _deliveries =>
-      user?.completedDeliveries ?? user?.totalDeliveries ?? 0;
+  @override
+  ConsumerState<_DriverProfileTabScreen> createState() =>
+      _DriverProfileTabScreenState();
+}
 
-  double get _walletBalance => user?.walletBalance ?? 0;
+class _DriverProfileTabScreenState
+    extends ConsumerState<_DriverProfileTabScreen> {
+  final ApiService _api = ApiService();
+
+  Map<String, dynamic> _stats = {};
+  Map<String, dynamic>? _vehicle;
+  Map<String, dynamic>? _identity;
+  double? _wallet;
+  String? _garageName;
+  bool _loading = true;
+
+  User? get user => widget.user;
+  int get activeMissionsCount => widget.activeMissionsCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileData();
+  }
+
+  /// Aucune de ces données n'est exposée par /auth/me : les compteurs portés
+  /// par l'utilisateur (livraisons, note, solde) valent toujours 0 et le
+  /// véhicule/garage n'y figure pas. Il faut donc interroger les endpoints
+  /// dédiés, sans quoi l'écran affiche des valeurs vides ou trompeuses.
+  Future<void> _loadProfileData() async {
+    final garageId = user?.garageId;
+    final results = await Future.wait([
+      _api.getDriverStats(),
+      _api.getDriverVehicle(),
+      _api.getIdentityStatus(),
+      _api.getWalletBalance(user?.id ?? ''),
+      if (garageId != null && garageId.isNotEmpty)
+        _api.getAllGarages()
+      else
+        Future.value(const <Garage>[]),
+    ]);
+
+    if (!mounted) return;
+
+    final garages = results[4] as List<Garage>;
+    String? garageName;
+    for (final g in garages) {
+      if (g.id == garageId) {
+        garageName = g.name;
+        break;
+      }
+    }
+
+    setState(() {
+      _stats = results[0] as Map<String, dynamic>;
+      _vehicle = results[1] as Map<String, dynamic>?;
+      _identity = results[2] as Map<String, dynamic>?;
+      _wallet = results[3] as double;
+      _garageName = garageName;
+      _loading = false;
+    });
+  }
+
+  int get _deliveries {
+    final fromStats = _stats['completedDeliveries'];
+    if (fromStats is num) return fromStats.toInt();
+    return user?.completedDeliveries ?? user?.totalDeliveries ?? 0;
+  }
+
+  double get _walletBalance => _wallet ?? user?.walletBalance ?? 0;
+
+  /// `null` tant qu'aucune note n'a été attribuée : on affiche alors un tiret
+  /// plutôt qu'une note inventée.
+  double? get _ratingValue {
+    final fromStats = _stats['rating'];
+    final value = fromStats is num ? fromStats.toDouble() : user?.rating;
+    if (value == null || value <= 0) return null;
+    return value;
+  }
 
   String get _rating =>
-      (user?.rating ?? 4.9).toStringAsFixed(1).replaceAll('.', ',');
+      _ratingValue?.toStringAsFixed(1).replaceAll('.', ',') ?? '—';
+
+  /// Statut KYC réel : le badge ne doit pas affirmer que le chauffeur est
+  /// vérifié tant qu'un administrateur ne l'a pas validé.
+  bool get _isVerified => user?.isVerified ?? false;
+
+  /// Résumé du dossier documents à partir de /identity/status.
+  String get _documentsSubtitle {
+    if (_loading) return 'Chargement…';
+    if (_isVerified) return 'Vérifiés';
+    final status = _identity?['status']?.toString();
+    final hasIdentity = _identity?['identity'] != null;
+    if (!hasIdentity) return 'Aucun document envoyé';
+    switch (status) {
+      case 'approved':
+        return 'Vérifiés';
+      case 'rejected':
+        return 'Refusés — à renvoyer';
+      default:
+        return 'En attente de validation';
+    }
+  }
+
+  String get _vehicleSubtitle {
+    if (_loading) return 'Chargement…';
+    final model = _vehicle?['model']?.toString();
+    final plate = _vehicle?['plateNumber']?.toString();
+    final hasModel = model != null && model.isNotEmpty;
+    final hasPlate = plate != null && plate.isNotEmpty;
+    if (!hasModel && !hasPlate) return 'Véhicule non renseigné';
+    return '${hasModel ? model : 'Véhicule'} · '
+        '${hasPlate ? plate : 'Plaque non renseignée'}';
+  }
 
   void _openSettings(BuildContext context) {
     Navigator.push(
@@ -3278,7 +3430,7 @@ class _DriverProfileTabScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final displayName = user?.fullName ?? 'Chauffeur';
     final status = user?.driverStatus ?? DriverStatus.available;
     final photoUrl = user?.profilePhoto;
@@ -3380,19 +3532,32 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryLight,
+                        color: _isVerified
+                            ? AppTheme.primaryLight
+                            : AppTheme.amber50,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.verified_rounded,
-                              color: AppTheme.primary, size: 17),
-                          SizedBox(width: 6),
+                          Icon(
+                            _isVerified
+                                ? Icons.verified_rounded
+                                : Icons.gpp_maybe_rounded,
+                            color: _isVerified
+                                ? AppTheme.primary
+                                : AppTheme.amber700,
+                            size: 17,
+                          ),
+                          const SizedBox(width: 6),
                           Text(
-                            'Chauffeur vérifié',
+                            _isVerified
+                                ? 'Chauffeur vérifié'
+                                : 'Identité non vérifiée',
                             style: TextStyle(
-                              color: AppTheme.primary,
+                              color: _isVerified
+                                  ? AppTheme.primary
+                                  : AppTheme.amber700,
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
                             ),
@@ -3435,7 +3600,11 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                     _DriverProfileRow(
                       icon: Icons.garage_rounded,
                       title: 'Ma zone',
-                      subtitle: user?.garageName ?? 'Zone non renseignée',
+                      subtitle: _loading
+                          ? 'Chargement…'
+                          : (_garageName ??
+                              user?.garageName ??
+                              'Zone non renseignée'),
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(
                               builder: (_) => const DriverGarageScreen())),
@@ -3444,16 +3613,27 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                     _DriverProfileRow(
                       icon: Icons.directions_car_rounded,
                       title: 'Véhicule',
-                      subtitle:
-                          '${user?.vehicleModel ?? 'Véhicule'} · ${user?.vehiclePlate ?? 'Plaque non renseignée'}',
+                      subtitle: _vehicleSubtitle,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const DriverParametresScreen()),
+                      ).then((_) => _loadProfileData()),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.description_rounded,
                       title: 'Documents & permis',
-                      subtitle: 'À jour',
-                      trailing: const Icon(Icons.verified_rounded,
-                          color: AppTheme.successColor),
+                      subtitle: _documentsSubtitle,
+                      trailing: _isVerified
+                          ? const Icon(Icons.verified_rounded,
+                              color: AppTheme.successColor)
+                          : null,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const VehicleDocumentsScreen()),
+                      ).then((_) => _loadProfileData()),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -3478,14 +3658,6 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                       subtitle: 'Gérer mes trajets publiés',
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const DriverMesAnnoncesScreen())),
-                    ),
-                    const Divider(height: 1),
-                    _DriverProfileRow(
-                      icon: Icons.badge_rounded,
-                      title: 'Documents & véhicule',
-                      subtitle: 'Photos et papiers du véhicule',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const VehicleDocumentsScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -3524,6 +3696,8 @@ class _DriverProfileTabScreen extends ConsumerWidget {
                       icon: Icons.help_rounded,
                       title: 'Aide & support',
                       subtitle: 'Centre d’assistance chauffeur',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const HelpScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -5687,7 +5861,7 @@ class _ParcelCardState extends State<_ParcelCard> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      parcel.formattedPrice,
+                      parcel.formattedAgreedPrice,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,

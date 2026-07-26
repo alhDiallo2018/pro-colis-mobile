@@ -116,6 +116,8 @@ Payload creation colis :
 | PUT | `/driver/parcels/:parcelId/arrived` | driver | Marquer arrive au garage destination. |
 | PUT | `/driver/parcels/:parcelId/out-for-delivery` | driver | Marquer en livraison finale. |
 | PUT | `/driver/parcels/:parcelId/deliver` | driver | Confirmer livraison avec signature/photo. |
+| POST | `/driver/parcels/:parcelId/declare-cash` | driver | Declarer l'encaissement en especes (`amount`, `collectionPoint`, `note?`, `proofUrl?`). |
+| GET | `/driver/cash-declarations` | driver | Mes encaissements especes declares et leur statut. |
 | POST | `/client/parcels/:parcelId/cancel` | client | Annuler si statut autorise. |
 
 ## Tracking public
@@ -162,6 +164,10 @@ Payload creation colis :
 | POST | `/advertisements/:advertisementId/close` | owner/admin | Fermer annonce. |
 | GET | `/advertisements/stats` | authentifie | Stats annonces. |
 
+`POST`/`PUT /advertisements` acceptent `acceptedPaymentChannels` : les modes de
+reglement (`cash`, `platform`) que le chauffeur accepte sur ce trajet, au moins un.
+Le client choisit parmi eux ; voir `04-business-rules.md`.
+
 ## Garages, chauffeurs et vehicules
 
 | Methode | Route | Roles | Description |
@@ -207,6 +213,7 @@ Payload creation colis :
 | POST | `/payments/initiate` | authentifie | Initier paiement. |
 | POST | `/payments/:paymentId/confirm` | authentifie/admin | Confirmer paiement. |
 | GET | `/payments/history` | authentifie | Historique paiements. |
+| PATCH | `/parcels/:parcelId/payment-channel` | client/owner | Fixer le canal de reglement (`cash` / `platform`) et, en especes, `cashCollectionPoint`. |
 | GET | `/score` | authentifie | Score complet. |
 | GET | `/score/balance` | authentifie | Solde points. |
 | GET | `/score/history` | authentifie | Historique points. |
@@ -237,6 +244,9 @@ Payload creation colis :
 | GET | `/super-admin/garages/:garageId` | super_admin | Detail garage. |
 | PUT | `/super-admin/garages/:garageId` | super_admin | Modifier garage. |
 | DELETE | `/super-admin/garages/:garageId` | super_admin | Supprimer garage. |
+| GET | `/super-admin/payments/cash-declarations` | super_admin | File des encaissements especes declares, en attente de validation. |
+| POST | `/super-admin/payments/:paymentId/validate-cash` | super_admin | Valider un encaissement declare : paiement `completed`, colis paye. |
+| POST | `/super-admin/payments/:paymentId/reject-cash` | super_admin | Rejeter un encaissement declare (`reason` obligatoire) : paiement `failed`, colis toujours du. |
 | GET | `/super-admin/system/health` | super_admin | Sante systeme. |
 | GET | `/super-admin/audit-logs` | super_admin | Audit logs. |
 | GET | `/super-admin/config` | super_admin | Configuration. |
@@ -244,6 +254,34 @@ Payload creation colis :
 | POST | `/super-admin/backup` | super_admin | Demarrer backup. |
 | POST | `/super-admin/restore` | super_admin | Restaurer backup. |
 | GET | `/super-admin/backups` | super_admin | Lister backups. |
+
+## Espace support technique
+
+Detail, schemas de reponse et migration SQL : `10-support-roles.md`.
+
+| Methode | Route | Roles | Description |
+| --- | --- | --- | --- |
+| PUT | `/support-technique/profile` | support_technique | Modifier son profil. |
+| GET | `/support-technique/stats` | support_technique/super_admin | KPI dashboard. |
+| GET | `/support-technique/tickets` | support_technique/super_admin | File de tickets. |
+| GET | `/support-technique/tickets/:id` | support_technique/super_admin | Detail ticket. |
+| PATCH | `/support-technique/tickets/:id` | support_technique/super_admin | Statut, priorite, assignation. |
+| GET | `/support-technique/incidents` | support_technique/super_admin | Incidents ouverts. |
+| POST | `/support-technique/incidents` | support_technique/super_admin | Declarer un incident. |
+| PATCH | `/support-technique/incidents/:id` | support_technique/super_admin | Mettre a jour / cloturer. |
+| GET | `/support-technique/parcels/:parcelId` | support_technique/super_admin | Detail colis, lecture seule. |
+
+## Espace support commercial
+
+| Methode | Route | Roles | Description |
+| --- | --- | --- | --- |
+| PUT | `/support-commercial/profile` | support_commercial | Modifier son profil. |
+| GET | `/support-commercial/stats` | support_commercial/super_admin | KPI et objectif du mois. |
+| GET | `/support-commercial/leads` | support_commercial/super_admin | Pipeline de prospects. |
+| POST | `/support-commercial/leads` | support_commercial/super_admin | Creer un prospect. |
+| PATCH | `/support-commercial/leads/:id` | support_commercial/super_admin | Etape, relance. |
+| GET | `/support-commercial/coverage` | support_commercial/super_admin | Zones a couvrir. |
+| GET | `/support-commercial/parcels/:parcelId` | support_commercial/super_admin | Detail colis, lecture seule. |
 
 ## Support, identite et divers
 

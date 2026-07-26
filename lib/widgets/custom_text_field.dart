@@ -24,6 +24,8 @@ class CustomTextField extends StatelessWidget {
   final TextAlign textAlign;
   final TextStyle? style;
   final String? helperText;
+  final String? errorText;
+  final bool showCounter;
 
   const CustomTextField({
     super.key,
@@ -46,6 +48,8 @@ class CustomTextField extends StatelessWidget {
     this.textAlign = TextAlign.start,
     this.style,
     this.helperText,
+    this.errorText,
+    this.showCounter = true,
   });
 
   @override
@@ -68,17 +72,18 @@ class CustomTextField extends StatelessWidget {
         labelText: label,
         hintText: hint,
         helperText: helperText,
+        errorText: errorText,
         labelStyle: const TextStyle(
           color: AppTheme.textSecondary,
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
         hintStyle: TextStyle(
-          color: AppTheme.textSecondary.withOpacity( 0.5),
+          color: AppTheme.textSecondary.withValues(alpha: 0.5),
           fontSize: 14,
         ),
         helperStyle: TextStyle(
-          color: AppTheme.textSecondary.withOpacity( 0.7),
+          color: AppTheme.textSecondary.withValues(alpha: 0.7),
           fontSize: 12,
         ),
         prefixIcon: prefixIcon != null
@@ -94,7 +99,7 @@ class CustomTextField extends StatelessWidget {
             : null,
         filled: true,
         fillColor: readOnly ? AppTheme.slate100 : AppTheme.cardColor,
-        counterText: maxLength != null ? null : '',
+        counterText: maxLength != null && !showCounter ? '' : null,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),

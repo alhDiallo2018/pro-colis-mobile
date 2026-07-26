@@ -3,6 +3,8 @@
 // Annonce de trajet publiée par un chauffeur (ressource /advertisements de
 // l'API, distincte des colis). Parcourue par les clients dans le libre service.
 
+import 'payment.dart';
+
 class Advertisement {
   final String id;
   final String driverId;
@@ -20,6 +22,11 @@ class Advertisement {
   final int offersCount;
   final DateTime? createdAt;
 
+  /// Modes de règlement que le chauffeur accepte sur ce trajet. Le client
+  /// choisit parmi ceux-là au moment de la réservation. Vide = non déclaré,
+  /// auquel cas on retombe sur [resolvedPaymentChannels].
+  final List<PaymentChannel> acceptedPaymentChannels;
+
   const Advertisement({
     required this.id,
     required this.driverId,
@@ -36,6 +43,7 @@ class Advertisement {
     this.status = 'open',
     this.offersCount = 0,
     this.createdAt,
+    this.acceptedPaymentChannels = const [],
   });
 
   factory Advertisement.fromJson(Map<String, dynamic> json) {
@@ -73,8 +81,22 @@ class Advertisement {
       status: asString(json['status']) ?? 'open',
       offersCount: offers is List ? offers.length : 0,
       createdAt: asDate(json['createdAt']),
+      acceptedPaymentChannels: PaymentChannel.listFrom(
+        json['acceptedPaymentChannels'] ?? json['accepted_payment_channels'],
+      ),
     );
   }
+
+  /// Canaux proposables au client : ceux déclarés par le chauffeur, ou les deux
+  /// si l'annonce est antérieure à cette déclaration.
+  List<PaymentChannel> get resolvedPaymentChannels =>
+      acceptedPaymentChannels.isEmpty
+          ? PaymentChannel.values
+          : acceptedPaymentChannels;
+
+  bool get acceptsCash => resolvedPaymentChannels.contains(PaymentChannel.cash);
+  bool get acceptsPlatform =>
+      resolvedPaymentChannels.contains(PaymentChannel.platform);
 
   String get route =>
       '${departureCity ?? '—'}  →  ${arrivalCity ?? '—'}';

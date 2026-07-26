@@ -31,6 +31,13 @@
 
   <title>sendprocolis</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- SDK Google Maps JS, requis par google_maps_flutter_web pour le rendu de
+       la carte (choix d'une zone, itinéraire). Le jeton __GOOGLE_MAPS_API_KEY__
+       est remplacé à la construction (voir Dockerfile) ; s'il subsiste, le
+       script échoue sans bloquer l'app et la carte reste grise. -->
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_API_KEY__"></script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

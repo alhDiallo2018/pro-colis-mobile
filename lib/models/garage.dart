@@ -1,6 +1,5 @@
 // mobile/lib/models/garage.dart
 
-
 class Garage {
   final String id;
   final String name;
@@ -56,32 +55,46 @@ class Garage {
       region: json['region']?.toString() ?? '',
       address: json['address']?.toString(),
       phone: json['phone']?.toString(),
-      latitude: json['latitude'] != null ? (json['latitude'] is double ? json['latitude'] : double.tryParse(json['latitude'].toString())) : null,
-      longitude: json['longitude'] != null ? (json['longitude'] is double ? json['longitude'] : double.tryParse(json['longitude'].toString())) : null,
+      latitude: json['latitude'] != null
+          ? (json['latitude'] is double
+              ? json['latitude']
+              : double.tryParse(json['latitude'].toString()))
+          : null,
+      longitude: json['longitude'] != null
+          ? (json['longitude'] is double
+              ? json['longitude']
+              : double.tryParse(json['longitude'].toString()))
+          : null,
       driversCount: json['driversCount'] ?? json['drivers_count'] ?? 0,
       parcelsCount: json['parcelsCount'] ?? json['parcels_count'] ?? 0,
-      revenue: json['revenue'] != null ? (json['revenue'] is double ? json['revenue'] : double.tryParse(json['revenue'].toString()) ?? 0) : 0,
+      revenue: json['revenue'] != null
+          ? (json['revenue'] is double
+              ? json['revenue']
+              : double.tryParse(json['revenue'].toString()) ?? 0)
+          : 0,
       isActive: (json['isActive'] ?? json['is_active']) != false,
-      createdAt: parseDateTime(json['createdAt'] ?? json['created_at']) ?? DateTime.now(),
-      updatedAt: parseDateTime(json['updatedAt'] ?? json['updated_at']) ?? DateTime.now(),
+      createdAt: parseDateTime(json['createdAt'] ?? json['created_at']) ??
+          DateTime.now(),
+      updatedAt: parseDateTime(json['updatedAt'] ?? json['updated_at']) ??
+          DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'country': country,
-    'city': city,
-    'region': region,
-    'address': address,
-    'phone': phone,
-    'latitude': latitude,
-    'longitude': longitude,
-    'drivers_count': driversCount,
-    'parcels_count': parcelsCount,
-    'revenue': revenue,
-    'is_active': isActive,
-    'created_at': createdAt.toIso8601String(),
-    'updated_at': updatedAt.toIso8601String(),
-  };
+        'id': id,
+        'name': name,
+        'country': country,
+        'city': city,
+        'region': region,
+        'address': address,
+        'phone': phone,
+        'latitude': latitude,
+        'longitude': longitude,
+        'driversCount': driversCount,
+        'parcelsCount': parcelsCount,
+        'revenue': revenue,
+        'isActive': isActive,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
 }

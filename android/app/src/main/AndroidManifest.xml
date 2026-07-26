@@ -96,6 +96,16 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="sendprocolis_channel" />
 
+        <!-- ==================== GOOGLE MAPS (SDK NATIF) ==================== -->
+        <!-- Requis par google_maps_flutter pour le rendu de la carte (choix
+             d'une zone, itinéraire). Sans clé valide, la carte reste grise.
+             Valeur injectée par android/app/build.gradle.kts : voir
+             `resolveGoogleMapsKey()` (-Pgoogle.maps.key, GOOGLE_MAPS_API_KEY,
+             ou googleMapsApiKey dans local.properties). -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${googleMapsApiKey}" />
+
     </application>
     
     <!-- Required to query activities that can process text, see:

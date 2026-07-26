@@ -14,6 +14,9 @@ import '../profile/profile_screen.dart';
 import 'client_dashboard.dart';
 import 'driver_dashboard.dart';
 import 'super_admin_dashboard.dart';
+import 'support_admin_dashboard.dart';
+import 'support_commercial_dashboard.dart';
+import 'support_technique_dashboard.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -29,16 +32,24 @@ class DashboardScreen extends ConsumerWidget {
       );
     }
     
-    // Rediriger vers le dashboard selon le rôle
+    // Rediriger vers le dashboard selon le rôle. Le `switch` est exhaustif
+    // sans `default` : ajouter un rôle sans son dashboard devient une erreur de
+    // compilation plutôt qu'une redirection silencieuse vers l'espace client.
     switch (user.role) {
+      case UserRole.client:
+        return const ClientDashboard();
       case UserRole.driver:
         return const DriverDashboard();
       case UserRole.admin:
         return const GarageAdminDashboard();
+      case UserRole.supportTechnique:
+        return const SupportTechniqueDashboard();
+      case UserRole.supportCommercial:
+        return const SupportCommercialDashboard();
+      case UserRole.support:
+        return const SupportAdminDashboard();
       case UserRole.superAdmin:
         return const SuperAdminDashboard();
-      default:
-        return const ClientDashboard();
     }
   }
 }

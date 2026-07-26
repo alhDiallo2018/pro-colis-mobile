@@ -71,9 +71,20 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
   }
 
   void _loadData() {
-    Future.microtask(() {
-      ref.read(parcelProvider.notifier).loadSentParcels();
-      ref.read(parcelProvider.notifier).loadReceivedParcels();
+    Future.microtask(() async {
+      final client = ref.read(authProvider).user;
+      final notifier = ref.read(parcelProvider.notifier);
+      if (client != null) {
+        await notifier.loadClientParcels(client);
+        return;
+      }
+
+      // Repli pendant la restauration de session : le prochain rafraîchissement
+      // authentifié appliquera le classement strict par identité.
+      await Future.wait([
+        notifier.loadSentParcels(),
+        notifier.loadReceivedParcels(),
+      ]);
     });
   }
 
@@ -134,6 +145,17 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
     final user = authState.user;
     final parcelState = ref.watch(parcelProvider);
 
+    // Si la session est restaurée après l'initialisation du dashboard, relance
+    // le chargement pour appliquer le classement avec l'identité du client.
+    ref.listen<User?>(
+      authProvider.select((state) => state.user),
+      (previous, next) {
+        if (next != null && previous?.id != next.id) {
+          _loadData();
+        }
+      },
+    );
+
     // Synchronise l'onglet avec la barre de navigation persistante (AppBottomNav)
     ref.listen<int>(dashboardTabProvider, (prev, next) {
       if (next != _selectedIndex && next >= 0 && next < 5) {
@@ -143,14 +165,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: Column(
-        children: [
-          const BroadcastBanner(),
-          Expanded(
-            child: _getScreen(_selectedIndex, user, parcelState),
-          ),
-        ],
-      ),
+      body: _getScreen(_selectedIndex, user, parcelState),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -394,10 +409,10 @@ class _MesColisTabState extends State<_MesColisTab> {
         filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
         break;
       case 'price_desc':
-        filtered.sort((a, b) => ((b.price ?? 0)).compareTo(a.price ?? 0));
+        filtered.sort((a, b) => (b.price ?? 0).compareTo(a.price ?? 0));
         break;
       case 'price_asc':
-        filtered.sort((a, b) => ((a.price ?? 0)).compareTo(b.price ?? 0));
+        filtered.sort((a, b) => (a.price ?? 0).compareTo(b.price ?? 0));
         break;
       default:
         filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -848,8 +863,7 @@ class _ClientRecentParcelCard extends StatelessWidget {
       : '—';
 
   String get _price {
-    final amount =
-        parcel.negotiatedPrice ?? parcel.price ?? parcel.proposedPrice;
+    final amount = parcel.agreedPrice;
     if (amount == null) return '';
     return '${amount.toStringAsFixed(0).replaceAllMapped(
           RegExp(r'(\d)(?=(\d{3})+$)'),
@@ -1177,6 +1191,9 @@ class HomeScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const WalletScreen()),
             ),
           ),
+          // Les annonces globales restent sous l'en-tête du rôle afin de ne
+          // jamais précéder l'AppBar visuelle du dashboard.
+          const BroadcastBanner(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 112),
             child: Column(

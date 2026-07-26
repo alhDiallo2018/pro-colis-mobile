@@ -20,6 +20,7 @@ import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/declare_cash_payment_sheet.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
 import '../shared/messages_screen.dart';
@@ -395,7 +396,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
             '🔹 Statut: ${_parcel.status.label}\n'
             '🔹 Expéditeur: ${_parcel.senderName}\n'
             '🔹 Destinataire: ${_parcel.receiverName}\n'
-            '🔹 Montant: ${_parcel.formattedPrice}\n\n'
+            '🔹 Montant: ${_parcel.formattedAgreedPrice}\n\n'
             '🔗 Suivez votre colis en ligne: $trackingUrl',
         subject: 'Reçu de livraison PRO COLIS',
         sharePositionOrigin: _shareOrigin(),
@@ -562,7 +563,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           const SizedBox(height: 8),
           _buildReceiptInfoRow('📦 Poids', parcel.formattedWeight),
           const SizedBox(height: 8),
-          _buildReceiptInfoRow('💰 Montant', parcel.formattedPrice),
+          _buildReceiptInfoRow('💰 Montant', parcel.formattedAgreedPrice),
           if (isDelivered && parcel.deliveryDate != null) ...[
             const SizedBox(height: 8),
             _buildReceiptInfoRow(
@@ -858,14 +859,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       ? _parcel.arrivalGarageName!
       : 'Arrivée';
 
-  String get _price {
-    final amount = _parcel.negotiatedPrice ??
-        _parcel.price ??
-        _parcel.proposedPrice ??
-        _parcel.totalAmount ??
-        0;
-    return '${_formatNumber(amount)} FCFA';
-  }
+  String get _price => '${_formatNumber(_parcel.payableAmount)} FCFA';
 
   String get _driverName {
     if (_parcel.driverName?.isNotEmpty == true) return _parcel.driverName!;
@@ -919,12 +913,42 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         _showSnack(res['message']?.toString() ?? 'Action impossible');
       } else {
         await _loadDetailData();
+        // Franchir le jalon d'encaissement (ramassage ou livraison selon qui
+        // paie) déclenche la déclaration des espèces reçues.
+        await _promptCashDeclarationIfNeeded();
       }
     } catch (_) {
       _showSnack('Action impossible');
     } finally {
       if (mounted) setState(() => _isUpdating = false);
     }
+  }
+
+  /// Déclaration lancée manuellement depuis la carte de paiement en espèces.
+  Future<void> _openCashDeclaration() async {
+    final declared = await showDeclareCashPaymentSheet(
+      context,
+      parcel: _parcel,
+    );
+    if (!mounted || declared != true) return;
+    _showSnack('Encaissement déclaré · en attente de validation');
+    await _loadDetailData();
+  }
+
+  /// Propose au chauffeur de déclarer l'encaissement dès que le colis atteint
+  /// l'étape où l'argent lui est remis. Sans cette déclaration, la plateforme
+  /// n'a aucune trace du règlement en espèces.
+  Future<void> _promptCashDeclarationIfNeeded() async {
+    if (!mounted) return;
+    if (!_isAssignedDriver || !_parcel.needsCashDeclaration) return;
+
+    final declared = await showDeclareCashPaymentSheet(
+      context,
+      parcel: _parcel,
+    );
+    if (!mounted || declared != true) return;
+    _showSnack('Encaissement déclaré · en attente de validation');
+    await _loadDetailData();
   }
 
   /// L'utilisateur courant est-il le client propriétaire (expéditeur) du colis ?
@@ -1217,16 +1241,32 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 ],
               ),
             ),
-            if (_parcel.price != null &&
-                _parcel.price! > 0 &&
-                (_parcel.paymentStatus != 'completed' &&
-                    _parcel.paymentStatus != 'paid'))
+            if (_parcel.canBePaidOnline)
               _PaydunyaPayCard(
                 parcelId: _parcel.id,
-                amount: _parcel.price!,
+                amount: _parcel.payableAmount,
                 trackingNumber: _parcel.trackingNumber,
                 apiService: _apiService,
                 onDone: _loadDetailData,
+              )
+            else if (_parcel.isCancelled && !_parcel.isPaid)
+              const _NoPaymentNotice(
+                message:
+                    'Ce colis a été annulé : aucun paiement n\'est requis.',
+              )
+            else if (_parcel.isPaid)
+              _NoPaymentNotice(
+                message:
+                    'Paiement de ${_formatNumber(_parcel.payableAmount)} FCFA déjà effectué.',
+                paid: true,
+              )
+            else if (_parcel.isCashPayment && _parcel.payableAmount > 0)
+              _CashPaymentCard(
+                parcel: _parcel,
+                isAssignedDriver: _isAssignedDriver,
+                onDeclare: _openCashDeclaration,
+                amountLabel:
+                    '${_formatNumber(_parcel.payableAmount)} FCFA',
               ),
             ..._buildMediaSection(),
             if (_parcel.status.isInProgress && _otpCode != null) ...[
@@ -1631,9 +1671,9 @@ class _DriverCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  ratingLabel != null
-                      ? '$garage · $ratingLabel'
-                      : '$garage · 4,9 ★ · Camionnette',
+                  // Sans note reelle on n'affiche que la zone : l'ancien
+                  // repli inventait une note de 4,9 et un type de vehicule.
+                  ratingLabel != null ? '$garage · $ratingLabel' : garage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -2069,6 +2109,194 @@ class _MediaTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Remplace la carte de paiement quand aucun règlement n'est possible
+/// (colis annulé) ou quand il a déjà été réglé.
+class _NoPaymentNotice extends StatelessWidget {
+  final String message;
+  final bool paid;
+
+  const _NoPaymentNotice({required this.message, this.paid = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = paid ? AppTheme.successColor : AppTheme.textSecondary;
+    return PcCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: paid ? AppTheme.green50 : AppTheme.slate100,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+            child: Icon(
+              paid ? Icons.verified_rounded : Icons.money_off_rounded,
+              color: tone,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: AppFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: tone,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Carte de règlement en espèces : rappelle qui paie et quand, et offre au
+/// chauffeur assigné le bouton de déclaration d'encaissement.
+///
+/// Rien ne transite par la plateforme dans ce mode : la déclaration du chauffeur
+/// est la seule trace du paiement, d'où le rappel explicite tant qu'elle manque.
+class _CashPaymentCard extends StatelessWidget {
+  final Parcel parcel;
+  final bool isAssignedDriver;
+  final Future<void> Function() onDeclare;
+  final String amountLabel;
+
+  const _CashPaymentCard({
+    required this.parcel,
+    required this.isAssignedDriver,
+    required this.onDeclare,
+    required this.amountLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final point = parcel.resolvedCashCollectionPoint;
+    final declared = parcel.isCashDeclared;
+    final mustDeclare = parcel.needsCashDeclaration;
+
+    final tone = declared ? AppTheme.green700 : AppTheme.amber700;
+    final bg = declared ? AppTheme.green50 : AppTheme.amber50;
+
+    return PcCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                ),
+                child: Icon(
+                  declared
+                      ? Icons.verified_rounded
+                      : Icons.payments_rounded,
+                  color: tone,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Paiement en espèces',
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      point.label,
+                      style: AppFonts.manrope(
+                        fontSize: 12.5,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Montant à remettre au chauffeur',
+                      style: AppFonts.manrope(fontSize: 12.5, color: tone),
+                    ),
+                    Text(
+                      amountLabel,
+                      style: AppTheme.mono(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: tone,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  declared
+                      ? 'Encaissement déclaré par le chauffeur, en attente de '
+                          'validation par un administrateur.'
+                      : '${point.hint}. Aucun montant n’est prélevé par la plateforme.',
+                  style: AppFonts.manrope(
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                    color: tone,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isAssignedDriver && mustDeclare) ...[
+            const SizedBox(height: 14),
+            PcButton(
+              'Déclarer l’encaissement',
+              icon: Icons.verified_rounded,
+              block: true,
+              onPressed: () => onDeclare(),
+            ),
+          ] else if (isAssignedDriver && !declared) ...[
+            const SizedBox(height: 10),
+            Text(
+              point.isAtPickup
+                  ? 'À déclarer une fois le colis ramassé.'
+                  : 'À déclarer après la remise du colis.',
+              style: AppFonts.manrope(
+                fontSize: 11.5,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

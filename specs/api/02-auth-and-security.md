@@ -6,8 +6,14 @@ Roles supportes :
 
 - `client`
 - `driver`
-- `admin`
+- `admin` (admin de zone)
+- `support_technique`
+- `support_commercial`
 - `super_admin`
+
+Les deux roles support sont detailles dans `10-support-roles.md` (migration SQL,
+endpoints, permissions). Ils ne sont pas ouverts a l'inscription publique :
+seul un `super_admin` peut les attribuer.
 
 Statuts utilisateur :
 

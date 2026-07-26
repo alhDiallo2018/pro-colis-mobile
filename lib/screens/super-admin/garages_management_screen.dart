@@ -100,13 +100,13 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
         _garages = garages;
         _isLoading = false;
       });
-      debugPrint('📦 ${garages.length} garages chargés depuis la base de données');
+      debugPrint('📦 ${garages.length} zones chargées depuis la base de données');
     } catch (e) {
       setState(() {
         _error = e.toString();
         _isLoading = false;
       });
-      debugPrint('❌ Erreur chargement garages: $e');
+      debugPrint('❌ Erreur chargement zones: $e');
     }
   }
 

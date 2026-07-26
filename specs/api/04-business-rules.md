@@ -155,6 +155,68 @@ Regles :
 - un paiement colis doit etre lie a `parcel_id`.
 - confirmer un paiement doit etre idempotent.
 - paiement confirme met a jour `payment_status` du colis si applicable.
+- le montant a payer est le montant convenu : `negotiated_price`, sinon le prix de
+  l'offre acceptee, sinon `price`. Le prix de base n'est jamais facture apres
+  negociation.
+- aucun paiement ne peut etre cree pour un colis `cancelled` ou deja `paid`/`completed`.
+
+## Canal de reglement : especes ou plateforme
+
+Toute course se regle par l'un de deux canaux (`parcels.payment_channel`) :
+
+- `platform` : la plateforme encaisse (mobile money / carte via PayDunya) puis
+  reverse au chauffeur le montant net de commission.
+- `cash` : l'argent passe de la main a la main. La plateforme n'encaisse rien ;
+  c'est le chauffeur qui lui doit ensuite la commission.
+
+Qui decide :
+
+- le chauffeur declare, dans son annonce (`advertisements.accepted_payment_channels`),
+  les canaux qu'il accepte. Au moins un est obligatoire.
+- le client choisit parmi ces canaux. Un colis dont le canal n'est pas accepte par
+  le chauffeur ne peut pas etre confirme.
+- le canal est fige a la confirmation de la course ; le modifier ensuite exige
+  qu'aucun paiement `completed` n'existe pour le colis.
+- `payment_channel` NULL (donnees anterieures) se lit comme le canal deduit de
+  `payment_method` ; a defaut, `cash`.
+
+En especes, `parcels.cash_collection_point` precise qui remet l'argent :
+
+- `sender_pickup` : l'expediteur paie en confiant le colis.
+- `receiver_delivery` : le destinataire paie en recevant le colis (defaut).
+
+## Declaration d'encaissement en especes
+
+Sans passage par la plateforme, la declaration du chauffeur est la seule trace du
+reglement. Elle est donc obligatoire et reconciliee par un admin.
+
+Regles :
+
+- seul le chauffeur assigne au colis peut declarer l'encaissement.
+- la declaration n'est recevable qu'une fois le jalon d'encaissement franchi :
+  colis ramasse pour `sender_pickup`, livre pour `receiver_delivery`.
+- elle cree un paiement `method = 'cash'`, `channel = 'cash'`,
+  `status = 'processing'` — a lire comme « encaissement declare, en attente de
+  validation » — et renseigne `declared_by`, `declared_at`, le point
+  d'encaissement, et si fournis la note et l'URL de preuve.
+- le colis passe `payment_status = 'processing'` et enregistre
+  `cash_collected_amount` / `cash_collected_at`.
+- le montant declare peut differer du montant convenu (reglement partiel) : la
+  divergence est conservee telle quelle, jamais corrigee silencieusement.
+- la declaration est idempotente : une seconde declaration sur un colis deja
+  `processing` ou `completed` doit etre refusee.
+- aucune declaration pour un colis `cancelled` ou deja paye.
+
+Reconciliation admin :
+
+- valider passe le paiement en `completed`, renseigne `validated_by` /
+  `validated_at` et marque le colis paye.
+- rejeter passe le paiement en `failed` avec `rejection_reason` obligatoire ; le
+  colis redevient du et le chauffeur est notifie.
+- valider ou rejeter doit etre idempotent et journalise (action sensible).
+- la commission due par le chauffeur reste exigible independamment : elle se
+  regle depuis son wallet ou ses points, et un rejet de declaration ne la
+  rembourse pas automatiquement.
 
 ## Score et wallet
 

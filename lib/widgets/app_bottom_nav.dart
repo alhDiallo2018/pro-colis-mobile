@@ -68,6 +68,34 @@ class AppBottomNav extends ConsumerWidget {
               icon: Icons.local_shipping_rounded, label: 'En cours'),
           ProcolisTabItem(icon: Icons.history_rounded, label: 'Historique'),
         ];
+      case UserRole.supportTechnique:
+        // Doit rester aligné sur SupportTechniqueDashboard : les index d'onglets
+        // sont partagés via dashboardTabProvider.
+        return const [
+          ProcolisTabItem(icon: Icons.dashboard_rounded, label: 'Tableau'),
+          ProcolisTabItem(
+              icon: Icons.confirmation_number_rounded, label: 'Tickets'),
+          ProcolisTabItem(icon: Icons.bug_report_rounded, label: 'Incidents'),
+          ProcolisTabItem(icon: Icons.person_rounded, label: 'Profil'),
+        ];
+      case UserRole.supportCommercial:
+        // Doit rester aligné sur SupportCommercialDashboard.
+        return const [
+          ProcolisTabItem(icon: Icons.dashboard_rounded, label: 'Tableau'),
+          ProcolisTabItem(icon: Icons.handshake, label: 'Prospects'),
+          ProcolisTabItem(icon: Icons.map_rounded, label: 'Couverture'),
+          ProcolisTabItem(icon: Icons.person_rounded, label: 'Profil'),
+        ];
+      case UserRole.support:
+        // Doit rester aligné sur SupportAdminDashboard.
+        return const [
+          ProcolisTabItem(icon: Icons.dashboard_rounded, label: 'Tableau'),
+          ProcolisTabItem(icon: Icons.forum_rounded, label: 'Support'),
+          ProcolisTabItem(
+              icon: Icons.contact_support_rounded, label: 'Assistances'),
+          ProcolisTabItem(icon: Icons.inventory_2_rounded, label: 'Colis'),
+          ProcolisTabItem(icon: Icons.person_rounded, label: 'Profil'),
+        ];
       case UserRole.superAdmin:
         return const [
           ProcolisTabItem(icon: Icons.dashboard_rounded, label: 'Tableau'),

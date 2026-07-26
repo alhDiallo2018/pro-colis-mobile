@@ -179,7 +179,7 @@ class _GarageAdminParcelDetailScreenState
                   iconTone: PcTone.primary,
                   title: 'Prix',
                   trailing:
-                      _InfoValue(value: parcel.formattedPrice, mono: true),
+                      _InfoValue(value: parcel.formattedAgreedPrice, mono: true),
                 ),
                 const PcDivider(),
                 PcListRow(
@@ -313,7 +313,7 @@ class _TrackingHero extends StatelessWidget {
               _HeroMeta(label: 'Poids', value: parcel.formattedWeight),
               const SizedBox(width: 18),
               Expanded(
-                child: _HeroMeta(label: 'Prix', value: parcel.formattedPrice),
+                child: _HeroMeta(label: 'Prix', value: parcel.formattedAgreedPrice),
               ),
             ],
           ),

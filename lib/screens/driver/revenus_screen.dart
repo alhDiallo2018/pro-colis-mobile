@@ -7,11 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
 
+import '../../models/payment.dart';
 import '../../services/api/client.dart';
 import '../../services/api/payments_api.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
 
 class DriverRevenusScreen extends ConsumerStatefulWidget {
@@ -24,7 +27,12 @@ class DriverRevenusScreen extends ConsumerStatefulWidget {
 
 class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
   final PaymentsApi _paymentsApi = PaymentsApi(ApiClient());
+  final ApiService _api = ApiService();
   List<Map<String, dynamic>> _payments = [];
+
+  /// Encaissements espèces déclarés et pas encore validés par un admin : ces
+  /// montants sont perçus mais ne comptent pas encore comme revenus confirmés.
+  List<Payment> _pendingCash = [];
   double _totalRevenue = 0;
   double _lastWeekRevenue = 0;
   double _currentWeekRevenue = 0;
@@ -46,6 +54,10 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
     setState(() => _isLoading = true);
     try {
       final payments = await _paymentsApi.getHistory();
+      // Complément d'information : l'API renvoie une liste vide si l'endpoint
+      // est indisponible, l'historique de revenus reste affiché quoi qu'il arrive.
+      final rawDeclarations = await _api.driverCashDeclarations();
+      final declarations = rawDeclarations.map(Payment.fromJson).toList();
       double total = 0;
 
       final now = DateTime.now();
@@ -77,6 +89,8 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
       if (mounted) {
         setState(() {
           _payments = payments;
+          _pendingCash =
+              declarations.where((p) => p.awaitsCashValidation).toList();
           _totalRevenue = total;
           _currentWeekRevenue = currentWeek;
           _lastWeekRevenue = lastWeek;
@@ -126,6 +140,10 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   _buildStatGrid(),
+                  if (_pendingCash.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _buildPendingCashPanel(),
+                  ],
                   const SizedBox(height: 20),
                   _buildRevenuePanel(),
                   const SizedBox(height: 20),
@@ -133,6 +151,93 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // Encaissements espèces déclarés, en attente de validation admin
+  // ---------------------------------------------------------------
+  Widget _buildPendingCashPanel() {
+    final total = _pendingCash.fold<double>(0, (sum, p) => sum + p.amount);
+
+    return PcCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppTheme.amber50,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                ),
+                child: const Icon(Icons.hourglass_top_rounded,
+                    color: AppTheme.amber600, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Espèces en attente de validation',
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '${_pendingCash.length} déclaration'
+                      '${_pendingCash.length > 1 ? 's' : ''} · ${_fcfa(total)}',
+                      style: AppTheme.mono(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (final payment in _pendingCash)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      payment.trackingNumber ?? payment.parcelId ?? '—',
+                      style: AppTheme.mono(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textBody,
+                      ),
+                    ),
+                  ),
+                  PaymentChannelBadge(
+                    channel: payment.channel,
+                    collectionPoint: payment.cashCollectionPoint,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _fcfa(payment.amount),
+                    style: AppTheme.mono(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.amber700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 

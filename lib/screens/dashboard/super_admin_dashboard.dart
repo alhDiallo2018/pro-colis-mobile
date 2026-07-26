@@ -7,8 +7,8 @@ import 'package:procolis/models/garage.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/models/user.dart';
 import 'package:procolis/screens/dashboard/notifications/notifications_screen.dart';
-import 'package:procolis/screens/super-admin/garages_management_screen.dart';
 import 'package:procolis/screens/super-admin/users_management_screen.dart';
+import 'package:procolis/screens/super-admin/zones_management_screen.dart';
 import 'package:procolis/screens/super-admin/colis_management_screen.dart';
 import 'package:procolis/screens/super-admin/chauffeurs_management_screen.dart';
 import 'package:procolis/screens/super-admin/stats_screen.dart';
@@ -26,12 +26,12 @@ import '../../widgets/procolis_design_system.dart';
 import '../profile/profile_screen.dart';
 import '../super-admin/finance_dashboard_screen.dart';
 import '../super-admin/wallets_screen.dart';
+import '../super-admin/cash_declarations_screen.dart';
 import '../super-admin/payments_screen.dart';
 import '../super-admin/payment_notifications_screen.dart';
 import '../super-admin/withdrawals_screen.dart';
 import '../super-admin/commission_config_screen.dart';
 import '../super-admin/reputation_dashboard_screen.dart';
-import '../super-admin/scores_screen.dart';
 import '../super-admin/classement_screen.dart';
 
 // Provider pour les utilisateurs
@@ -63,7 +63,8 @@ class UserNotifier extends StateNotifier<List<User>> {
 
   Future<void> updateUserStatus(String userId, String status) async {
     try {
-      final Map<String, dynamic> result = await _apiService.updateUserStatusSuperAdmin(userId, status);
+      final Map<String, dynamic> result =
+          await _apiService.updateUserStatusSuperAdmin(userId, status);
       if (result['success'] == true && result['user'] != null) {
         final updatedUser = User.fromJson(result['user']);
         final index = state.indexWhere((u) => u.id == userId);
@@ -80,7 +81,8 @@ class UserNotifier extends StateNotifier<List<User>> {
 }
 
 // Provider pour les garages
-final garageProvider = StateNotifierProvider<GarageNotifier, List<Garage>>((ref) {
+final garageProvider =
+    StateNotifierProvider<GarageNotifier, List<Garage>>((ref) {
   return GarageNotifier();
 });
 
@@ -93,7 +95,7 @@ class GarageNotifier extends StateNotifier<List<Garage>> {
       final garages = await _apiService.getAllGaragesSuperAdmin();
       state = garages;
     } catch (e) {
-      debugPrint('Erreur chargement garages: $e');
+      debugPrint('Erreur chargement zones: $e');
     }
   }
 }
@@ -102,7 +104,8 @@ class SuperAdminDashboard extends ConsumerStatefulWidget {
   const SuperAdminDashboard({super.key});
 
   @override
-  ConsumerState<SuperAdminDashboard> createState() => _SuperAdminDashboardState();
+  ConsumerState<SuperAdminDashboard> createState() =>
+      _SuperAdminDashboardState();
 }
 
 class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
@@ -168,14 +171,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: Column(
-        children: [
-          const BroadcastBanner(),
-          Expanded(
-            child: _getScreen(_selectedIndex, user, parcelState, users, garages),
-          ),
-        ],
-      ),
+      body: _getScreen(_selectedIndex, user, parcelState, users, garages),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -209,7 +205,8 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     );
   }
 
-  Widget _getScreen(int index, User? user, ParcelState parcelState, List<User> users, List<Garage> garages) {
+  Widget _getScreen(int index, User? user, ParcelState parcelState,
+      List<User> users, List<Garage> garages) {
     switch (index) {
       case 0:
         return _SuperAdminHomeScreen(
@@ -224,7 +221,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
       case 1:
         return const UsersManagementScreen(embedded: true);
       case 2:
-        return const GaragesManagementScreen(embedded: true);
+        return const ZonesManagementScreen(embedded: true);
       case 3:
         return NotificationsScreen(
           onNotificationsRead: () {
@@ -269,9 +266,12 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   });
 
   int get _totalParcels => parcelState.parcels.length;
-  int get _pendingParcels => parcelState.parcels.where((p) => p.status == ParcelStatus.pending).length;
-  int get _inTransitParcels => parcelState.parcels.where((p) => p.isInProgress).length;
-  int get _deliveredParcels => parcelState.parcels.where((p) => p.isDelivered).length;
+  int get _pendingParcels =>
+      parcelState.parcels.where((p) => p.status == ParcelStatus.pending).length;
+  int get _inTransitParcels =>
+      parcelState.parcels.where((p) => p.isInProgress).length;
+  int get _deliveredParcels =>
+      parcelState.parcels.where((p) => p.isDelivered).length;
 
   int get _totalUsers => users.length;
   int get _totalDrivers => users.where((u) => u.isDriver).length;
@@ -302,8 +302,34 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   }
 
   // Données de volume (12 mois) — reprises du dashboard web.
-  static const List<int> _volume = [38, 44, 41, 52, 49, 61, 58, 67, 72, 70, 84, 100];
-  static const List<String> _months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+  static const List<int> _volume = [
+    38,
+    44,
+    41,
+    52,
+    49,
+    61,
+    58,
+    67,
+    72,
+    70,
+    84,
+    100
+  ];
+  static const List<String> _months = [
+    'J',
+    'F',
+    'M',
+    'A',
+    'M',
+    'J',
+    'J',
+    'A',
+    'S',
+    'O',
+    'N',
+    'D'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -313,6 +339,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _buildHero()),
+          // L'annonce globale suit l'en-tête et ne passe plus devant celui-ci.
+          const SliverToBoxAdapter(child: BroadcastBanner()),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 100),
             sliver: SliverList(
@@ -360,8 +388,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                     backgroundColor: const Color(0xFFC9F3EE),
                     backgroundImage: hasPhoto
                         ? NetworkImage(
-                            photoUrl!.startsWith('http')
-                                ? photoUrl!
+                            photoUrl.startsWith('http')
+                                ? photoUrl
                                 : ApiService.resolveMediaUrl(photoUrl),
                           )
                         : null,
@@ -415,14 +443,18 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                             right: -2,
                             top: -2,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 1),
                               decoration: BoxDecoration(
                                 color: AppTheme.amber400,
                                 borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: AppTheme.teal600, width: 2),
+                                border: Border.all(
+                                    color: AppTheme.teal600, width: 2),
                               ),
                               child: Text(
-                                unreadNotificationsCount > 99 ? '99+' : '$unreadNotificationsCount',
+                                unreadNotificationsCount > 99
+                                    ? '99+'
+                                    : '$unreadNotificationsCount',
                                 style: const TextStyle(
                                   color: AppTheme.amberOnFg,
                                   fontSize: 10,
@@ -469,12 +501,37 @@ class _SuperAdminHomeScreen extends StatelessWidget {
           mainAxisSpacing: 12,
           childAspectRatio: 1.35,
           children: [
-            const _AdminStat(icon: Icons.inventory_2_rounded, tone: PcTone.primary, label: 'Colis', valueKey: 'parcels').resolve(this),
+            const _AdminStat(
+                    icon: Icons.inventory_2_rounded,
+                    tone: PcTone.primary,
+                    label: 'Colis',
+                    valueKey: 'parcels')
+                .resolve(this),
             _revenueStatBox(),
-            const _AdminStat(icon: Icons.local_shipping_rounded, tone: PcTone.green, label: 'Chauffeurs', valueKey: 'drivers').resolve(this),
-            const _AdminStat(icon: Icons.garage_rounded, tone: PcTone.amber, label: 'Zones', valueKey: 'garages').resolve(this),
-            const _AdminStat(icon: Icons.group_rounded, tone: PcTone.neutral, label: 'Utilisateurs', valueKey: 'users').resolve(this),
-            const _AdminStat(icon: Icons.admin_panel_settings_rounded, tone: PcTone.neutral, label: 'Admins', valueKey: 'admins').resolve(this),
+            const _AdminStat(
+                    icon: Icons.local_shipping_rounded,
+                    tone: PcTone.green,
+                    label: 'Chauffeurs',
+                    valueKey: 'drivers')
+                .resolve(this),
+            const _AdminStat(
+                    icon: Icons.garage_rounded,
+                    tone: PcTone.amber,
+                    label: 'Zones',
+                    valueKey: 'garages')
+                .resolve(this),
+            const _AdminStat(
+                    icon: Icons.group_rounded,
+                    tone: PcTone.neutral,
+                    label: 'Utilisateurs',
+                    valueKey: 'users')
+                .resolve(this),
+            const _AdminStat(
+                    icon: Icons.admin_panel_settings_rounded,
+                    tone: PcTone.neutral,
+                    label: 'Admins',
+                    valueKey: 'admins')
+                .resolve(this),
           ],
         ),
         const SizedBox(height: 12),
@@ -560,7 +617,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          PcBarChart(bars: _volume.map((v) => v.toDouble()).toList(), labels: _months, height: 120, highlightLast: true),
+          PcBarChart(
+              bars: _volume.map((v) => v.toDouble()).toList(),
+              labels: _months,
+              height: 120,
+              highlightLast: true),
         ],
       ),
     );
@@ -582,12 +643,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 icon: Icons.garage_rounded,
                 label: 'Zones',
                 tone: PcTone.primary,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const GaragesManagementScreen()),
-                  );
-                },
+                onTap: () => context.push('/admin/zones'),
               ),
             ),
             const SizedBox(width: 12),
@@ -599,7 +655,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const UsersManagementScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const UsersManagementScreen()),
                   );
                 },
               ),
@@ -684,9 +741,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Finance',
                 tone: PcTone.primary,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const FinanceDashboardScreen(),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FinanceDashboardScreen(),
+                      ));
                 },
               ),
             ),
@@ -697,9 +756,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Réputation',
                 tone: PcTone.amber,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const ReputationDashboardScreen(),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ReputationDashboardScreen(),
+                      ));
                 },
               ),
             ),
@@ -714,9 +775,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Wallets',
                 tone: PcTone.green,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const WalletsScreen(),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WalletsScreen(),
+                      ));
                 },
               ),
             ),
@@ -727,9 +790,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Paiements',
                 tone: PcTone.neutral,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const PaymentsScreen(),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PaymentsScreen(),
+                      ));
                 },
               ),
             ),
@@ -744,9 +809,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Commissions',
                 tone: PcTone.amber,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const CommissionConfigScreen(),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CommissionConfigScreen(),
+                      ));
                 },
               ),
             ),
@@ -757,9 +824,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Classement',
                 tone: PcTone.primary,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const ClassementScreen(),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ClassementScreen(),
+                      ));
                 },
               ),
             ),
@@ -842,9 +911,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Retraits',
                 tone: PcTone.green,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const WithdrawalsScreen(),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WithdrawalsScreen(),
+                      ));
                 },
               ),
             ),
@@ -859,9 +930,12 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 label: 'Alertes paiements',
                 tone: PcTone.amber,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const PaymentNotificationsScreen(),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const PaymentNotificationsScreen(),
+                      ));
                 },
               ),
             ),
@@ -874,6 +948,29 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 onTap: () => context.go('/admin/payments/paydunya'),
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.payments_rounded,
+                label: 'Encaissements espèces',
+                tone: PcTone.amber,
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CashDeclarationsScreen(),
+                      ));
+                },
+              ),
+            ),
+            // La grille est à deux colonnes : ce vide garde la carte à sa
+            // largeur de colonne plutôt que de l'étirer sur toute la ligne.
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox.shrink()),
           ],
         ),
       ],
@@ -942,7 +1039,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
     final place = (driver.city != null && driver.city!.isNotEmpty)
         ? driver.city!
         : (driver.garageName ?? '—');
-    final rating = driver.rating != null ? driver.rating!.toStringAsFixed(1) : '—';
+    final rating =
+        driver.rating != null ? driver.rating!.toStringAsFixed(1) : '—';
     return PcListRow(
       leading: PcAvatar(driver.fullName, size: 40, status: status),
       title: driver.fullName,
@@ -961,12 +1059,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
         PcSectionHeader(
           'Zones',
           action: 'Tout voir',
-          onAction: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const GaragesManagementScreen()),
-            );
-          },
+          onAction: () => context.push('/admin/zones'),
         ),
         if (garages.isEmpty)
           const PcCard(
@@ -1002,7 +1095,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
           color: AppTheme.slate100,
           borderRadius: BorderRadius.circular(AppTheme.radiusSm),
         ),
-        child: const Icon(Icons.garage_rounded, size: 22, color: AppTheme.slate500),
+        child: const Icon(Icons.garage_rounded,
+            size: 22, color: AppTheme.slate500),
       ),
       title: garage.name,
       subtitle: garage.city.isNotEmpty ? garage.city : '—',
@@ -1021,7 +1115,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
         if (parcelState.isLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
-            child: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+            child: Center(
+                child: CircularProgressIndicator(color: AppTheme.primary)),
           )
         else if (parcelState.parcels.isEmpty)
           const PcCard(
@@ -1037,7 +1132,9 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                for (int i = 0; i < parcelState.parcels.take(5).length; i++) ...[
+                for (int i = 0;
+                    i < parcelState.parcels.take(5).length;
+                    i++) ...[
                   if (i > 0) const PcDivider(),
                   _buildActivityRow(parcelState.parcels[i]),
                 ],
@@ -1058,7 +1155,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
           color: colors.background,
           borderRadius: BorderRadius.circular(AppTheme.radiusSm),
         ),
-        child: Icon(Icons.local_shipping_rounded, color: colors.foreground, size: 22),
+        child: Icon(Icons.local_shipping_rounded,
+            color: colors.foreground, size: 22),
       ),
       title: parcel.trackingNumber,
       subtitle: parcel.receiverName,
@@ -1140,7 +1238,8 @@ class _StatusMini extends StatelessWidget {
         children: [
           Text(
             '$value',
-            style: AppTheme.mono(fontSize: 20, fontWeight: FontWeight.w800, color: _fg),
+            style: AppTheme.mono(
+                fontSize: 20, fontWeight: FontWeight.w800, color: _fg),
           ),
           const SizedBox(height: 4),
           Text(

@@ -29,22 +29,28 @@ class BroadcastService {
     return await _storage.read(key: 'token');
   }
 
+  /// Les annonces sont lues sur un endpoint public : `/super-admin/config`
+  /// reste réservé au super-admin et ne doit servir qu'à l'écriture.
   Future<List<Broadcast>> fetchActiveBroadcasts() async {
     try {
       final token = await _token;
       final response = await _dio.get(
-        '/super-admin/config',
+        '/public/broadcasts',
         options: Options(headers: {
           if (token != null && token.isNotEmpty)
             'Authorization': 'Bearer $token',
         }),
       );
       final data = _handleResponse(response);
-      final config = data['config'] as Map<String, dynamic>? ?? (data['data'] as Map<String, dynamic>? ?? {});
-      final raw = config['broadcasts'];
-      if (raw is List && raw.isNotEmpty) {
-        final broadcasts = raw.map((b) => Broadcast.fromJson(b as Map<String, dynamic>)).toList();
-        _cacheBroadcasts(broadcasts);
+      final config = data['config'] as Map<String, dynamic>? ??
+          (data['data'] as Map<String, dynamic>? ?? {});
+      final raw = data['broadcasts'] ?? config['broadcasts'];
+      if (raw is List) {
+        final broadcasts = raw
+            .whereType<Map>()
+            .map((b) => Broadcast.fromJson(Map<String, dynamic>.from(b)))
+            .toList();
+        await _cacheBroadcasts(broadcasts);
         return broadcasts;
       }
     } catch (_) {}
@@ -59,7 +65,7 @@ class BroadcastService {
   Future<void> adminSaveBroadcasts(List<Broadcast> broadcasts) async {
     try {
       final token = await _token;
-      await _dio.put(
+      final response = await _dio.put(
         '/super-admin/config',
         data: {'broadcasts': broadcasts.map((b) => b.toJson()).toList()},
         options: Options(headers: {
@@ -67,8 +73,15 @@ class BroadcastService {
             'Authorization': 'Bearer $token',
         }),
       );
-      _cacheBroadcasts(broadcasts);
-    } catch (_) {}
+      if (response.statusCode == null || response.statusCode! >= 400) {
+        throw StateError(
+          'Échec de la sauvegarde des bandeaux (${response.statusCode}).',
+        );
+      }
+      await _cacheBroadcasts(broadcasts);
+    } catch (_) {
+      rethrow;
+    }
   }
 
   Future<void> _cacheBroadcasts(List<Broadcast> broadcasts) async {
@@ -85,7 +98,9 @@ class BroadcastService {
       final encoded = sp.getString(_cacheKey);
       if (encoded == null || encoded.isEmpty) return [];
       final list = jsonDecode(encoded) as List<dynamic>;
-      return list.map((e) => Broadcast.fromJson(e as Map<String, dynamic>)).toList();
+      return list
+          .map((e) => Broadcast.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return [];
     }
@@ -93,7 +108,8 @@ class BroadcastService {
 
   Map<String, dynamic> _handleResponse(Response response) {
     if (response.data is String) return jsonDecode(response.data as String);
-    if (response.data is Map) return Map<String, dynamic>.from(response.data as Map);
+    if (response.data is Map)
+      return Map<String, dynamic>.from(response.data as Map);
     return {};
   }
 }

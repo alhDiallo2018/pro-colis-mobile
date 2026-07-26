@@ -35,7 +35,9 @@ class CommissionConfig {
 ///   Si commission > maximum → maximum
 class CommissionService {
   static CommissionConfig _config = const CommissionConfig();
-  static String _insufficientPolicy = 'warn'; // block | warn | debt
+  // Valeur par défaut identique à SystemConfig ; l'écran admin remplace cette
+  // valeur dès que la configuration distante est chargée.
+  static String _insufficientPolicy = 'block'; // block | warn | debt
 
   /// Met à jour la configuration (appelé au démarrage ou depuis admin)
   static void configure(CommissionConfig config) {

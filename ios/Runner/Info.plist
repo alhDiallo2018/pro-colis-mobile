@@ -16,6 +16,11 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>sendprocolis</string>
+	<!-- Clé du SDK Google Maps natif, lue par AppDelegate.swift. Alimenter
+	     GOOGLE_MAPS_API_KEY depuis un .xcconfig hors dépôt plutôt que d'y
+	     écrire la clé en clair. -->
+	<key>GoogleMapsApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

@@ -156,7 +156,10 @@ class PcButton extends StatelessWidget {
               label,
               overflow: TextOverflow.ellipsis,
               style: _display(
-                  size: s.fs, weight: FontWeight.w700, color: fg, letterSpacing: 0.1),
+                  size: s.fs,
+                  weight: FontWeight.w700,
+                  color: fg,
+                  letterSpacing: 0.1),
             ),
           ),
           if (iconTrailing != null) ...[
@@ -240,8 +243,9 @@ class PcIconButton extends StatelessWidget {
         bg = AppTheme.red50;
         fg = AppTheme.red400;
     }
-    final radius =
-        round ? BorderRadius.circular(s.d) : BorderRadius.circular(AppTheme.radiusSm);
+    final radius = round
+        ? BorderRadius.circular(s.d)
+        : BorderRadius.circular(AppTheme.radiusSm);
     final btn = Material(
       color: bg,
       borderRadius: radius,
@@ -282,9 +286,8 @@ class PcFab extends StatelessWidget {
     final bg = amber ? AppTheme.amber400 : AppTheme.primary;
     final fg = amber ? AppTheme.amberOnFg : Colors.white;
     final shadow = amber ? AppTheme.amberShadow() : AppTheme.brandShadow();
-    final radius = label != null
-        ? BorderRadius.circular(999)
-        : BorderRadius.circular(28);
+    final radius =
+        label != null ? BorderRadius.circular(999) : BorderRadius.circular(28);
     return Material(
       color: bg,
       borderRadius: radius,
@@ -294,9 +297,8 @@ class PcFab extends StatelessWidget {
         child: Container(
           height: 56,
           width: label == null ? 56 : null,
-          padding: label != null
-              ? const EdgeInsets.only(left: 18, right: 22)
-              : null,
+          padding:
+              label != null ? const EdgeInsets.only(left: 18, right: 22) : null,
           decoration: BoxDecoration(borderRadius: radius, boxShadow: shadow),
           alignment: Alignment.center,
           child: Row(
@@ -306,7 +308,8 @@ class PcFab extends StatelessWidget {
               if (label != null) ...[
                 const SizedBox(width: 8),
                 Text(label!,
-                    style: _display(size: 15, weight: FontWeight.w700, color: fg)),
+                    style:
+                        _display(size: 15, weight: FontWeight.w700, color: fg)),
               ],
             ],
           ),
@@ -353,12 +356,27 @@ class PcCard extends StatelessWidget {
       ),
       child: accent == null
           ? child
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          // Une Row en `stretch` reçoit une hauteur non bornée lorsqu'elle est
+          // placée dans une ListView. Le Stack prend sa hauteur sur le contenu,
+          // puis étire uniquement la barre d'accent dans cet espace mesuré.
+          : Stack(
               children: [
-                Container(width: 3, color: accent),
-                const SizedBox(width: 12),
-                Expanded(child: child),
+                Padding(
+                  padding: const EdgeInsets.only(left: 15),
+                  child: child,
+                ),
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 3,
+                    decoration: BoxDecoration(
+                      color: accent,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
               ],
             ),
     );
@@ -421,7 +439,8 @@ class PcStatBox extends StatelessWidget {
               style: _display(size: 26, weight: FontWeight.w800, height: 1)),
           const SizedBox(height: 5),
           Text(label,
-              style: _body(size: 13, weight: FontWeight.w500, color: AppTheme.slate500)),
+              style: _body(
+                  size: 13, weight: FontWeight.w500, color: AppTheme.slate500)),
         ],
       ),
     );
@@ -477,7 +496,8 @@ class PcBadge extends StatelessWidget {
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -558,7 +578,8 @@ class PcTag extends StatelessWidget {
             Icon(icon, size: 15, color: fg),
             const SizedBox(width: 5),
           ],
-          Text(label, style: _body(size: 12.5, weight: FontWeight.w600, color: fg)),
+          Text(label,
+              style: _body(size: 12.5, weight: FontWeight.w600, color: fg)),
         ],
       ),
     );
@@ -603,8 +624,9 @@ class PcAvatar extends StatelessWidget {
     ];
     final hash = name.codeUnits.fold<int>(0, (a, b) => a + b);
     final pal = palettes[hash % palettes.length];
-    final radius =
-        square ? BorderRadius.circular(AppTheme.radiusMd) : BorderRadius.circular(size);
+    final radius = square
+        ? BorderRadius.circular(AppTheme.radiusMd)
+        : BorderRadius.circular(size);
 
     final dotColor = switch (status) {
       PcAvatarStatus.online => AppTheme.green500,
@@ -631,10 +653,14 @@ class PcAvatar extends StatelessWidget {
                 errorBuilder: (context, error, stackTrace) => Container(
                   width: size,
                   height: size,
-                  decoration: BoxDecoration(color: pal.bg, borderRadius: radius),
+                  decoration:
+                      BoxDecoration(color: pal.bg, borderRadius: radius),
                   alignment: Alignment.center,
                   child: Text(_initials,
-                      style: _display(size: size * 0.38, weight: FontWeight.w700, color: pal.fg)),
+                      style: _display(
+                          size: size * 0.38,
+                          weight: FontWeight.w700,
+                          color: pal.fg)),
                 ),
               ),
             )
@@ -645,7 +671,10 @@ class PcAvatar extends StatelessWidget {
               decoration: BoxDecoration(color: pal.bg, borderRadius: radius),
               alignment: Alignment.center,
               child: Text(_initials,
-                  style: _display(size: size * 0.38, weight: FontWeight.w700, color: pal.fg)),
+                  style: _display(
+                      size: size * 0.38,
+                      weight: FontWeight.w700,
+                      color: pal.fg)),
             ),
           if (dotColor != null)
             Positioned(
@@ -807,7 +836,8 @@ class PcEmptyState extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 280),
                 child: Text(message!,
                     textAlign: TextAlign.center,
-                    style: _body(size: 14, color: AppTheme.slate500, height: 1.5)),
+                    style:
+                        _body(size: 14, color: AppTheme.slate500, height: 1.5)),
               ),
             ],
             if (action != null) ...[const SizedBox(height: 14), action!],
@@ -842,7 +872,9 @@ class PcSectionHeader extends StatelessWidget {
               onTap: onAction,
               child: Text(action!,
                   style: _display(
-                      size: 13, weight: FontWeight.w600, color: AppTheme.teal600)),
+                      size: 13,
+                      weight: FontWeight.w600,
+                      color: AppTheme.teal600)),
             ),
         ],
       ),
@@ -896,7 +928,9 @@ class PcMeta extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: AppTheme.slate400),
         const SizedBox(width: 5),
-        Text(text, style: _body(size: 12.5, weight: FontWeight.w500, color: AppTheme.slate500)),
+        Text(text,
+            style: _body(
+                size: 12.5, weight: FontWeight.w500, color: AppTheme.slate500)),
       ],
     );
   }

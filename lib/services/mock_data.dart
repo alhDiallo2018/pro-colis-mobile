@@ -41,8 +41,8 @@ class MockData {
       garageName: 'Zone Dakar Plateau',
       vehiclePlate: 'DK-4587-AA',
       vehicleModel: 'Mercedes Sprinter',
-      vehicleColor: 'Blanc',
-      vehicleYear: 2022,
+      vehicleType: 'van',
+      vehicleCapacity: 1300,
       driverStatus: DriverStatus.available,
       rating: 4.8,
       totalDeliveries: 128,
@@ -70,6 +70,42 @@ class MockData {
       isPhoneVerified: true,
       isProfileComplete: true,
       createdAt: DateTime(2025, 9, 20),
+      lastLogin: DateTime.now(),
+    ),
+    User(
+      id: 'mock-support-tech-1',
+      email: 'support.tech@sendprocolis.test',
+      phone: '+221775678901',
+      fullName: 'Awa Ndoye',
+      role: UserRole.supportTechnique,
+      status: UserStatus.active,
+      pin: pin,
+      address: 'Point E',
+      city: 'Dakar',
+      region: 'Dakar',
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      isVerified: true,
+      isProfileComplete: true,
+      createdAt: DateTime(2025, 10, 14),
+      lastLogin: DateTime.now(),
+    ),
+    User(
+      id: 'mock-support-com-1',
+      email: 'support.com@sendprocolis.test',
+      phone: '+221776789012',
+      fullName: 'Seydou Kane',
+      role: UserRole.supportCommercial,
+      status: UserStatus.active,
+      pin: pin,
+      address: 'Almadies',
+      city: 'Dakar',
+      region: 'Dakar',
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      isVerified: true,
+      isProfileComplete: true,
+      createdAt: DateTime(2025, 8, 3),
       lastLogin: DateTime.now(),
     ),
     User(
@@ -241,6 +277,11 @@ class MockData {
                 parcel.departureGarageId == user.garageId ||
                 parcel.arrivalGarageId == user.garageId)
             .toList();
+      // Le support consulte tous les colis pour instruire tickets et
+      // réclamations ; la restriction est côté écriture, pas côté lecture.
+      case UserRole.supportTechnique:
+      case UserRole.supportCommercial:
+      case UserRole.support:
       case UserRole.superAdmin:
         return parcels;
       case UserRole.client:
@@ -260,5 +301,52 @@ class MockData {
       'accessToken': 'mock-token-${user.id}',
       'user': user.toJson(),
     };
+  }
+
+  /// Encaissements espèces déclarés par les chauffeurs et en attente de
+  /// réconciliation, pour la file de validation admin.
+  static List<Map<String, dynamic>> cashDeclarations() {
+    final now = DateTime.now();
+    return [
+      {
+        'id': 'mock-cash-1',
+        'userId': 'mock-driver-1',
+        'userName': 'Moussa Ndiaye',
+        'parcelId': parcels.isNotEmpty ? parcels.first.id : 'mock-parcel-1',
+        'trackingNumber':
+            parcels.isNotEmpty ? parcels.first.trackingNumber : 'PC-0001',
+        'amount': 12500,
+        'currency': 'XOF',
+        'method': 'cash',
+        'channel': 'cash',
+        'status': 'processing',
+        'cashCollectionPoint': 'receiver_delivery',
+        'declaredBy': 'mock-driver-1',
+        'declaredByName': 'Moussa Ndiaye',
+        'declaredAt':
+            now.subtract(const Duration(hours: 3)).toIso8601String(),
+        'declarationNote': 'Remis par le destinataire au garage de Thiès.',
+        'createdAt': now.subtract(const Duration(hours: 3)).toIso8601String(),
+      },
+      {
+        'id': 'mock-cash-2',
+        'userId': 'mock-driver-1',
+        'userName': 'Moussa Ndiaye',
+        'parcelId': parcels.length > 1 ? parcels[1].id : 'mock-parcel-2',
+        'trackingNumber':
+            parcels.length > 1 ? parcels[1].trackingNumber : 'PC-0002',
+        'amount': 8000,
+        'currency': 'XOF',
+        'method': 'cash',
+        'channel': 'cash',
+        'status': 'processing',
+        'cashCollectionPoint': 'sender_pickup',
+        'declaredBy': 'mock-driver-1',
+        'declaredByName': 'Moussa Ndiaye',
+        'declaredAt':
+            now.subtract(const Duration(days: 1)).toIso8601String(),
+        'createdAt': now.subtract(const Duration(days: 1)).toIso8601String(),
+      },
+    ];
   }
 }

@@ -10,6 +10,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../models/garage.dart';
 import '../../models/parcel.dart';
+import '../../models/payment.dart';
 import '../../models/user.dart';
 import '../../models/zone.dart';
 import '../../providers/auth_provider.dart';
@@ -19,6 +20,7 @@ import '../../services/api/zones_api.dart';
 import '../../services/api_service.dart';
 import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../../widgets/route_picker.dart';
 import '../../widgets/location_autocomplete.dart';
@@ -53,13 +55,6 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   String? _departureGarageId;
   String? _arrivalGarageId;
 
-  // Repli "Autre lieu" : résolution d'un lieu Google Places en zone (pending).
-  final _departurePlaceCtrl = TextEditingController();
-  final _arrivalPlaceCtrl = TextEditingController();
-  PlaceResult? _pendingDeparturePlace;
-  PlaceResult? _pendingArrivalPlace;
-  bool _resolvingDeparture = false;
-  bool _resolvingArrival = false;
   bool _isFreeMode = true;
   List<User> _drivers = [];
   User? _selectedDriver;
@@ -72,6 +67,12 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   final _descriptionCtrl = TextEditingController();
   bool _isUrgent = false;
   bool _isInsured = false;
+
+  // Règlement : espèces de la main à la main, ou encaissement par la plateforme.
+  PaymentChannel _paymentChannel = PaymentChannel.cash;
+  CashCollectionPoint _cashCollectionPoint =
+      CashCollectionPoint.receiverDelivery;
+
   List<XFile> _photos = [];
   List<XFile> _videos = [];
   List<VoiceMessageData> _voiceMessages = [];
@@ -97,8 +98,6 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     _weightCtrl.dispose();
     _proposedPriceCtrl.dispose();
     _descriptionCtrl.dispose();
-    _departurePlaceCtrl.dispose();
-    _arrivalPlaceCtrl.dispose();
     _recorder.dispose();
     _player.dispose();
     super.dispose();
@@ -135,49 +134,16 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     });
   }
 
-  /// Résout le lieu Google Places choisi en zone (création "pending" côté API),
-  /// l'ajoute à la liste et l'affecte au départ ou à l'arrivée.
-  Future<void> _resolvePlaceToField({required bool departure, required double lat, required double lng}) async {
-    final place = departure ? _pendingDeparturePlace : _pendingArrivalPlace;
-    if (place == null) return;
+  /// Zone ajoutée à la volée depuis le sélecteur de trajet : absente de la
+  /// liste publique tant qu'elle n'est pas validée, on l'injecte localement
+  /// pour qu'elle reste sélectionnable.
+  void _addResolvedZone(Garage garage) {
     setState(() {
-      if (departure) {
-        _resolvingDeparture = true;
-      } else {
-        _resolvingArrival = true;
-      }
+      _garages = [..._garages.where((g) => g.id != garage.id), garage];
     });
-    final garage = await _zonesApi.resolvePlaceAsGarage(
-      placeId: place.placeId.isNotEmpty ? place.placeId : null,
-      name: place.mainText.isNotEmpty ? place.mainText : place.description,
-      latitude: lat,
-      longitude: lng,
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('« ${garage.name} » ajoutée — validation en attente.')),
     );
-    if (!mounted) return;
-    setState(() {
-      if (departure) {
-        _resolvingDeparture = false;
-      } else {
-        _resolvingArrival = false;
-      }
-      if (garage != null) {
-        if (!_garages.any((g) => g.id == garage.id)) {
-          _garages = [..._garages, garage];
-        }
-        if (departure) {
-          _departureGarageId = garage.id;
-          _selectedDriver = null;
-        } else {
-          _arrivalGarageId = garage.id;
-        }
-      }
-    });
-    if (garage != null && departure) _loadDriversForGarage(garageId: garage.id);
-    if (garage == null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible de résoudre ce lieu, réessayez.')),
-      );
-    }
   }
 
   Garage? _garageById(String? id) {
@@ -336,7 +302,11 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         'isUrgent': _isUrgent,
         'isInsured': _isInsured,
         'isFreeForBidding': _isFreeMode,
-        'paymentMethod': 'cash',
+        // Le canal fait foi ; `paymentMethod` reste envoyé pour la compatibilité.
+        'paymentChannel': _paymentChannel.value,
+        'paymentMethod': _paymentChannel.defaultMethod.value,
+        if (_paymentChannel.isCash)
+          'cashCollectionPoint': _cashCollectionPoint.value,
         if (!_isFreeMode && _selectedDriver != null)
           'driverId': _selectedDriver!.id,
       };
@@ -602,31 +572,9 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           onArrivalChanged: (g) {
             setState(() => _arrivalGarageId = g?.id);
           },
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Zone introuvable ? Ajoutez un lieu (Google Places)',
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.slate500),
-        ),
-        const SizedBox(height: 8),
-        LocationAutocomplete(
-          controller: _departurePlaceCtrl,
-          label: _resolvingDeparture ? 'Résolution du lieu…' : 'Autre lieu de départ',
-          prefixIcon: Icons.add_location_alt_rounded,
-          hint: 'Ville / adresse de départ',
-          googleApiKey: PlacesService.googleApiKey,
-          onPlaceSelected: (p) => _pendingDeparturePlace = p,
-          onCoordinates: (lat, lng) => _resolvePlaceToField(departure: true, lat: lat, lng: lng),
-        ),
-        const SizedBox(height: 8),
-        LocationAutocomplete(
-          controller: _arrivalPlaceCtrl,
-          label: _resolvingArrival ? 'Résolution du lieu…' : "Autre lieu d'arrivée",
-          prefixIcon: Icons.add_location_alt_rounded,
-          hint: "Ville / adresse d'arrivée",
-          googleApiKey: PlacesService.googleApiKey,
-          onPlaceSelected: (p) => _pendingArrivalPlace = p,
-          onCoordinates: (lat, lng) => _resolvePlaceToField(departure: false, lat: lat, lng: lng),
+          // L'ajout d'un lieu absent se fait désormais depuis le sélecteur
+          // lui-même (recherche Google Places + pointage sur carte).
+          onZoneAdded: _addResolvedZone,
         ),
         const SizedBox(height: 20),
         _sectionHeader('Mode de livraison', Icons.settings_rounded),
@@ -848,6 +796,24 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           contentPadding: EdgeInsets.zero,
         ),
         const SizedBox(height: 20),
+        _sectionHeader('Paiement', Icons.payments_rounded),
+        const SizedBox(height: 8),
+        PaymentChannelField(
+          value: _paymentChannel,
+          onChanged: (channel) => setState(() => _paymentChannel = channel),
+          footnote: _isFreeMode
+              ? 'Les chauffeurs qui n’acceptent pas ce mode ne pourront pas '
+                  'répondre à votre annonce.'
+              : 'Le chauffeur doit accepter ce mode pour confirmer la course.',
+        ),
+        if (_paymentChannel.isCash) ...[
+          const SizedBox(height: 16),
+          CashCollectionPointField(
+            value: _cashCollectionPoint,
+            onChanged: (point) => setState(() => _cashCollectionPoint = point),
+          ),
+        ],
+        const SizedBox(height: 20),
         _sectionHeader('Médias (optionnel)', Icons.perm_media_rounded),
         const SizedBox(height: 8),
         Row(
@@ -926,6 +892,12 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           _recapRow('Type', _parcelType.label),
           _recapRow('Poids', '${_weightCtrl.text.trim()} kg'),
           if (_proposedPriceCtrl.text.trim().isNotEmpty) _recapRow('Prix', '${_proposedPriceCtrl.text.trim()} FCFA'),
+          _recapRow(
+            'Paiement',
+            _paymentChannel.isCash
+                ? '${_paymentChannel.label} · ${_cashCollectionPoint.payerLabel.toLowerCase()}'
+                : _paymentChannel.label,
+          ),
           if (_descriptionCtrl.text.trim().isNotEmpty) _recapRow('Description', _descriptionCtrl.text.trim()),
           _recapBadgeRow('Express', _isUrgent, 'Oui (+2000 FCFA)', 'Non'),
           _recapBadgeRow('Assurance', _isInsured, 'Oui', 'Non'),
