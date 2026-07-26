@@ -596,11 +596,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // ---- Statistiques (points / colis) ----
 
   Widget _buildStatsRow() {
-    return const PcStatBox(
-      icon: Icons.inventory_2_rounded,
-      value: '31',
-      label: 'Colis envoyés',
-      tone: PcTone.primary,
+    final totalDeliveries = _user.totalDeliveries ?? 0;
+    final completedDeliveries = _user.completedDeliveries ?? 0;
+    final rating = _user.rating;
+
+    return Row(
+      children: [
+        Expanded(
+          child: PcStatBox(
+            icon: Icons.local_shipping_rounded,
+            value: totalDeliveries.toString(),
+            label: 'Livraisons totales',
+            tone: PcTone.primary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: PcStatBox(
+            icon: Icons.check_circle_rounded,
+            value: completedDeliveries.toString(),
+            label: 'Livrées',
+            tone: PcTone.green,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: PcStatBox(
+            icon: Icons.star_rounded,
+            value: rating != null ? rating.toStringAsFixed(1) : '-',
+            label: 'Note',
+            tone: PcTone.amber,
+          ),
+        ),
+      ],
     );
   }
 
@@ -766,8 +794,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             icon: Icons.location_on_rounded,
             iconTone: PcTone.primary,
             title: 'Adresses',
-            subtitle: '${_user.city ?? 'Abidjan'}, Côte d’Ivoire',
-            chevron: true,
+            subtitle: () {
+              final parts = <String>[];
+              if (_user.city != null && _user.city!.isNotEmpty) {
+                parts.add(_user.city!);
+              }
+              if (_user.region != null && _user.region!.isNotEmpty) {
+                parts.add(_user.region!);
+              }
+              return parts.isEmpty ? 'Non renseigné' : parts.join(', ');
+            }(),
+            chevron: false,
           ),
           const PcDivider(),
           PcListRow(

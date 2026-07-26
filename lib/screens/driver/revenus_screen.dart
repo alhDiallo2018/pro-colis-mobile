@@ -32,15 +32,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
   String _paymentFilter = 'all';
   int _visiblePaymentsCount = 10;
 
-  static const List<double> _dailyRevenue = [
-    12500,
-    8700,
-    15600,
-    5200,
-    18200,
-    22300,
-    9400,
-  ];
+  List<double> _dailyRevenue = [0, 0, 0, 0, 0, 0, 0];
 
   static const List<String> _dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
@@ -62,6 +54,8 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
       double currentWeek = 0;
       double lastWeek = 0;
 
+      final daily = List<double>.filled(7, 0);
+
       for (final p in payments) {
         final amount = (p['amount'] ?? 0).toDouble();
         total += amount;
@@ -70,6 +64,10 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
           final date = DateTime.parse(p['createdAt']?.toString() ?? '');
           if (date.isAfter(weekStart)) {
             currentWeek += amount;
+            final dayIndex = date.weekday - 1;
+            if (dayIndex >= 0 && dayIndex < 7) {
+              daily[dayIndex] += amount;
+            }
           } else if (date.isAfter(lastWeekStart) && date.isBefore(weekStart)) {
             lastWeek += amount;
           }
@@ -82,6 +80,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
           _totalRevenue = total;
           _currentWeekRevenue = currentWeek;
           _lastWeekRevenue = lastWeek;
+          _dailyRevenue = daily;
           _isLoading = false;
         });
       }

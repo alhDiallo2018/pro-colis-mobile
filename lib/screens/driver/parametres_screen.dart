@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
 
@@ -28,6 +29,7 @@ class DriverParametresScreen extends ConsumerStatefulWidget {
 class _DriverParametresScreenState
     extends ConsumerState<DriverParametresScreen> {
   final ApiService _apiService = ApiService();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   bool _isLoading = true;
   int _availabilityIndex = 0;
   bool _isUpdatingAvailability = false;
@@ -46,7 +48,7 @@ class _DriverParametresScreenState
   bool _showPinForm = false;
   bool _isSaving = false;
 
-  // Notification preferences (persistées localement en session)
+  // Notification preferences (persistées localement + tentative API)
   bool _notifMissions = true;
   bool _notifMessages = true;
   bool _notifPromos = false;
@@ -63,6 +65,53 @@ class _DriverParametresScreenState
       if (i >= 0) _availabilityIndex = i;
     }
     _loadVehicle();
+    _loadNotificationPreferences();
+  }
+
+  Future<void> _loadNotificationPreferences() async {
+    final missions = await _storage.read(key: 'pref_notif_missions');
+    final messages = await _storage.read(key: 'pref_notif_messages');
+    final promos = await _storage.read(key: 'pref_notif_promos');
+    if (mounted) {
+      setState(() {
+        _notifMissions = missions != 'false';
+        _notifMessages = messages != 'false';
+        _notifPromos = promos == 'true';
+      });
+    }
+    // Tentative API en arrière-plan (fire-and-forget)
+    _apiService.getNotificationPreferences().then((prefs) {
+      if (prefs.isNotEmpty && mounted) {
+        final map = <String, bool>{};
+        for (final p in prefs) {
+          final type = p['type']?.toString();
+          final enabled = p['enabled'] == true;
+          if (type != null) map[type] = enabled;
+        }
+        setState(() {
+          _notifMissions = map['mission'] ?? _notifMissions;
+          _notifMessages = map['message'] ?? _notifMessages;
+          _notifPromos = map['promo'] ?? _notifPromos;
+        });
+      }
+    }).catchError((_) {});
+  }
+
+  void _updateNotifPref(String key, bool value) async {
+    setState(() {
+      switch (key) {
+        case 'pref_notif_missions': _notifMissions = value;
+        case 'pref_notif_messages': _notifMessages = value;
+        case 'pref_notif_promos': _notifPromos = value;
+      }
+    });
+    await _storage.write(key: key, value: value.toString());
+    // Tentative API en arrière-plan
+    _apiService.updateNotificationPreferences([
+      {'type': 'mission', 'enabled': _notifMissions},
+      {'type': 'message', 'enabled': _notifMessages},
+      {'type': 'promo', 'enabled': _notifPromos},
+    ]).catchError((_) {});
   }
 
   @override
@@ -80,19 +129,17 @@ class _DriverParametresScreenState
   Future<void> _loadVehicle() async {
     setState(() => _isLoading = true);
     try {
-      final vehicle = await _apiService.getDriverVehicle();
-      if (mounted) {
+      final user = ref.read(authProvider).user;
+      if (user != null && mounted) {
         setState(() {
-          _vehicle = vehicle != null ? Map<String, dynamic>.from(vehicle) : null;
-          if (_vehicle != null) {
-            _plateController.text = _vehicle!['plateNumber']?.toString() ?? '';
-            _modelController.text = _vehicle!['model']?.toString() ?? '';
-            _typeController.text = _vehicle!['type']?.toString() ?? '';
-            _capacityController.text =
-                _vehicle!['capacity']?.toString() ?? '';
-          }
+          _plateController.text = user.vehiclePlate ?? '';
+          _modelController.text = user.vehicleModel ?? '';
+          _typeController.text = user.vehicleModel ?? '';
+          _capacityController.text = user.vehicleYear?.toString() ?? '';
           _isLoading = false;
         });
+      } else {
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
@@ -102,11 +149,11 @@ class _DriverParametresScreenState
   Future<void> _saveVehicle() async {
     setState(() => _isSaving = true);
     try {
-      await _apiService.upsertVehicle({
-        'plateNumber': _plateController.text.trim(),
-        'model': _modelController.text.trim(),
-        'type': _typeController.text.trim(),
-        'capacity': int.tryParse(_capacityController.text.trim()) ?? 0,
+      await _apiService.updateProfile(UserRole.driver, {
+        'vehiclePlate': _plateController.text.trim(),
+        'vehicleModel': _modelController.text.trim(),
+        'vehicleColor': _typeController.text.trim(),
+        'vehicleYear': int.tryParse(_capacityController.text.trim()) ?? 0,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,6 +161,7 @@ class _DriverParametresScreenState
               content: Text('Véhicule enregistré'),
               backgroundColor: AppTheme.green600),
         );
+        await ref.read(authProvider.notifier).refreshUser();
         await _loadVehicle();
       }
     } catch (e) {
@@ -313,7 +361,7 @@ class _DriverParametresScreenState
                         title: 'Nouvelles missions',
                         subtitle: 'Être alerté des courses disponibles',
                         value: _notifMissions,
-                        onChanged: (v) => setState(() => _notifMissions = v),
+                        onChanged: (v) => _updateNotifPref('pref_notif_missions', v),
                       ),
                       const PcDivider(),
                       _switchRow(
@@ -322,7 +370,7 @@ class _DriverParametresScreenState
                         title: 'Messages',
                         subtitle: 'Notifications des conversations',
                         value: _notifMessages,
-                        onChanged: (v) => setState(() => _notifMessages = v),
+                        onChanged: (v) => _updateNotifPref('pref_notif_messages', v),
                       ),
                       const PcDivider(),
                       _switchRow(
@@ -331,7 +379,7 @@ class _DriverParametresScreenState
                         title: 'Promotions',
                         subtitle: 'Offres et actualités SendProcolis',
                         value: _notifPromos,
-                        onChanged: (v) => setState(() => _notifPromos = v),
+                        onChanged: (v) => _updateNotifPref('pref_notif_promos', v),
                       ),
                     ],
                   ),

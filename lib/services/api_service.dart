@@ -1201,21 +1201,13 @@ class ApiService {
         );
       }
       final response = await _dio.get('/driver/wallet');
-      final data = _handleResponse(response);
-      final walletData = data['wallet'] as Map<String, dynamic>? ?? data;
-      final txData = data['transactions'] as List<dynamic>?;
-      final transactions = txData?.map((t) => WalletTransaction.fromJson(t as Map<String, dynamic>)).toList() ?? [];
-      return Wallet(
-        id: walletData['id']?.toString() ?? 'wallet-$userId',
-        userId: walletData['userId']?.toString() ?? userId,
-        balance: _toDouble(walletData['balance']),
-        totalDeposited: _toDouble(walletData['totalDeposited']),
-        totalConsumed: _toDouble(walletData['totalSpent']),
-        isActive: walletData['status'] == 'active',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        transactions: transactions,
-      );
+      final fullData = _handleResponse(response);
+      final rawData = fullData['data'] as Map<String, dynamic>? ?? fullData;
+      final walletData = rawData['wallet'] as Map<String, dynamic>? ?? rawData;
+      final txData = rawData['transactions'] as List<dynamic>?;
+      final map = Map<String, dynamic>.from(walletData);
+      if (txData != null) map['transactions'] = txData;
+      return Wallet.fromJson(map);
     } catch (e) {
       debugPrint("❌ [API] getWallet failed: $e");
       return Wallet(
@@ -1254,10 +1246,10 @@ class ApiService {
           'newBalance': 5000 + depositAmount,
         };
       }
-      final response = await _dio.post('/score/purchase', data: {
-        'points': data['amount'],
+      final response = await _dio.post('/driver/wallet/recharge', data: {
+        'amount': data['amount'],
         'method': data['method'] ?? 'cash',
-        if (data['phone'] != null) 'phoneNumber': data['phone'],
+        if (data['phone'] != null) 'phone': data['phone'],
       });
       return _handleResponse(response);
     } catch (e) {

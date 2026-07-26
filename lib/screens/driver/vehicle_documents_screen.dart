@@ -63,20 +63,25 @@ class _VehicleDocumentsScreenState
     _loadInitial();
   }
 
-  /// Chargement best-effort : véhicule + dernier document d'identité connu.
-  /// Le backend étant un placeholder, on ne plante jamais si la donnée manque.
+  /// Chargement best-effort depuis les données utilisateur.
   Future<void> _loadInitial() async {
     try {
-      final results = await Future.wait([
-        _api.getDriverVehicle(),
-        _api.getIdentityStatus(),
-      ]);
+      final user = ref.read(authProvider).user;
       if (!mounted) return;
-      final vehicle = results[0];
-      final status = results[1];
       setState(() {
-        _vehicle = vehicle;
-        _prefillFromIdentity(status);
+        if (user != null) {
+          final plate = user.vehiclePlate;
+          final model = user.vehicleModel;
+          final color = user.vehicleColor;
+          if (plate != null || model != null || color != null) {
+            _vehicle = {
+              'plateNumber': plate ?? '',
+              'model': model ?? '',
+              'type': color ?? '',
+              'capacity': user.vehicleYear ?? 0,
+            };
+          }
+        }
         _loading = false;
       });
     } catch (_) {
