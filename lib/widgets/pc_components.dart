@@ -415,7 +415,7 @@ class PcStatBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final chip = _toneChip(tone);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -426,21 +426,21 @@ class PcStatBox extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: chip.bg,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: Icon(icon, size: 20, color: chip.fg),
+            child: Icon(icon, size: 18, color: chip.fg),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
           Text(value,
-              style: _display(size: 26, weight: FontWeight.w800, height: 1)),
-          const SizedBox(height: 5),
+              style: _display(size: 22, weight: FontWeight.w800, height: 1)),
+          const SizedBox(height: 3),
           Text(label,
               style: _body(
-                  size: 13, weight: FontWeight.w500, color: AppTheme.slate500)),
+                  size: 11.5, weight: FontWeight.w500, color: AppTheme.slate500)),
         ],
       ),
     );

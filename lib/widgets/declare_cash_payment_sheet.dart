@@ -10,6 +10,7 @@
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -466,7 +467,9 @@ class _DeclareCashPaymentSheetState extends State<DeclareCashPaymentSheet> {
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                   border: Border.all(color: AppTheme.slate200),
                 ),
-                child: Image.file(File(_proof!.path), fit: BoxFit.cover),
+                child: kIsWeb
+                    ? Image.network(_proof!.path, fit: BoxFit.cover)
+                    : Image.file(File(_proof!.path), fit: BoxFit.cover),
               ),
             Expanded(
               child: Row(

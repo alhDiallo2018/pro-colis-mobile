@@ -394,12 +394,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 BorderRadius.circular(AppTheme.radiusXs)),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        'Se souvenir de mon identifiant',
-                        style: AppFonts.manrope(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.slate500,
+                      Flexible(
+                        child: Text(
+                          'Se souvenir de mon identifiant',
+                          style: AppFonts.manrope(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.slate500,
+                          ),
                         ),
                       ),
                     ],

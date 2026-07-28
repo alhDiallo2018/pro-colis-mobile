@@ -8,14 +8,8 @@ import '../models/parcel.dart';
 import '../providers/auth_provider.dart';
 import '../screens/accueil/onboarding_screen.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/settings/notification_preferences_screen.dart';
-import '../screens/super-admin/brevo_config_screen.dart';
-import '../screens/super-admin/paydunya_config_screen.dart';
-import '../screens/super-admin/broadcasts_page.dart';
-import '../screens/super-admin/assistances_screen.dart';
-import '../screens/super-admin/expenses_screen.dart';
-import '../screens/super-admin/identity_verifications_screen.dart';
 import '../screens/auth/register_page.dart';
+import '../screens/client/client_libre_service_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/dashboard/notifications/notifications_screen.dart';
 import '../screens/dashboard/support_admin_dashboard.dart';
@@ -23,10 +17,10 @@ import '../screens/dashboard/support_commercial_dashboard.dart';
 import '../screens/dashboard/support_technique_dashboard.dart';
 import '../screens/driver/garage_screen.dart';
 import '../screens/driver/historique_screen.dart';
+import '../screens/driver/itinerary_map_screen.dart';
 import '../screens/driver/mes_annonces_screen.dart';
 import '../screens/driver/parametres_screen.dart';
 import '../screens/driver/points_screen.dart';
-import '../screens/driver/itinerary_map_screen.dart';
 import '../screens/driver/revenus_screen.dart';
 import '../screens/driver/vehicle_documents_screen.dart';
 import '../screens/garage_admin/garage_admin_drivers_screen.dart';
@@ -35,56 +29,62 @@ import '../screens/garage_admin/garage_assignations_screen.dart';
 import '../screens/garage_admin/garage_colis_screen.dart';
 import '../screens/garage_admin/garage_rapports_screen.dart';
 import '../screens/help/help_screen.dart';
-import '../screens/legal/mentions_legales_page.dart';
+import '../screens/legal/a_propos_page.dart';
+import '../screens/legal/cgu_page.dart';
+import '../screens/legal/colis_interdits_page.dart';
 import '../screens/legal/conditions_transport_page.dart';
 import '../screens/legal/confidentialite_page.dart';
-import '../screens/legal/cgu_page.dart';
-import '../screens/legal/a_propos_page.dart';
 import '../screens/legal/contact_page.dart';
+import '../screens/legal/mentions_legales_page.dart';
 import '../screens/legal/paiement_page.dart';
-import '../screens/legal/remboursement_page.dart';
 import '../screens/legal/reclamations_page.dart';
-import '../screens/legal/colis_interdits_page.dart';
+import '../screens/legal/remboursement_page.dart';
 import '../screens/parcel/ads/advertisement_detail_screen.dart';
 import '../screens/parcel/ads/advertisements_screen.dart';
-import '../screens/parcel/new_parcel_wizard_screen.dart';
-import '../screens/parcel/trip_detail_screen.dart';
-import '../screens/super-admin/colis_management_screen.dart';
-import '../screens/super-admin/chauffeurs_management_screen.dart';
 import '../screens/parcel/confirm_delivery_screen.dart';
 import '../screens/parcel/free_parcels_screen.dart';
+import '../screens/parcel/new_parcel_wizard_screen.dart';
 import '../screens/parcel/offres_recues_screen.dart';
 import '../screens/parcel/parcel_detail_screen.dart';
 import '../screens/parcel/track_parcel_screen.dart';
+import '../screens/parcel/trip_detail_screen.dart';
 import '../screens/payment/payment_status_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/settings/notification_preferences_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/shared/admin_support_screen.dart';
 import '../screens/shared/messages_screen.dart';
 import '../screens/shared/support_chat_screen.dart';
-import '../screens/shared/admin_support_screen.dart';
-import '../screens/client/client_libre_service_screen.dart';
 import '../screens/super-admin/admin_parametres_screen.dart';
+import '../screens/super-admin/assistances_screen.dart';
+import '../screens/super-admin/brevo_config_screen.dart';
+import '../screens/super-admin/broadcasts_page.dart';
+import '../screens/super-admin/cash_declarations_screen.dart';
+import '../screens/super-admin/chauffeurs_management_screen.dart';
 import '../screens/super-admin/classement_screen.dart';
+import '../screens/super-admin/colis_management_screen.dart';
 import '../screens/super-admin/commission_config_screen.dart';
 import '../screens/super-admin/driver_detail_screen.dart';
+import '../screens/super-admin/expenses_screen.dart';
 import '../screens/super-admin/finance_dashboard_screen.dart';
 import '../screens/super-admin/garage_drivers_screen.dart';
 import '../screens/super-admin/garages_management_screen.dart';
-import '../screens/super-admin/cash_declarations_screen.dart';
-import '../screens/super-admin/payments_screen.dart';
+import '../screens/super-admin/identity_verifications_screen.dart';
+import '../screens/super-admin/paydunya_config_screen.dart';
 import '../screens/super-admin/payment_notifications_screen.dart';
+import '../screens/super-admin/payments_screen.dart';
 import '../screens/super-admin/reputation_dashboard_screen.dart';
 import '../screens/super-admin/score_detail_screen.dart';
 import '../screens/super-admin/scores_screen.dart';
 import '../screens/super-admin/stats_screen.dart';
 import '../screens/super-admin/users_management_screen.dart';
-import '../screens/super-admin/zones_management_screen.dart';
 import '../screens/super-admin/wallet_detail_screen.dart';
 import '../screens/super-admin/wallets_screen.dart';
 import '../screens/super-admin/withdrawals_screen.dart';
+import '../screens/super-admin/zones_management_screen.dart';
 import '../screens/wallet/wallet_screen.dart';
-import '../services/auth_notifier.dart';
 import '../services/api_service.dart';
+import '../services/auth_notifier.dart';
 
 class AppRouter {
   static GoRouter router() {
@@ -262,25 +262,62 @@ class AppRouter {
           builder: (context, state) => const AdvertisementsScreen(),
         ),
 
+        // Route pour les détails d'annonce (client)
         GoRoute(
           path: '/advertisement/:adId',
           name: 'advertisement-detail',
           builder: (context, state) {
             final extra = state.extra;
             final adId = state.pathParameters['adId'];
+
             if (extra is Parcel) {
               return AdvertisementDetailScreen(
                 parcel: extra,
                 adId: adId ?? extra.id,
               );
             }
+
             if (adId != null && adId.isNotEmpty) {
-              return AdvertisementDetailScreen(adId: adId);
+              return _AdvertisementLoader(
+                advertisementId: adId,
+                builder: (adData) {
+                  final apiService = ApiService();
+                  final parcel = apiService.extractParcelFromAd(adData);
+                  return AdvertisementDetailScreen(
+                    parcel: parcel,
+                    adId: adId,
+                  );
+                },
+              );
             }
             return const AdvertisementsScreen();
           },
         ),
 
+        // Route pour les détails d'annonce (chauffeur)
+        GoRoute(
+          path: '/driver/advertisement/:adId',
+          name: 'driver-advertisement-detail',
+          builder: (context, state) {
+            final adId = state.pathParameters['adId'];
+            if (adId != null && adId.isNotEmpty) {
+              return _AdvertisementLoaderForDriver(
+                advertisementId: adId,
+                builder: (adData) {
+                  final apiService = ApiService();
+                  final parcel = apiService.extractParcelFromAd(adData);
+                  return AdvertisementDetailScreen(
+                    parcel: parcel,
+                    adId: adId,
+                  );
+                },
+              );
+            }
+            return const AdvertisementsScreen();
+          },
+        ),
+
+        // Route pour les détails de voyage (client)
         GoRoute(
           path: '/trip/:tripId',
           name: 'trip-detail',
@@ -291,7 +328,29 @@ class AppRouter {
             }
             return _AdvertisementLoader(
               advertisementId: state.pathParameters['tripId'] ?? '',
-              builder: (trip) => TripDetailScreen(trip: trip),
+              builder: (adData) {
+                final advertisement = Advertisement.fromJson(adData);
+                return TripDetailScreen(trip: advertisement);
+              },
+            );
+          },
+        ),
+
+        // Route pour les détails de voyage (chauffeur)
+        GoRoute(
+          path: '/driver/trip/:tripId',
+          name: 'driver-trip-detail',
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is Advertisement) {
+              return TripDetailScreen(trip: extra);
+            }
+            return _AdvertisementLoaderForDriver(
+              advertisementId: state.pathParameters['tripId'] ?? '',
+              builder: (adData) {
+                final advertisement = Advertisement.fromJson(adData);
+                return TripDetailScreen(trip: advertisement);
+              },
             );
           },
         ),
@@ -488,8 +547,6 @@ class AppRouter {
         ),
 
         // --- Support technique ---
-        // La file de tickets est la vraie messagerie de support (API existante) ;
-        // les autres entrées ouvrent le dashboard sur l'onglet correspondant.
         GoRoute(
           path: '/support-tech/tickets',
           name: 'support-tech-tickets',
@@ -501,9 +558,6 @@ class AppRouter {
           builder: (context, state) =>
               const SupportTechniqueDashboard(initialTab: 2),
         ),
-        // Journal des assistances : le support codifie lui-même l'assistance
-        // qu'il vient de rendre. Même écran que côté super admin, exposé sous le
-        // préfixe du métier pour rester compatible avec la garde par rôle.
         GoRoute(
           path: '/support-tech/assistances',
           name: 'support-tech-assistances',
@@ -530,10 +584,6 @@ class AppRouter {
         ),
 
         // --- Espace support transverse ---
-        // Aligné sur SUPPORT_NAV du web (`/support-admin`) : ouvert aux trois
-        // rôles support et au super admin. Les écrans sont ceux du super admin,
-        // exposés sous ce préfixe pour que la garde de rôle les laisse passer
-        // sans ouvrir tout `/admin`.
         GoRoute(
           path: '/support-admin',
           name: 'support-admin',
@@ -780,6 +830,11 @@ class AppRouter {
   }
 }
 
+// ============================================================
+// LOADERS
+// ============================================================
+
+/// Loader pour les colis
 class _ParcelLoader extends StatefulWidget {
   final String parcelId;
   final Widget Function(Parcel parcel) builder;
@@ -811,9 +866,10 @@ class _ParcelLoaderState extends State<_ParcelLoader> {
   }
 }
 
+/// Loader pour les annonces (client)
 class _AdvertisementLoader extends StatefulWidget {
   final String advertisementId;
-  final Widget Function(Advertisement advertisement) builder;
+  final Widget Function(Map<String, dynamic> adData) builder;
 
   const _AdvertisementLoader({
     required this.advertisementId,
@@ -825,7 +881,7 @@ class _AdvertisementLoader extends StatefulWidget {
 }
 
 class _AdvertisementLoaderState extends State<_AdvertisementLoader> {
-  late Future<Advertisement?> _future;
+  late Future<Map<String, dynamic>?> _future;
 
   @override
   void initState() {
@@ -833,23 +889,72 @@ class _AdvertisementLoaderState extends State<_AdvertisementLoader> {
     _future = _load();
   }
 
-  Future<Advertisement?> _load() async {
+  Future<Map<String, dynamic>?> _load() async {
     if (widget.advertisementId.isEmpty) return null;
-    final json =
-        await ApiService().getAdvertisementDetail(widget.advertisementId);
-    return json.isEmpty ? null : Advertisement.fromJson(json);
+    try {
+      return await ApiService().getAdvertisementDetail(widget.advertisementId);
+    } catch (e) {
+      return null;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return _ResourceLoader<Advertisement>(
+    return _ResourceLoader<Map<String, dynamic>>(
       future: _future,
-      notFoundMessage: 'Voyage introuvable',
-      builder: widget.builder,
+      notFoundMessage: 'Annonce introuvable',
+      builder: (adData) => widget.builder(adData),
     );
   }
 }
 
+/// Loader pour les annonces (chauffeur) - utilise l'endpoint driver
+class _AdvertisementLoaderForDriver extends StatefulWidget {
+  final String advertisementId;
+  final Widget Function(Map<String, dynamic> adData) builder;
+
+  const _AdvertisementLoaderForDriver({
+    required this.advertisementId,
+    required this.builder,
+  });
+
+  @override
+  State<_AdvertisementLoaderForDriver> createState() =>
+      _AdvertisementLoaderForDriverState();
+}
+
+class _AdvertisementLoaderForDriverState
+    extends State<_AdvertisementLoaderForDriver> {
+  late Future<Map<String, dynamic>?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<Map<String, dynamic>?> _load() async {
+    if (widget.advertisementId.isEmpty) return null;
+    try {
+      // Utiliser le même endpoint mais le contexte de rôle déterminera
+      // les permissions côté serveur
+      return await ApiService().getAdvertisementDetail(widget.advertisementId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ResourceLoader<Map<String, dynamic>>(
+      future: _future,
+      notFoundMessage: 'Annonce introuvable',
+      builder: (adData) => widget.builder(adData),
+    );
+  }
+}
+
+/// Loader pour les zones
 class _GarageLoader extends StatefulWidget {
   final String garageId;
 

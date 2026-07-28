@@ -101,18 +101,19 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     // 1) Conversation existante pour ce colis → on l'ouvre telle quelle.
     if (parcelId != null && parcelId.isNotEmpty) {
       await _loadConversations();
-      final me = ref.read(authProvider).user;
       for (final conv in _conversations) {
-        final convParcelId = conv['parcel']?['id']?.toString();
+        final convParcelId = conv['parcelId']?.toString() ??
+            conv['parcel']?['id']?.toString();
         if (convParcelId != parcelId) continue;
-        final receiver = conv['receiver'];
-        final peer =
-            receiver?['id'] == me?.id ? conv['sender'] : receiver;
-        final peerId = peer?['id']?.toString();
+
+        final peer = _extractPeer(conv);
+        final peerId = peer['id'];
+        final peerName = peer['name'];
+
         if (peerId != null && peerId.isNotEmpty) {
           await _openConversation(
             peerId,
-            peer?['fullName']?.toString() ??
+            peerName ??
                 widget.initialPeerName ??
                 'Conversation',
             parcelId: parcelId,
@@ -181,7 +182,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   }
 
   Future<void> _loadParcelDetail() async {
-    if (_activeParcelId == null) return;
+    if (_activeParcelId == null || _activeParcelId!.isEmpty) return;
     try {
       final parcel = await _apiService.getParcelById(_activeParcelId!);
       if (mounted && parcel != null) {
@@ -202,8 +203,37 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     });
   }
 
+  /// Extrait l'ID et le nom du pair depuis une conversation.
+  /// Supporte les deux formats : nouveau (otherUser) et ancien (sender/receiver).
+  Map<String, String?> _extractPeer(Map<String, dynamic> conv) {
+    // Format prioritaire : otherUser (nouveau)
+    final otherUser = conv['otherUser'];
+    if (otherUser != null) {
+      final id = otherUser['id']?.toString();
+      final name = otherUser['fullName']?.toString();
+      if (id != null && id.isNotEmpty) {
+        return {'id': id, 'name': name};
+      }
+    }
+
+    // Fallback : ancien format sender/receiver
+    final me = ref.read(authProvider).user;
+    final sender = conv['sender'];
+    final receiver = conv['receiver'];
+    if (sender != null && receiver != null && me != null) {
+      final peer = receiver['id'] == me.id ? sender : receiver;
+      return {
+        'id': peer?['id']?.toString(),
+        'name': peer?['fullName']?.toString(),
+      };
+    }
+
+    return {'id': null, 'name': null};
+  }
+
   Future<void> _openConversation(
       String peerId, String peerName, {String? parcelId}) async {
+    if (peerId.isEmpty) return;
     setState(() {
       _activePeerId = peerId;
       _activePeerName = peerName;
@@ -1073,7 +1103,30 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         icon: Icons.forum_rounded,
         tone: PcTone.primary,
         title: 'Aucune conversation',
-        message: 'Vos échanges avec les chauffeurs et clients apparaîtront ici.',
+        message: 'Vos echanges avec les chauffeurs et clients apparaitront ici.',
+      );
+    }
+
+    // Filtrer et dedupliquer les conversations par peerId + parcelId
+    final seen = <String>{};
+    final deduped = <Map<String, dynamic>>[];
+    for (final conv in _conversations) {
+      final peer = _extractPeer(conv);
+      final peerId = peer['id'];
+      if (peerId == null || peerId.isEmpty) continue;
+      final parcelId = conv['parcelId']?.toString() ?? '_';
+      final key = '${peerId}::$parcelId';
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      deduped.add(conv);
+    }
+
+    if (deduped.isEmpty) {
+      return const PcEmptyState(
+        icon: Icons.forum_rounded,
+        tone: PcTone.primary,
+        title: 'Aucune conversation',
+        message: 'Vos echanges avec les chauffeurs et clients apparaitront ici.',
       );
     }
 
@@ -1082,33 +1135,31 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       color: AppTheme.primary,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 6),
-        itemCount: _conversations.length,
+        itemCount: deduped.length,
         separatorBuilder: (_, __) => const PcDivider(),
         itemBuilder: (context, index) {
-          final conv = _conversations[index];
-          final sender = conv['sender'];
-          final receiver = conv['receiver'];
-          final user = ref.read(authProvider).user;
-          final isReceiver = receiver?['id'] == user?.id;
-          final peer = isReceiver ? sender : receiver;
-          final peerName = peer?['fullName']?.toString() ?? 'Inconnu';
-          // Compteur de messages non lus pour cette conversation.
-          // Utilise le champ fourni par l'API si présent, sinon le dérive
-          // (destinataire = moi et message non lu), comme MessagesScreen.tsx.
+          final conv = deduped[index];
+          final peer = _extractPeer(conv);
+          final peerName = peer['name']?.isNotEmpty == true
+              ? peer['name']!
+              : 'Inconnu';
+          final peerId = peer['id'] ?? '';
+          final parcelId = conv['parcelId']?.toString();
+          final trackingNumber = conv['trackingNumber']?.toString();
           final unreadRaw = conv['unreadCount'] ?? conv['unread'];
           final unread = unreadRaw is num
               ? unreadRaw.toInt()
-              : (isReceiver && conv['isRead'] != true ? 1 : 0);
+              : (conv['isRead'] != true ? 1 : 0);
           final lastMsg = conv['body']?.toString() ?? '';
-          final parcel = conv['parcel'];
-          final tracking = parcel?['trackingNumber']?.toString();
           final preview = lastMsg.startsWith('__PRIX__:')
               ? _pricePreview(lastMsg)
               : lastMsg;
 
           return PcListRow(
             leading: PcAvatar(peerName, size: 46),
-            title: peerName,
+            title: trackingNumber != null && trackingNumber.isNotEmpty
+                ? '$peerName  #$trackingNumber'
+                : peerName,
             subtitle: preview.isEmpty ? 'Nouvelle conversation' : preview,
             trailing: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1130,27 +1181,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                         fontWeight: FontWeight.w600,
                         color: AppTheme.slate400),
                   ),
-                if (tracking != null && tracking.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.teal50,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text('#$tracking',
-                        style: AppTheme.mono(
-                            fontSize: 10, color: AppTheme.teal600)),
-                  ),
-                ],
               ],
             ),
-            onTap: () => _openConversation(
-              peer?['id']?.toString() ?? '',
-              peerName,
-              parcelId: parcel?['id']?.toString(),
-            ),
+            onTap: () {
+              if (peerId.isNotEmpty) {
+                _openConversation(peerId, peerName, parcelId: parcelId);
+              }
+            },
           );
         },
       ),

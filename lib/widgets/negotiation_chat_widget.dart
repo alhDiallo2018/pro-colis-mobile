@@ -29,6 +29,8 @@ class NegotiationChatScreen extends StatefulWidget {
   final String? advertisementId;
   final String? offerId;
 
+  final String? role;
+
   final void Function()? onChanged;
 
   const NegotiationChatScreen({
@@ -40,6 +42,7 @@ class NegotiationChatScreen extends StatefulWidget {
     this.bidId,
     this.advertisementId,
     this.offerId,
+    this.role,
     this.onChanged,
   });
 
@@ -98,7 +101,8 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   }
 
   Future<void> _loadParcel() async {
-    if (widget.parcelId == null) return;
+    if (widget.parcelId == null || widget.parcelId!.isEmpty) return;
+    if (widget.advertisementId != null && widget.parcelId == widget.advertisementId) return;
     try {
       final p = await _api.getParcelById(widget.parcelId!);
       if (mounted && p != null) setState(() => _parcel = p);
@@ -157,10 +161,18 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     final msg = _msgCtrl.text.trim();
 
     if (widget.bidId != null) {
-      await _api.negotiateBid(widget.bidId!, {
-        'price': amount.toInt(),
-        if (msg.isNotEmpty) 'message': msg,
-      });
+      if (widget.role == 'driver') {
+        await _api.driverRespondToBid(widget.bidId!, {
+          'action': 'counter',
+          'price': amount.toInt(),
+          if (msg.isNotEmpty) 'message': msg,
+        });
+      } else {
+        await _api.negotiateBid(widget.bidId!, {
+          'price': amount.toInt(),
+          if (msg.isNotEmpty) 'message': msg,
+        });
+      }
     } else if (widget.offerId != null && widget.advertisementId != null) {
       await _api.negotiateAdvertisementOffer(
         widget.advertisementId!,
@@ -196,9 +208,17 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
 
     // 1. On fige le montant convenu sur l'offre…
     if (widget.bidId != null) {
-      await _api.negotiateBid(widget.bidId!, {
-        'price': amount, 'message': 'Offre acceptée',
-      });
+      if (widget.role == 'driver') {
+        await _api.driverRespondToBid(widget.bidId!, {
+          'action': 'accept',
+          'price': amount,
+          'message': 'Offre acceptee',
+        });
+      } else {
+        await _api.negotiateBid(widget.bidId!, {
+          'price': amount, 'message': 'Offre acceptee',
+        });
+      }
     } else if (widget.offerId != null && widget.advertisementId != null) {
       await _api.negotiateAdvertisementOffer(
         widget.advertisementId!,
@@ -212,7 +232,12 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     // basé sur le prix de départ et non sur le prix négocié.
     Map<String, dynamic>? result;
     if (widget.bidId != null && widget.parcelId != null) {
-      result = await _api.acceptBid(widget.parcelId!, widget.bidId!);
+      if (widget.role == 'driver') {
+        // L'acceptation est deja faite via driverRespondToBid(action: 'accept')
+        // qui gere negotiatedPrice + selectedBidId + statut du colis
+      } else {
+        result = await _api.acceptBid(widget.parcelId!, widget.bidId!);
+      }
     } else if (widget.offerId != null && widget.advertisementId != null) {
       result = await _api.acceptAdvertisementOffer(
           widget.advertisementId!, widget.offerId!);

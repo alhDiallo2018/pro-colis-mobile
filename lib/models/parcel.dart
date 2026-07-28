@@ -124,17 +124,18 @@ class Bid {
   });
 
   factory Bid.fromJson(Map<String, dynamic> json) {
+    final driver = json['driver'] as Map<String, dynamic>?;
     return Bid(
       id: json['id']?.toString() ?? '',
       parcelId:
           json['parcel_id']?.toString() ?? json['parcelId']?.toString() ?? '',
       driverId:
-          json['driverId']?.toString() ?? json['driver_id']?.toString() ?? '',
+          json['driverId']?.toString() ?? driver?['id']?.toString() ?? '',
       driverName: json['driverName']?.toString() ??
-          json['driver_name']?.toString() ??
+          driver?['fullName']?.toString() ??
           '',
       driverPhone: json['driverPhone']?.toString() ??
-          json['driver_phone']?.toString() ??
+          driver?['phone']?.toString() ??
           '',
       price: _toDouble(json['price']),
       message: json['message']?.toString(),

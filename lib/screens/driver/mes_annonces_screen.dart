@@ -4,19 +4,20 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:procolis/theme/fonts.dart';
 
+import '../../models/parcel.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/negotiation_chat_widget.dart';
-import '../../widgets/pc_components.dart';
 import '../../widgets/parcel_card.dart';
+import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
 import '../parcel/free_parcels_screen.dart';
-import '../shared/messages_screen.dart';
 import 'create_annonce_sheet.dart';
 
 class DriverMesAnnoncesScreen extends ConsumerStatefulWidget {
@@ -46,8 +47,7 @@ class _DriverMesAnnoncesScreenState
       });
     _loadAds();
     // Colis des clients (libre service) sur lesquels le chauffeur peut faire une offre
-    Future.microtask(
-        () => ref.read(parcelProvider.notifier).loadFreeParcels());
+    Future.microtask(() => ref.read(parcelProvider.notifier).loadFreeParcels());
   }
 
   @override
@@ -61,10 +61,37 @@ class _DriverMesAnnoncesScreenState
   }
 
   void _openColis(parcel) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => FreeParcelDetailsScreen(parcel: parcel)),
-    ).then((_) => _loadColis());
+    final authState = ref.read(authProvider);
+    final currentUserId = authState.user?.id;
+
+    final existingBid = currentUserId != null && parcel.bids is List
+        ? (parcel.bids as List).cast<Bid?>().firstWhere(
+              (b) => b?.driverId == currentUserId,
+              orElse: () => null,
+            )
+        : null;
+
+    if (existingBid != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => NegotiationChatScreen(
+            peerId: parcel.senderId,
+            peerName: parcel.senderName,
+            parcelId: parcel.id,
+            bidId: existingBid.id,
+            role: 'driver',
+            onChanged: _loadColis,
+          ),
+        ),
+      ).then((_) => _loadColis());
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => FreeParcelDetailsScreen(parcel: parcel)),
+      ).then((_) => _loadColis());
+    }
   }
 
   Future<void> _loadAds() async {
@@ -94,8 +121,8 @@ class _DriverMesAnnoncesScreenState
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
         title: const Text('Fermer l\'annonce ?'),
-        content: const Text(
-            'L\'annonce ne sera plus visible pour les clients.'),
+        content:
+            const Text('L\'annonce ne sera plus visible pour les clients.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -119,6 +146,15 @@ class _DriverMesAnnoncesScreenState
     try {
       await _apiService.acceptAdvertisementOffer(adId, offerId);
       await _loadAds();
+      ref.read(parcelProvider.notifier).loadDriverParcels();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offre acceptée — le colis est maintenant dans vos missions.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busyOfferId = null);
     }
@@ -136,12 +172,17 @@ class _DriverMesAnnoncesScreenState
 
   void _openChat(Map<String, dynamic> ad, Map<String, dynamic> offer) {
     final client = offer['client'] as Map<String, dynamic>?;
-    final peerId =
-        (offer['clientId'] ?? client?['id'])?.toString();
+    final peerId = (offer['clientId'] ?? client?['id'])?.toString();
     final peerName = client?['fullName']?.toString() ?? 'Client';
-    final parcelId = offer['parcelId']?.toString();
     final adId = ad['id']?.toString();
     final offerId = offer['id']?.toString();
+
+    String? parcelId = offer['parcelId']?.toString() ??
+        (offer['parcel'] as Map<String, dynamic>?)?['id']?.toString();
+
+    if (parcelId != null && parcelId.isNotEmpty && parcelId == adId) {
+      parcelId = null;
+    }
 
     Navigator.push(
       context,
@@ -152,32 +193,75 @@ class _DriverMesAnnoncesScreenState
           parcelId: parcelId,
           advertisementId: adId,
           offerId: offerId,
+          role: 'driver',
           onChanged: _loadAds,
         ),
       ),
     );
   }
 
-  /// Détails complets d'une annonce (offres + colis) via l'API — aligné Web.
+  /// Affiche les infos du colis depuis l'offre correspondante.
   Future<void> _showParcelInfo(String adId, String offerId) async {
-    final detail = await _apiService.getAdvertisementDetail(adId);
-    if (!mounted) return;
-    final offers = detail['offers'] as List<dynamic>? ?? const [];
-    final match = offers.firstWhere(
-      (o) => (o as Map)['id']?.toString() == offerId,
-      orElse: () => null,
-    );
-    final parcel =
-        (match is Map ? match['parcel'] : null) as Map<String, dynamic>?;
-    if (parcel == null) return;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
-      ),
-      builder: (ctx) => _ParcelSheet(parcel: parcel),
-    );
+    try {
+      final parcel = await _apiService.getParcelFromAdvertisement(
+        adId,
+        offerId: offerId,
+      );
+
+      if (!mounted) return;
+
+      if (parcel != null) {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: AppTheme.cardColor,
+          isScrollControlled: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
+          ),
+          builder: (ctx) => _ParcelSheet(parcel: parcel.toJson()),
+        );
+      } else {
+        final detail = await _apiService.getAdvertisementDetail(adId);
+        if (!mounted) return;
+        final offers = detail['offers'] as List<dynamic>? ?? const [];
+        final match = offers.firstWhere(
+          (o) => (o as Map)['id']?.toString() == offerId,
+          orElse: () => null,
+        );
+        final parcelData =
+            (match is Map ? match['parcel'] : null) as Map<String, dynamic>?;
+        if (parcelData != null) {
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: AppTheme.cardColor,
+            isScrollControlled: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
+            ),
+            builder: (ctx) => _ParcelSheet(parcel: parcelData),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aucun colis associé à cette offre'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -320,6 +404,24 @@ class _DriverMesAnnoncesScreenState
     );
   }
 
+  void _openAdDetail(Map<String, dynamic> ad) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _VoyageDetailScreen(
+          ad: ad,
+          onChat: (offer) => _openChat(ad, offer),
+          onAccept: (offerId) => _acceptOffer(ad['id']?.toString() ?? '', offerId),
+          onReject: (offerId) => _rejectOffer(ad['id']?.toString() ?? '', offerId),
+          onShowParcel: (offerId) => _showParcelInfo(ad['id']?.toString() ?? '', offerId),
+          onRefresh: _loadAds,
+          busyOfferId: _busyOfferId,
+          onCloseAd: () => _closeAd(ad['id']?.toString() ?? ''),
+        ),
+      ),
+    ).then((_) => _loadAds());
+  }
+
   Widget _buildAdCard(Map<String, dynamic> ad) {
     final departure = ad['departureCity']?.toString() ?? '—';
     final arrival = ad['arrivalCity']?.toString() ?? '—';
@@ -333,6 +435,7 @@ class _DriverMesAnnoncesScreenState
     final isOpen = status == 'open' || status == 'active';
 
     return PcCard(
+      onTap: () => _openAdDetail(ad),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,7 +637,8 @@ class _DriverMesAnnoncesScreenState
                     color: AppTheme.teal600),
               ),
               const SizedBox(width: 8),
-              PcBadge(_offerStatusLabel(status), tone: _offerStatusTone(status)),
+              PcBadge(_offerStatusLabel(status),
+                  tone: _offerStatusTone(status)),
             ],
           ),
           if (isPending) ...[
@@ -561,8 +665,7 @@ class _DriverMesAnnoncesScreenState
                     variant: PcButtonVariant.ghost,
                     size: PcButtonSize.sm,
                     loading: busy,
-                    onPressed:
-                        busy ? null : () => _rejectOffer(adId, offerId),
+                    onPressed: busy ? null : () => _rejectOffer(adId, offerId),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -572,8 +675,7 @@ class _DriverMesAnnoncesScreenState
                     icon: Icons.check_rounded,
                     size: PcButtonSize.sm,
                     loading: busy,
-                    onPressed:
-                        busy ? null : () => _acceptOffer(adId, offerId),
+                    onPressed: busy ? null : () => _acceptOffer(adId, offerId),
                   ),
                 ),
               ],
@@ -697,9 +799,8 @@ class _ParcelSheetState extends State<_ParcelSheet> {
 
   /// Résout une URL de média : les chemins relatifs `/uploads/...` sont
   /// préfixés avec le backend, comme dans le reste de l'application.
-  String _mediaUrl(String url) => url.startsWith('http')
-      ? url
-      : ApiService.resolveMediaUrl(url);
+  String _mediaUrl(String url) =>
+      url.startsWith('http') ? url : ApiService.resolveMediaUrl(url);
 
   List<String> _urlList(dynamic value) => value is List
       ? value.map((e) => e.toString()).where((e) => e.isNotEmpty).toList()
@@ -971,8 +1072,7 @@ class _ParcelSheetState extends State<_ParcelSheet> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label,
-            style: AppFonts.manrope(
-                fontSize: 12, color: AppTheme.slate500)),
+            style: AppFonts.manrope(fontSize: 12, color: AppTheme.slate500)),
         const SizedBox(height: 3),
         Text(
           value,
@@ -1054,6 +1154,423 @@ class _MediaTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VoyageDetailScreen extends StatefulWidget {
+  final Map<String, dynamic> ad;
+  final void Function(Map<String, dynamic> offer) onChat;
+  final void Function(String offerId) onAccept;
+  final void Function(String offerId) onReject;
+  final void Function(String offerId) onShowParcel;
+  final VoidCallback onRefresh;
+  final VoidCallback onCloseAd;
+  final String? busyOfferId;
+
+  const _VoyageDetailScreen({
+    required this.ad,
+    required this.onChat,
+    required this.onAccept,
+    required this.onReject,
+    required this.onShowParcel,
+    required this.onRefresh,
+    required this.onCloseAd,
+    this.busyOfferId,
+  });
+
+  @override
+  State<_VoyageDetailScreen> createState() => _VoyageDetailScreenState();
+}
+
+class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
+  String _fcfa(dynamic value) {
+    final n = (value is num) ? value : num.tryParse('$value') ?? 0;
+    final s = n.round().toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
+      buf.write(s[i]);
+    }
+    return '$buf FCFA';
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null || iso.isEmpty) return 'Flexible';
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return 'Flexible';
+    return DateFormat('dd/MM/yyyy').format(dt.toLocal());
+  }
+
+  String _offerStatusLabel(String status) {
+    switch (status) {
+      case 'accepted': return 'Acceptée';
+      case 'rejected': return 'Refusée';
+      default: return 'En attente';
+    }
+  }
+
+  PcTone _offerStatusTone(String status) {
+    switch (status) {
+      case 'accepted': return PcTone.green;
+      case 'rejected': return PcTone.red;
+      default: return PcTone.amber;
+    }
+  }
+
+  String _adStatusLabel(String status) {
+    switch (status) {
+      case 'closed': return 'Fermée';
+      case 'cancelled': return 'Annulée';
+      default: return 'Ouverte';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ad = widget.ad;
+    final departure = ad['departureCity']?.toString() ?? '—';
+    final arrival = ad['arrivalCity']?.toString() ?? '—';
+    final proposedPrice = ad['proposedPrice'];
+    final weight = ad['availableWeight'];
+    final status = ad['status']?.toString() ?? 'open';
+    final description = ad['description']?.toString();
+    final departureAt = ad['departureAt']?.toString();
+    final offers = ad['offers'] as List<dynamic>? ?? const [];
+    final isOpen = status == 'open' || status == 'active';
+
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 12, 16, 8),
+              child: Row(
+                children: [
+                  PcIconButton(
+                    Icons.arrow_back_rounded,
+                    variant: PcIconButtonVariant.soft,
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Retour',
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Détail du voyage',
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                  if (isOpen)
+                    PcButton(
+                      'Fermer l\'annonce',
+                      icon: Icons.close_rounded,
+                      variant: PcButtonVariant.ghost,
+                      size: PcButtonSize.sm,
+                      onPressed: widget.onCloseAd,
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async => widget.onRefresh(),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardColor,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        border: Border.all(color: AppTheme.slate200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_outlined,
+                                  size: 18, color: AppTheme.slate500),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: AppFonts.plusJakartaSans(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                    children: [
+                                      TextSpan(text: departure),
+                                      const WidgetSpan(
+                                        alignment: PlaceholderAlignment.middle,
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 6),
+                                          child: Icon(Icons.arrow_right_alt_rounded,
+                                              size: 22, color: AppTheme.slate400),
+                                        ),
+                                      ),
+                                      TextSpan(text: arrival),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              PcBadge(_adStatusLabel(status),
+                                  tone: widget.ad['status'] == 'closed'
+                                      ? PcTone.red
+                                      : widget.ad['status'] == 'cancelled'
+                                          ? PcTone.amber
+                                          : PcTone.green),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          Wrap(
+                            spacing: 28,
+                            runSpacing: 12,
+                            children: [
+                              if (weight != null)
+                                _detailMeta('Poids dispo', '$weight kg'),
+                              if (proposedPrice != null)
+                                _detailMeta('Prix proposé', _fcfa(proposedPrice))
+                              else
+                                _detailMeta('Prix', 'À négocier'),
+                              _detailMeta('Départ', _formatDate(departureAt)),
+                            ],
+                          ),
+                          if (description != null && description.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            Text(
+                              description,
+                              style: AppFonts.manrope(
+                                  fontSize: 14, color: AppTheme.slate700, height: 1.5),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        const Icon(Icons.handshake_rounded,
+                            size: 20, color: AppTheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Propositions des clients (${offers.length})',
+                          style: AppFonts.plusJakartaSans(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.textPrimary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (offers.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Aucune proposition reçue pour ce voyage.',
+                          style: AppFonts.manrope(
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                            color: AppTheme.slate400,
+                          ),
+                        ),
+                      )
+                    else
+                      ...offers.map((o) {
+                        final offer = o as Map<String, dynamic>;
+                        return _buildDetailOfferRow(offer);
+                      }),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailMeta(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: AppFonts.manrope(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.slate500),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: AppTheme.mono(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailOfferRow(Map<String, dynamic> offer) {
+    final client = offer['client'] as Map<String, dynamic>?;
+    final clientName = client?['fullName']?.toString() ?? 'Client';
+    final price = offer['price'];
+    final status = offer['status']?.toString() ?? 'pending';
+    final offerId = offer['id']?.toString() ?? '';
+    final message = offer['message']?.toString();
+    final parcel = offer['parcel'] as Map<String, dynamic>?;
+    final tracking = parcel?['trackingNumber']?.toString();
+    final parcelWeight = parcel?['weight'];
+    final parcelReceiver = parcel?['receiverName']?.toString();
+    final isPending = status == 'pending';
+    final isMine = widget.busyOfferId == offerId;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: isPending ? AppTheme.slate200 : AppTheme.slate200,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PcAvatar(clientName, size: 44),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      clientName,
+                      style: AppFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimary),
+                    ),
+                    if (tracking != null || parcelWeight != null || parcelReceiver != null)
+                      GestureDetector(
+                        onTap: () => widget.onShowParcel(offerId),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Row(
+                            children: [
+                              Icon(Icons.inventory_2_outlined,
+                                  size: 14, color: AppTheme.primary.withOpacity(0.7)),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  [
+                                    if (tracking != null) tracking,
+                                    if (parcelWeight != null) '${parcelWeight}kg',
+                                    if (parcelReceiver != null) parcelReceiver,
+                                  ].join(' · '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTheme.mono(
+                                      fontSize: 12,
+                                      color: AppTheme.teal600,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _fcfa(price),
+                    style: AppTheme.mono(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.teal600),
+                  ),
+                  const SizedBox(height: 4),
+                  PcBadge(_offerStatusLabel(status),
+                      tone: _offerStatusTone(status)),
+                ],
+              ),
+            ],
+          ),
+          if (message != null && message.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.slate50,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: Text(
+                message,
+                style: AppFonts.manrope(
+                    fontSize: 13, color: AppTheme.slate700, height: 1.4),
+              ),
+            ),
+          ],
+          if (isPending) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: PcButton(
+                    'Chat',
+                    icon: Icons.forum_outlined,
+                    variant: PcButtonVariant.secondary,
+                    size: PcButtonSize.sm,
+                    onPressed: () => widget.onChat(offer),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: PcButton(
+                    'Refuser',
+                    icon: Icons.close_rounded,
+                    variant: PcButtonVariant.ghost,
+                    size: PcButtonSize.sm,
+                    loading: isMine,
+                    onPressed: isMine ? null : () => widget.onReject(offerId),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: PcButton(
+                    'Accepter',
+                    icon: Icons.check_rounded,
+                    size: PcButtonSize.sm,
+                    loading: isMine,
+                    onPressed: isMine ? null : () => widget.onAccept(offerId),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

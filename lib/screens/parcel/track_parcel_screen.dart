@@ -11,9 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:procolis/theme/fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/widgets/app_logo.dart';
 import 'package:procolis/widgets/pc_components.dart';
 import 'package:procolis/widgets/procolis_design_system.dart';
@@ -229,7 +229,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     final parcel = _trackedParcel!;
 
     // Générer l'URL publique de suivi
-    return 'https://sendprocolis.com/track/${parcel.trackingNumber}';
+    return 'http://localhost:18081track/${parcel.trackingNumber}';
   }
 
   void _showReceiptDialog() {
@@ -327,7 +327,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Widget _buildReceiptWidget() {
     final parcel = _trackedParcel!;
     final isDelivered = parcel.status.value == 'delivered';
-    final trackingUrl = 'https://sendprocolis.com/track/${parcel.trackingNumber}';
+    final trackingUrl = 'http://localhost:18081track/${parcel.trackingNumber}';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -588,7 +588,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       await file.writeAsBytes(pngBytes);
 
       final trackingUrl =
-          'https://sendprocolis.com/track/${_trackedParcel!.trackingNumber}';
+          'http://localhost:18081track/${_trackedParcel!.trackingNumber}';
 
       await Share.shareXFiles(
         [XFile(file.path)],
@@ -676,7 +676,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     if (_trackedParcel == null) return;
 
     final trackingUrl =
-        'https://sendprocolis.com/track/${_trackedParcel!.trackingNumber}';
+        'http://localhost:18081track/${_trackedParcel!.trackingNumber}';
 
     await Share.share(
       '📦 Suivi de colis PRO COLIS\n\n'
@@ -962,7 +962,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   void _shareTrackingNumber() {
     if (_trackedParcel != null) {
       final trackingUrl =
-          'https://sendprocolis.com/track/${_trackedParcel!.trackingNumber}';
+          'http://localhost:18081track/${_trackedParcel!.trackingNumber}';
       Share.share(
         '📦 Suivi de colis PRO COLIS\n\n'
         '🔹 N° de suivi: ${_trackedParcel!.trackingNumber}\n'

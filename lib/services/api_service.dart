@@ -307,9 +307,8 @@ class ApiService {
         ..._parseParcelList(responseData, direction: 'sent'),
         ..._parseParcelList(responseData, direction: 'received'),
       ];
-      final parcels = grouped.isNotEmpty
-          ? grouped
-          : _parseParcelList(responseData);
+      final parcels =
+          grouped.isNotEmpty ? grouped : _parseParcelList(responseData);
 
       // Un colis envoyé à soi-même peut être présent dans les deux groupes.
       // On le déduplique ici pour ne pas fausser les compteurs du dashboard.
@@ -523,6 +522,17 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> driverRespondToBid(
+      String bidId, Map<String, dynamic> data) async {
+    try {
+      final response =
+          await _dio.post('/driver/bids/$bidId/respond', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ==================== ADVERTISEMENTS ====================
 
   Future<Map<String, dynamic>> createAdvertisement(
@@ -553,6 +563,83 @@ class ApiService {
     final response = await _dio.get('/advertisements/$advertisementId');
     final responseData = _handleResponse(response);
     return responseData['advertisement'] ?? responseData;
+  }
+
+  /// Récupère le colis depuis une annonce (fonctionne pour client ET chauffeur).
+  /// [offerId] optionnel — si fourni, cible une offre spécifique (évite de
+  /// prendre la 1ère offre alors que l'utilisateur a cliqué sur une autre).
+  Future<Parcel?> getParcelFromAdvertisement(String advertisementId,
+      {String? offerId}) async {
+    try {
+      final adData = await getAdvertisementDetail(advertisementId);
+      final offers = adData['offers'] as List? ?? [];
+
+      if (offers.isEmpty) return null;
+
+      Map<String, dynamic>? targetOffer;
+
+      if (offerId != null) {
+        for (var offer in offers) {
+          final offerMap = offer as Map<String, dynamic>;
+          if (offerMap['id']?.toString() == offerId) {
+            targetOffer = offerMap;
+            break;
+          }
+        }
+      }
+
+      if (targetOffer == null) {
+        for (var offer in offers) {
+          final offerMap = offer as Map<String, dynamic>;
+          if (offerMap['status'] == 'accepted') {
+            targetOffer = offerMap;
+            break;
+          }
+        }
+      }
+
+      targetOffer ??= offers.first as Map<String, dynamic>;
+
+      final parcelId = targetOffer['parcelId'] as String? ??
+          (targetOffer['parcel'] as Map<String, dynamic>?)?['id']
+              ?.toString();
+
+      if (parcelId != null && parcelId.isNotEmpty) {
+        if (parcelId == advertisementId) {
+          debugPrint(
+              '⚠ getParcelFromAdvertisement: parcelId == advertisementId, retourne null');
+          return null;
+        }
+        return await getParcelById(parcelId);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ getParcelFromAdvertisement error: $e');
+      return null;
+    }
+  }
+
+  /// Extrait le colis d'une annonce (pour utilisation après getAdvertisementDetail)
+  Parcel? extractParcelFromAd(Map<String, dynamic> adData) {
+    final offers = adData['offers'] as List? ?? [];
+    if (offers.isEmpty) return null;
+
+    // Chercher l'offre acceptée
+    Map<String, dynamic>? targetOffer;
+    for (var offer in offers) {
+      final offerMap = offer as Map<String, dynamic>;
+      if (offerMap['status'] == 'accepted') {
+        targetOffer = offerMap;
+        break;
+      }
+    }
+    targetOffer ??= offers.first as Map<String, dynamic>;
+
+    final parcelData = targetOffer['parcel'];
+    if (parcelData != null) {
+      return Parcel.fromJson(parcelData as Map<String, dynamic>);
+    }
+    return null;
   }
 
   Future<List<Map<String, dynamic>>> getMyAdvertisements() async {
@@ -828,14 +915,9 @@ class ApiService {
 
   // ==================== GARAGES (PUBLIC) ====================
 
-  static const int _garagePageSize = 100; // maximum accepté par l'API
+  static const int _garagePageSize = 100;
   static const int _garageMaxPages = 20;
 
-  /// Liste publique des zones (sélecteurs de trajet).
-  ///
-  /// La route est paginée (20 par défaut) : sans parcours complet des pages,
-  /// les sélecteurs n'affichent qu'une fraction des zones et l'utilisateur croit
-  /// à tort que la sienne n'existe pas.
   Future<List<Garage>> getAllGarages() async {
     final all = <Garage>[];
     try {
@@ -852,7 +934,6 @@ class ApiService {
         final pagination = responseData['pagination'];
         totalPages =
             pagination is Map ? (pagination['totalPages'] as int? ?? 1) : 1;
-        // Une API qui ignorerait la pagination renverrait la même page en boucle.
         if (batch.length < _garagePageSize) break;
         page++;
       }
@@ -867,7 +948,6 @@ class ApiService {
   Future<Map<String, dynamic>> updateProfile(
       UserRole role, Map<String, dynamic> data) async {
     try {
-      // Endpoint porté par l'enum : voir UserRole.profileEndpoint.
       final response = await _dio.put(role.profileEndpoint, data: data);
       return _handleResponse(response);
     } catch (e) {
@@ -924,13 +1004,6 @@ class ApiService {
 
   // ==================== STATISTIQUES CHAUFFEUR ====================
 
-  /// Statistiques chauffeur calculées côté serveur — GET /driver/stats.
-  ///
-  /// À utiliser plutôt que les compteurs `User.totalDeliveries` /
-  /// `completedDeliveries` / `rating` : ces colonnes ne sont pas remises à jour
-  /// par le backend et valent 0, alors que cet endpoint calcule les valeurs
-  /// réelles à partir des colis. Clés : assignedParcels, activeParcels,
-  /// completedDeliveries, rating, scoreBalance, pendingBids, openAdvertisements.
   Future<Map<String, dynamic>> getDriverStats() async {
     try {
       final response = await _dio.get('/driver/stats');
@@ -946,7 +1019,6 @@ class ApiService {
 
   // ==================== NOTATION CHAUFFEUR ====================
 
-  /// Le client note un chauffeur (1 à 5 étoiles) — POST /ratings.
   Future<Map<String, dynamic>> rateDriver({
     required String driverId,
     required int rating,
@@ -967,7 +1039,6 @@ class ApiService {
     }
   }
 
-  /// Liste des notes reçues par un chauffeur — GET /ratings/driver/:id.
   Future<List<Map<String, dynamic>>> getDriverRatings(String driverId) async {
     try {
       final response = await _dio.get('/ratings/driver/$driverId');
@@ -981,9 +1052,6 @@ class ApiService {
 
   // ==================== DOCUMENTS / IDENTITÉ ====================
 
-  /// Enregistre l'URL d'un document (recto/verso) — POST /identity/upload.
-  /// [documentType] ex: 'driver_license', 'vehicle_registration', 'insurance',
-  /// 'id_card', 'vehicle_photo'. [side] : 'front' ou 'back'.
   Future<Map<String, dynamic>> uploadIdentityDocument({
     required String documentType,
     required String side,
@@ -1003,7 +1071,6 @@ class ApiService {
     }
   }
 
-  /// Statut / dernier document d'identité du chauffeur — GET /identity/status.
   Future<Map<String, dynamic>?> getIdentityStatus() async {
     try {
       final response = await _dio.get('/identity/status');
@@ -1017,6 +1084,7 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getMessagesThread(String peerId,
       {String? parcelId}) async {
+    if (peerId.isEmpty) return [];
     try {
       final response = await _dio.get('/messages/thread', queryParameters: {
         'peerId': peerId,
@@ -1044,7 +1112,7 @@ class ApiService {
       final response = await _dio.get('/messages/conversations');
       final responseData = _handleResponse(response);
       final List<dynamic> convsData =
-          responseData['conversations'] ?? responseData['messages'] ?? [];
+          responseData['data'] ?? responseData['conversations'] ?? responseData['messages'] ?? [];
       return convsData.map((json) => json as Map<String, dynamic>).toList();
     } catch (e) {
       return [];
@@ -1052,10 +1120,7 @@ class ApiService {
   }
 
   // ==================== SUPPORT ADMIN ====================
-  // Côté admin/super-admin : gérer et répondre aux conversations de support.
-  // Aligné sur la webapp (AdminSupportScreen.tsx / messages.ts).
 
-  /// Liste toutes les conversations de support (admin/super-admin).
   Future<List<Map<String, dynamic>>> adminSupportConversations() async {
     try {
       final response = await _dio.get('/messages/admin/support/conversations');
@@ -1070,8 +1135,6 @@ class ApiService {
     }
   }
 
-  /// Fil de discussion entre un utilisateur de support et un utilisateur.
-  /// GET /messages/admin/support/conversations/:supportUserId/:userId
   Future<List<Map<String, dynamic>>> adminSupportThread(
       String supportUserId, String userId) async {
     try {
@@ -1089,8 +1152,6 @@ class ApiService {
     }
   }
 
-  /// Répond en tant que support (texte et/ou pièce jointe audio/photo/vidéo).
-  /// POST /messages/admin/support/reply
   Future<Map<String, dynamic>> adminSupportReply(
       Map<String, dynamic> data) async {
     try {
@@ -1314,10 +1375,9 @@ class ApiService {
 
   // ==================== UPLOADS ====================
 
-  /// Upload a file as multipart/form-data. Returns the file URL.
   Future<String?> uploadFile({
     required XFile file,
-    required String mediaType, // 'photo', 'video', 'audio'
+    required String mediaType,
     String? parcelId,
   }) async {
     try {
@@ -1338,17 +1398,14 @@ class ApiService {
     }
   }
 
-  /// Upload chat audio blob. Returns the file URL.
   Future<String?> uploadChatAudio(XFile file) async {
     return uploadFile(file: file, mediaType: 'audio');
   }
 
-  /// Upload chat photo. Returns the file URL.
   Future<String?> uploadChatPhoto(XFile file) async {
     return uploadFile(file: file, mediaType: 'photo');
   }
 
-  /// Upload chat video. Returns the file URL.
   Future<String?> uploadChatVideo(XFile file) async {
     return uploadFile(file: file, mediaType: 'video');
   }
@@ -1391,15 +1448,20 @@ class ApiService {
   // ==================== PARCEL DETAIL (role-based) ====================
 
   /// Récupère un colis par son ID selon le rôle courant.
+  /// Cette méthode est utilisée par getParcelFromAdvertisement()
   Future<Parcel?> getParcelById(String parcelId) async {
+    if (parcelId.isEmpty) return null;
     try {
       final currentUser = await getCurrentUser();
-      // Préfixe porté par l'enum : voir UserRole.apiScope.
       final endpoint = '/${currentUser.role.apiScope}/parcels/$parcelId';
       final response = await _dio.get(endpoint);
       final responseData = _handleResponse(response);
       if (responseData['parcel'] != null) {
         return Parcel.fromJson(responseData['parcel']);
+      }
+      if (responseData['data'] is Map<String, dynamic>) {
+        final data = responseData['data'];
+        if (data['id'] != null) return Parcel.fromJson(data);
       }
       if (responseData['id'] != null) {
         return Parcel.fromJson(responseData);
@@ -1627,12 +1689,6 @@ class ApiService {
     }
   }
 
-  /// Résout un lieu Google Places en zone (création "pending" si nécessaire) et
-  /// renvoie son **garage miroir**.
-  ///
-  /// Colis et annonces référencent `garages.id` (clé étrangère), jamais
-  /// `zones.id` : renvoyer la zone produirait un identifiant refusé à la
-  /// création. L'API expose le miroir sous `garage` / `garageId`.
   Future<Garage?> resolvePlaceZone({
     String? placeId,
     required String name,
@@ -1667,7 +1723,6 @@ class ApiService {
     }
   }
 
-  /// Admin : approuver / rejeter une zone en attente (status: approved|rejected).
   Future<Map<String, dynamic>> setZoneStatus(
       String zoneId, String status) async {
     try {
@@ -1733,9 +1788,6 @@ class ApiService {
     }
   }
 
-  /// Recherche d'utilisateurs inscrits pour rattacher une assistance au bon
-  /// compte au lieu de retaper les coordonnées de la personne assistée. Sans
-  /// terme de recherche, l'API renvoie les comptes récemment actifs.
   Future<List<Map<String, dynamic>>> searchAssistanceUsers(
       String search) async {
     try {
@@ -2268,8 +2320,6 @@ class ApiService {
 
   // ==================== ENCAISSEMENTS ESPÈCES ====================
 
-  /// Le chauffeur déclare avoir reçu les espèces d'un colis. Le paiement passe
-  /// en `processing` jusqu'à validation par un admin.
   Future<Map<String, dynamic>> declareCashCollection(
     String parcelId, {
     required double amount,
@@ -2286,24 +2336,20 @@ class ApiService {
     );
   }
 
-  /// Encaissements espèces déclarés par le chauffeur connecté.
   Future<List<Map<String, dynamic>>> driverCashDeclarations() async {
     return _modularCash.driverDeclarations();
   }
 
-  /// File de réconciliation admin : encaissements déclarés, non encore validés.
   Future<List<Map<String, dynamic>>> pendingCashDeclarations({
     Map<String, dynamic>? params,
   }) async {
     return _modularCash.pendingDeclarations(params: params);
   }
 
-  /// L'admin valide un encaissement déclaré : paiement `completed`, colis payé.
   Future<Map<String, dynamic>> validateCashDeclaration(String paymentId) async {
     return _modularCash.validateDeclaration(paymentId);
   }
 
-  /// L'admin rejette un encaissement déclaré ; le colis reste dû.
   Future<Map<String, dynamic>> rejectCashDeclaration(
     String paymentId, {
     required String reason,
@@ -2311,8 +2357,6 @@ class ApiService {
     return _modularCash.rejectDeclaration(paymentId, reason: reason);
   }
 
-  /// Fixe le canal de règlement d'un colis (et le point d'encaissement en
-  /// espèces), typiquement à l'issue de la négociation.
   Future<Map<String, dynamic>> setParcelPaymentChannel(
     String parcelId, {
     required String channel,

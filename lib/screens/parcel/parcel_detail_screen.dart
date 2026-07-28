@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:procolis/theme/fonts.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -166,6 +166,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 
   Future<void> _fetchOtp() async {
     if (!_parcel.status.isInProgress) return;
+    final isDriver = ref.read(authProvider).isDriver;
+    if (isDriver) return;
     setState(() => _isLoadingOtp = true);
     try {
       final code = await _apiService.getDeliveryCode(_parcel.id);
@@ -248,7 +250,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 
   Future<void> _shareTracking() async {
-    final trackingUrl = 'https://sendprocolis.com/track/${_parcel.trackingNumber}';
+    final trackingUrl = 'http://localhost:18081track/${_parcel.trackingNumber}';
     try {
       await Share.share(
         '📦 Suivi de colis PRO COLIS\n\n'
@@ -388,7 +390,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           File('${tempDir.path}/receipt_${_parcel.trackingNumber}.png');
       await file.writeAsBytes(pngBytes);
 
-      final trackingUrl = 'https://sendprocolis.com/track/${_parcel.trackingNumber}';
+      final trackingUrl = 'http://localhost:18081track/${_parcel.trackingNumber}';
       await Share.shareXFiles(
         [XFile(file.path)],
         text: '📦 Suivi de colis PRO COLIS\n\n'
@@ -410,7 +412,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   Widget _buildReceiptWidget() {
     final parcel = _parcel;
     final isDelivered = parcel.status.value == 'delivered';
-    final trackingUrl = 'https://sendprocolis.com/track/${parcel.trackingNumber}';
+    final trackingUrl = 'http://localhost:18081track/${parcel.trackingNumber}';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -883,13 +885,6 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     return '${diff.inMinutes.clamp(1, 59)} min';
   }
 
-  bool get _canConfirmDelivery =>
-      !_parcel.isDelivered &&
-      !_parcel.isCancelled &&
-      (_parcel.status == ParcelStatus.outForDelivery ||
-          _parcel.status == ParcelStatus.arrived ||
-          _parcel.status == ParcelStatus.inTransit);
-
   /// L'utilisateur courant est-il le chauffeur assigné à ce colis ? Seul lui
   /// voit l'échelle d'étapes de mission (jamais le client).
   bool get _isAssignedDriver {
@@ -1355,15 +1350,6 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 size: PcButtonSize.lg,
                 block: true,
                 loading: _isUpdating,
-              ),
-              const SizedBox(height: 12),
-            ] else if (_canConfirmDelivery) ...[
-              PcButton(
-                'Confirmer la livraison',
-                onPressed: _openConfirmDelivery,
-                icon: Icons.lock_open_rounded,
-                size: PcButtonSize.lg,
-                block: true,
               ),
               const SizedBox(height: 12),
             ],

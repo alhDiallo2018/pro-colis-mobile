@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
@@ -208,6 +209,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   }
 
   Future<void> _startRecording() async {
+    if (kIsWeb) {
+      _showMediaNote('Enregistrement non disponible sur le web');
+      return;
+    }
     try {
       if (!await _audioRecorder.hasPermission()) {
         _showMediaNote('Permission micro refusée');
@@ -1419,14 +1424,23 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                 clipBehavior: Clip.antiAlias,
                 child: imagePath == null
                     ? Icon(icon, color: AppTheme.primary, size: 26)
-                    : Image.file(
-                        File(imagePath),
-                        fit: BoxFit.cover,
-                        width: 88,
-                        height: 54,
-                        errorBuilder: (_, __, ___) =>
-                            Icon(icon, color: AppTheme.primary, size: 26),
-                      ),
+                    : kIsWeb
+                        ? Image.network(
+                            imagePath,
+                            fit: BoxFit.cover,
+                            width: 88,
+                            height: 54,
+                            errorBuilder: (_, __, ___) =>
+                                Icon(icon, color: AppTheme.primary, size: 26),
+                          )
+                        : Image.file(
+                            File(imagePath),
+                            fit: BoxFit.cover,
+                            width: 88,
+                            height: 54,
+                            errorBuilder: (_, __, ___) =>
+                                Icon(icon, color: AppTheme.primary, size: 26),
+                          ),
               ),
               Positioned(
                 top: -8,

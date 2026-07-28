@@ -179,9 +179,11 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     try {
       final result = await _apiService.createBid(data);
       if (result['success'] == true || result['bid'] != null) {
+        final bidData = result['bid'];
+        final bidId = bidData is Map ? bidData['id']?.toString() : null;
         await loadFreeParcels();
         state = state.copyWith(isLoading: false, error: null);
-        return {'success': true};
+        return {'success': true, 'bidId': bidId};
       }
       state = state.copyWith(
         error: result['message'] ?? 'Erreur lors de l\'envoi de l\'offre',

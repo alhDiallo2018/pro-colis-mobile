@@ -78,10 +78,13 @@ class PushNotificationService {
     try {
       await Firebase.initializeApp();
       _firebaseReady = true;
+    } on AssertionError {
+      // Firebase non configuré (pas de google-services.json / GoogleService-Info.plist).
+      // L'app continue normalement sans push.
+      return;
     } catch (e) {
       debugPrint(
-          'PushNotificationService: Firebase non configuré, push désactivé '
-          '(ajouter google-services.json / GoogleService-Info.plist). $e');
+          'PushNotificationService: erreur init Firebase — push désactivé. $e');
       return;
     }
 

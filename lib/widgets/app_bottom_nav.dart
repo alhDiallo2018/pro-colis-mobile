@@ -111,7 +111,7 @@ class AppBottomNav extends ConsumerWidget {
           ProcolisTabItem(icon: Icons.inventory_2_rounded, label: 'Mes colis'),
           ProcolisTabItem(
               icon: Icons.qr_code_scanner_rounded, label: 'Suivi'),
-          ProcolisTabItem(icon: Icons.sell_rounded, label: 'Libre service'),
+          ProcolisTabItem(icon: Icons.sell_rounded, label: 'Annonces'),
           ProcolisTabItem(icon: Icons.person_rounded, label: 'Profil'),
         ];
     }

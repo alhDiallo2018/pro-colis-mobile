@@ -30,7 +30,7 @@ import '../parcel/parcel_detail_screen.dart';
 import '../parcel/track_parcel_screen.dart';
 import '../profile/profile_screen.dart';
 import '../shared/messages_screen.dart';
-import '../wallet/wallet_screen.dart';
+
 import '../../services/notification_service.dart';
 
 class ClientDashboard extends ConsumerStatefulWidget {
@@ -58,6 +58,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
       if (mounted) {
         _loadNotificationsCount();
         _loadMessagesUnread();
+        _loadData();
       } else {
         timer.cancel();
       }
@@ -191,7 +192,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
           ),
           const ProcolisTabItem(
             icon: Icons.sell_rounded,
-            label: 'Libre service',
+            label: 'Annonces',
           ),
           const ProcolisTabItem(
             icon: Icons.person_rounded,
@@ -1159,8 +1160,6 @@ class HomeScreen extends StatelessWidget {
         parcels.where((parcel) => parcel.isInProgress).length;
     final deliveredCount = parcels.where((parcel) => parcel.isDelivered).length;
     final libreCount = parcels.where((parcel) => parcel.isFree).length;
-    final points = deliveredCount > 0 ? deliveredCount * 90 : 2450;
-
     // Agrège toutes les offres (bids) en attente reçues sur les colis du client.
     final pendingOffers = <_OfferPreview>[];
     for (final parcel in parcels) {
@@ -1178,17 +1177,12 @@ class HomeScreen extends StatelessWidget {
         children: [
           _ClientHomeHero(
             user: currentUser,
-            points: points,
             unreadNotificationsCount: unreadNotificationsCount,
             unreadMessagesCount: unreadMessagesCount,
             onNotificationsTap: onNotificationsTap,
             onChatTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const MessagesScreen()),
-            ),
-            onWalletTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const WalletScreen()),
             ),
           ),
           // Les annonces globales restent sous l'en-tête du rôle afin de ne
@@ -1318,21 +1312,17 @@ class HomeScreen extends StatelessWidget {
 
 class _ClientHomeHero extends StatelessWidget {
   final User user;
-  final int points;
   final int unreadNotificationsCount;
   final int unreadMessagesCount;
   final VoidCallback onNotificationsTap;
   final VoidCallback onChatTap;
-  final VoidCallback onWalletTap;
 
   const _ClientHomeHero({
     required this.user,
-    required this.points,
     required this.unreadNotificationsCount,
     required this.unreadMessagesCount,
     required this.onNotificationsTap,
     required this.onChatTap,
-    required this.onWalletTap,
   });
 
   @override
@@ -1433,107 +1423,6 @@ class _ClientHomeHero extends StatelessWidget {
   }
 }
 
-class _ClientPointsCard extends StatelessWidget {
-  final int points;
-  final bool inverse;
-  final VoidCallback onTap;
-
-  const _ClientPointsCard({
-    required this.points,
-    required this.inverse,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = inverse ? Colors.white : AppTheme.textPrimary;
-    final muted = inverse ? Colors.white70 : AppTheme.textSecondary;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: inverse
-                ? Colors.white.withOpacity( 0.14)
-                : AppTheme.cardColor,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            border: inverse ? null : Border.all(color: AppTheme.slate200),
-            boxShadow: inverse ? null : AppTheme.softShadow(alpha: 0.05),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: inverse
-                      ? Colors.white.withOpacity( 0.18)
-                      : AppTheme.amber50,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                ),
-                child: Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: inverse ? Colors.white : AppTheme.amber500,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'SOLDE DE POINTS',
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.7,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text.rich(
-                      TextSpan(
-                        text: _formatPoints(points),
-                        children: const [
-                          TextSpan(
-                            text: ' pts',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                      style: AppTheme.mono(
-                        color: foreground,
-                        fontSize: 23,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: onTap,
-                icon: Icon(Icons.chevron_right_rounded, color: foreground),
-                tooltip: 'Voir mes points',
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatPoints(int value) {
-    return value.toString().replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+$)'),
-          (match) => '${match[1]} ',
-        );
-  }
-}
-
 class _ClientQuickActions extends StatelessWidget {
   final VoidCallback onNew;
   final VoidCallback onLibre;
@@ -1562,7 +1451,7 @@ class _ClientQuickActions extends StatelessWidget {
         Expanded(
           child: ProcolisQuickAction(
             icon: Icons.sell_rounded,
-            label: 'Libre service',
+            label: 'Annonces',
             onTap: onLibre,
           ),
         ),

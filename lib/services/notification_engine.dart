@@ -89,7 +89,7 @@ class NotificationContext {
 }
 
 const String _appName = 'SENDPROCOLIS';
-const String _platformUrl = 'https://sendprocolis.com';
+const String _platformUrl = 'http://localhost:18081';
 
 final _statusLabel = <String, String>{
   'pending': 'En attente',

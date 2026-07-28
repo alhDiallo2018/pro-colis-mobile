@@ -313,12 +313,6 @@ class RoleProfileSectionCard extends ConsumerWidget {
                 '${s.bids.received} reçues · ${s.bids.pending} en attente · ${s.bids.accepted} acceptées',
             tone: PcTone.amber,
           ),
-          RoleInfoRow(
-            icon: Icons.stars_rounded,
-            title: 'Solde de points',
-            subtitle: '${s.user.scoreBalance} points',
-            tone: PcTone.green,
-          ),
         ],
       );
 
@@ -638,14 +632,14 @@ class RoleQuickLink {
   final IconData icon;
   final String title;
   final String subtitle;
-  final String route;
+  final String? route;
   final PcTone tone;
 
   const RoleQuickLink({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.route,
+    this.route,
     this.tone = PcTone.neutral,
   });
 }
@@ -675,9 +669,8 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
         RoleQuickLink(
           icon: Icons.account_balance_wallet_rounded,
           title: 'Mon portefeuille',
-          subtitle: 'Solde et historique de paiements',
-          route: '/wallet',
-          tone: PcTone.green,
+          subtitle: 'Bientôt disponible',
+          tone: PcTone.neutral,
         ),
       ];
 
@@ -871,8 +864,27 @@ class RoleQuickLinksCard extends StatelessWidget {
               iconTone: links[i].tone,
               title: links[i].title,
               subtitle: links[i].subtitle,
-              chevron: true,
-              onTap: () => context.push(links[i].route),
+              chevron: links[i].route != null,
+              trailing: links[i].route == null
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.amber50,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'À venir',
+                        style: TextStyle(
+                          color: AppTheme.amber600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    )
+                  : null,
+              onTap: links[i].route != null
+                  ? () => context.push(links[i].route!)
+                  : null,
             ),
           ],
         ],

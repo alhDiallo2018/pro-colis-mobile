@@ -165,7 +165,7 @@ Audio rattache aux colis ou offres.
 Framework: Flutter avec Dart SDK >= 3.0.0.
 Gestion d'etat: flutter_riverpod avec StateNotifier pour auth, colis, notifications et score.
 Navigation principale: MaterialApp avec routes /login et /dashboard; un GoRouter existe mais n'est pas branche dans main.dart.
-Client HTTP: Dio avec baseUrl configurable par --dart-define API_BASE_URL, valeur par defaut http://localhost:8080.
+Client HTTP: Dio avec baseUrl configurable par --dart-define API_BASE_URL, valeur par defaut http://localhost:18081.
 Stockage local securise: FlutterSecureStorage pour token et identifiant sauvegarde.
 Notifications locales: flutter_local_notifications; dependances Firebase Messaging presentes.
 Cartographie/localisation: google_maps_flutter, geolocator, geocoding.

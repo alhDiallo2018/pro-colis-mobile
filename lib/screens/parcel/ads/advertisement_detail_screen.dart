@@ -1,8 +1,8 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/parcel.dart';
@@ -38,6 +38,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   Map<String, dynamic>? _adData;
   List<Parcel> _userParcels = [];
   Map<String, dynamic>? _myOffer;
+  Parcel? _parcelFromAd;
 
   final _priceController = TextEditingController();
   final _messageController = TextEditingController();
@@ -47,7 +48,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlayingAudio = false;
 
-  String get _adId => widget.adId ?? widget.parcel?.id ?? '';
+  String get _adId => widget.adId ?? '';
 
   /// Modes de reglement acceptes par le chauffeur sur ce trajet. Vide ou absent
   /// (annonce anterieure a cette declaration) : les deux sont proposables.
@@ -78,9 +79,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
 
   /// Resout une URL de media : les chemins relatifs `/uploads/...` sont
   /// prefixes avec le backend, comme dans le reste de l'application.
-  String _mediaUrl(String url) => url.startsWith('http')
-      ? url
-      : ApiService.resolveMediaUrl(url);
+  String _mediaUrl(String url) =>
+      url.startsWith('http') ? url : ApiService.resolveMediaUrl(url);
 
   Future<void> _toggleAdAudio(String url) async {
     try {
@@ -135,6 +135,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     User? user;
     Map<String, dynamic>? detail;
     List<Parcel> parcels = [];
+    Parcel? parcelFromAd;
 
     try {
       user = await _apiService.getCurrentUser();
@@ -143,7 +144,13 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     if (_adId.isNotEmpty) {
       try {
         detail = await _apiService.getAdvertisementDetail(_adId);
-      } catch (_) {}
+
+        // Récupérer le colis associé à l'annonce via la nouvelle méthode
+        // Cette méthode fonctionne pour le client ET le chauffeur
+        parcelFromAd = await _apiService.getParcelFromAdvertisement(_adId);
+      } catch (e) {
+        debugPrint('❌ Erreur chargement annonce: $e');
+      }
     }
 
     try {
@@ -156,7 +163,9 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
       for (final o in offers) {
         final offer = o as Map<String, dynamic>;
         final client = offer['client'] as Map<String, dynamic>?;
-        if (client != null && user != null && client['id']?.toString() == user.id) {
+        if (client != null &&
+            user != null &&
+            client['id']?.toString() == user.id) {
           myOffer = offer;
           break;
         }
@@ -168,6 +177,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
         _adData = detail;
         _userParcels = parcels;
         _myOffer = myOffer;
+        _parcelFromAd = parcelFromAd;
         _isLoading = false;
       });
     }
@@ -208,7 +218,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                             const SizedBox(height: 16),
                             _buildMyOfferCard(),
                           ],
-                          if (_myOffer == null && widget.parcel != null) ...[
+                          if (_myOffer == null && _parcelFromAd != null) ...[
                             const SizedBox(height: 16),
                             _buildSenderInfo(),
                           ],
@@ -227,11 +237,13 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   // ============================================================
 
   Widget _buildHero() {
-    final departure = widget.parcel?.departureGarageName ??
+    final departure = _parcelFromAd?.departureGarageName ??
+        widget.parcel?.departureGarageName ??
         _adData?['departureCity']?.toString() ??
         _adData?['departureGarageName']?.toString() ??
         'Depart';
-    final arrival = widget.parcel?.arrivalGarageName ??
+    final arrival = _parcelFromAd?.arrivalGarageName ??
+        widget.parcel?.arrivalGarageName ??
         _adData?['arrivalCity']?.toString() ??
         _adData?['arrivalGarageName']?.toString() ??
         'Arrivee';
@@ -301,11 +313,13 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   // ============================================================
 
   Widget _buildDriverProfile() {
-    final driverName = widget.parcel?.driverName ??
+    final driverName = _parcelFromAd?.driverName ??
+        widget.parcel?.driverName ??
         _adData?['driver']?['fullName']?.toString() ??
         _adData?['driverName']?.toString() ??
         'Chauffeur';
-    final driverPhone = widget.parcel?.driverPhone ??
+    final driverPhone = _parcelFromAd?.driverPhone ??
+        widget.parcel?.driverPhone ??
         _adData?['driver']?['phone']?.toString() ??
         _adData?['driverPhone']?.toString();
     final garageName = _adData?['driver']?['garageName']?.toString() ??
@@ -349,7 +363,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.phone_rounded, size: 14, color: AppTheme.primary),
+                        const Icon(Icons.phone_rounded,
+                            size: 14, color: AppTheme.primary),
                         const SizedBox(width: 5),
                         Text(
                           driverPhone,
@@ -377,7 +392,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.star_rounded, size: 15, color: AppTheme.amber500),
+                  const Icon(Icons.star_rounded,
+                      size: 15, color: AppTheme.amber500),
                   const SizedBox(width: 3),
                   Text(
                     rating.toStringAsFixed(1),
@@ -401,20 +417,24 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   // ============================================================
 
   Widget _buildDetailsCard() {
-    final price = widget.parcel?.proposedPrice ??
+    final price = _parcelFromAd?.proposedPrice ??
+        widget.parcel?.proposedPrice ??
         (_adData?['proposedPrice'] as num?)?.toDouble();
-    final weight = widget.parcel?.weight != null && widget.parcel!.weight > 0
-        ? widget.parcel!.weight
-        : ((_adData?['availableWeight'] as num?)?.toDouble() ?? 0);
-    final departureDate = widget.parcel?.pickupDate ??
+    final weight = _parcelFromAd?.weight ??
+        widget.parcel?.weight ??
+        ((_adData?['availableWeight'] as num?)?.toDouble() ?? 0);
+    final departureDate = _parcelFromAd?.pickupDate ??
+        widget.parcel?.pickupDate ??
         (_adData?['departureDate'] != null
             ? DateTime.tryParse(_adData!['departureDate'].toString())
             : null);
-    final createdAt = widget.parcel?.createdAt ??
+    final createdAt = _parcelFromAd?.createdAt ??
+        widget.parcel?.createdAt ??
         (_adData?['createdAt'] != null
             ? DateTime.tryParse(_adData!['createdAt'].toString())
             : null);
-    final description = widget.parcel?.description ??
+    final description = _parcelFromAd?.description ??
+        widget.parcel?.description ??
         _adData?['description']?.toString();
     final adAudioUrl = _adData?['audioUrl']?.toString();
 
@@ -527,7 +547,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
             const SizedBox(height: 14),
             Row(
               children: [
-                const Icon(Icons.headphones_rounded, size: 18, color: AppTheme.slate500),
+                const Icon(Icons.headphones_rounded,
+                    size: 18, color: AppTheme.slate500),
                 const SizedBox(width: 8),
                 Text(
                   'Audio joint',
@@ -705,7 +726,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   // ============================================================
 
   Widget _buildSenderInfo() {
-    if (widget.parcel == null) return const SizedBox.shrink();
+    final parcel = _parcelFromAd ?? widget.parcel;
+    if (parcel == null) return const SizedBox.shrink();
 
     return PcCard(
       child: Column(
@@ -715,12 +737,12 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
           _detailRow(
             icon: Icons.person_outline_rounded,
             label: 'Nom',
-            value: widget.parcel!.senderName,
+            value: parcel.senderName,
           ),
           _detailRow(
             icon: Icons.phone_rounded,
             label: 'Telephone',
-            value: widget.parcel!.senderPhone,
+            value: parcel.senderPhone,
             valueStyle: AppTheme.mono(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
@@ -846,7 +868,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: _userParcels.length + 1,
-                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
                               itemBuilder: (ctx, index) {
                                 if (index == 0) {
                                   final isSelected = selectedParcel == null;
@@ -854,21 +877,27 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                                     label: const Text('Aucun'),
                                     selected: isSelected,
                                     onSelected: (_) {
-                                      setSheetState(() => selectedParcel = null);
+                                      setSheetState(
+                                          () => selectedParcel = null);
                                     },
                                     selectedColor: AppTheme.teal50,
                                     labelStyle: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: isSelected ? AppTheme.teal700 : AppTheme.textSecondary,
+                                      color: isSelected
+                                          ? AppTheme.teal700
+                                          : AppTheme.textSecondary,
                                     ),
                                     side: BorderSide(
-                                      color: isSelected ? AppTheme.primary : AppTheme.slate200,
+                                      color: isSelected
+                                          ? AppTheme.primary
+                                          : AppTheme.slate200,
                                     ),
                                   );
                                 }
                                 final parcel = _userParcels[index - 1];
-                                final isSelected = selectedParcel?.id == parcel.id;
+                                final isSelected =
+                                    selectedParcel?.id == parcel.id;
                                 return ChoiceChip(
                                   label: Text(
                                     parcel.trackingNumber,
@@ -877,16 +906,21 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: isSelected ? AppTheme.teal700 : AppTheme.textSecondary,
+                                      color: isSelected
+                                          ? AppTheme.teal700
+                                          : AppTheme.textSecondary,
                                     ),
                                   ),
                                   selected: isSelected,
                                   onSelected: (_) {
-                                    setSheetState(() => selectedParcel = parcel);
+                                    setSheetState(
+                                        () => selectedParcel = parcel);
                                   },
                                   selectedColor: AppTheme.teal50,
                                   side: BorderSide(
-                                    color: isSelected ? AppTheme.primary : AppTheme.slate200,
+                                    color: isSelected
+                                        ? AppTheme.primary
+                                        : AppTheme.slate200,
                                   ),
                                 );
                               },
@@ -910,8 +944,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                         PaymentChannelField(
                           value: paymentChannel,
                           available: availableChannels,
-                          onChanged: (channel) => setSheetState(
-                              () => paymentChannel = channel),
+                          onChanged: (channel) =>
+                              setSheetState(() => paymentChannel = channel),
                         ),
                         if (paymentChannel.isCash) ...[
                           const SizedBox(height: 16),
@@ -989,7 +1023,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
           content: const Text('Veuillez entrer un prix valide'),
           backgroundColor: AppTheme.errorColor,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
         ),
       );
       return;
@@ -1014,18 +1049,22 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
 
       if (!mounted) return;
 
-      if (result['success'] == true || result['id'] != null || result['offer'] != null) {
+      if (result['success'] == true ||
+          result['id'] != null ||
+          result['offer'] != null) {
         Navigator.pop(sheetContext);
         await _loadAll();
         _openDiscussion();
       } else {
-        final errorMsg = result['message']?.toString() ?? 'Erreur lors de l\'envoi de l\'offre';
+        final errorMsg = result['message']?.toString() ??
+            'Erreur lors de l\'envoi de l\'offre';
         ScaffoldMessenger.of(sheetContext).showSnackBar(
           SnackBar(
             content: Text(errorMsg),
             backgroundColor: AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
           ),
         );
       }
@@ -1036,7 +1075,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
             content: const Text('Erreur reseau, veuillez reessayer'),
             backgroundColor: AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
           ),
         );
       }
@@ -1046,15 +1086,27 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   }
 
   void _openDiscussion() {
-    final driverId = widget.parcel?.driverId ??
+    final driverId = _parcelFromAd?.driverId ??
+        widget.parcel?.driverId ??
         _adData?['driverId']?.toString() ??
         _adData?['driver']?['id']?.toString() ??
         '';
-    final driverName = widget.parcel?.driverName ??
+    final driverName = _parcelFromAd?.driverName ??
+        widget.parcel?.driverName ??
         _adData?['driver']?['fullName']?.toString() ??
         'Chauffeur';
     final offerId = _myOffer?['id']?.toString();
     final adId = _adData?['id']?.toString() ?? _adId;
+
+    // Récupérer le parcelId depuis l'offre ou depuis _parcelFromAd
+    String parcelId = _myOffer?['parcelId']?.toString() ??
+        _parcelFromAd?.id ??
+        widget.parcel?.id ??
+        '';
+
+    if (parcelId.isNotEmpty && parcelId == adId) {
+      parcelId = '';
+    }
 
     Navigator.push(
       context,
@@ -1062,7 +1114,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
         builder: (_) => NegotiationChatScreen(
           peerId: driverId,
           peerName: driverName,
-          parcelId: _adId,
+          parcelId: parcelId,
           advertisementId: adId,
           offerId: offerId,
           onChanged: _loadAll,

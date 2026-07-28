@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,6 +89,22 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
     ).then((_) => _refresh());
   }
 
+  void _openChat(Parcel parcel, Bid bid) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NegotiationChatScreen(
+          peerId: parcel.senderId,
+          peerName: parcel.senderName,
+          parcelId: parcel.id,
+          bidId: bid.id,
+          role: 'driver',
+          onChanged: _refresh,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final parcelState = ref.watch(parcelProvider);
@@ -137,10 +154,20 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
                               const SizedBox(height: 14),
                           itemBuilder: (context, index) {
                             final parcel = parcels[index];
+                            final existingBid = currentUserId != null
+                                ? parcel.bids.cast<Bid?>().firstWhere(
+                                    (b) => b!.driverId == currentUserId,
+                                    orElse: () => null,
+                                  )
+                                : null;
                             return _FreeParcelItem(
                               parcel: parcel,
                               currentUserId: currentUserId,
+                              hasBid: existingBid != null,
                               onOffer: () => _openOffer(parcel),
+                              onChat: existingBid != null
+                                  ? () => _openChat(parcel, existingBid)
+                                  : null,
                             );
                           },
                         ),
@@ -172,6 +199,7 @@ class _FreeParcelDetailsScreenState
   Timer? _recordingTimer;
   VoiceMessage? _voiceMessage;
   String? _playingPath;
+  String? _createdBidId;
   bool _isRecording = false;
   bool _isSending = false;
   bool _sent = false;
@@ -197,6 +225,7 @@ class _FreeParcelDetailsScreenState
   }
 
   Future<void> _startRecording() async {
+    if (kIsWeb) return;
     try {
       final hasPermission = await _audioRecorder.hasPermission();
       if (!hasPermission) {
@@ -333,6 +362,7 @@ class _FreeParcelDetailsScreenState
     setState(() => _isSending = false);
 
     if (result['success'] == true) {
+      _createdBidId = result['bidId']?.toString();
       setState(() => _sent = true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -363,6 +393,7 @@ class _FreeParcelDetailsScreenState
       return _OfferSuccessScreen(
         price: _priceController.text,
         parcel: widget.parcel,
+        bidId: _createdBidId,
       );
     }
 
@@ -554,18 +585,20 @@ class _PoolFilterBar extends StatelessWidget {
 class _FreeParcelItem extends StatelessWidget {
   final Parcel parcel;
   final String? currentUserId;
+  final bool hasBid;
   final VoidCallback onOffer;
+  final VoidCallback? onChat;
 
   const _FreeParcelItem({
     required this.parcel,
     required this.currentUserId,
+    required this.hasBid,
     required this.onOffer,
+    this.onChat,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasBid = currentUserId != null &&
-        parcel.bids.any((bid) => bid.driverId == currentUserId);
     final bidCount = parcel.bids.length;
     final bidLabel = bidCount == 0
         ? 'Soyez le premier à proposer'
@@ -574,7 +607,7 @@ class _FreeParcelItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ParcelCard(parcel: parcel, onTap: onOffer),
+        ParcelCard(parcel: parcel, onTap: (hasBid && onChat != null) ? onChat! : onOffer),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -1000,8 +1033,13 @@ class _OfferVoiceField extends StatelessWidget {
 class _OfferSuccessScreen extends StatelessWidget {
   final String price;
   final Parcel parcel;
+  final String? bidId;
 
-  const _OfferSuccessScreen({required this.price, required this.parcel});
+  const _OfferSuccessScreen({
+    required this.price,
+    required this.parcel,
+    this.bidId,
+  });
 
   void _openChat(BuildContext context) {
     Navigator.push(
@@ -1011,6 +1049,7 @@ class _OfferSuccessScreen extends StatelessWidget {
           peerId: parcel.senderId,
           peerName: parcel.senderName,
           parcelId: parcel.id,
+          bidId: bidId,
         ),
       ),
     );

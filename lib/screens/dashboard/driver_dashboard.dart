@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -248,6 +249,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   // ==================== GESTION DES MESSAGES VOCAUX ====================
 
   Future<String?> _getVoiceMessagePath() async {
+    if (kIsWeb) return null;
     try {
       final directory = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -1635,6 +1637,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
       if (!mounted) return;
       _loadNotificationsCount();
       _loadMessagesUnread();
+      _loadData();
     });
   }
 
@@ -1890,6 +1893,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
   double _weekRevenue = 0;
   List<double> _revenueBars = List<double>.filled(7, 0);
   Map<String, dynamic> _stats = {};
+  Timer? _refreshTimer;
 
   /// Livraisons réellement terminées (GET /driver/stats). Les compteurs portés
   /// par l'utilisateur ne sont pas maintenus par le backend et valent 0.
@@ -1909,6 +1913,15 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
   void initState() {
     super.initState();
     _loadDashboardData();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) _loadDashboardData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
