@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -8,6 +7,17 @@ class AddPointsDialog extends StatefulWidget {
   final VoidCallback? onSuccess;
 
   const AddPointsDialog({super.key, required this.userId, this.onSuccess});
+
+  static Future<bool?> show(
+    BuildContext context,
+    String userId, {
+    VoidCallback? onSuccess,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AddPointsDialog(userId: userId, onSuccess: onSuccess),
+    );
+  }
 
   @override
   State<AddPointsDialog> createState() => _AddPointsDialogState();
@@ -41,29 +51,37 @@ class _AddPointsDialogState extends State<AddPointsDialog> {
       return;
     }
 
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final res = await _api.adminAddPoints(widget.userId, {
         'amount': amount,
         'description': desc,
       });
+      if (!mounted) return;
       if (res['success'] == true) {
         widget.onSuccess?.call();
-        if (mounted) Navigator.pop(context, true);
+        Navigator.pop(context, true);
       } else {
-        setState(() => _error = res['message']?.toString() ?? 'Erreur lors de l\'ajout de points.');
+        setState(() {
+          _error = res['message']?.toString() ??
+              'Erreur lors de l\'ajout de points.';
+          _loading = false;
+        });
       }
-    } catch (e) {
-      setState(() => _error = 'Erreur lors de l\'ajout de points.');
+    } catch (error, stackTrace) {
+      debugPrint(
+        'AddPointsDialog: ajout de points impossible '
+        '($error)\n$stackTrace',
+      );
+      if (!mounted) return;
+      setState(() {
+        _error = 'Erreur lors de l\'ajout de points.';
+        _loading = false;
+      });
     }
-    setState(() => _loading = false);
-  }
-
-  static Future<bool?> show(BuildContext context, String userId, {VoidCallback? onSuccess}) {
-    return showDialog<bool>(
-      context: context,
-      builder: (_) => AddPointsDialog(userId: userId, onSuccess: onSuccess),
-    );
   }
 
   @override

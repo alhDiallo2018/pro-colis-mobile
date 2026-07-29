@@ -15,6 +15,10 @@ analyzer:
     - "windows/**"
     - "macos/**"
     - "web/**"
+    # Maquettes de référence non compilables : elles ne font pas partie de
+    # l'application Flutter sous lib/ et référencent volontairement des stubs.
+    - "Procolis Design System/**"
+    - "Procolis Design Screens/**"
     - "**/widgets.g.dart"
     - "**/router.g.dart"
     - "**/providers.g.dart"
@@ -126,7 +130,6 @@ linter:
     implementation_imports: false
     implicit_call_tearoffs: false
     invalid_case_patterns: false
-    invariant_booleans: false
     iterable_contains_unrelated_type: false
     join_return_with_assignment: false
     leading_newlines_in_multiline_strings: false
@@ -135,7 +138,6 @@ linter:
     missing_whitespace_between_adjacent_strings: false
     no_adjacent_strings_in_list: false
     no_default_cases: false
-    no_duplicate_exported_names: false
     no_leading_underscores_for_library_prefixes: false
     no_leading_underscores_for_local_identifiers: false
     no_literal_bool_comparisons: false
@@ -161,12 +163,10 @@ linter:
     prefer_const_declarations: false
     prefer_const_literals_to_create_immutables: false
     prefer_constructors_over_static_methods: false
-    prefer_correct_identifier_length: false
     prefer_double_quotes: false
     prefer_expression_function_bodies: false
     prefer_final_in_for_each: false
     prefer_final_locals: false
-    prefer_for_elements_to_map_from_iterable: false
     prefer_foreach: false
     prefer_function_declarations_over_variables: false
     prefer_generic_function_type_aliases: false
@@ -203,7 +203,6 @@ linter:
     unnecessary_breaks: false
     unnecessary_final: false
     unnecessary_library_directive: false
-    unnecessary_null_aware_operator_in_extension: false
     unnecessary_null_checks: false
     unnecessary_raw_strings: false
     unnecessary_string_escapes: false

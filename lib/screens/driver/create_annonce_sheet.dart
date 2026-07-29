@@ -8,10 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../models/garage.dart';
-import '../../models/payment.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/route_picker.dart';
 
@@ -50,10 +48,6 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  /// Modes de règlement acceptés sur ce trajet. Les deux par défaut : le client
-  /// choisira, et restreindre est un acte volontaire du chauffeur.
-  List<PaymentChannel> _acceptedChannels = PaymentChannel.values.toList();
-
   @override
   void initState() {
     super.initState();
@@ -76,7 +70,8 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
       _garages = [..._garages.where((g) => g.id != garage.id), garage];
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('« ${garage.name} » ajoutée — validation en attente.')),
+      SnackBar(
+          content: Text('« ${garage.name} » ajoutée — validation en attente.')),
     );
   }
 
@@ -103,9 +98,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   }
 
   bool get _step1Valid =>
-      _departureId != null &&
-      _arrivalId != null &&
-      _departureId != _arrivalId;
+      _departureId != null && _arrivalId != null && _departureId != _arrivalId;
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
@@ -152,8 +145,6 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
       'description': _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
-      'acceptedPaymentChannels':
-          PaymentChannel.toValues(_acceptedChannels),
     };
 
     final result = await _api.createAdvertisement(data);
@@ -161,8 +152,8 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
     setState(() => _submitting = false);
 
     if (result['success'] == false) {
-      setState(() => _error =
-          result['message']?.toString() ?? 'Publication impossible.');
+      setState(() =>
+          _error = result['message']?.toString() ?? 'Publication impossible.');
       return;
     }
     Navigator.pop(context, true);
@@ -196,8 +187,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
                       : SingleChildScrollView(
                           controller: scrollController,
                           padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                          child:
-                              _step == 0 ? _buildStep1() : _buildStep2(),
+                          child: _step == 0 ? _buildStep1() : _buildStep2(),
                         ),
                 ),
                 _footer(),
@@ -322,7 +312,8 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _fieldLabel('Poids dispo. (kg)'),
-                  _numberField(_weightController, 'Ex : 50', Icons.scale_rounded),
+                  _numberField(
+                      _weightController, 'Ex : 50', Icons.scale_rounded),
                 ],
               ),
             ),
@@ -338,12 +329,6 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 18),
-        AcceptedPaymentChannelsField(
-          value: _acceptedChannels,
-          onChanged: (channels) =>
-              setState(() => _acceptedChannels = channels),
         ),
         const SizedBox(height: 18),
         _fieldLabel('Description (optionnel)'),
@@ -395,8 +380,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
               iconTrailing: Icons.arrow_forward_rounded,
               size: PcButtonSize.lg,
               block: true,
-              onPressed:
-                  _step1Valid ? () => setState(() => _step = 1) : null,
+              onPressed: _step1Valid ? () => setState(() => _step = 1) : null,
             )
           : Row(
               children: [
@@ -445,8 +429,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
           icon != null ? Icon(icon, size: 20, color: AppTheme.slate400) : null,
       filled: true,
       fillColor: AppTheme.cardColor,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         borderSide: const BorderSide(color: AppTheme.slate200),
@@ -506,9 +489,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
           Expanded(
             child: Text(text,
                 style: AppFonts.manrope(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: color)),
+                    fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
           ),
         ],
       ),
@@ -516,8 +497,18 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   }
 
   static const _months = [
-    'jan', 'fév', 'mar', 'avr', 'mai', 'juin',
-    'juil', 'août', 'sep', 'oct', 'nov', 'déc'
+    'jan',
+    'fév',
+    'mar',
+    'avr',
+    'mai',
+    'juin',
+    'juil',
+    'août',
+    'sep',
+    'oct',
+    'nov',
+    'déc'
   ];
 
   String _formatDate(DateTime d) {

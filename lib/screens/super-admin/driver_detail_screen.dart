@@ -92,7 +92,7 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen>
               children: [
                 CircleAvatar(
                   radius: 36,
-                  backgroundColor: AppTheme.primary.withOpacity(0.1),
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                   child: Text(
                     (user['fullName']?.toString() ?? '?')[0].toUpperCase(),
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppTheme.primary),

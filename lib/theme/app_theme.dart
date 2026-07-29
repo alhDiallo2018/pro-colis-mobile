@@ -91,7 +91,7 @@ class AppTheme {
 
   static List<BoxShadow> softShadow({double alpha = 0.08}) => [
         BoxShadow(
-          color: const Color(0xFF0B464F).withOpacity( alpha),
+          color: const Color(0xFF0B464F).withValues(alpha: alpha),
           blurRadius: 16,
           offset: const Offset(0, 6),
         ),
@@ -99,7 +99,7 @@ class AppTheme {
 
   static List<BoxShadow> brandShadow() => [
         BoxShadow(
-          color: primary.withOpacity( 0.28),
+          color: primary.withValues(alpha: 0.28),
           blurRadius: 22,
           offset: const Offset(0, 8),
         ),
@@ -107,7 +107,7 @@ class AppTheme {
 
   static List<BoxShadow> amberShadow() => [
         BoxShadow(
-          color: amber400.withOpacity( 0.30),
+          color: amber400.withValues(alpha: 0.30),
           blurRadius: 22,
           offset: const Offset(0, 8),
         ),
@@ -116,7 +116,7 @@ class AppTheme {
   // Ombres discrètes (spec design : xs / sm).
   static List<BoxShadow> shadowXs() => [
         BoxShadow(
-          color: const Color(0xFF0B464F).withOpacity( 0.06),
+          color: const Color(0xFF0B464F).withValues(alpha: 0.06),
           blurRadius: 2,
           offset: const Offset(0, 1),
         ),
@@ -124,7 +124,7 @@ class AppTheme {
 
   static List<BoxShadow> shadowSm() => [
         BoxShadow(
-          color: const Color(0xFF0B464F).withOpacity( 0.08),
+          color: const Color(0xFF0B464F).withValues(alpha: 0.08),
           blurRadius: 6,
           offset: const Offset(0, 2),
         ),

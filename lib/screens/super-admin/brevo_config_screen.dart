@@ -23,7 +23,6 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _testing = false;
-  BrevoConfig? _config;
   String? _message;
   bool _messageSuccess = false;
 
@@ -44,10 +43,10 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
 
   Future<void> _loadConfig() async {
     setState(() => _loading = true);
-    final config = await _brevoService.getBrevoConfig();
-    if (mounted) {
+    try {
+      final config = await _brevoService.getBrevoConfig();
+      if (!mounted) return;
       setState(() {
-        _config = config;
         _loading = false;
         if (config != null) {
           _senderEmailCtrl.text = config.senderEmail;
@@ -55,21 +54,37 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
           _smsSenderCtrl.text = config.smsSender;
         }
       });
+    } catch (error, stackTrace) {
+      debugPrint(
+        'BrevoConfigScreen: chargement de la configuration impossible '
+        '($error)\n$stackTrace',
+      );
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _message = 'Impossible de charger la configuration Brevo.';
+        _messageSuccess = false;
+      });
     }
   }
 
   Future<void> _save() async {
-    setState(() { _saving = true; _message = null; });
-    final result = await _brevoService.updateBrevoConfig({
-      'senderEmail': _senderEmailCtrl.text.trim(),
-      'senderName': _senderNameCtrl.text.trim(),
-      'smsSender': _smsSenderCtrl.text.trim(),
+    setState(() {
+      _saving = true;
+      _message = null;
     });
-    if (mounted) {
+    try {
+      // La clé API reste côté serveur : le mobile ne transmet que les
+      // identités publiques d'expédition.
+      final result = await _brevoService.updateBrevoConfig({
+        'senderEmail': _senderEmailCtrl.text.trim(),
+        'senderName': _senderNameCtrl.text.trim(),
+        'smsSender': _smsSenderCtrl.text.trim(),
+      });
+      if (!mounted) return;
       setState(() {
         _saving = false;
         if (result != null) {
-          _config = result;
           _message = 'Configuration Brevo enregistrée.';
           _messageSuccess = true;
         } else {
@@ -77,21 +92,46 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
           _messageSuccess = false;
         }
       });
+    } catch (error, stackTrace) {
+      debugPrint(
+        'BrevoConfigScreen: sauvegarde impossible ($error)\n$stackTrace',
+      );
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _message = 'Échec de la sauvegarde.';
+        _messageSuccess = false;
+      });
     }
   }
 
   Future<void> _testConnection() async {
     final email = _testEmailCtrl.text.trim();
     if (email.isEmpty) return;
-    setState(() { _testing = true; _message = null; });
-    final result = await _brevoService.testBrevoConnection(email);
-    if (mounted) {
+    setState(() {
+      _testing = true;
+      _message = null;
+    });
+    try {
+      final result = await _brevoService.testBrevoConnection(email);
+      if (!mounted) return;
       setState(() {
         _testing = false;
         _messageSuccess = result.success;
         _message = result.success
             ? 'Email de test envoyé à $email. Vérifiez votre boîte de réception.'
             : (result.error ?? 'Échec de l\'envoi du test.');
+      });
+    } catch (error, stackTrace) {
+      debugPrint(
+        'BrevoConfigScreen: test de connexion impossible '
+        '($error)\n$stackTrace',
+      );
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _message = 'Échec de l\'envoi du test.';
+        _messageSuccess = false;
       });
     }
   }
@@ -181,6 +221,7 @@ class _BrevoConfigScreenState extends State<BrevoConfigScreen> {
                             'Tester',
                             icon: Icons.send,
                             loading: _testing,
+                            onPressed: _testing ? null : _testConnection,
                           ).let((b) => SizedBox(height: 50, child: Center(child: b))),
                         ],
                       ),

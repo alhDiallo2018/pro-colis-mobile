@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,8 +7,8 @@ import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/providers/auth_provider.dart';
 import 'package:procolis/providers/parcel_provider.dart';
-import 'package:procolis/services/api_service.dart';
 import 'package:procolis/theme/app_theme.dart';
+import 'package:procolis/utils/parcel_access_policy.dart';
 import 'package:procolis/widgets/app_bottom_nav.dart';
 import 'package:procolis/widgets/negotiation_chat_widget.dart';
 import 'package:procolis/widgets/pc_components.dart';
@@ -35,8 +37,8 @@ class _ReceivedOffer {
 }
 
 class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
-  final _apiService = ApiService();
   final _audioPlayer = AudioPlayer();
+  StreamSubscription<void>? _audioCompleteSubscription;
 
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -45,11 +47,17 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playingAudioUrl = null);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   @override
   void dispose() {
+    _audioCompleteSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -86,11 +94,7 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
 
     final offers = <_ReceivedOffer>[];
     for (final parcel in unique) {
-      final isOwner = user == null ||
-          parcel.senderId == user.id ||
-          parcel.senderPhone == user.phone ||
-          parcel.senderName == user.fullName;
-      if (!isOwner || parcel.bids.isEmpty) continue;
+      if (!isParcelSender(parcel, user) || parcel.bids.isEmpty) continue;
       for (final bid in parcel.bids) {
         offers.add(_ReceivedOffer(parcel, bid));
       }
@@ -110,7 +114,8 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
   @override
   Widget build(BuildContext context) {
     final content = _isLoading
-        ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+        ? const Center(
+            child: CircularProgressIndicator(color: AppTheme.primary))
         : _buildBody();
 
     if (widget.embedded) {
@@ -192,11 +197,6 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
       await _audioPlayer.stop();
       await _audioPlayer.play(UrlSource(audioUrl));
       if (mounted) setState(() => _playingAudioUrl = audioUrl);
-      _audioPlayer.onPlayerComplete.first.then((_) {
-        if (mounted && _playingAudioUrl == audioUrl) {
-          setState(() => _playingAudioUrl = null);
-        }
-      });
     } catch (e) {
       debugPrint('Erreur lecture audio offre: $e');
       _showSnack('Lecture audio impossible', isError: true);
@@ -215,7 +215,8 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
         await _load();
       } else {
         final error = ref.read(parcelProvider).error;
-        _showSnack(error ?? 'Impossible d\'accepter cette offre', isError: true);
+        _showSnack(error ?? 'Impossible d\'accepter cette offre',
+            isError: true);
       }
     } catch (e) {
       debugPrint('Erreur acceptation offre: $e');
@@ -524,8 +525,7 @@ class _Bubble extends StatelessWidget {
               ),
             ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: isLeft ? AppTheme.slate100 : AppTheme.teal600,
                 borderRadius: BorderRadius.only(
@@ -583,90 +583,6 @@ class _AudioBubble extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textSecondary,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// Feuille de négociation (contre-offre)
-// ============================================================
-
-class _NegotiateSheet extends StatelessWidget {
-  final Bid bid;
-  final TextEditingController priceController;
-  final TextEditingController messageController;
-  final VoidCallback onSubmit;
-
-  const _NegotiateSheet({
-    required this.bid,
-    required this.priceController,
-    required this.messageController,
-    required this.onSubmit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final driverName = bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      decoration: const BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.slate300,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Négocier avec $driverName',
-              style: AppFonts.plusJakartaSans(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Votre contre-offre',
-                suffixText: 'FCFA',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: messageController,
-              minLines: 3,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Message au chauffeur',
-                hintText: 'Ex: Je peux confirmer à ce prix.',
-              ),
-            ),
-            const SizedBox(height: 18),
-            PcButton(
-              'Envoyer la contre-offre',
-              icon: Icons.send_rounded,
-              block: true,
-              onPressed: onSubmit,
             ),
           ],
         ),

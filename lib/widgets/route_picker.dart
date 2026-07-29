@@ -8,7 +8,6 @@ import 'package:procolis/theme/fonts.dart';
 import '../models/garage.dart';
 import '../theme/app_theme.dart';
 import 'garage_picker.dart';
-import 'pc_components.dart';
 
 class RoutePicker extends StatefulWidget {
   final List<Garage> garages;
@@ -79,6 +78,7 @@ class _RoutePickerState extends State<RoutePicker> {
       title: 'Zone de départ',
       allowAddZone: widget.onZoneAdded != null,
     );
+    if (!mounted) return;
     if (result != null) {
       _announceIfNew(result);
       setState(() => _departure = result);
@@ -95,6 +95,7 @@ class _RoutePickerState extends State<RoutePicker> {
       title: "Zone d'arrivée",
       allowAddZone: widget.onZoneAdded != null,
     );
+    if (!mounted) return;
     if (result != null) {
       _announceIfNew(result);
       setState(() => _arrival = result);
@@ -112,7 +113,6 @@ class _RoutePickerState extends State<RoutePicker> {
     widget.onArrivalChanged(_arrival);
   }
 
-  String _name(Garage? g) => g?.name ?? '—';
   String _city(Garage? g) => g?.city ?? '';
 
   @override

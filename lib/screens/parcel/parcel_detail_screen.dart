@@ -14,11 +14,13 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../config/app_config.dart';
 import '../../models/parcel.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/parcel_access_policy.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
 import '../../widgets/pc_components.dart';
@@ -39,8 +41,8 @@ class _DriverStepAction {
 _DriverStepAction? _driverNextStep(ParcelStatus status) {
   switch (status) {
     case ParcelStatus.pending:
-      return const _DriverStepAction(
-          'confirm', 'Confirmer la prise en charge', Icons.check_circle_rounded);
+      return const _DriverStepAction('confirm', 'Confirmer la prise en charge',
+          Icons.check_circle_rounded);
     case ParcelStatus.confirmed:
       return const _DriverStepAction(
           'pickup', 'Marquer ramassé', Icons.inventory_2_rounded);
@@ -183,7 +185,12 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 
   Future<void> _cancelParcel() async {
-    if (_parcel.isFinished || _isUpdating) return;
+    if (!_canCancelParcel) {
+      if (mounted) {
+        _showSnack('Seul l’expéditeur peut annuler ce colis');
+      }
+      return;
+    }
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -250,7 +257,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 
   Future<void> _shareTracking() async {
-    final trackingUrl = 'http://localhost:18081track/${_parcel.trackingNumber}';
+    final trackingUrl = AppConfig.trackingUrl(_parcel.trackingNumber);
     try {
       await Share.share(
         '📦 Suivi de colis PRO COLIS\n\n'
@@ -331,12 +338,15 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.share, color: AppTheme.primary),
-                            onPressed: () => _shareReceipt(sheetContext, receiptKey),
+                            icon: const Icon(Icons.share,
+                                color: AppTheme.primary),
+                            onPressed: () =>
+                                _shareReceipt(sheetContext, receiptKey),
                             tooltip: 'Partager',
                           ),
                           IconButton(
-                            icon: const Icon(Icons.link, color: AppTheme.primary),
+                            icon:
+                                const Icon(Icons.link, color: AppTheme.primary),
                             onPressed: _shareTracking,
                             tooltip: 'Partager le lien',
                           ),
@@ -390,7 +400,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           File('${tempDir.path}/receipt_${_parcel.trackingNumber}.png');
       await file.writeAsBytes(pngBytes);
 
-      final trackingUrl = 'http://localhost:18081track/${_parcel.trackingNumber}';
+      final trackingUrl = AppConfig.trackingUrl(_parcel.trackingNumber);
       await Share.shareXFiles(
         [XFile(file.path)],
         text: '📦 Suivi de colis PRO COLIS\n\n'
@@ -412,7 +422,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   Widget _buildReceiptWidget() {
     final parcel = _parcel;
     final isDelivered = parcel.status.value == 'delivered';
-    final trackingUrl = 'http://localhost:18081track/${parcel.trackingNumber}';
+    final trackingUrl = AppConfig.trackingUrl(parcel.trackingNumber);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -422,7 +432,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -519,10 +529,10 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.1),
+                      color: AppTheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border:
-                          Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                      border: Border.all(
+                          color: AppTheme.primary.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -624,9 +634,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 
   /// Résout une URL de média : les chemins relatifs `/uploads/...` sont
   /// préfixés avec le backend, comme dans le reste de l'application.
-  String _mediaUrl(String url) => url.startsWith('http')
-      ? url
-      : ApiService.resolveMediaUrl(url);
+  String _mediaUrl(String url) =>
+      url.startsWith('http') ? url : ApiService.resolveMediaUrl(url);
 
   bool get _hasMedia =>
       _parcel.photoUrls.isNotEmpty ||
@@ -732,8 +741,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                     return GestureDetector(
                       onTap: () => _openPhotoViewer(url),
                       child: ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusMd),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                         child: Image.network(
                           url,
                           width: 80,
@@ -755,8 +763,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
             ],
             if (videos.isNotEmpty) ...[
               if (photos.isNotEmpty) const SizedBox(height: 16),
-              _MediaLabel(
-                  icon: Icons.videocam_rounded, text: 'Vidéos'),
+              _MediaLabel(icon: Icons.videocam_rounded, text: 'Vidéos'),
               const SizedBox(height: 10),
               for (var i = 0; i < videos.length; i++) ...[
                 if (i > 0) const SizedBox(height: 8),
@@ -951,8 +958,11 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   bool get _isClientOwner {
     final me = ref.read(authProvider).user;
     if (me == null || me.isDriver) return false;
-    return _parcel.senderId.isNotEmpty && _parcel.senderId == me.id;
+    return canClientMutateParcel(_parcel, me);
   }
+
+  bool get _canCancelParcel =>
+      _isClientOwner && !_parcel.isFinished && !_isUpdating;
 
   /// La note du chauffeur n'est proposée que si : (a) je suis le client
   /// propriétaire, (b) le colis est livré, (c) un chauffeur est assigné.
@@ -1022,8 +1032,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               if (res['success'] == false) {
                 setSheetState(() => submitting = false);
                 if (mounted) {
-                  _showSnack(
-                      res['message']?.toString() ?? 'Envoi de la note impossible');
+                  _showSnack(res['message']?.toString() ??
+                      'Envoi de la note impossible');
                 }
                 return;
               }
@@ -1260,8 +1270,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 parcel: _parcel,
                 isAssignedDriver: _isAssignedDriver,
                 onDeclare: _openCashDeclaration,
-                amountLabel:
-                    '${_formatNumber(_parcel.payableAmount)} FCFA',
+                amountLabel: '${_formatNumber(_parcel.payableAmount)} FCFA',
               ),
             ..._buildMediaSection(),
             if (_parcel.status.isInProgress && _otpCode != null) ...[
@@ -1364,27 +1373,27 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                     block: true,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _parcel.isDelivered
-                      ? PcButton(
-                          'Preuve',
-                          onPressed: _openDeliveryProof,
-                          icon: Icons.verified_rounded,
-                          variant: PcButtonVariant.primary,
-                          block: true,
-                        )
-                      : PcButton(
-                          'Annuler',
-                          onPressed: _parcel.isFinished || _isUpdating
-                              ? null
-                              : _cancelParcel,
-                          icon: Icons.cancel_rounded,
-                          variant: PcButtonVariant.danger,
-                          loading: _isUpdating,
-                          block: true,
-                        ),
-                ),
+                if (_parcel.isDelivered || _canCancelParcel) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _parcel.isDelivered
+                        ? PcButton(
+                            'Preuve',
+                            onPressed: _openDeliveryProof,
+                            icon: Icons.verified_rounded,
+                            variant: PcButtonVariant.primary,
+                            block: true,
+                          )
+                        : PcButton(
+                            'Annuler',
+                            onPressed: _cancelParcel,
+                            icon: Icons.cancel_rounded,
+                            variant: PcButtonVariant.danger,
+                            loading: _isUpdating,
+                            block: true,
+                          ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -1534,7 +1543,7 @@ class _RouteLine extends StatelessWidget {
         children: [
           Container(
             height: 2,
-            color: Colors.white.withOpacity( 0.42),
+            color: Colors.white.withValues(alpha: 0.42),
           ),
           Positioned(
             left: 34,
@@ -1596,7 +1605,7 @@ class _HeroStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
+        color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -1691,34 +1700,6 @@ class _DriverCard extends StatelessWidget {
   }
 }
 
-class _SoftIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _SoftIconButton({required this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppTheme.primaryLight,
-      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        child: SizedBox(
-          width: 38,
-          height: 38,
-          child: Icon(
-            icon,
-            color: onTap == null ? AppTheme.slate400 : AppTheme.primary,
-            size: 20,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _InfoValue extends StatelessWidget {
   final String value;
   final bool mono;
@@ -1782,7 +1763,8 @@ class _DesignTimeline extends StatelessWidget {
       _StepInfo(ParcelStatus.pending, 'Colis créé', parcel.createdAt),
       _StepInfo(ParcelStatus.confirmed, 'Chauffeur assigné', parcel.pickupDate),
       _StepInfo(ParcelStatus.inTransit, 'En route vers la destination', null),
-      _StepInfo(ParcelStatus.delivered, 'Remis au destinataire', parcel.deliveryDate),
+      _StepInfo(
+          ParcelStatus.delivered, 'Remis au destinataire', parcel.deliveryDate),
     ];
     final currentIndex = all.indexWhere((item) => item.status == parcel.status);
     final resolvedIndex = currentIndex < 0 ? 0 : currentIndex;
@@ -1868,7 +1850,7 @@ class _TimelineTile extends StatelessWidget {
                 Container(
                   width: 2,
                   height: 48,
-                  color: color.withOpacity( 0.32),
+                  color: color.withValues(alpha: 0.32),
                 ),
             ],
           ),
@@ -2187,9 +2169,7 @@ class _CashPaymentCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
                 child: Icon(
-                  declared
-                      ? Icons.verified_rounded
-                      : Icons.payments_rounded,
+                  declared ? Icons.verified_rounded : Icons.payments_rounded,
                   color: tone,
                   size: 22,
                 ),
@@ -2310,6 +2290,7 @@ class _PaydunyaPayCard extends StatefulWidget {
 class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
   bool _loading = false;
   String? _error;
+  String? _paymentInfo;
   double _commission = 0;
   double _netAmount = 0;
   double _percentage = 5;
@@ -2323,11 +2304,14 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
   Future<void> _loadCommission() async {
     if (widget.amount <= 0) return;
     try {
-      final estimate = await widget.apiService.estimateCommission(widget.amount);
+      final estimate =
+          await widget.apiService.estimateCommission(widget.amount);
       if (mounted) {
         setState(() {
-          _commission = (estimate['commission'] as num?)?.toDouble() ?? (widget.amount * 0.05).clamp(100.0, 500.0);
-          _netAmount = (estimate['netAmount'] as num?)?.toDouble() ?? widget.amount - _commission;
+          _commission = (estimate['commission'] as num?)?.toDouble() ??
+              (widget.amount * 0.05).clamp(100.0, 500.0);
+          _netAmount = (estimate['netAmount'] as num?)?.toDouble() ??
+              widget.amount - _commission;
           _percentage = (estimate['percentage'] as num?)?.toDouble() ?? 5;
         });
       }
@@ -2356,14 +2340,24 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppFonts.manrope(fontSize: 12.5, color: AppTheme.textSecondary)),
-        Text(value, style: AppTheme.mono(fontSize: 12.5, fontWeight: FontWeight.w700, color: valueColor)),
+        Text(label,
+            style: AppFonts.manrope(
+                fontSize: 12.5, color: AppTheme.textSecondary)),
+        Text(value,
+            style: AppTheme.mono(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: valueColor)),
       ],
     );
   }
 
   Future<void> _pay() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _paymentInfo = null;
+    });
     try {
       final result = await widget.apiService.createPaydunyaPayment(
         'parcel',
@@ -2371,14 +2365,52 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
         amount: widget.amount,
       );
       final paymentUrl = result['paymentUrl']?.toString() ?? '';
-      if (paymentUrl.isNotEmpty) {
-        await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
-        widget.onDone();
-      } else {
-        setState(() => _error = 'URL de paiement introuvable');
+      final token = result['token']?.toString() ?? '';
+      if (paymentUrl.isEmpty || token.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _error = result['message']?.toString() ??
+                'Impossible de créer le paiement';
+          });
+        }
+        return;
       }
-    } catch (e) {
-      setState(() => _error = 'Erreur lors de la création du paiement');
+
+      final launched = await launchUrl(
+        Uri.parse(paymentUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        if (mounted) {
+          setState(() => _error = 'Impossible d’ouvrir la page de paiement');
+        }
+        return;
+      }
+
+      // La confirmation et l'IPN utilisent le même token : le mobile ne
+      // considère jamais la simple ouverture du checkout comme un paiement.
+      final confirmation =
+          await widget.apiService.confirmPaydunyaPayment(token);
+      if (!mounted) return;
+      if (confirmation['status'] == 'completed') {
+        widget.onDone();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Paiement confirmé'),
+            backgroundColor: AppTheme.green600,
+          ),
+        );
+      } else {
+        setState(() {
+          _paymentInfo =
+              'Paiement ouvert. Le statut sera actualisé après confirmation.';
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[ParcelPayment] Échec PayDunya: $e\n$stackTrace');
+      if (mounted) {
+        setState(() => _error = 'Erreur lors de la création du paiement');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -2394,18 +2426,21 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
           Row(
             children: [
               Container(
-                width: 40, height: 40,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: AppTheme.amber50,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
-                child: const Icon(Icons.payments_rounded, color: AppTheme.amber600, size: 22),
+                child: const Icon(Icons.payments_rounded,
+                    color: AppTheme.amber600, size: 22),
               ),
               const SizedBox(width: 12),
               Text(
                 'Paiement',
                 style: AppFonts.plusJakartaSans(
-                  fontSize: 16, fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
                   color: AppTheme.textPrimary,
                 ),
               ),
@@ -2415,7 +2450,8 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
           Text(
             'Paiement de ${_fcfa(widget.amount)} pour le colis ${widget.trackingNumber}',
             style: AppFonts.manrope(
-              fontSize: 13, fontWeight: FontWeight.w500,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
               color: AppTheme.textSecondary,
             ),
           ),
@@ -2431,22 +2467,34 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _detailRow('Commission plateforme (${_percentage.toInt()}%)', '- ${_fcfa(_commission)}', AppTheme.red500),
+                  _detailRow('Commission plateforme (${_percentage.toInt()}%)',
+                      '- ${_fcfa(_commission)}', AppTheme.red500),
                   const SizedBox(height: 4),
                   Container(height: 1, color: AppTheme.amber200),
                   const SizedBox(height: 4),
-                  _detailRow('Montant reversé au chauffeur', _fcfa(_netAmount), AppTheme.green700),
+                  _detailRow('Montant reversé au chauffeur', _fcfa(_netAmount),
+                      AppTheme.green700),
                 ],
               ),
             ),
           ],
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: AppTheme.red500, fontSize: 12)),
+            Text(_error!,
+                style: const TextStyle(color: AppTheme.red500, fontSize: 12)),
+          ],
+          if (_paymentInfo != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _paymentInfo!,
+              style: const TextStyle(color: AppTheme.amber700, fontSize: 12),
+            ),
           ],
           const SizedBox(height: 14),
           PcButton(
-            _loading ? 'Redirection...' : 'Payer ${_fcfa(widget.amount)} avec PayDunya',
+            _loading
+                ? 'Redirection...'
+                : 'Payer ${_fcfa(widget.amount)} avec PayDunya',
             icon: Icons.payments_rounded,
             block: true,
             loading: _loading,

@@ -10,7 +10,6 @@ import '../../models/parcel.dart';
 import '../../models/user.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
 
@@ -331,7 +330,7 @@ class _GarageAssignationsScreenState
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     isExpanded: true,
-                    value: selectedId,
+                    initialValue: selectedId,
                     hint: Text(
                       _drivers.isEmpty
                           ? 'Aucun chauffeur'

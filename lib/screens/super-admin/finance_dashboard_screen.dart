@@ -106,7 +106,7 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
                 Container(
                   width: 34, height: 34,
                   decoration: BoxDecoration(
-                    color: item.color.withOpacity(0.12),
+                    color: item.color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(item.icon, size: 18, color: item.color),

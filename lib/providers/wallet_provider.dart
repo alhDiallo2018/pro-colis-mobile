@@ -36,7 +36,8 @@ class WalletState {
   bool get hasBalance => balance > 0;
 }
 
-final walletProvider = StateNotifierProvider<WalletNotifier, WalletState>((ref) {
+final walletProvider =
+    StateNotifierProvider<WalletNotifier, WalletState>((ref) {
   return WalletNotifier();
 });
 
@@ -72,18 +73,4 @@ class WalletNotifier extends StateNotifier<WalletState> {
       // Erreur silencieuse pour les refresh
     }
   }
-
-  Future<bool> deposit(String userId, Map<String, dynamic> data) async {
-    try {
-      final result = await _apiService.depositWallet(userId, data);
-      if (result['success'] == true) {
-        await loadBalance(userId);
-        return true;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
-
 }

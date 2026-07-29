@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import 'package:procolis/screens/parcel/ads/advertisement_detail_screen.dart';
 import 'package:procolis/screens/parcel/create_colis_sheet.dart';
 import 'package:procolis/services/api_service.dart';
 import 'package:procolis/theme/app_theme.dart';
+import 'package:procolis/utils/parcel_access_policy.dart';
 import 'package:procolis/widgets/app_bottom_nav.dart';
 import 'package:procolis/widgets/negotiation_chat_widget.dart';
 import 'package:procolis/widgets/pc_components.dart';
@@ -31,6 +34,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
     with SingleTickerProviderStateMixin {
   final _apiService = ApiService();
   final _audioPlayer = AudioPlayer();
+  StreamSubscription<void>? _audioCompleteSubscription;
 
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -44,13 +48,19 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLibreService());
+    _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playingAudioUrl = null);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadLibreService();
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _tripSearchController.dispose();
+    _audioCompleteSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -81,9 +91,8 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
       children: [
         _LibreServiceHeader(
           onRefresh: _loadLibreService,
-          onBack: widget.embedded
-              ? null
-              : () => Navigator.of(context).maybePop(),
+          onBack:
+              widget.embedded ? null : () => Navigator.of(context).maybePop(),
         ),
         Container(
           color: AppTheme.cardColor,
@@ -142,7 +151,9 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
       MaterialPageRoute(
         builder: (_) => AdvertisementDetailScreen(adId: trip.id),
       ),
-    ).then((_) => _loadLibreService());
+    ).then((_) {
+      if (mounted) _loadLibreService();
+    });
   }
 
   Widget _buildTripsTab() {
@@ -324,11 +335,8 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
     // On privilégie les colis du client qui ont déjà des offres, comme dans
     // l'écran design "Libre service — client: offres reçues".
     final ownedLibreParcels = unique.where((parcel) {
-      final isOwner = user == null ||
-          parcel.senderId == user.id ||
-          parcel.senderPhone == user.phone ||
-          parcel.senderName == user.fullName;
-      return isOwner && (parcel.isFreeForBidding || parcel.hasBids);
+      return isParcelSender(parcel, user) &&
+          (parcel.isFreeForBidding || parcel.hasBids);
     }).toList();
 
     ownedLibreParcels.sort((a, b) {
@@ -337,14 +345,9 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
       return b.createdAt.compareTo(a.createdAt);
     });
 
-    if (ownedLibreParcels.isNotEmpty) return ownedLibreParcels.first;
-
-    final fallback = unique.where((parcel) {
-      return parcel.isFreeForBidding || parcel.status == ParcelStatus.free;
-    }).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-    return fallback.isEmpty ? null : fallback.first;
+    // Aucun repli vers un colis public : sans `senderId` correspondant, le
+    // client ne doit voir ni accepter les offres d'un expéditeur tiers.
+    return ownedLibreParcels.isEmpty ? null : ownedLibreParcels.first;
   }
 
   Future<void> _toggleAudio(String audioUrl) async {
@@ -358,12 +361,6 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
       await _audioPlayer.stop();
       await _audioPlayer.play(UrlSource(audioUrl));
       if (mounted) setState(() => _playingAudioUrl = audioUrl);
-
-      _audioPlayer.onPlayerComplete.first.then((_) {
-        if (mounted && _playingAudioUrl == audioUrl) {
-          setState(() => _playingAudioUrl = null);
-        }
-      });
     } catch (e) {
       debugPrint('Erreur lecture audio offre: $e');
       _showSnack('Lecture audio impossible', isError: true);
@@ -415,7 +412,9 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
   }
 
   void _openNewParcel() {
-    showCreateColisSheet(context).then((_) => _loadLibreService());
+    showCreateColisSheet(context).then((_) {
+      if (mounted) _loadLibreService();
+    });
   }
 
   void _showSnack(String message, {bool isError = false}) {
@@ -789,9 +788,7 @@ class _OfferMessage extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
+                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                   size: 18,
                   color: Colors.white,
                 ),
@@ -837,85 +834,6 @@ class _OfferMessage extends StatelessWidget {
           height: 1.4,
           color: AppTheme.slate700,
           fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}
-
-class _NegotiateSheet extends StatelessWidget {
-  final Bid bid;
-  final TextEditingController priceController;
-  final TextEditingController messageController;
-  final VoidCallback onSubmit;
-
-  const _NegotiateSheet({
-    required this.bid,
-    required this.priceController,
-    required this.messageController,
-    required this.onSubmit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      decoration: const BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.slate300,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Négocier avec ${bid.driverName}',
-              style: AppFonts.plusJakartaSans(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Votre contre-offre',
-                suffixText: 'FCFA',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: messageController,
-              minLines: 3,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Message au chauffeur',
-                hintText: 'Ex: Je peux confirmer à ce prix.',
-              ),
-            ),
-            const SizedBox(height: 18),
-            PcButton(
-              'Envoyer la contre-offre',
-              icon: Icons.send_rounded,
-              block: true,
-              onPressed: onSubmit,
-            ),
-          ],
         ),
       ),
     );
@@ -1095,7 +1013,7 @@ class _Waveform extends StatelessWidget {
                 height: height,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity( 0.38),
+                  color: AppTheme.primary.withValues(alpha: 0.38),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -1132,8 +1050,18 @@ String _formatWhen(DateTime date) {
 }
 
 const _tripMonths = [
-  'jan', 'fév', 'mar', 'avr', 'mai', 'juin',
-  'juil', 'août', 'sep', 'oct', 'nov', 'déc'
+  'jan',
+  'fév',
+  'mar',
+  'avr',
+  'mai',
+  'juin',
+  'juil',
+  'août',
+  'sep',
+  'oct',
+  'nov',
+  'déc'
 ];
 
 String formatTripDate(DateTime d) {
@@ -1150,7 +1078,8 @@ class _TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final from = trip.departureCity?.isNotEmpty == true ? trip.departureCity! : '—';
+    final from =
+        trip.departureCity?.isNotEmpty == true ? trip.departureCity! : '—';
     final to = trip.arrivalCity?.isNotEmpty == true ? trip.arrivalCity! : '—';
     final driver = trip.driverName.isNotEmpty ? trip.driverName : 'Chauffeur';
     final tripDate = trip.departureAt;
@@ -1200,8 +1129,7 @@ class _TripCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppTheme.slate400),
+              const Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
             ],
           ),
           const SizedBox(height: 12),

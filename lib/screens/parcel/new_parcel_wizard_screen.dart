@@ -1,7 +1,6 @@
 // 4-step parcel creation wizard matching the web app
 // Step 0: Destinataire → Step 1: Livraison → Step 2: Colis → Step 3: Recapitulatif
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,6 +20,7 @@ import '../../services/api_service.dart';
 import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/payment_channel_selector.dart';
+import '../../widgets/phone_contact_picker.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../../widgets/route_picker.dart';
 import '../../widgets/location_autocomplete.dart';
@@ -103,6 +103,21 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     super.dispose();
   }
 
+  Future<void> _importReceiverFromContacts() async {
+    final contact = await showPhoneContactPicker(
+      context: context,
+      selectedPhone: _receiverPhoneCtrl.text,
+    );
+    if (!mounted || contact == null) return;
+
+    // Le carnet remplit les deux champs liés au destinataire en une seule
+    // opération, tout en les laissant modifiables avant publication.
+    setState(() {
+      _receiverNameCtrl.text = contact.contactName;
+      _receiverPhoneCtrl.text = contact.phoneNumber;
+    });
+  }
+
   Future<void> _loadGarages() async {
     try {
       final garages = await _apiService.getAllGarages();
@@ -142,7 +157,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       _garages = [..._garages.where((g) => g.id != garage.id), garage];
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('« ${garage.name} » ajoutée — validation en attente.')),
+      SnackBar(
+          content: Text('« ${garage.name} » ajoutée — validation en attente.')),
     );
   }
 
@@ -180,7 +196,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   void _nextStep() {
     if (!_canProceed(_currentStep)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez remplir tous les champs requis')),
+        const SnackBar(
+            content: Text('Veuillez remplir tous les champs requis')),
       );
       return;
     }
@@ -230,14 +247,16 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       _isRecording = false;
       if (path != null) {
         setState(() {
-          _voiceMessages.add(VoiceMessageData(path: path, duration: _recordDuration));
+          _voiceMessages
+              .add(VoiceMessageData(path: path, duration: _recordDuration));
           _recordDuration = 0;
         });
       }
     } else {
       if (await _recorder.hasPermission()) {
         final dir = await getTemporaryDirectory();
-        final filePath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        final filePath =
+            '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _recorder.start(
           path: filePath,
           encoder: AudioEncoder.aacLc,
@@ -289,7 +308,9 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         'senderEmail': user.email,
         'receiverName': _receiverNameCtrl.text.trim(),
         'receiverPhone': _receiverPhoneCtrl.text.trim(),
-        'receiverEmail': _receiverEmailCtrl.text.trim().isEmpty ? null : _receiverEmailCtrl.text.trim(),
+        'receiverEmail': _receiverEmailCtrl.text.trim().isEmpty
+            ? null
+            : _receiverEmailCtrl.text.trim(),
         'receiverAddress': _receiverAddressCtrl.text.trim(),
         'description': description,
         'weight': weight,
@@ -311,21 +332,27 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           'driverId': _selectedDriver!.id,
       };
 
-      final result = await ref.read(parcelProvider.notifier).createParcel(parcelData);
+      final result =
+          await ref.read(parcelProvider.notifier).createParcel(parcelData);
 
       if (result != null && mounted) {
         for (final photo in _photos) {
-          await _apiService.uploadFile(file: photo, mediaType: 'photo', parcelId: result.id);
+          await _apiService.uploadFile(
+              file: photo, mediaType: 'photo', parcelId: result.id);
         }
         for (final video in _videos) {
-          await _apiService.uploadFile(file: video, mediaType: 'video', parcelId: result.id);
+          await _apiService.uploadFile(
+              file: video, mediaType: 'video', parcelId: result.id);
         }
         for (final voice in _voiceMessages) {
-          await _apiService.uploadFile(file: XFile(voice.path), mediaType: 'audio', parcelId: result.id);
+          await _apiService.uploadFile(
+              file: XFile(voice.path), mediaType: 'audio', parcelId: result.id);
         }
 
         await ref.read(parcelProvider.notifier).loadSentParcels();
-        _showSnack(_isFreeMode ? 'Colis publié en libre service' : 'Colis créé et chauffeur assigné');
+        _showSnack(_isFreeMode
+            ? 'Colis publié en libre service'
+            : 'Colis créé et chauffeur assigné');
         if (mounted) Navigator.pop(context, result);
       } else if (mounted) {
         _showSnack('Erreur lors de la création du colis');
@@ -337,7 +364,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     }
   }
 
-  String get _modeLabel => _isFreeMode ? 'Publier une annonce' : 'Assigner un chauffeur';
+  String get _modeLabel =>
+      _isFreeMode ? 'Publier une annonce' : 'Assigner un chauffeur';
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +401,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               : isActive
                   ? AppTheme.primary
                   : AppTheme.slate300;
-          final textColor = isActive || isDone ? AppTheme.textPrimary : AppTheme.slate400;
+          final textColor =
+              isActive || isDone ? AppTheme.textPrimary : AppTheme.slate400;
           return Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -401,13 +430,16 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                       ),
                       child: Center(
                         child: isDone
-                            ? const Icon(Icons.check, size: 16, color: Colors.white)
+                            ? const Icon(Icons.check,
+                                size: 16, color: Colors.white)
                             : Text(
                                 '${i + 1}',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: isActive ? AppTheme.primary : AppTheme.slate400,
+                                  color: isActive
+                                      ? AppTheme.primary
+                                      : AppTheme.slate400,
                                 ),
                               ),
                       ),
@@ -458,6 +490,12 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         _sectionHeader('Destinataire', Icons.person_pin_rounded),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _importReceiverFromContacts,
+          icon: const Icon(Icons.contact_phone_rounded),
+          label: const Text('Choisir dans mes contacts'),
+        ),
         const SizedBox(height: 12),
         TextField(
           controller: _receiverNameCtrl,
@@ -519,9 +557,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       );
     }
     final zone = _detectedZone!;
-    final label = zone.displayName?.isNotEmpty == true
-        ? zone.displayName!
-        : zone.name;
+    final label =
+        zone.displayName?.isNotEmpty == true ? zone.displayName! : zone.name;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -532,8 +569,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.explore_rounded,
-              size: 16, color: AppTheme.teal600),
+          const Icon(Icons.explore_rounded, size: 16, color: AppTheme.teal600),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
@@ -597,12 +633,16 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         if (!_isFreeMode) ...[
           const SizedBox(height: 16),
           if (_loadingDrivers)
-            const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+            const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator()))
           else if (_drivers.isEmpty)
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Aucun chauffeur disponible pour cette zone', textAlign: TextAlign.center),
+                child: Text('Aucun chauffeur disponible pour cette zone',
+                    textAlign: TextAlign.center),
               ),
             )
           else
@@ -620,10 +660,13 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                     child: Container(
                       width: 90,
                       decoration: BoxDecoration(
-                        color: selected ? AppTheme.primaryLight : AppTheme.cardColor,
+                        color: selected
+                            ? AppTheme.primaryLight
+                            : AppTheme.cardColor,
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                         border: Border.all(
-                          color: selected ? AppTheme.primary : AppTheme.slate200,
+                          color:
+                              selected ? AppTheme.primary : AppTheme.slate200,
                           width: selected ? 2 : 1,
                         ),
                       ),
@@ -635,8 +678,12 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                             radius: 22,
                             backgroundColor: AppTheme.primaryLight,
                             child: Text(
-                              d.fullName.isNotEmpty ? d.fullName[0].toUpperCase() : '?',
-                              style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.primary),
+                              d.fullName.isNotEmpty
+                                  ? d.fullName[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.primary),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -644,11 +691,13 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                             d.fullName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.w600),
                           ),
                           Text(
                             '${d.completedDeliveries} liv.',
-                            style: const TextStyle(fontSize: 10, color: AppTheme.slate500),
+                            style: const TextStyle(
+                                fontSize: 10, color: AppTheme.slate500),
                           ),
                         ],
                       ),
@@ -662,7 +711,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     );
   }
 
-  Widget _modeTile(IconData icon, String title, String subtitle, bool selected, VoidCallback onTap) {
+  Widget _modeTile(IconData icon, String title, String subtitle, bool selected,
+      VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -677,18 +727,31 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: selected ? AppTheme.primary : AppTheme.slate400, size: 22),
+            Icon(icon,
+                color: selected ? AppTheme.primary : AppTheme.slate400,
+                size: 22),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: selected ? AppTheme.primary : AppTheme.textPrimary)),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: selected ? AppTheme.teal600 : AppTheme.slate500)),
+                  Text(title,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: selected
+                              ? AppTheme.primary
+                              : AppTheme.textPrimary)),
+                  Text(subtitle,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              selected ? AppTheme.teal600 : AppTheme.slate500)),
                 ],
               ),
             ),
-            if (selected) const Icon(Icons.check_circle, color: AppTheme.primary, size: 22),
+            if (selected)
+              const Icon(Icons.check_circle, color: AppTheme.primary, size: 22),
           ],
         ),
       ),
@@ -717,7 +780,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             return GestureDetector(
               onTap: () => setState(() => _parcelType = t.$1),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: selected ? AppTheme.primaryLight : AppTheme.slate50,
                   borderRadius: BorderRadius.circular(999),
@@ -729,9 +793,17 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(t.$2, size: 16, color: selected ? AppTheme.primary : AppTheme.slate500),
+                    Icon(t.$2,
+                        size: 16,
+                        color: selected ? AppTheme.primary : AppTheme.slate500),
                     const SizedBox(width: 6),
-                    Text(t.$3, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? AppTheme.primary : AppTheme.textPrimary)),
+                    Text(t.$3,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: selected
+                                ? AppTheme.primary
+                                : AppTheme.textPrimary)),
                   ],
                 ),
               ),
@@ -780,18 +852,20 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         SwitchListTile(
           value: _isUrgent,
           onChanged: (v) => setState(() => _isUrgent = v),
-          title: const Text('Express / Urgent', style: TextStyle(fontWeight: FontWeight.w600)),
+          title: const Text('Express / Urgent',
+              style: TextStyle(fontWeight: FontWeight.w600)),
           subtitle: const Text('Livraison prioritaire (+2000 FCFA)'),
-          activeColor: AppTheme.red400,
+          activeThumbColor: AppTheme.red400,
           dense: true,
           contentPadding: EdgeInsets.zero,
         ),
         SwitchListTile(
           value: _isInsured,
           onChanged: (v) => setState(() => _isInsured = v),
-          title: const Text('Assurance', style: TextStyle(fontWeight: FontWeight.w600)),
+          title: const Text('Assurance',
+              style: TextStyle(fontWeight: FontWeight.w600)),
           subtitle: const Text('Protection du colis (200 000 FCFA)'),
-          activeColor: AppTheme.green500,
+          activeThumbColor: AppTheme.green500,
           dense: true,
           contentPadding: EdgeInsets.zero,
         ),
@@ -834,17 +908,20 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         ),
         if (_photos.isNotEmpty) ...[
           const SizedBox(height: 10),
-          Text('${_photos.length} photo(s)', style: const TextStyle(fontSize: 12, color: AppTheme.slate500)),
+          Text('${_photos.length} photo(s)',
+              style: const TextStyle(fontSize: 12, color: AppTheme.slate500)),
         ],
         if (_voiceMessages.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Text('${_voiceMessages.length} message(s) vocal(aux)', style: const TextStyle(fontSize: 12, color: AppTheme.slate500)),
+          Text('${_voiceMessages.length} message(s) vocal(aux)',
+              style: const TextStyle(fontSize: 12, color: AppTheme.slate500)),
         ],
       ],
     );
   }
 
-  Widget _mediaButton(IconData icon, String label, VoidCallback onTap, {bool highlight = false}) {
+  Widget _mediaButton(IconData icon, String label, VoidCallback onTap,
+      {bool highlight = false}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -856,9 +933,15 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: highlight ? AppTheme.red400 : AppTheme.primary),
+            Icon(icon,
+                size: 20,
+                color: highlight ? AppTheme.red400 : AppTheme.primary),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: highlight ? AppTheme.red400 : AppTheme.textPrimary)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: highlight ? AppTheme.red400 : AppTheme.textPrimary)),
           ],
         ),
       ),
@@ -874,40 +957,60 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       children: [
         _sectionHeader('Récapitulatif', Icons.receipt_long_rounded),
         const SizedBox(height: 12),
-        _recapSection('Destinataire', Icons.person_pin_rounded, [
-          _recapRow('Nom', _receiverNameCtrl.text.trim()),
-          _recapRow('Téléphone', _receiverPhoneCtrl.text.trim()),
-          if (_receiverEmailCtrl.text.trim().isNotEmpty) _recapRow('Email', _receiverEmailCtrl.text.trim()),
-          if (_receiverAddressCtrl.text.trim().isNotEmpty) _recapRow('Adresse', _receiverAddressCtrl.text.trim()),
-        ], onEdit: () => _goToStep(0)),
+        _recapSection(
+            'Destinataire',
+            Icons.person_pin_rounded,
+            [
+              _recapRow('Nom', _receiverNameCtrl.text.trim()),
+              _recapRow('Téléphone', _receiverPhoneCtrl.text.trim()),
+              if (_receiverEmailCtrl.text.trim().isNotEmpty)
+                _recapRow('Email', _receiverEmailCtrl.text.trim()),
+              if (_receiverAddressCtrl.text.trim().isNotEmpty)
+                _recapRow('Adresse', _receiverAddressCtrl.text.trim()),
+            ],
+            onEdit: () => _goToStep(0)),
         const SizedBox(height: 12),
-        _recapSection('Livraison', Icons.route_rounded, [
-          _recapRow('Départ', departure?.name ?? '-'),
-          _recapRow('Arrivée', arrival?.name ?? '-'),
-          _recapRow('Mode', _modeLabel),
-          if (!_isFreeMode && _selectedDriver != null) _recapRow('Chauffeur', _selectedDriver!.fullName),
-        ], onEdit: () => _goToStep(1)),
+        _recapSection(
+            'Livraison',
+            Icons.route_rounded,
+            [
+              _recapRow('Départ', departure?.name ?? '-'),
+              _recapRow('Arrivée', arrival?.name ?? '-'),
+              _recapRow('Mode', _modeLabel),
+              if (!_isFreeMode && _selectedDriver != null)
+                _recapRow('Chauffeur', _selectedDriver!.fullName),
+            ],
+            onEdit: () => _goToStep(1)),
         const SizedBox(height: 12),
-        _recapSection('Colis', Icons.tune_rounded, [
-          _recapRow('Type', _parcelType.label),
-          _recapRow('Poids', '${_weightCtrl.text.trim()} kg'),
-          if (_proposedPriceCtrl.text.trim().isNotEmpty) _recapRow('Prix', '${_proposedPriceCtrl.text.trim()} FCFA'),
-          _recapRow(
-            'Paiement',
-            _paymentChannel.isCash
-                ? '${_paymentChannel.label} · ${_cashCollectionPoint.payerLabel.toLowerCase()}'
-                : _paymentChannel.label,
-          ),
-          if (_descriptionCtrl.text.trim().isNotEmpty) _recapRow('Description', _descriptionCtrl.text.trim()),
-          _recapBadgeRow('Express', _isUrgent, 'Oui (+2000 FCFA)', 'Non'),
-          _recapBadgeRow('Assurance', _isInsured, 'Oui', 'Non'),
-        ], onEdit: () => _goToStep(2)),
+        _recapSection(
+            'Colis',
+            Icons.tune_rounded,
+            [
+              _recapRow('Type', _parcelType.label),
+              _recapRow('Poids', '${_weightCtrl.text.trim()} kg'),
+              if (_proposedPriceCtrl.text.trim().isNotEmpty)
+                _recapRow('Prix', '${_proposedPriceCtrl.text.trim()} FCFA'),
+              _recapRow(
+                'Paiement',
+                _paymentChannel.isCash
+                    ? '${_paymentChannel.label} · ${_cashCollectionPoint.payerLabel.toLowerCase()}'
+                    : _paymentChannel.label,
+              ),
+              if (_descriptionCtrl.text.trim().isNotEmpty)
+                _recapRow('Description', _descriptionCtrl.text.trim()),
+              _recapBadgeRow('Express', _isUrgent, 'Oui (+2000 FCFA)', 'Non'),
+              _recapBadgeRow('Assurance', _isInsured, 'Oui', 'Non'),
+            ],
+            onEdit: () => _goToStep(2)),
         if (_photos.isNotEmpty || _voiceMessages.isNotEmpty) ...[
           const SizedBox(height: 12),
           _recapSection('Médias', Icons.perm_media_rounded, [
-            if (_photos.isNotEmpty) _recapRow('Photos', '${_photos.length} fichier(s)'),
-            if (_videos.isNotEmpty) _recapRow('Vidéos', '${_videos.length} fichier(s)'),
-            if (_voiceMessages.isNotEmpty) _recapRow('Audio', '${_voiceMessages.length} message(s)'),
+            if (_photos.isNotEmpty)
+              _recapRow('Photos', '${_photos.length} fichier(s)'),
+            if (_videos.isNotEmpty)
+              _recapRow('Vidéos', '${_videos.length} fichier(s)'),
+            if (_voiceMessages.isNotEmpty)
+              _recapRow('Audio', '${_voiceMessages.length} message(s)'),
           ]),
         ],
       ],
@@ -919,12 +1022,17 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       children: [
         Icon(icon, size: 20, color: AppTheme.primary),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+        Text(title,
+            style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary)),
       ],
     );
   }
 
-  Widget _recapSection(String title, IconData icon, List<Widget> rows, {VoidCallback? onEdit}) {
+  Widget _recapSection(String title, IconData icon, List<Widget> rows,
+      {VoidCallback? onEdit}) {
     return ProcolisCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -934,12 +1042,17 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             children: [
               Icon(icon, size: 18, color: AppTheme.primary),
               const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary)),
               const Spacer(),
               if (onEdit != null)
                 GestureDetector(
                   onTap: onEdit,
-                  child: const Icon(Icons.edit_rounded, size: 18, color: AppTheme.primary),
+                  child: const Icon(Icons.edit_rounded,
+                      size: 18, color: AppTheme.primary),
                 ),
             ],
           ),
@@ -957,15 +1070,25 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         children: [
           SizedBox(
             width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600)),
           ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary))),
+          Expanded(
+              child: Text(value,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary))),
         ],
       ),
     );
   }
 
-  Widget _recapBadgeRow(String label, bool value, String activeLabel, String inactiveLabel) {
+  Widget _recapBadgeRow(
+      String label, bool value, String activeLabel, String inactiveLabel) {
     final color = value ? AppTheme.green500 : AppTheme.slate400;
     final bg = value ? AppTheme.green50 : AppTheme.slate100;
     return Padding(
@@ -974,14 +1097,20 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         children: [
           SizedBox(
             width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600)),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+            decoration: BoxDecoration(
+                color: bg, borderRadius: BorderRadius.circular(999)),
             child: Text(
               value ? activeLabel : inactiveLabel,
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color),
+              style: TextStyle(
+                  fontSize: 11.5, fontWeight: FontWeight.w700, color: color),
             ),
           ),
         ],
@@ -1004,7 +1133,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(100, 46),
                 side: const BorderSide(color: AppTheme.slate300),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
               ),
               child: const Text('Précédent'),
             )
@@ -1019,7 +1149,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                 foregroundColor: Colors.white,
                 minimumSize: const Size(120, 46),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
               ),
               child: const Text('Suivant'),
             )
@@ -1031,10 +1162,15 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                 foregroundColor: Colors.white,
                 minimumSize: const Size(160, 46),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
               ),
               child: _isPublishing
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Text('Publier le colis'),
             ),
         ],

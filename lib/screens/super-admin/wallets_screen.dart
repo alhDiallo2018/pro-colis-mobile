@@ -85,7 +85,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
                                   Container(
                                     width: 44, height: 44,
                                     decoration: BoxDecoration(
-                                      color: isActive ? AppTheme.primary.withOpacity(0.1) : AppTheme.slate200,
+                                      color: isActive ? AppTheme.primary.withValues(alpha: 0.1) : AppTheme.slate200,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(Icons.account_balance_wallet,

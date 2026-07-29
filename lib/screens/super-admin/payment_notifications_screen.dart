@@ -45,7 +45,7 @@ class _PaymentNotificationsScreenState
   @override
   void initState() {
     super.initState();
-    _loadLastSeen().then((_) => _load(initial: true));
+    _initialize();
     _timer = Timer.periodic(const Duration(seconds: 15), (_) => _load());
   }
 
@@ -53,6 +53,12 @@ class _PaymentNotificationsScreenState
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initialize() async {
+    await _loadLastSeen();
+    if (!mounted) return;
+    await _load(initial: true);
   }
 
   Future<void> _loadLastSeen() async {
@@ -65,6 +71,7 @@ class _PaymentNotificationsScreenState
   }
 
   Future<void> _load({bool initial = false}) async {
+    if (!mounted) return;
     if (initial) {
       setState(() {
         _loading = true;

@@ -9,7 +9,6 @@ import 'package:procolis/widgets/app_logo.dart';
 import '../../models/user.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/pc_components.dart';
 
 class GarageAdminDriversScreen extends ConsumerStatefulWidget {

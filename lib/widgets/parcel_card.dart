@@ -17,21 +17,6 @@ class ParcelCard extends StatelessWidget {
     required this.onTap,
   });
 
-  IconData _getTypeIcon(ParcelType type) {
-    switch (type) {
-      case ParcelType.document:
-        return Icons.description_rounded;
-      case ParcelType.package:
-        return Icons.inventory_2_rounded;
-      case ParcelType.fragile:
-        return Icons.warning_amber_rounded;
-      case ParcelType.perishable:
-        return Icons.food_bank_rounded;
-      case ParcelType.valuable:
-        return Icons.diamond_rounded;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final status = AppTheme.statusColors(parcel.status);

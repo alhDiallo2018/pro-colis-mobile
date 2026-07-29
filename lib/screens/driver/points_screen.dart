@@ -13,7 +13,6 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/commission_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/pc_components.dart';
 
@@ -21,8 +20,7 @@ class DriverPointsScreen extends ConsumerStatefulWidget {
   const DriverPointsScreen({super.key});
 
   @override
-  ConsumerState<DriverPointsScreen> createState() =>
-      _DriverPointsScreenState();
+  ConsumerState<DriverPointsScreen> createState() => _DriverPointsScreenState();
 }
 
 class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
@@ -117,7 +115,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.18),
+                  color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
                 child: const Icon(Icons.account_balance_wallet_rounded,
@@ -134,7 +132,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.7,
-                        color: AppTheme.amberOnFg.withOpacity(0.75),
+                        color: AppTheme.amberOnFg.withValues(alpha: 0.75),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -156,7 +154,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                           style: AppTheme.mono(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: AppTheme.amberOnFg.withOpacity(0.7),
+                            color: AppTheme.amberOnFg.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -167,7 +165,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                       style: AppFonts.plusJakartaSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
-                        color: AppTheme.amberOnFg.withOpacity(0.6),
+                        color: AppTheme.amberOnFg.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -225,9 +223,15 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          row(Icons.local_shipping_rounded, PcTone.green,
-              'Des commissions sont automatiquement déduites', 'À chaque livraison acceptée'),
-          row(Icons.add_circle_rounded, PcTone.amber, 'Rechargez votre portefeuille',
+          row(
+              Icons.local_shipping_rounded,
+              PcTone.green,
+              'Des commissions sont automatiquement déduites',
+              'À chaque livraison acceptée'),
+          row(
+              Icons.add_circle_rounded,
+              PcTone.amber,
+              'Rechargez votre portefeuille',
               '1 FCFA = 1 crédit. Rechargez en Wave, OM, CB...'),
           row(Icons.rocket_launch_rounded, PcTone.primary,
               'Maintenez un solde suffisant', 'Pour accepter des livraisons',
@@ -269,7 +273,9 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
             child: Icon(
-              isPositive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+              isPositive
+                  ? Icons.trending_up_rounded
+                  : Icons.trending_down_rounded,
               color: isPositive ? AppTheme.green700 : AppTheme.red500,
               size: 22,
             ),
@@ -298,15 +304,14 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
   // ------ Recharge Bottom Sheet ------
 
   void _showRechargeSheet() {
-    final authState = ref.read(authProvider);
-    final userId = authState.user?.id ?? '';
-    final userPhone = authState.user?.phone ?? '';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _RechargeSheetContent(userId: userId, userPhone: userPhone),
-    ).then((_) => _loadData());
+      builder: (_) => const _RechargeSheetContent(),
+    ).then((_) {
+      if (mounted) _loadData();
+    });
   }
 }
 
@@ -325,7 +330,7 @@ class _GhostButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.18),
+      color: Colors.white.withValues(alpha: 0.18),
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: InkWell(
         onTap: onPressed,
@@ -359,9 +364,7 @@ class _GhostButton extends StatelessWidget {
 // ==================== RECHARGE BOTTOM SHEET ====================
 
 class _RechargeSheetContent extends StatefulWidget {
-  final String userId;
-  final String userPhone;
-  const _RechargeSheetContent({required this.userId, required this.userPhone});
+  const _RechargeSheetContent();
 
   @override
   State<_RechargeSheetContent> createState() => _RechargeSheetContentState();
@@ -369,11 +372,9 @@ class _RechargeSheetContent extends StatefulWidget {
 
 class _RechargeSheetContentState extends State<_RechargeSheetContent> {
   final ApiService _apiService = ApiService();
-  late final _phoneController = TextEditingController(text: widget.userPhone);
   final _customAmountController = TextEditingController();
 
   int? _selectedPack;
-  String? _selectedMethod;
   bool _isCustomAmount = false;
   bool _isSubmitting = false;
 
@@ -385,28 +386,6 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
     {'points': 10000, 'price': 10000},
   ];
 
-  static const List<Map<String, dynamic>> _paymentMethods = [
-    {'value': 'wave', 'label': 'Wave', 'icon': Icons.phone_android},
-    {
-      'value': 'orange_money',
-      'label': 'Orange Money',
-      'icon': Icons.phone_iphone
-    },
-    {
-      'value': 'free_money',
-      'label': 'Free Money',
-      'icon': Icons.phone_android
-    },
-    {'value': 'card', 'label': 'Carte bancaire', 'icon': Icons.credit_card},
-    {'value': 'paydunya', 'label': 'PayDunya', 'icon': Icons.payment},
-    {'value': 'cash', 'label': 'Espèces', 'icon': Icons.money},
-  ];
-
-  bool get _needsPhone =>
-      _selectedMethod == 'wave' ||
-      _selectedMethod == 'orange_money' ||
-      _selectedMethod == 'free_money';
-
   int get _amount {
     if (_isCustomAmount) {
       return int.tryParse(_customAmountController.text.trim()) ?? 0;
@@ -417,11 +396,10 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
     return 0;
   }
 
-  bool get _canSubmit => _amount > 0 && _selectedMethod != null;
+  bool get _canSubmit => _amount > 0;
 
   @override
   void dispose() {
-    _phoneController.dispose();
     _customAmountController.dispose();
     super.dispose();
   }
@@ -429,88 +407,56 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
   Future<void> _submit() async {
     if (!_canSubmit) return;
 
-        if (_needsPhone && _phoneController.text.trim().isEmpty) {
-          _phoneController.text = widget.userPhone;
-          if (widget.userPhone.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Veuillez entrer le numéro de téléphone'),
-                  backgroundColor: AppTheme.error),
-            );
-            return;
-          }
-        }
-
     setState(() => _isSubmitting = true);
     try {
-      if (_selectedMethod == 'paydunya') {
-        final payment = await _apiService.createPaydunyaPayment(
-          'wallet',
-          amount: _amount.toDouble(),
+      // Le backend crédite un portefeuille utilisateur uniquement après la
+      // confirmation PayDunya (ou son IPN signé). Aucun crédit direct ne doit
+      // être simulé depuis le mobile.
+      final payment = await _apiService.createPaydunyaPayment(
+        'wallet',
+        amount: _amount.toDouble(),
+      );
+      final paymentUrl = payment['paymentUrl']?.toString() ?? '';
+      final token = payment['token']?.toString() ?? '';
+      if (paymentUrl.isEmpty || token.isEmpty) {
+        throw StateError(
+          payment['message']?.toString() ??
+              'Impossible de créer le paiement PayDunya',
         );
-        final paymentUrl = payment['paymentUrl']?.toString();
-        if (paymentUrl != null && paymentUrl.isNotEmpty) {
-          await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
-          final token = payment['token']?.toString() ?? '';
-          final confirm = await _apiService.confirmPaydunyaPayment(token);
-          if (confirm['status'] == 'completed') {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Paiement confirmé via PayDunya'),
-                    backgroundColor: AppTheme.green600),
-              );
-              Navigator.pop(context);
-            }
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Paiement en attente de confirmation'),
-                    backgroundColor: AppTheme.amber600),
-              );
-            }
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Erreur: impossible de créer le paiement PayDunya'),
-                  backgroundColor: AppTheme.error),
-            );
-          }
-        }
-      } else {
-        final result = await _apiService.depositWallet(
-          widget.userId,
-          {
-            'amount': _amount,
-            'method': _selectedMethod,
-            if (_needsPhone) 'phone': _phoneController.text.trim().isNotEmpty
-                ? _phoneController.text.trim()
-                : widget.userPhone,
-          },
-        );
+      }
 
-        if (mounted) {
-          if (result['success'] == true) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Recharge effectuée avec succès'),
-                  backgroundColor: AppTheme.green600),
-            );
-            Navigator.pop(context);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(
-                      result['message']?.toString() ?? 'Erreur de recharge'),
-                  backgroundColor: AppTheme.error),
-            );
-          }
-        }
+      final launched = await launchUrl(
+        Uri.parse(paymentUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        throw StateError('Impossible d’ouvrir la page de paiement PayDunya');
+      }
+
+      // La confirmation immédiate couvre les retours rapides. Si le paiement
+      // est encore en cours, l’IPN signé côté API terminera le crédit.
+      final confirm = await _apiService.confirmPaydunyaPayment(token);
+      if (!mounted) return;
+      if (confirm['status'] == 'completed') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Paiement confirmé via PayDunya'),
+            backgroundColor: AppTheme.green600,
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Paiement ouvert. Le solde sera crédité après confirmation.',
+            ),
+            backgroundColor: AppTheme.amber600,
+          ),
+        );
       }
     } catch (e) {
+      debugPrint('[DriverPoints] Échec recharge PayDunya: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -585,7 +531,8 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                     itemCount: _packs.length,
                     itemBuilder: (context, index) {
                       final pack = _packs[index];
-                      final selected = _selectedPack == index && !_isCustomAmount;
+                      final selected =
+                          _selectedPack == index && !_isCustomAmount;
                       return GestureDetector(
                         onTap: () {
                           setState(() {
@@ -597,9 +544,8 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                         child: Container(
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: selected
-                                ? AppTheme.amber50
-                                : AppTheme.slate50,
+                            color:
+                                selected ? AppTheme.amber50 : AppTheme.slate50,
                             borderRadius:
                                 BorderRadius.circular(AppTheme.radiusMd),
                             border: Border.all(
@@ -655,8 +601,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                         color: _isCustomAmount
                             ? AppTheme.teal50
                             : AppTheme.slate50,
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusMd),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                         border: Border.all(
                           color: _isCustomAmount
                               ? AppTheme.teal500
@@ -690,9 +635,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                     TextField(
                       controller: _customAmountController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly
-                      ],
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
                         hintText: 'Montant en FCFA',
                         prefixIcon: const Icon(Icons.monetization_on_outlined),
@@ -704,88 +647,45 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                   ],
                   const SizedBox(height: 24),
 
-                  // Payment method
-                  const Text('Moyen de paiement',
+                  // PayDunya présente ensuite les canaux réellement activés
+                  // par la configuration serveur (mobile money ou carte).
+                  const Text('Paiement sécurisé',
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                           color: AppTheme.textPrimary)),
                   const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _paymentMethods.map((method) {
-                      final selected = _selectedMethod == method['value'];
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedMethod = method['value'] as String;
-                          });
-                        },
-                        child: Container(
-                          width: (MediaQuery.of(context).size.width - 60) / 3,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 14, horizontal: 4),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? AppTheme.teal50
-                                : AppTheme.slate50,
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusMd),
-                            border: Border.all(
-                              color: selected
-                                  ? AppTheme.teal500
-                                  : AppTheme.slate200,
-                              width: selected ? 2 : 1,
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.teal50,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(color: AppTheme.teal500),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.verified_user_rounded,
+                            color: AppTheme.teal600),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'PayDunya — Wave, Orange Money, Free Money et carte selon disponibilité.',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.teal700,
                             ),
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                method['icon'] as IconData,
-                                size: 24,
-                                color: selected
-                                    ? AppTheme.teal600
-                                    : AppTheme.slate500,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                method['label'] as String,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: selected
-                                      ? AppTheme.teal600
-                                      : AppTheme.slate600,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
-                      );
-                    }).toList(),
+                      ],
+                    ),
                   ),
-                  if (_needsPhone) ...[
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      hintText: widget.userPhone.isNotEmpty ? widget.userPhone : 'Numéro de téléphone',
-                      prefixIcon: const Icon(Icons.phone),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
-                    ),
-                    ),
-                  ],
                   const SizedBox(height: 24),
 
                   // Submit
                   CustomButton(
-                    text: _isSubmitting ? 'Rechargement...' : 'Recharger',
+                    text: _isSubmitting
+                        ? 'Ouverture du paiement...'
+                        : 'Continuer avec PayDunya',
                     isLoading: _isSubmitting,
                     backgroundColor: AppTheme.amber400,
                     onPressed: _canSubmit && !_isSubmitting ? _submit : null,

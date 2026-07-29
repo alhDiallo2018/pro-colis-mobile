@@ -132,7 +132,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
     final buckets = List<double>.filled(12, 0);
     for (final p in _parcels.where((p) => p.status == ParcelStatus.delivered)) {
       final m = p.createdAt.month;
-      if (m >= 1 && m <= 12) buckets[m - 1] += (p.price ?? 0);
+      if (m >= 1 && m <= 12) buckets[m - 1] += p.price ?? 0;
     }
     return buckets;
   }

@@ -70,16 +70,38 @@ class AvailabilityToggle extends ConsumerWidget {
             height: 24,
             child: Switch.adaptive(
               value: available,
-              activeColor: AppTheme.green500,
-              onChanged: (val) {
-                final api = ApiService();
-                api.updateDriverStatus(val ? 'available' : 'offline');
-                ref.read(authProvider.notifier).refreshUser();
-              },
+              activeThumbColor: AppTheme.green500,
+              onChanged: (value) =>
+                  _updateAvailability(context, ref, value),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _updateAvailability(
+    BuildContext context,
+    WidgetRef ref,
+    bool available,
+  ) async {
+    try {
+      // Le rafraîchissement attend la confirmation du serveur afin que le
+      // switch reflète toujours le statut réellement enregistré.
+      final api = ApiService();
+      await api.updateDriverStatus(available ? 'available' : 'offline');
+      await ref.read(authProvider.notifier).refreshUser();
+    } catch (error, stackTrace) {
+      debugPrint(
+        'AvailabilityToggle: mise à jour du statut impossible '
+        '($error)\n$stackTrace',
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible de modifier votre disponibilité.'),
+        ),
+      );
+    }
   }
 }

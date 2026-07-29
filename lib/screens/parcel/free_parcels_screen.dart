@@ -15,16 +15,17 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 import '../../models/parcel.dart';
+import '../../models/user.dart';
 import '../../models/voice_message.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/parcel_offer_helpers.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/pc_components.dart';
 import '../driver/itinerary_map_screen.dart';
-import '../shared/messages_screen.dart';
 
 class FreeParcelsScreen extends ConsumerStatefulWidget {
   const FreeParcelsScreen({super.key});
@@ -34,15 +35,15 @@ class FreeParcelsScreen extends ConsumerStatefulWidget {
 }
 
 class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
-  static const _filters = [
-    'Tous',
-    'Abidjan →',
-    'Express',
-    '< 10 kg',
-    'Aujourd’hui'
-  ];
+  static const _zoneFilter = 'zone';
+  static const _allFilter = 'all';
+  static const _expressFilter = 'express';
+  static const _lightFilter = 'light';
+  static const _todayFilter = 'today';
 
-  String _selectedFilter = 'Tous';
+  // La zone personnelle est prioritaire à l'ouverture de l'écran afin de ne
+  // pas exposer par défaut des départs situés dans les autres villes.
+  String _selectedFilter = _zoneFilter;
 
   @override
   void initState() {
@@ -50,20 +51,27 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
     Future.microtask(() => ref.read(parcelProvider.notifier).loadFreeParcels());
   }
 
-  List<Parcel> _filteredParcels(List<Parcel> parcels) {
+  List<MapEntry<String, String>> _filters(String? userZone) => [
+        MapEntry(_zoneFilter, '${userZone ?? 'Ma zone'} →'),
+        const MapEntry(_allFilter, 'Tous'),
+        const MapEntry(_expressFilter, 'Express'),
+        const MapEntry(_lightFilter, '< 10 kg'),
+        const MapEntry(_todayFilter, 'Aujourd’hui'),
+      ];
+
+  List<Parcel> _filteredParcels(List<Parcel> parcels, User? user) {
     final today = DateTime.now();
 
     switch (_selectedFilter) {
-      case 'Abidjan →':
+      case _zoneFilter:
         return parcels
-            .where((parcel) =>
-                parcel.departureGarageName.toLowerCase().contains('abidjan'))
+            .where((parcel) => parcelStartsInUserZone(parcel, user))
             .toList();
-      case 'Express':
+      case _expressFilter:
         return parcels.where((parcel) => parcel.isUrgent).toList();
-      case '< 10 kg':
+      case _lightFilter:
         return parcels.where((parcel) => parcel.weight < 10).toList();
-      case 'Aujourd’hui':
+      case _todayFilter:
         return parcels
             .where((parcel) =>
                 parcel.createdAt.year == today.year &&
@@ -86,7 +94,9 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
         fullscreenDialog: true,
         builder: (_) => FreeParcelDetailsScreen(parcel: parcel),
       ),
-    ).then((_) => _refresh());
+    ).then((_) {
+      if (mounted) _refresh();
+    });
   }
 
   void _openChat(Parcel parcel, Bid bid) {
@@ -108,8 +118,10 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
   @override
   Widget build(BuildContext context) {
     final parcelState = ref.watch(parcelProvider);
-    final currentUserId = ref.watch(authProvider).user?.id;
-    final parcels = _filteredParcels(parcelState.freeParcels);
+    final currentUser = ref.watch(authProvider).user;
+    final userZone = resolveUserResidenceZone(currentUser);
+    final filters = _filters(userZone);
+    final parcels = _filteredParcels(parcelState.freeParcels, currentUser);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -117,11 +129,11 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
       body: Column(
         children: [
           _PoolHeader(
-            count: parcelState.freeParcels.length,
+            count: parcels.length,
             onRefresh: _refresh,
           ),
           _PoolFilterBar(
-            filters: _filters,
+            filters: filters,
             selected: _selectedFilter,
             onSelect: (filter) => setState(() => _selectedFilter = filter),
           ),
@@ -136,13 +148,14 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(24, 48, 24, 120),
-                          children: const [
+                          children: [
                             PcEmptyState(
                               icon: Icons.inventory_2_outlined,
                               tone: PcTone.primary,
                               title: 'Aucun colis à prendre',
-                              message:
-                                  'Les demandes clients en libre service apparaîtront ici.',
+                              message: userZone == null
+                                  ? 'Renseignez votre ville dans votre profil pour voir les départs de votre zone.'
+                                  : 'Aucun colis ne part actuellement de $userZone.',
                             ),
                           ],
                         )
@@ -154,15 +167,10 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
                               const SizedBox(height: 14),
                           itemBuilder: (context, index) {
                             final parcel = parcels[index];
-                            final existingBid = currentUserId != null
-                                ? parcel.bids.cast<Bid?>().firstWhere(
-                                    (b) => b!.driverId == currentUserId,
-                                    orElse: () => null,
-                                  )
-                                : null;
+                            final existingBid =
+                                findUserBid(parcel, currentUser?.id);
                             return _FreeParcelItem(
                               parcel: parcel,
-                              currentUserId: currentUserId,
                               hasBid: existingBid != null,
                               onOffer: () => _openOffer(parcel),
                               onChat: existingBid != null
@@ -197,6 +205,7 @@ class _FreeParcelDetailsScreenState
   final _audioPlayer = AudioPlayer();
 
   Timer? _recordingTimer;
+  StreamSubscription<void>? _audioCompleteSubscription;
   VoiceMessage? _voiceMessage;
   String? _playingPath;
   String? _createdBidId;
@@ -210,12 +219,16 @@ class _FreeParcelDetailsScreenState
     super.initState();
     final price = widget.parcel.proposedPrice ?? widget.parcel.price ?? 0;
     if (price > 0) _priceController.text = _formatFcfa(price);
+    _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playingPath = null);
+    });
     Permission.microphone.request();
   }
 
   @override
   void dispose() {
     _recordingTimer?.cancel();
+    _audioCompleteSubscription?.cancel();
     _audioRecorder.dispose();
     _audioPlayer.dispose();
     _deleteVoiceFile();
@@ -299,9 +312,6 @@ class _FreeParcelDetailsScreenState
     await _audioPlayer.stop();
     await _audioPlayer.play(DeviceFileSource(voice.path));
     if (mounted) setState(() => _playingPath = voice.path);
-    _audioPlayer.onPlayerComplete.first.then((_) {
-      if (mounted) setState(() => _playingPath = null);
-    });
   }
 
   void _deleteVoiceFile() {
@@ -349,14 +359,13 @@ class _FreeParcelDetailsScreenState
 
     final voice = _voiceMessage;
     if (voice != null) {
-      // L'API existante sait uploader ce XFile avant création de l'offre.
+      // ApiService téléverse le fichier puis transmet uniquement son URL à
+      // l'endpoint JSON de création d'offre.
       bidData['audioFile'] = XFile(voice.path);
       bidData['audioDuration'] = voice.duration;
     }
 
-    final result = await ref
-        .read(parcelProvider.notifier)
-        .createBid(bidData);
+    final result = await ref.read(parcelProvider.notifier).createBid(bidData);
 
     if (!mounted) return;
     setState(() => _isSending = false);
@@ -544,7 +553,7 @@ class _PoolHeader extends StatelessWidget {
 }
 
 class _PoolFilterBar extends StatelessWidget {
-  final List<String> filters;
+  final List<MapEntry<String, String>> filters;
   final String selected;
   final ValueChanged<String> onSelect;
 
@@ -569,9 +578,9 @@ class _PoolFilterBar extends StatelessWidget {
           itemBuilder: (context, index) {
             final filter = filters[index];
             return _PoolFilterChip(
-              label: filter,
-              selected: selected == filter,
-              onTap: () => onSelect(filter),
+              label: filter.value,
+              selected: selected == filter.key,
+              onTap: () => onSelect(filter.key),
             );
           },
           separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -584,14 +593,12 @@ class _PoolFilterBar extends StatelessWidget {
 
 class _FreeParcelItem extends StatelessWidget {
   final Parcel parcel;
-  final String? currentUserId;
   final bool hasBid;
   final VoidCallback onOffer;
   final VoidCallback? onChat;
 
   const _FreeParcelItem({
     required this.parcel,
-    required this.currentUserId,
     required this.hasBid,
     required this.onOffer,
     this.onChat,
@@ -607,7 +614,9 @@ class _FreeParcelItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ParcelCard(parcel: parcel, onTap: (hasBid && onChat != null) ? onChat! : onOffer),
+        ParcelCard(
+            parcel: parcel,
+            onTap: (hasBid && onChat != null) ? onChat! : onOffer),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -626,20 +635,15 @@ class _FreeParcelItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            if (hasBid)
-              const PcBadge(
-                'Offre envoyée',
-                tone: PcTone.amber,
-                icon: Icons.check_circle_rounded,
-              )
-            else
-              PcButton(
-                'Faire une offre',
-                icon: Icons.gavel_rounded,
-                variant: PcButtonVariant.secondary,
-                size: PcButtonSize.sm,
-                onPressed: onOffer,
-              ),
+            PcButton(
+              hasBid ? 'Suivi offre' : 'Faire une offre',
+              icon: hasBid
+                  ? Icons.chat_bubble_outline_rounded
+                  : Icons.gavel_rounded,
+              variant: PcButtonVariant.secondary,
+              size: PcButtonSize.sm,
+              onPressed: hasBid ? onChat : onOffer,
+            ),
           ],
         ),
       ],
@@ -873,8 +877,7 @@ class _OfferMessageField extends StatelessWidget {
           style: AppFonts.manrope(fontSize: 15, color: AppTheme.slate700),
           decoration: InputDecoration(
             hintText: 'Ex : Je pars cet après-midi, livraison ce soir.',
-            hintStyle:
-                AppFonts.manrope(color: AppTheme.slate400, fontSize: 15),
+            hintStyle: AppFonts.manrope(color: AppTheme.slate400, fontSize: 15),
             filled: true,
             fillColor: AppTheme.cardColor,
             counterStyle: AppFonts.manrope(

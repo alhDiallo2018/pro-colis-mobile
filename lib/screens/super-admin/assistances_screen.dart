@@ -451,7 +451,7 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
               ValueListenableBuilder<String>(
                 valueListenable: channel,
                 builder: (_, v, __) => DropdownButtonFormField<String>(
-                  value: v,
+                  initialValue: v,
                   decoration: const InputDecoration(labelText: 'Canal'),
                   items: _channels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
                   onChanged: (nv) => channel.value = nv ?? 'chat',
@@ -505,7 +505,7 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
               ValueListenableBuilder<String>(
                 valueListenable: status,
                 builder: (_, v, __) => DropdownButtonFormField<String>(
-                  value: v,
+                  initialValue: v,
                   decoration: const InputDecoration(labelText: 'Statut'),
                   items: _statuses.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
                   onChanged: (nv) => status.value = nv ?? 'open',

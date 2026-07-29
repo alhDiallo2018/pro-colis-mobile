@@ -80,7 +80,7 @@ class _ClassementScreenState extends ConsumerState<ClassementScreen> {
                                       width: 32,
                                       child: Text('#$rank', style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.slate500)),
                                     ),
-                                    CircleAvatar(radius: 14, backgroundColor: AppTheme.primary.withOpacity(0.1),
+                                    CircleAvatar(radius: 14, backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                                         child: Text((r['fullName']?.toString() ?? '?')[0].toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primary))),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -88,7 +88,7 @@ class _ClassementScreenState extends ConsumerState<ClassementScreen> {
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(99)),
+                                      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(99)),
                                       child: Text(level, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
                                     ),
                                     const SizedBox(width: 8),
@@ -135,7 +135,7 @@ class _ClassementScreenState extends ConsumerState<ClassementScreen> {
           Container(
             height: height,
             decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color.withOpacity(0.6), color]),
+              gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color.withValues(alpha: 0.6), color]),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
             ),
             child: Center(

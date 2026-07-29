@@ -84,13 +84,17 @@ class _DriverMesAnnoncesScreenState
             onChanged: _loadColis,
           ),
         ),
-      ).then((_) => _loadColis());
+      ).then((_) {
+        if (mounted) _loadColis();
+      });
     } else {
       Navigator.push(
         context,
         MaterialPageRoute(
             builder: (_) => FreeParcelDetailsScreen(parcel: parcel)),
-      ).then((_) => _loadColis());
+      ).then((_) {
+        if (mounted) _loadColis();
+      });
     }
   }
 
@@ -144,13 +148,27 @@ class _DriverMesAnnoncesScreenState
   Future<void> _acceptOffer(String adId, String offerId) async {
     setState(() => _busyOfferId = offerId);
     try {
-      await _apiService.acceptAdvertisementOffer(adId, offerId);
+      final result = await _apiService.acceptAdvertisementOffer(adId, offerId);
+      if (result['success'] != true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result['message']?.toString() ??
+                    'Impossible d’accepter cette offre',
+              ),
+              backgroundColor: AppTheme.error,
+            ),
+          );
+        }
+        return;
+      }
       await _loadAds();
       ref.read(parcelProvider.notifier).loadDriverParcels();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Offre acceptée — le colis est maintenant dans vos missions.'),
+            content: Text('Offre acceptée'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -237,8 +255,8 @@ class _DriverMesAnnoncesScreenState
             backgroundColor: AppTheme.cardColor,
             isScrollControlled: true,
             shape: const RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
+              borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppTheme.radiusLg)),
             ),
             builder: (ctx) => _ParcelSheet(parcel: parcelData),
           );
@@ -411,15 +429,20 @@ class _DriverMesAnnoncesScreenState
         builder: (_) => _VoyageDetailScreen(
           ad: ad,
           onChat: (offer) => _openChat(ad, offer),
-          onAccept: (offerId) => _acceptOffer(ad['id']?.toString() ?? '', offerId),
-          onReject: (offerId) => _rejectOffer(ad['id']?.toString() ?? '', offerId),
-          onShowParcel: (offerId) => _showParcelInfo(ad['id']?.toString() ?? '', offerId),
+          onAccept: (offerId) =>
+              _acceptOffer(ad['id']?.toString() ?? '', offerId),
+          onReject: (offerId) =>
+              _rejectOffer(ad['id']?.toString() ?? '', offerId),
+          onShowParcel: (offerId) =>
+              _showParcelInfo(ad['id']?.toString() ?? '', offerId),
           onRefresh: _loadAds,
           busyOfferId: _busyOfferId,
           onCloseAd: () => _closeAd(ad['id']?.toString() ?? ''),
         ),
       ),
-    ).then((_) => _loadAds());
+    ).then((_) {
+      if (mounted) _loadAds();
+    });
   }
 
   Widget _buildAdCard(Map<String, dynamic> ad) {
@@ -1205,25 +1228,34 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
 
   String _offerStatusLabel(String status) {
     switch (status) {
-      case 'accepted': return 'Acceptée';
-      case 'rejected': return 'Refusée';
-      default: return 'En attente';
+      case 'accepted':
+        return 'Acceptée';
+      case 'rejected':
+        return 'Refusée';
+      default:
+        return 'En attente';
     }
   }
 
   PcTone _offerStatusTone(String status) {
     switch (status) {
-      case 'accepted': return PcTone.green;
-      case 'rejected': return PcTone.red;
-      default: return PcTone.amber;
+      case 'accepted':
+        return PcTone.green;
+      case 'rejected':
+        return PcTone.red;
+      default:
+        return PcTone.amber;
     }
   }
 
   String _adStatusLabel(String status) {
     switch (status) {
-      case 'closed': return 'Fermée';
-      case 'cancelled': return 'Annulée';
-      default: return 'Ouverte';
+      case 'closed':
+        return 'Fermée';
+      case 'cancelled':
+        return 'Annulée';
+      default:
+        return 'Ouverte';
     }
   }
 
@@ -1312,9 +1344,12 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
                                       const WidgetSpan(
                                         alignment: PlaceholderAlignment.middle,
                                         child: Padding(
-                                          padding: EdgeInsets.symmetric(horizontal: 6),
-                                          child: Icon(Icons.arrow_right_alt_rounded,
-                                              size: 22, color: AppTheme.slate400),
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 6),
+                                          child: Icon(
+                                              Icons.arrow_right_alt_rounded,
+                                              size: 22,
+                                              color: AppTheme.slate400),
                                         ),
                                       ),
                                       TextSpan(text: arrival),
@@ -1339,18 +1374,22 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
                               if (weight != null)
                                 _detailMeta('Poids dispo', '$weight kg'),
                               if (proposedPrice != null)
-                                _detailMeta('Prix proposé', _fcfa(proposedPrice))
+                                _detailMeta(
+                                    'Prix proposé', _fcfa(proposedPrice))
                               else
                                 _detailMeta('Prix', 'À négocier'),
                               _detailMeta('Départ', _formatDate(departureAt)),
                             ],
                           ),
-                          if (description != null && description.isNotEmpty) ...[
+                          if (description != null &&
+                              description.isNotEmpty) ...[
                             const SizedBox(height: 14),
                             Text(
                               description,
                               style: AppFonts.manrope(
-                                  fontSize: 14, color: AppTheme.slate700, height: 1.5),
+                                  fontSize: 14,
+                                  color: AppTheme.slate700,
+                                  height: 1.5),
                             ),
                           ],
                         ],
@@ -1466,7 +1505,9 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
                           fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary),
                     ),
-                    if (tracking != null || parcelWeight != null || parcelReceiver != null)
+                    if (tracking != null ||
+                        parcelWeight != null ||
+                        parcelReceiver != null)
                       GestureDetector(
                         onTap: () => widget.onShowParcel(offerId),
                         child: Padding(
@@ -1474,13 +1515,16 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
                           child: Row(
                             children: [
                               Icon(Icons.inventory_2_outlined,
-                                  size: 14, color: AppTheme.primary.withOpacity(0.7)),
+                                  size: 14,
+                                  color:
+                                      AppTheme.primary.withValues(alpha: 0.7)),
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
                                   [
                                     if (tracking != null) tracking,
-                                    if (parcelWeight != null) '${parcelWeight}kg',
+                                    if (parcelWeight != null)
+                                      '${parcelWeight}kg',
                                     if (parcelReceiver != null) parcelReceiver,
                                   ].join(' · '),
                                   maxLines: 1,

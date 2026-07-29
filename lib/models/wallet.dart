@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 double _toDouble(dynamic value) {
   if (value == null) return 0;

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -8,6 +7,17 @@ class RemovePointsDialog extends StatefulWidget {
   final VoidCallback? onSuccess;
 
   const RemovePointsDialog({super.key, required this.userId, this.onSuccess});
+
+  static Future<bool?> show(
+    BuildContext context,
+    String userId, {
+    VoidCallback? onSuccess,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => RemovePointsDialog(userId: userId, onSuccess: onSuccess),
+    );
+  }
 
   @override
   State<RemovePointsDialog> createState() => _RemovePointsDialogState();
@@ -41,29 +51,37 @@ class _RemovePointsDialogState extends State<RemovePointsDialog> {
       return;
     }
 
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final res = await _api.adminRemovePoints(widget.userId, {
         'amount': amount,
         'description': desc,
       });
+      if (!mounted) return;
       if (res['success'] == true) {
         widget.onSuccess?.call();
-        if (mounted) Navigator.pop(context, true);
+        Navigator.pop(context, true);
       } else {
-        setState(() => _error = res['message']?.toString() ?? 'Erreur lors du retrait de points.');
+        setState(() {
+          _error = res['message']?.toString() ??
+              'Erreur lors du retrait de points.';
+          _loading = false;
+        });
       }
-    } catch (e) {
-      setState(() => _error = 'Erreur lors du retrait de points.');
+    } catch (error, stackTrace) {
+      debugPrint(
+        'RemovePointsDialog: retrait de points impossible '
+        '($error)\n$stackTrace',
+      );
+      if (!mounted) return;
+      setState(() {
+        _error = 'Erreur lors du retrait de points.';
+        _loading = false;
+      });
     }
-    setState(() => _loading = false);
-  }
-
-  static Future<bool?> show(BuildContext context, String userId, {VoidCallback? onSuccess}) {
-    return showDialog<bool>(
-      context: context,
-      builder: (_) => RemovePointsDialog(userId: userId, onSuccess: onSuccess),
-    );
   }
 
   @override

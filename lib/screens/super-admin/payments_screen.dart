@@ -278,7 +278,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(
-                    color: _statusColor(st).withOpacity(0.12),
+                    color: _statusColor(st).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(Icons.receipt, size: 20,
@@ -320,7 +320,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _statusColor(st).withOpacity(0.1),
+                        color: _statusColor(st).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(99),
                       ),
                       child: Text(

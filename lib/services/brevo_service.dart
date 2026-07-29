@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../config/app_config.dart';
+
 class BrevoEmailParams {
   final String to;
   final String? toName;
@@ -100,10 +102,7 @@ class SendResult {
 }
 
 class BrevoService {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:18081/api/v1',
-  );
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
   final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -239,7 +238,8 @@ class BrevoService {
 
   Map<String, dynamic> _handleResponse(Response response) {
     if (response.data is String) return jsonDecode(response.data as String);
-    if (response.data is Map) return Map<String, dynamic>.from(response.data as Map);
+    if (response.data is Map)
+      return Map<String, dynamic>.from(response.data as Map);
     return {};
   }
 }

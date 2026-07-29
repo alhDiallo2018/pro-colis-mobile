@@ -120,7 +120,7 @@ class _ReputationDashboardScreenState extends ConsumerState<ReputationDashboardS
             ),
             CircleAvatar(
               radius: 16,
-              backgroundColor: AppTheme.primary.withOpacity(0.1),
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
               child: Text(
                 (r['fullName']?.toString() ?? '?')[0].toUpperCase(),
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.primary),
@@ -138,7 +138,7 @@ class _ReputationDashboardScreenState extends ConsumerState<ReputationDashboardS
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: colors.withOpacity(0.1), borderRadius: BorderRadius.circular(99)),
+              decoration: BoxDecoration(color: colors.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(99)),
               child: Text(level, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors)),
             ),
             const SizedBox(width: 8),

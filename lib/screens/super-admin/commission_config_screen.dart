@@ -104,7 +104,7 @@ class _CommissionConfigScreenState extends ConsumerState<CommissionConfigScreen>
             Container(
               width: 40, height: 40,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: AppTheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(Icons.percent, size: 20, color: AppTheme.primary),
@@ -124,7 +124,7 @@ class _CommissionConfigScreenState extends ConsumerState<CommissionConfigScreen>
             Switch(
               value: isActive,
               onChanged: (v) => _toggleActive(profile, isActive),
-              activeColor: AppTheme.primary,
+              activeThumbColor: AppTheme.primary,
             ),
           ],
         ),

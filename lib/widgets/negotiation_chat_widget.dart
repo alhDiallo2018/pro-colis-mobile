@@ -60,6 +60,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
 
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
+  bool _loadingMessages = false;
   bool _sending = false;
   Parcel? _parcel;
 
@@ -67,8 +68,9 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   bool _recording = false;
   bool _paused = false;
   int _recordSecs = 0;
+  Timer? _pollTimer;
   Timer? _recordTimer;
-  String? _recordPath;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
   String? _playingAudio;
 
   @override
@@ -79,10 +81,12 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       _loadParcel();
     }
     _loadMessages();
-    Timer.periodic(const Duration(seconds: 4), (_) {
+    // Conserver les ressources asynchrones permet de les arrêter au dispose
+    // et évite que le chat continue à interroger l'API hors écran.
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (mounted) _loadMessages();
     });
-    _audioPlayer.onPlayerStateChanged.listen((s) {
+    _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen((s) {
       if (mounted && (s == PlayerState.completed || s == PlayerState.stopped)) {
         setState(() => _playingAudio = null);
       }
@@ -91,12 +95,14 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
+    _recordTimer?.cancel();
+    _playerStateSubscription?.cancel();
     _msgCtrl.dispose();
     _priceCtrl.dispose();
     _scrollCtrl.dispose();
     _audioRecorder.dispose();
     _audioPlayer.dispose();
-    _recordTimer?.cancel();
     super.dispose();
   }
 
@@ -106,10 +112,17 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     try {
       final p = await _api.getParcelById(widget.parcelId!);
       if (mounted && p != null) setState(() => _parcel = p);
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        'NegotiationChatScreen: chargement du colis impossible '
+        '($error)\n$stackTrace',
+      );
+    }
   }
 
   Future<void> _loadMessages() async {
+    if (_loadingMessages) return;
+    _loadingMessages = true;
     try {
       final msgs = await _api.getMessagesThread(
         widget.peerId,
@@ -119,13 +132,20 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         setState(() { _messages = msgs; _loading = false; });
         _scrollToBottom();
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint(
+        'NegotiationChatScreen: chargement des messages impossible '
+        '($error)\n$stackTrace',
+      );
       if (mounted) setState(() => _loading = false);
+    } finally {
+      _loadingMessages = false;
     }
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
           _scrollCtrl.position.maxScrollExtent,
@@ -273,7 +293,6 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       try {
         final dir = Directory.systemTemp;
         final path = '${dir.path}/nego_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        _recordPath = path;
         await _audioRecorder.start(
           path: path, encoder: AudioEncoder.aacLc, samplingRate: 44100,
         );

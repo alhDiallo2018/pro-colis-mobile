@@ -6,8 +6,10 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../config/app_config.dart';
 import '../models/garage.dart';
 import '../models/parcel.dart';
 import '../models/user.dart';
@@ -16,30 +18,11 @@ import 'api/api.dart';
 import 'mock_data.dart';
 
 class ApiService {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:18081/api/v1',
-  );
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
-  static String get mediaBaseUrl {
-    if (baseUrl.endsWith('/api/v1')) {
-      return baseUrl.substring(0, baseUrl.length - '/api/v1'.length);
-    }
-    if (baseUrl.endsWith('/api/v1/')) {
-      return baseUrl.substring(0, baseUrl.length - '/api/v1/'.length);
-    }
-    if (baseUrl.endsWith('/api')) {
-      return baseUrl.substring(0, baseUrl.length - '/api'.length);
-    }
-    return baseUrl;
-  }
+  static String get mediaBaseUrl => AppConfig.mediaBaseUrl;
 
-  static String resolveMediaUrl(String url) {
-    if (url.startsWith('http')) return url;
-    final base = mediaBaseUrl;
-    if (url.startsWith('/')) return '$base$url';
-    return '$base/$url';
-  }
+  static String resolveMediaUrl(String url) => AppConfig.resolveMediaUrl(url);
 
   String mediaUrl(String url) => ApiService.resolveMediaUrl(url);
   final Dio _dio = Dio();
@@ -457,10 +440,34 @@ class ApiService {
 
   Future<Map<String, dynamic>> createBid(Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post('/driver/bids', data: data);
+      final payload = Map<String, dynamic>.from(data);
+      final audioFile = payload.remove('audioFile');
+
+      // L'endpoint d'enchère n'accepte qu'une URL persistée. L'audio local
+      // doit donc être téléversé avant l'envoi du JSON métier.
+      if (audioFile is XFile) {
+        final audioUrl = await uploadFile(file: audioFile, mediaType: 'audio');
+        if (audioUrl == null) {
+          return {
+            'success': false,
+            'message': 'Impossible de téléverser le message vocal',
+          };
+        }
+        payload['audioUrl'] = audioUrl;
+      }
+
+      // La durée sert uniquement à l'affichage local : le schéma Bid actuel
+      // ne possède pas de colonne correspondante.
+      payload.remove('audioDuration');
+      final response = await _dio.post('/driver/bids', data: payload);
       return _handleResponse(response);
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
+    } catch (e, stackTrace) {
+      debugPrint('[ApiService] Création de l’offre impossible: '
+          '$e\n$stackTrace');
+      return {
+        'success': false,
+        'message': 'Impossible d’envoyer l’offre',
+      };
     }
   }
 
@@ -601,8 +608,7 @@ class ApiService {
       targetOffer ??= offers.first as Map<String, dynamic>;
 
       final parcelId = targetOffer['parcelId'] as String? ??
-          (targetOffer['parcel'] as Map<String, dynamic>?)?['id']
-              ?.toString();
+          (targetOffer['parcel'] as Map<String, dynamic>?)?['id']?.toString();
 
       if (parcelId != null && parcelId.isNotEmpty) {
         if (parcelId == advertisementId) {
@@ -1111,8 +1117,10 @@ class ApiService {
     try {
       final response = await _dio.get('/messages/conversations');
       final responseData = _handleResponse(response);
-      final List<dynamic> convsData =
-          responseData['data'] ?? responseData['conversations'] ?? responseData['messages'] ?? [];
+      final List<dynamic> convsData = responseData['data'] ??
+          responseData['conversations'] ??
+          responseData['messages'] ??
+          [];
       return convsData.map((json) => json as Map<String, dynamic>).toList();
     } catch (e) {
       return [];
@@ -1210,9 +1218,43 @@ class ApiService {
     try {
       final response = await _dio.get('/notifications/preferences');
       final responseData = _handleResponse(response);
-      final List<dynamic> prefs = responseData['preferences'] ?? [];
-      return prefs.map((json) => json as Map<String, dynamic>).toList();
-    } catch (e) {
+      final rawPreferences = responseData['preferences'];
+      if (rawPreferences is List) {
+        return rawPreferences
+            .whereType<Map>()
+            .map((json) => Map<String, dynamic>.from(json))
+            .toList();
+      }
+      if (rawPreferences is Map) {
+        // Le backend accepte aussi l'ancien format objet
+        // `{ eventType: [channels] }`; le normaliser évite de perdre les
+        // préférences des comptes créés avant le format liste.
+        return rawPreferences.entries.map((entry) {
+          final value = entry.value;
+          if (value is Map) {
+            return <String, dynamic>{
+              'eventType': entry.key.toString(),
+              ...Map<String, dynamic>.from(value),
+            };
+          }
+          if (value is List) {
+            return <String, dynamic>{
+              'eventType': entry.key.toString(),
+              'channels': value,
+            };
+          }
+          return <String, dynamic>{
+            'type': entry.key.toString(),
+            'enabled': value == true,
+          };
+        }).toList();
+      }
+      return [];
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[ApiService] Lecture des préférences de notification impossible: '
+        '$e\n$stackTrace',
+      );
       return [];
     }
   }
@@ -1223,7 +1265,11 @@ class ApiService {
       final response = await _dio
           .put('/notifications/preferences', data: {'preferences': prefs});
       return _handleResponse(response)['success'] == true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[ApiService] Synchronisation des préférences impossible: '
+        '$e\n$stackTrace',
+      );
       return false;
     }
   }
@@ -1336,12 +1382,6 @@ class ApiService {
     }
   }
 
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString()) ?? 0;
-  }
-
   Future<double> getWalletBalance(String userId) async {
     try {
       final wallet = await getWallet(userId);
@@ -1351,29 +1391,35 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> depositWallet(
-      String userId, Map<String, dynamic> data) async {
-    try {
-      if (isMockMode) {
-        final depositAmount = _toDouble(data['amount']);
-        return {
-          'success': true,
-          'message': 'Recharge de $depositAmount FCFA effectuée',
-          'newBalance': 5000 + depositAmount,
-        };
-      }
-      final response = await _dio.post('/driver/wallet/recharge', data: {
-        'amount': data['amount'],
-        'method': data['method'] ?? 'cash',
-        if (data['phone'] != null) 'phone': data['phone'],
-      });
-      return _handleResponse(response);
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
-
   // ==================== UPLOADS ====================
+
+  /// Détermine le MIME envoyé dans le multipart.
+  ///
+  /// Sans ce champ, Dio utilise `application/octet-stream`, que l'API rejette
+  /// volontairement pour empêcher l'envoi de formats arbitraires.
+  MediaType _uploadContentType(XFile file, String mediaType) {
+    final declaredMimeType = file.mimeType?.split(';').first.trim();
+    if (declaredMimeType != null && declaredMimeType.contains('/')) {
+      return MediaType.parse(declaredMimeType);
+    }
+
+    final extension = file.name.split('.').last.toLowerCase();
+    final mimeType = switch ((mediaType, extension)) {
+      ('photo', 'jpg') || ('photo', 'jpeg') => 'image/jpeg',
+      ('photo', 'png') => 'image/png',
+      ('photo', 'webp') => 'image/webp',
+      ('video', 'mov') => 'video/quicktime',
+      ('video', 'webm') => 'video/webm',
+      ('video', _) => 'video/mp4',
+      ('audio', 'aac') => 'audio/aac',
+      ('audio', 'mp3') => 'audio/mpeg',
+      ('audio', 'wav') => 'audio/wav',
+      ('audio', 'webm') => 'audio/webm',
+      ('audio', _) => 'audio/mp4',
+      _ => 'application/octet-stream',
+    };
+    return MediaType.parse(mimeType);
+  }
 
   Future<String?> uploadFile({
     required XFile file,
@@ -1383,17 +1429,31 @@ class ApiService {
     try {
       final bytes = await file.readAsBytes();
       final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(bytes, filename: file.name),
+        'file': MultipartFile.fromBytes(
+          bytes,
+          filename: file.name,
+          contentType: _uploadContentType(file, mediaType),
+        ),
         'mediaType': mediaType,
         if (parcelId != null) 'parcelId': parcelId,
       });
       final response = await _dio.post('/upload', data: formData);
       final responseData = _handleResponse(response);
+      if (response.statusCode == null ||
+          response.statusCode! >= 400 ||
+          responseData['success'] == false) {
+        debugPrint(
+          '[ApiService] Upload $mediaType refusé: '
+          '${responseData['message'] ?? response.statusCode}',
+        );
+        return null;
+      }
       if (responseData['url'] != null) {
-        return responseData['url'];
+        return responseData['url'].toString();
       }
       return null;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('[ApiService] Échec upload $mediaType: $e\n$stackTrace');
       return null;
     }
   }
@@ -1412,12 +1472,18 @@ class ApiService {
 
   // ==================== PUBLIC DRIVERS ====================
 
-  Future<List<User>> searchDriversPublic({String? query}) async {
+  Future<List<User>> searchDriversPublic({
+    String? city,
+    String? garageId,
+    int limit = 100,
+  }) async {
     try {
-      final queryParams =
-          query != null ? {'query': query} : <String, dynamic>{};
-      final response = await _dio.get('/public/drivers/search',
-          queryParameters: queryParams);
+      final response =
+          await _dio.get('/public/drivers/search', queryParameters: {
+        if (city != null && city.isNotEmpty) 'city': city,
+        if (garageId != null && garageId.isNotEmpty) 'garageId': garageId,
+        'limit': limit,
+      });
       final responseData = _handleResponse(response);
       final List<dynamic> driversData = responseData['drivers'] ?? [];
       return driversData
@@ -1529,12 +1595,14 @@ class ApiService {
     String? garageId,
   }) async {
     try {
-      final response = await _dio.put('/super-admin/users/$userId', data: {
+      // L'API sépare volontairement le profil, le rôle et le statut afin que
+      // chaque mutation sensible soit auditée. Les envoyer seulement au PUT
+      // profil donnait auparavant un faux succès sans modifier ces deux champs.
+      final profileResponse =
+          await _dio.put('/super-admin/users/$userId', data: {
         'fullName': fullName,
         'email': email,
         'phone': phone,
-        'role': role,
-        'status': status,
         'address': address,
         'city': city,
         'region': region,
@@ -1543,8 +1611,31 @@ class ApiService {
         'driverStatus': driverStatus,
         'garageId': garageId,
       });
-      return _handleResponse(response);
+      final profileData = _handleResponse(profileResponse);
+      if (profileResponse.statusCode == null ||
+          profileResponse.statusCode! >= 400 ||
+          profileData['success'] == false) {
+        return profileData;
+      }
+
+      final roleResponse = await _dio.patch(
+        '/super-admin/users/$userId/role',
+        data: {'role': role},
+      );
+      final roleData = _handleResponse(roleResponse);
+      if (roleResponse.statusCode == null ||
+          roleResponse.statusCode! >= 400 ||
+          roleData['success'] == false) {
+        return roleData;
+      }
+
+      final statusResponse = await _dio.patch(
+        '/super-admin/users/$userId/status',
+        data: {'status': status},
+      );
+      return _handleResponse(statusResponse);
     } catch (e) {
+      debugPrint('[ApiService] Échec mise à jour utilisateur $userId: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
@@ -2040,10 +2131,15 @@ class ApiService {
   Future<Map<String, dynamic>> adminRechargeWallet(
       String userId, Map<String, dynamic> data) async {
     try {
-      final response =
-          await _dio.post('/super-admin/wallets/$userId/recharge', data: data);
+      // Le contrôleur financier garde l'identifiant dans le corps pour ses
+      // transactions/audits, même s'il figure aussi dans la route.
+      final response = await _dio.post(
+        '/super-admin/wallets/$userId/recharge',
+        data: {...data, 'userId': userId},
+      );
       return _handleResponse(response);
     } catch (e) {
+      debugPrint('[ApiService] Échec recharge admin du wallet $userId: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
@@ -2051,10 +2147,13 @@ class ApiService {
   Future<Map<String, dynamic>> adminDebitWallet(
       String userId, Map<String, dynamic> data) async {
     try {
-      final response =
-          await _dio.post('/super-admin/wallets/$userId/debit', data: data);
+      final response = await _dio.post(
+        '/super-admin/wallets/$userId/debit',
+        data: {...data, 'userId': userId},
+      );
       return _handleResponse(response);
     } catch (e) {
+      debugPrint('[ApiService] Échec débit admin du wallet $userId: $e');
       return {'success': false, 'message': e.toString()};
     }
   }

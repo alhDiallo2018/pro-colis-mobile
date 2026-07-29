@@ -193,7 +193,9 @@ class _GarageColisScreenState extends ConsumerState<GarageColisScreen> {
                           MaterialPageRoute(
                             builder: (_) => ParcelDetailScreen(parcel: parcel),
                           ),
-                        ).then((_) => _loadData()),
+                        ).then((_) {
+                          if (mounted) _loadData();
+                        }),
                       );
                     },
                   ),
@@ -317,7 +319,7 @@ class _FilterChip extends StatelessWidget {
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   color: selected
-                      ? Colors.white.withOpacity(0.85)
+                      ? Colors.white.withValues(alpha: 0.85)
                       : AppTheme.slate400,
                 ),
               ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
 import '../../models/parcel.dart';
-import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -49,12 +48,27 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final parcels = await _api.getMyParcels(status: 'free');
-      setState(() { _allParcels = parcels; _loading = false; });
-    } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      if (!mounted) return;
+      setState(() {
+        _allParcels = parcels;
+        _loading = false;
+      });
+    } catch (error, stackTrace) {
+      debugPrint(
+        'ClientLibreServiceScreen: chargement impossible '
+        '($error)\n$stackTrace',
+      );
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -74,13 +88,13 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
     filtered.sort((a, b) {
       switch (_sort) {
         case 'old':
-          return (a.createdAt ?? DateTime.now()).compareTo(b.createdAt ?? DateTime.now());
+          return a.createdAt.compareTo(b.createdAt);
         case 'price_desc':
           return ((b.price ?? 0) - (a.price ?? 0)).toInt();
         case 'price_asc':
           return ((a.price ?? 0) - (b.price ?? 0)).toInt();
         default:
-          return (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now());
+          return b.createdAt.compareTo(a.createdAt);
       }
     });
 
@@ -171,7 +185,7 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _typeFilter.isEmpty ? '' : _typeFilter,
+                initialValue: _typeFilter.isEmpty ? '' : _typeFilter,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   prefixIcon: const Icon(Icons.category, size: 18),
@@ -184,7 +198,7 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
             const SizedBox(width: 10),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _sort,
+                initialValue: _sort,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   prefixIcon: const Icon(Icons.sort, size: 18),
@@ -230,14 +244,10 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          if (p.type != null) ...[
-                            _infoChip(p.type.label),
-                            const SizedBox(width: 6),
-                          ],
-                          if (p.weight != null) ...[
-                            _infoChip('${p.weight} kg'),
-                            const SizedBox(width: 6),
-                          ],
+                          _infoChip(p.type.label),
+                          const SizedBox(width: 6),
+                          _infoChip('${p.weight} kg'),
+                          const SizedBox(width: 6),
                           if (p.isUrgent) _infoChip('Express'),
                         ],
                       ),

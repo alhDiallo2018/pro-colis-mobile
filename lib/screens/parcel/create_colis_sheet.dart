@@ -26,6 +26,7 @@ import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
+import '../../widgets/phone_contact_picker.dart';
 import '../../widgets/route_picker.dart';
 import '../../widgets/location_autocomplete.dart';
 
@@ -57,6 +58,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   final List<XFile> _videos = [];
   final List<VoiceMessage> _voiceMessages = [];
   Timer? _recordingTimer;
+  StreamSubscription<void>? _audioCompleteSubscription;
   bool _isRecording = false;
   int _recordingDuration = 0;
   String? _playingPath;
@@ -103,6 +105,9 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   void initState() {
     super.initState();
     _priceController.text = _estimatedPrice.toString();
+    _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playingPath = null);
+    });
     _loadGarages();
   }
 
@@ -116,12 +121,28 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     _description.dispose();
     _priceController.dispose();
     _recordingTimer?.cancel();
+    _audioCompleteSubscription?.cancel();
     _audioRecorder.dispose();
     _audioPlayer.dispose();
     for (final voice in _voiceMessages) {
       _deleteLocalFile(voice.path);
     }
     super.dispose();
+  }
+
+  Future<void> _importReceiverFromContacts() async {
+    final contact = await showPhoneContactPicker(
+      context: context,
+      selectedPhone: _receiverPhone.text,
+    );
+    if (!mounted || contact == null) return;
+
+    // Le nom et le numéro sont appliqués ensemble pour éviter de conserver
+    // accidentellement le nom d'un précédent destinataire.
+    setState(() {
+      _receiverName.text = contact.contactName;
+      _receiverPhone.text = contact.phoneNumber;
+    });
   }
 
   // ---- Pièces jointes : capture / enregistrement ----
@@ -280,9 +301,6 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       await _audioPlayer.stop();
       await _audioPlayer.play(DeviceFileSource(voice.path));
       if (mounted) setState(() => _playingPath = voice.path);
-      _audioPlayer.onPlayerComplete.first.then((_) {
-        if (mounted) setState(() => _playingPath = null);
-      });
     } catch (error) {
       debugPrint('Erreur lecture audio colis: $error');
       if (mounted) setState(() => _playingPath = null);
@@ -450,9 +468,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       'receiverAddress': _receiverAddress.text.trim().isEmpty
           ? null
           : _receiverAddress.text.trim(),
-      'description': _description.text.trim().isEmpty
-          ? null
-          : _description.text.trim(),
+      'description':
+          _description.text.trim().isEmpty ? null : _description.text.trim(),
       'weight': double.tryParse(_weight.text.trim()) ?? 0,
       'type': _type.value,
       'status': isDriverMode ? 'confirmed' : 'free',
@@ -479,8 +496,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       data['driverName'] = driver.fullName;
     }
 
-    final result =
-        await ref.read(parcelProvider.notifier).createParcel(data);
+    final result = await ref.read(parcelProvider.notifier).createParcel(data);
     if (!mounted) return;
 
     if (result != null) {
@@ -650,6 +666,14 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           _warning('Le départ et l’arrivée doivent être différents.'),
         ],
         const SizedBox(height: 16),
+        PcButton(
+          'Choisir dans mes contacts',
+          onPressed: _importReceiverFromContacts,
+          variant: PcButtonVariant.secondary,
+          icon: Icons.contact_phone_rounded,
+          block: true,
+        ),
+        const SizedBox(height: 16),
         _label('Nom du destinataire'),
         _textField(_receiverName, 'Ex : Awa Ndiaye', Icons.badge_rounded),
         const SizedBox(height: 14),
@@ -658,7 +682,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             mono: true, phone: true),
         const SizedBox(height: 14),
         _label('Email du destinataire (optionnel)'),
-        _textField(_receiverEmail, 'Ex : exemple@email.com', Icons.email_rounded),
+        _textField(
+            _receiverEmail, 'Ex : exemple@email.com', Icons.email_rounded),
         const SizedBox(height: 14),
         LocationAutocomplete(
           controller: _receiverAddress,
@@ -722,8 +747,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
               child: Icon(icon,
-                  size: 22,
-                  color: selected ? Colors.white : AppTheme.slate500),
+                  size: 22, color: selected ? Colors.white : AppTheme.slate500),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -757,13 +781,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   Widget _driverField() {
     if (_loadingDrivers) {
       return Text('Chargement des chauffeurs…',
-          style: AppFonts.manrope(
-              fontSize: 13, color: AppTheme.textSecondary));
+          style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary));
     }
     if (_drivers.isEmpty) {
       return Text('Aucun chauffeur disponible pour le moment.',
-          style: AppFonts.manrope(
-              fontSize: 13, color: AppTheme.textSecondary));
+          style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary));
     }
     return Column(
       children: [
@@ -835,9 +857,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   Widget _driverInitials(User d) => Text(
         d.initials,
         style: AppFonts.plusJakartaSans(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: AppTheme.teal700),
+            fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.teal700),
       );
 
   Widget _driverCard(User d) {
@@ -882,8 +902,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppFonts.manrope(
-                              fontSize: 12.5,
-                              color: AppTheme.textSecondary)),
+                              fontSize: 12.5, color: AppTheme.textSecondary)),
                     ],
                   ),
                 ),
@@ -989,7 +1008,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               _urgent = v;
               // Si l'utilisateur n'a pas saisi de prix personnalisé, on met à
               // jour la valeur par défaut selon l'option urgente.
-              if (!_priceEdited) _priceController.text = _estimatedPrice.toString();
+              if (!_priceEdited)
+                _priceController.text = _estimatedPrice.toString();
             });
           },
         ),
@@ -1016,8 +1036,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           _mode == 'driver'
               ? 'Le montant convenu avec le chauffeur.'
               : 'Indicatif — les chauffeurs peuvent surenchérir.',
-          style: AppFonts.manrope(
-              fontSize: 12, color: AppTheme.textSecondary),
+          style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary),
         ),
         const SizedBox(height: 20),
         PaymentChannelField(
@@ -1032,8 +1051,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           const SizedBox(height: 16),
           CashCollectionPointField(
             value: _cashCollectionPoint,
-            onChanged: (point) =>
-                setState(() => _cashCollectionPoint = point),
+            onChanged: (point) => setState(() => _cashCollectionPoint = point),
           ),
         ],
         const SizedBox(height: 18),
@@ -1048,8 +1066,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     final driver = _driverById(_driverId);
     final isDriverMode = _mode == 'driver';
     final mediaCount = _photos.length + _videos.length + _voiceMessages.length;
-    final priceText =
-        '${_enteredPrice.toStringAsFixed(0)} FCFA';
+    final priceText = '${_enteredPrice.toStringAsFixed(0)} FCFA';
     final address = _receiverAddress.text.trim();
 
     return Column(
@@ -1083,12 +1100,17 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           title: 'Destinataire',
           onEdit: () => setState(() => _step = 0),
           rows: [
-            _recapRow('Nom', _receiverName.text.trim().isEmpty
-                ? '—'
-                : _receiverName.text.trim()),
-            _recapRow('Téléphone', _receiverPhone.text.trim().isEmpty
-                ? '—'
-                : _receiverPhone.text.trim(), mono: true),
+            _recapRow(
+                'Nom',
+                _receiverName.text.trim().isEmpty
+                    ? '—'
+                    : _receiverName.text.trim()),
+            _recapRow(
+                'Téléphone',
+                _receiverPhone.text.trim().isEmpty
+                    ? '—'
+                    : _receiverPhone.text.trim(),
+                mono: true),
             if (_receiverEmail.text.trim().isNotEmpty)
               _recapRow('Email', _receiverEmail.text.trim()),
             if (address.isNotEmpty) _recapRow('Adresse', address),
@@ -1235,8 +1257,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               value,
               textAlign: TextAlign.right,
               style: mono
-                  ? AppTheme.mono(
-                      fontSize: 13, fontWeight: FontWeight.w700)
+                  ? AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w700)
                   : AppFonts.plusJakartaSans(
                       fontSize: 13, fontWeight: FontWeight.w600),
             ),
@@ -1269,9 +1290,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   }
 
   Widget _buildAttachments() {
-    final hasItems = _photos.isNotEmpty ||
-        _videos.isNotEmpty ||
-        _voiceMessages.isNotEmpty;
+    final hasItems =
+        _photos.isNotEmpty || _videos.isNotEmpty || _voiceMessages.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1384,9 +1404,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: color)),
+                      fontSize: 12, fontWeight: FontWeight.w800, color: color)),
             ],
           ),
         ),
@@ -1524,8 +1542,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               iconTrailing: Icons.arrow_forward_rounded,
               size: PcButtonSize.lg,
               block: true,
-              onPressed:
-                  _step1Valid ? () => setState(() => _step = 1) : null,
+              onPressed: _step1Valid ? () => setState(() => _step = 1) : null,
             )
           : _step == 1
               ? Row(
@@ -1702,9 +1719,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           Expanded(
             child: Text(text,
                 style: AppFonts.manrope(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: color)),
+                    fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
           ),
         ],
       ),

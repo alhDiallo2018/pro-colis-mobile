@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -105,7 +104,6 @@ class AppBottomNav extends ConsumerWidget {
           ProcolisTabItem(icon: Icons.person_rounded, label: 'Profil'),
         ];
       case UserRole.client:
-      default:
         return const [
           ProcolisTabItem(icon: Icons.home_rounded, label: 'Accueil'),
           ProcolisTabItem(icon: Icons.inventory_2_rounded, label: 'Mes colis'),

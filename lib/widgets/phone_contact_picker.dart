@@ -1,511 +1,599 @@
-// lib/widgets/phone_contact_picker.dart
 import 'dart:async';
 
 import 'package:contacts_service_plus/contacts_service_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../theme/app_theme.dart';
 
-class PhoneContactPicker extends StatefulWidget {
-  final Function(String phoneNumber, String contactName) onContactSelected;
-  final String? selectedPhone;
+/// Données utiles d'un contact sélectionné pour remplir un destinataire.
+class PhoneContactSelection {
+  const PhoneContactSelection({
+    required this.phoneNumber,
+    required this.contactName,
+  });
 
+  final String phoneNumber;
+  final String contactName;
+}
+
+/// Nettoie un numéro issu du carnet tout en conservant un éventuel préfixe `+`.
+String normalizeContactPhoneNumber(String? phoneNumber) {
+  final rawPhoneNumber = phoneNumber?.trim() ?? '';
+  if (rawPhoneNumber.isEmpty) return '';
+
+  final digits = rawPhoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) return '';
+  return rawPhoneNumber.startsWith('+') ? '+$digits' : digits;
+}
+
+/// Ouvre le carnet dans une feuille dédiée et renvoie le contact choisi.
+///
+/// La vérification de plateforme évite d'appeler le canal natif du plugin sur
+/// le Web ou sur une plateforme de bureau non prise en charge.
+Future<PhoneContactSelection?> showPhoneContactPicker({
+  required BuildContext context,
+  String? selectedPhone,
+}) async {
+  final isSupportedPlatform = !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  if (!isSupportedPlatform) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'L’import des contacts est disponible sur Android et iPhone.',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return null;
+  }
+
+  try {
+    return await showModalBottomSheet<PhoneContactSelection>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        final mediaQuery = MediaQuery.of(sheetContext);
+        final availableHeight =
+            mediaQuery.size.height - mediaQuery.viewInsets.bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            10,
+            16,
+            16 + mediaQuery.viewInsets.bottom,
+          ),
+          child: SizedBox(
+            // La hauteur se réduit avec le clavier pour éviter tout débordement
+            // pendant la recherche d'un contact.
+            height: availableHeight * 0.72,
+            child: Column(
+              children: [
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.slate300,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.contact_phone_rounded,
+                      color: AppTheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Choisir un contact',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Fermer',
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: PhoneContactPicker(
+                    selectedPhone: selectedPhone,
+                    onContactSelected: (phoneNumber, contactName) {
+                      Navigator.of(sheetContext).pop(
+                        PhoneContactSelection(
+                          phoneNumber: phoneNumber,
+                          contactName: contactName,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  } catch (error, stackTrace) {
+    debugPrint(
+      '[PhoneContactPicker] Impossible d’ouvrir le carnet de contacts: '
+      '$error\n$stackTrace',
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Impossible d’ouvrir les contacts pour le moment.',
+          ),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    return null;
+  }
+}
+
+class PhoneContactPicker extends StatefulWidget {
   const PhoneContactPicker({
     super.key,
     required this.onContactSelected,
     this.selectedPhone,
   });
 
+  final void Function(String phoneNumber, String contactName) onContactSelected;
+  final String? selectedPhone;
+
   @override
   State<PhoneContactPicker> createState() => _PhoneContactPickerState();
 }
 
-class _PhoneContactPickerState extends State<PhoneContactPicker> {
-  List<Contact> _contacts = [];
-  List<Contact> _filteredContacts = [];
+class _PhoneContactPickerState extends State<PhoneContactPicker>
+    with WidgetsBindingObserver {
+  final TextEditingController _searchController = TextEditingController();
+
+  List<_PhoneContactEntry> _contacts = const [];
+  List<_PhoneContactEntry> _filteredContacts = const [];
   bool _isLoading = false;
   bool _hasPermission = false;
-  String _searchQuery = '';
+  bool _permissionPermanentlyDenied = false;
+  String? _loadError;
   Timer? _debounceTimer;
-  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermissionAndLoadContacts();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _debounceTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _checkPermissionAndLoadContacts() async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Au retour des réglages système, on relit la permission sans afficher
+    // immédiatement une nouvelle demande native.
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissionAndLoadContacts(requestPermission: false);
+    }
+  }
+
+  Future<void> _checkPermissionAndLoadContacts({
+    bool requestPermission = true,
+  }) async {
     if (_isLoading) return;
-    
     setState(() {
       _isLoading = true;
+      _loadError = null;
     });
 
     try {
-      final status = await Permission.contacts.status;
-      
-      if (status.isGranted) {
-        _hasPermission = true;
-        await _loadContacts();
-      } else {
-        final result = await Permission.contacts.request();
-        if (result.isGranted) {
-          setState(() {
-            _hasPermission = true;
-          });
-          await _loadContacts();
-        } else {
-          setState(() {
-            _hasPermission = false;
-            _isLoading = false;
-          });
-          _showPermissionDeniedDialog();
-        }
+      var status = await Permission.contacts.status;
+      if (!status.isGranted && requestPermission) {
+        status = await Permission.contacts.request();
       }
-    } catch (e) {
-      debugPrint('❌ Erreur vérification permission: $e');
+      if (!mounted) return;
+
+      if (!status.isGranted) {
+        setState(() {
+          _hasPermission = false;
+          _permissionPermanentlyDenied = status.isPermanentlyDenied;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _hasPermission = true;
+        _permissionPermanentlyDenied = false;
+      });
+      await _loadContacts();
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[PhoneContactPicker] Erreur pendant la vérification de permission: '
+        '$error\n$stackTrace',
+      );
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _hasPermission = false;
+        _loadError = 'Impossible de vérifier l’accès aux contacts.';
       });
     }
   }
 
   Future<void> _loadContacts() async {
-    if (!_hasPermission) return;
-    
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
-      final contacts = await ContactsService.getContacts();
-      
-      final validContacts = contacts.where((contact) {
-        return contact.phones != null && contact.phones!.isNotEmpty;
-      }).toList();
-      
-      validContacts.sort((a, b) {
-        final nameA = a.displayName?.toLowerCase() ?? '';
-        final nameB = b.displayName?.toLowerCase() ?? '';
-        return nameA.compareTo(nameB);
-      });
-      
-      setState(() {
-        _contacts = validContacts;
-        _filteredContacts = validContacts;
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('❌ Erreur chargement contacts: $e');
-      setState(() {
-        _isLoading = false;
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors du chargement des contacts: $e'),
-            backgroundColor: AppTheme.errorColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    }
-  }
+      // Les miniatures ne sont pas nécessaires ici : les désactiver accélère
+      // sensiblement le chargement des carnets volumineux.
+      final deviceContacts = await ContactsService.getContacts(
+        withThumbnails: false,
+        photoHighResolution: false,
+      );
 
-  void _showPermissionDeniedDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Permission requise',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          'Pour importer vos contacts, veuillez autoriser l\'accès à vos contacts dans les paramètres de l\'application.',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        backgroundColor: AppTheme.cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _checkPermissionAndLoadContacts();
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.textSecondary,
+      // Un même contact peut avoir plusieurs téléphones. Chaque numéro devient
+      // une option indépendante afin de ne jamais sélectionner le mauvais.
+      final entries = <_PhoneContactEntry>[];
+      final seenEntries = <String>{};
+      for (final contact in deviceContacts) {
+        final rawName = contact.displayName?.trim() ?? '';
+        final displayName = rawName.isEmpty ? 'Sans nom' : rawName;
+        for (final phone in contact.phones ?? const <Item>[]) {
+          final normalizedPhone = normalizeContactPhoneNumber(phone.value);
+          if (normalizedPhone.isEmpty) continue;
+
+          final deduplicationKey =
+              '${displayName.toLowerCase()}\u0000$normalizedPhone';
+          if (!seenEntries.add(deduplicationKey)) continue;
+          entries.add(
+            _PhoneContactEntry(
+              displayName: displayName,
+              contactName: rawName,
+              phoneNumber: normalizedPhone,
+              phoneLabel: phone.label?.trim(),
             ),
-            child: const Text('Réessayer'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await openAppSettings();
-              _checkPermissionAndLoadContacts();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryBlue,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Ouvrir les paramètres'),
-          ),
-        ],
-      ),
-    );
+          );
+        }
+      }
+
+      entries.sort((a, b) {
+        final byName =
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+        return byName != 0 ? byName : a.phoneNumber.compareTo(b.phoneNumber);
+      });
+
+      if (!mounted) return;
+      setState(() {
+        _contacts = entries;
+        _filteredContacts = entries;
+        _isLoading = false;
+        _loadError = null;
+      });
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[PhoneContactPicker] Erreur pendant le chargement des contacts: '
+        '$error\n$stackTrace',
+      );
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = 'Impossible de charger les contacts pour le moment.';
+      });
+    }
   }
 
   void _filterContacts(String query) {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+    _debounceTimer = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+
+      final normalizedQuery = query.trim().toLowerCase();
+      final phoneQuery = normalizedQuery.replaceAll(RegExp(r'[^0-9]'), '');
       setState(() {
-        _searchQuery = query;
-        if (query.isEmpty) {
+        if (normalizedQuery.isEmpty) {
           _filteredContacts = _contacts;
-        } else {
-          final lowerQuery = query.toLowerCase();
-          final cleanQuery = lowerQuery.replaceAll(RegExp(r'[^0-9]'), '');
-          
-          _filteredContacts = _contacts.where((contact) {
-            final nameMatches = contact.displayName?.toLowerCase().contains(lowerQuery) ?? false;
-            
-            final phoneMatches = contact.phones?.any((phone) {
-              final phoneValue = phone.value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
-              return phoneValue.contains(cleanQuery);
-            }) ?? false;
-            
-            return nameMatches || phoneMatches;
-          }).toList();
+          return;
         }
+        _filteredContacts = _contacts.where((contact) {
+          final matchesName =
+              contact.displayName.toLowerCase().contains(normalizedQuery);
+          final matchesPhone = phoneQuery.isNotEmpty &&
+              contact.phoneNumber.replaceAll('+', '').contains(phoneQuery);
+          return matchesName || matchesPhone;
+        }).toList();
       });
     });
   }
 
-  String _formatPhoneNumber(String? phone) {
-    if (phone == null) return '';
-    return phone.replaceAll(RegExp(r'[^0-9+]'), '');
+  void _clearSearch() {
+    _debounceTimer?.cancel();
+    _searchController.clear();
+    setState(() => _filteredContacts = _contacts);
+  }
+
+  Future<void> _openSettings() async {
+    try {
+      final didOpen = await openAppSettings();
+      if (!didOpen) {
+        throw StateError('Les réglages système n’ont pas pu être ouverts.');
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[PhoneContactPicker] Impossible d’ouvrir les réglages: '
+        '$error\n$stackTrace',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d’ouvrir les réglages du téléphone.'),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   String _getInitials(String name) {
-    if (name.isEmpty) return '?';
-    final parts = name.trim().split(' ');
+    if (name.isEmpty || name == 'Sans nom') return '?';
+    final parts = name.split(RegExp(r'\s+'));
     if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+      return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
     }
     return name[0].toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: AppTheme.primary),
+            SizedBox(height: 14),
+            Text('Chargement des contacts…'),
+          ],
+        ),
+      );
+    }
+
+    if (!_hasPermission) {
+      return _PermissionMessage(
+        permanentlyDenied: _permissionPermanentlyDenied,
+        errorMessage: _loadError,
+        onPressed: _permissionPermanentlyDenied
+            ? _openSettings
+            : _checkPermissionAndLoadContacts,
+      );
+    }
+
+    if (_loadError != null) {
+      return _ContactStateMessage(
+        icon: Icons.sync_problem_rounded,
+        title: 'Chargement impossible',
+        message: _loadError!,
+        actionLabel: 'Réessayer',
+        onPressed: _loadContacts,
+      );
+    }
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Barre de recherche
-        if (_hasPermission && !_isLoading)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Rechercher un contact...',
-                hintStyle: TextStyle(
-                  color: AppTheme.textSecondary.withOpacity( 0.7),
-                ),
-                prefixIcon: Icon(Icons.search, color: AppTheme.primaryBlue),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: AppTheme.primaryBlue.withOpacity( 0.3),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: AppTheme.primaryBlue.withOpacity( 0.2),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: AppTheme.primaryBlue,
-                    width: 2,
-                  ),
-                ),
-                filled: true,
-                fillColor: AppTheme.cardColor,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: AppTheme.textSecondary),
-                        onPressed: () {
-                          setState(() {
-                            _searchQuery = '';
-                            _filteredContacts = _contacts;
-                          });
-                        },
-                      )
-                    : null,
-              ),
-              onChanged: _filterContacts,
-              controller: TextEditingController(text: _searchQuery),
-            ),
-          ),
-        
-        // État de chargement
-        if (_isLoading)
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.textSecondary.withOpacity( 0.1),
-              ),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
-                    strokeWidth: 3,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Chargement des contacts...',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Cela peut prendre quelques secondes',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary.withOpacity( 0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        
-        // Liste des contacts
-        if (_hasPermission && !_isLoading)
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.textSecondary.withOpacity( 0.1),
-              ),
-            ),
-            constraints: BoxConstraints(
-              maxHeight: 300,
-              minHeight: _filteredContacts.isEmpty ? 100 : 50,
-            ),
-            child: _filteredContacts.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.contacts_outlined,
-                            size: 48,
-                            color: AppTheme.textSecondary.withOpacity( 0.3),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _searchQuery.isEmpty
-                                ? 'Aucun contact trouvé'
-                                : 'Aucun résultat pour "$_searchQuery"',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                          if (_searchQuery.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _searchQuery = '';
-                                  _filteredContacts = _contacts;
-                                });
-                              },
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppTheme.primaryBlue,
-                              ),
-                              child: const Text('Voir tous les contacts'),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: _filteredContacts.length,
-                    itemBuilder: (context, index) {
-                      final contact = _filteredContacts[index];
-                      final displayName = contact.displayName ?? 'Sans nom';
-                      final phone = contact.phones?.isNotEmpty == true
-                          ? contact.phones!.first.value
-                          : null;
-                      final formattedPhone = _formatPhoneNumber(phone);
-                      final isSelected = formattedPhone == widget.selectedPhone;
-                      final initials = _getInitials(displayName);
-                      
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isSelected
-                              ? AppTheme.primaryBlue
-                              : AppTheme.primaryBlue.withOpacity( 0.1),
-                          child: Text(
-                            initials,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : AppTheme.primaryBlue,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          displayName,
-                          style: TextStyle(
-                            color: isSelected ? AppTheme.primaryBlue : AppTheme.textPrimary,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: phone != null
-                            ? Text(
-                                formattedPhone,
-                                style: TextStyle(
-                                  color: isSelected ? AppTheme.primaryBlue : AppTheme.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              )
-                            : null,
-                        trailing: isSelected
-                            ? Icon(
-                                Icons.check_circle,
-                                color: AppTheme.primaryBlue,
-                                size: 24,
-                              )
-                            : null,
-                        onTap: _isProcessing
-                            ? null
-                            : () {
-                                if (phone != null) {
-                                  setState(() {
-                                    _isProcessing = true;
-                                  });
-                                  
-                                  widget.onContactSelected(formattedPhone, displayName);
-                                  
-                                  Future.delayed(const Duration(milliseconds: 500), () {
-                                    if (mounted) {
-                                      setState(() {
-                                        _isProcessing = false;
-                                      });
-                                    }
-                                  });
-                                }
-                              },
-                        tileColor: isSelected
-                            ? AppTheme.primaryBlue.withOpacity( 0.05)
-                            : null,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabled: !_isProcessing,
+        TextField(
+          controller: _searchController,
+          onChanged: _filterContacts,
+          decoration: InputDecoration(
+            hintText: 'Rechercher par nom ou numéro',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _searchController,
+              builder: (context, value, child) {
+                return value.text.isEmpty
+                    ? const SizedBox.shrink()
+                    : IconButton(
+                        tooltip: 'Effacer',
+                        onPressed: _clearSearch,
+                        icon: const Icon(Icons.close_rounded),
                       );
-                    },
-                  ),
-          ),
-        
-        // État sans permission
-        if (!_hasPermission && !_isLoading)
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.warningColor.withOpacity( 0.3),
-              ),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.contact_phone_outlined,
-                  size: 48,
-                  color: AppTheme.warningColor,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Accès aux contacts refusé',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Pour importer vos contacts, veuillez autoriser l\'accès',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _checkPermissionAndLoadContacts,
-                  icon: const Icon(Icons.settings),
-                  label: const Text('Autoriser l\'accès'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
+              },
             ),
           ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: _filteredContacts.isEmpty
+              ? _ContactStateMessage(
+                  icon: Icons.contacts_outlined,
+                  title: _contacts.isEmpty
+                      ? 'Aucun contact avec un numéro'
+                      : 'Aucun résultat',
+                  message: _contacts.isEmpty
+                      ? 'Ajoutez un contact sur votre téléphone ou saisissez '
+                          'le destinataire manuellement.'
+                      : 'Essayez un autre nom ou numéro.',
+                  actionLabel:
+                      _contacts.isEmpty ? null : 'Voir tous les contacts',
+                  onPressed: _contacts.isEmpty ? null : _clearSearch,
+                )
+              : ListView.separated(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  itemCount: _filteredContacts.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final contact = _filteredContacts[index];
+                    final isSelected = contact.phoneNumber ==
+                        normalizeContactPhoneNumber(widget.selectedPhone);
+
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      leading: CircleAvatar(
+                        backgroundColor: isSelected
+                            ? AppTheme.primary
+                            : AppTheme.primaryLight,
+                        child: Text(
+                          _getInitials(contact.displayName),
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : AppTheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        contact.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        [
+                          contact.phoneNumber,
+                          if (contact.phoneLabel?.isNotEmpty == true)
+                            contact.phoneLabel!,
+                        ].join(' · '),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppTheme.primary,
+                            )
+                          : const Icon(Icons.chevron_right_rounded),
+                      onTap: () => widget.onContactSelected(
+                        contact.phoneNumber,
+                        contact.contactName,
+                      ),
+                    );
+                  },
+                ),
+        ),
       ],
     );
   }
+}
+
+class _PhoneContactEntry {
+  const _PhoneContactEntry({
+    required this.displayName,
+    required this.contactName,
+    required this.phoneNumber,
+    this.phoneLabel,
+  });
+
+  final String displayName;
+  final String contactName;
+  final String phoneNumber;
+  final String? phoneLabel;
+}
+
+class _PermissionMessage extends StatelessWidget {
+  const _PermissionMessage({
+    required this.permanentlyDenied,
+    required this.errorMessage,
+    required this.onPressed,
+  });
+
+  final bool permanentlyDenied;
+  final String? errorMessage;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ContactStateMessage(
+      icon: Icons.contact_phone_outlined,
+      title: errorMessage ?? 'Autorisez l’accès aux contacts',
+      message: permanentlyDenied
+          ? 'L’accès a été refusé. Ouvrez les réglages du téléphone pour '
+              'l’autoriser.'
+          : 'Cette autorisation sert uniquement à choisir rapidement le nom '
+              'et le numéro du destinataire.',
+      actionLabel:
+          permanentlyDenied ? 'Ouvrir les réglages' : 'Autoriser l’accès',
+      onPressed: onPressed,
+    );
+  }
+}
+
+class _ContactStateMessage extends StatelessWidget {
+  const _ContactStateMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onPressed,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 48, color: AppTheme.primary),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.textSecondary),
+            ),
+            if (actionLabel != null && onPressed != null) ...[
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: onPressed,
+                icon: Icon(
+                  permanentlySettingsIcon(actionLabel!)
+                      ? Icons.settings_rounded
+                      : Icons.refresh_rounded,
+                ),
+                label: Text(actionLabel!),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool permanentlySettingsIcon(String label) => label.contains('réglages');
 }

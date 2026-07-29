@@ -197,7 +197,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                 Container(
                   padding: const EdgeInsets.all(9),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   ),
                   child: const Icon(Icons.business_rounded, color: Colors.white, size: 26),
@@ -221,7 +221,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                       Text(
                         'Gérez votre zone et vos livraisons',
                         style: AppFonts.manrope(
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
                         ),
@@ -234,7 +234,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
@@ -279,7 +279,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                 Text(
                   '${_parcels.length} colis · ${_drivers.length} chauffeurs',
                   style: AppFonts.manrope(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -496,7 +496,7 @@ class _HeaderIconButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.white.withOpacity(0.18),
+        color: Colors.white.withValues(alpha: 0.18),
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -735,7 +735,9 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
           return PcCard(
             onTap: () => context
                 .push('/parcel/${parcel.id}', extra: parcel)
-                .then((_) => widget.onRefresh()),
+                .then((_) {
+              if (mounted) widget.onRefresh();
+            }),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1166,7 +1168,9 @@ class _InProgressTab extends StatelessWidget {
                 parcel: parcel,
                 onTap: () => context
                     .push('/parcel/${parcel.id}', extra: parcel)
-                    .then((_) => onRefresh()),
+                    .then((_) {
+                  if (context.mounted) onRefresh();
+                }),
               ),
               if (parcel.driverName != null)
                 Padding(

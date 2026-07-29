@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,31 +13,95 @@ final broadcastProvider = FutureProvider<List<Broadcast>>((ref) async {
   return BroadcastService().fetchActiveBroadcasts();
 });
 
-final dismissedBroadcastsProvider = StateProvider<Set<String>>((ref) => {});
+/// Une fermeture utilisateur met le bandeau en veille sans le supprimer.
+///
+/// Deux heures évitent qu'il réapparaisse à chaque navigation tout en
+/// garantissant qu'une annonce encore active sera revue plus tard.
+const Duration broadcastSnoozeDuration = Duration(hours: 2);
 
-Future<Set<String>> _loadDismissed() async {
+const String _legacyDismissedKey = 'procolis-broadcasts-dismissed';
+const String _snoozeKeyPrefix = 'procolis-broadcasts-snoozed-until';
+
+String _snoozeKey(String userScope) =>
+    '$_snoozeKeyPrefix-${Uri.encodeComponent(userScope)}';
+
+Future<Map<String, DateTime>> loadBroadcastSnoozes(String userScope) async {
   try {
     final sp = await SharedPreferences.getInstance();
-    final raw = sp.getStringList('procolis-broadcasts-dismissed');
-    return raw?.toSet() ?? {};
-  } catch (_) {
+    // Les anciennes versions masquaient les identifiants définitivement.
+    // Supprimer cette clé fait réapparaître ces annonces si elles sont encore
+    // actives, puis seul le nouveau mécanisme horodaté est utilisé.
+    if (sp.containsKey(_legacyDismissedKey)) {
+      await sp.remove(_legacyDismissedKey);
+    }
+
+    final encoded = sp.getString(_snoozeKey(userScope));
+    if (encoded == null || encoded.isEmpty) return {};
+
+    final decoded = jsonDecode(encoded);
+    if (decoded is! Map) return {};
+
+    final now = DateTime.now();
+    final activeSnoozes = <String, DateTime>{};
+    for (final entry in decoded.entries) {
+      final until = DateTime.tryParse(entry.value.toString());
+      if (until != null && until.isAfter(now)) {
+        activeSnoozes[entry.key.toString()] = until;
+      }
+    }
+
+    // Purger les délais expirés empêche le stockage local de grossir au fil
+    // des campagnes administrateur.
+    if (activeSnoozes.length != decoded.length) {
+      await _saveBroadcastSnoozes(userScope, activeSnoozes);
+    }
+    return activeSnoozes;
+  } catch (error, stackTrace) {
+    debugPrint(
+      'BroadcastProvider: lecture des mises en veille impossible '
+      '($error)\n$stackTrace',
+    );
     return {};
   }
 }
 
-Future<void> _saveDismissed(Set<String> ids) async {
+Future<void> _saveBroadcastSnoozes(
+  String userScope,
+  Map<String, DateTime> snoozes,
+) async {
   final sp = await SharedPreferences.getInstance();
-  await sp.setStringList('procolis-broadcasts-dismissed', ids.toList());
+  final encoded = jsonEncode(
+    snoozes.map(
+      (broadcastId, until) =>
+          MapEntry(broadcastId, until.toUtc().toIso8601String()),
+    ),
+  );
+  await sp.setString(_snoozeKey(userScope), encoded);
 }
 
-Future<void> dismissBroadcast(String id) async {
-  final dismissed = await _loadDismissed();
-  dismissed.add(id);
-  await _saveDismissed(dismissed);
+Future<DateTime> snoozeBroadcast(
+  String id,
+  String userScope, {
+  Duration duration = broadcastSnoozeDuration,
+}) async {
+  final snoozes = await loadBroadcastSnoozes(userScope);
+  final until = DateTime.now().add(duration);
+  snoozes[id] = until;
+  await _saveBroadcastSnoozes(userScope, snoozes);
+  return until;
+}
+
+Future<void> restoreBroadcast(String id, String userScope) async {
+  final snoozes = await loadBroadcastSnoozes(userScope);
+  snoozes.remove(id);
+  await _saveBroadcastSnoozes(userScope, snoozes);
 }
 
 List<Broadcast> filterActiveBroadcasts(
-    List<Broadcast> all, Set<String> dismissed, String? role) {
+  List<Broadcast> all,
+  Map<String, DateTime> snoozedUntil,
+  String? role,
+) {
   if (role == null) return [];
   final now = DateTime.now();
   return all.where((b) {
@@ -42,7 +109,7 @@ List<Broadcast> filterActiveBroadcasts(
     if (!b.targetRoles.contains(role)) return false;
     if (b.startsAt?.isAfter(now) == true) return false;
     if (b.endsAt?.isBefore(now) == true) return false;
-    if (dismissed.contains(b.id)) return false;
+    if (snoozedUntil[b.id]?.isAfter(now) == true) return false;
     return true;
   }).toList();
 }

@@ -6,7 +6,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../models/garage.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/procolis_design_system.dart';
 
 class ItineraryMapScreen extends StatefulWidget {
@@ -215,7 +214,7 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
     final img = await picture.toImage(size.toInt(), size.toInt());
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
 
-    return BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
 
   double get _resolvedDepartureLat =>
@@ -455,7 +454,9 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
             myLocationButtonEnabled: false,
             onMapCreated: (controller) {
               _mapController = controller;
-              Future.delayed(const Duration(milliseconds: 300), _fitBounds);
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (mounted) _fitBounds();
+              });
             },
           ),
 

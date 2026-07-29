@@ -378,7 +378,7 @@ class _RouteLine extends StatelessWidget {
         children: [
           Container(
             height: 2,
-            color: Colors.white.withOpacity(0.42),
+            color: Colors.white.withValues(alpha: 0.42),
           ),
           const Positioned(
             left: 34,
@@ -436,7 +436,7 @@ class _HeroStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
+        color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(

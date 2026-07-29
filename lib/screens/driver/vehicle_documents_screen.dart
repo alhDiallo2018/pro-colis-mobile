@@ -12,7 +12,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/pc_components.dart';
 
 /// Descripteur d'un document officiel affiché sous forme de carte.
@@ -777,7 +776,7 @@ class _DocSlotTile extends StatelessWidget {
             right: 6,
             bottom: 6,
             child: Material(
-              color: Colors.black.withOpacity(0.55),
+              color: Colors.black.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(999),
               child: InkWell(
                 onTap: onTap,

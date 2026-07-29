@@ -16,7 +16,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:procolis/models/garage.dart';
 import 'package:procolis/models/parcel.dart';
-import 'package:procolis/models/payment.dart';
 import 'package:procolis/models/user.dart';
 import 'package:procolis/models/voice_message.dart';
 import 'package:procolis/screens/dashboard/notifications/notifications_screen.dart';
@@ -30,11 +29,13 @@ import '../../providers/auth_provider.dart';
 import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../utils/parcel_access_policy.dart';
+import '../../utils/parcel_offer_helpers.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/bar_chart.dart';
 import '../../widgets/broadcast_banner.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
-import '../../widgets/payment_channel_selector.dart';
+import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../driver/create_annonce_sheet.dart';
@@ -83,22 +84,9 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   final _maxWidthController = TextEditingController();
   final _maxHeightController = TextEditingController();
 
-  // Contrôleurs pour les options (masqués mais conservés pour les données)
-  final _pricePerKgController = TextEditingController();
-  final _basePriceController = TextEditingController();
-
   // Date et heure
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-
-  // Sélecteurs (masqués mais conservés pour les données)
-  bool _isUrgent = false;
-  bool _isInsured = false;
-  ParcelType _parcelType = ParcelType.package;
-
-  /// Modes de règlement acceptés sur ce trajet : le client choisira parmi eux.
-  List<PaymentChannel> _acceptedPaymentChannels =
-      PaymentChannel.values.toList();
 
   // Messages vocaux
   final _audioRecorder = Record();
@@ -156,8 +144,6 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
     _maxLengthController.dispose();
     _maxWidthController.dispose();
     _maxHeightController.dispose();
-    _pricePerKgController.dispose();
-    _basePriceController.dispose();
     _recordingTimer?.cancel();
     _audioRecorder.dispose();
     _audioPlayer.dispose();
@@ -332,8 +318,24 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
             duration: _recordingDuration,
             createdAt: DateTime.now(),
           );
+
+          // Une annonce ne possède qu'un seul `audioUrl` côté API. Remplacer
+          // l'ancien enregistrement empêche de téléverser des fichiers qui ne
+          // pourraient ensuite jamais être rattachés à l'annonce.
+          for (final existing in _voiceMessages) {
+            try {
+              final file = File(existing.path);
+              if (file.existsSync()) file.deleteSync();
+            } catch (error) {
+              debugPrint(
+                'Suppression de l’ancien vocal impossible: $error',
+              );
+            }
+          }
           setState(() {
-            _voiceMessages.add(voiceMessage);
+            _voiceMessages
+              ..clear()
+              ..add(voiceMessage);
             _isRecording = false;
           });
 
@@ -513,109 +515,72 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
         _selectedTime!.minute,
       );
 
-      // Upload des messages vocaux
-      List<String> uploadedAudioUrls = [];
+      // Le contrat Advertisement expose un unique `audioUrl`.
+      String? uploadedAudioUrl;
       if (_voiceMessages.isNotEmpty) {
-        debugPrint(
-            '🎤 Upload de ${_voiceMessages.length} message(s) vocal(aux)...');
-        for (int i = 0; i < _voiceMessages.length; i++) {
-          final voiceMsg = _voiceMessages[i];
-          try {
-            final audioFile = XFile(voiceMsg.path);
-            final url = await _apiService.uploadFile(file: audioFile, mediaType: 'audio');
-            if (url != null && url.isNotEmpty) {
-              debugPrint('✅ Message vocal ${i + 1} uploadé: $url');
-              uploadedAudioUrls.add(url);
-            }
-          } catch (e) {
-            debugPrint('❌ Erreur upload audio ${i + 1}: $e');
-          }
+        final voiceMsg = _voiceMessages.first;
+        final audioFile = XFile(voiceMsg.path);
+        uploadedAudioUrl =
+            await _apiService.uploadFile(file: audioFile, mediaType: 'audio');
+        if (uploadedAudioUrl == null || uploadedAudioUrl.isEmpty) {
+          throw Exception('Impossible de téléverser le message vocal');
         }
       }
 
-      // Construction de la description complète
-      final fullDescription = _descriptionController.text.isNotEmpty
-          ? _descriptionController.text
-          : '📦 Voyage de ${_departureController.text} à ${_arrivalController.text}';
+      final vehicleDescription = [
+        if (_vehicleModel.isNotEmpty) _vehicleModel,
+        if (_vehiclePlate.isNotEmpty) _vehiclePlate,
+        if (_vehicleType.isNotEmpty) _vehicleType,
+      ].join(' · ');
 
-      // Construction des notes
-      final notes = '''
-🛣️ Voyage de ${_departureController.text} à ${_arrivalController.text}
-📅 Départ: ${_departureDateController.text} à ${_departureTimeController.text}
-📦 Capacité max: ${_maxWeightController.text.isNotEmpty ? "${_maxWeightController.text} kg" : 'Non spécifiée'}
-📏 Dimensions max: ${_getDimensionsText()}
-${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : ''}
-'''
-          .trim();
+      // Les dimensions et le véhicule n'ont pas de colonnes dédiées sur une
+      // annonce. Les intégrer à la description préserve l'information sans
+      // envoyer au backend des propriétés silencieusement ignorées.
+      final notes = [
+        _descriptionController.text.trim().isNotEmpty
+            ? _descriptionController.text.trim()
+            : 'Voyage de ${_departureController.text} '
+                'à ${_arrivalController.text}',
+        'Départ : ${_departureDateController.text} '
+            'à ${_departureTimeController.text}',
+        'Capacité : ${_maxWeightController.text} kg',
+        'Dimensions max : ${_getDimensionsText()}',
+        if (vehicleDescription.isNotEmpty) 'Véhicule : $vehicleDescription',
+        if (_notesController.text.trim().isNotEmpty)
+          _notesController.text.trim(),
+      ].join('\n');
 
-      // Préparer les données du colis
-      final parcelData = {
-        // Expéditeur = Chauffeur
-        'senderId': user.id,
-        'senderName': user.fullName,
-        'senderPhone': user.phone,
-        'senderEmail': user.email,
-        // Destinataire = Client (à déterminer)
-        'receiverName': 'À déterminer',
-        'receiverPhone': '',
-        'receiverEmail': '',
-        'receiverAddress': _arrivalController.text,
-        // Description du voyage
-        'description': fullDescription,
-        // Capacité de chargement
-        'weight': double.tryParse(_maxWeightController.text) ?? 0,
-        'length': double.tryParse(_maxLengthController.text),
-        'width': double.tryParse(_maxWidthController.text),
-        'height': double.tryParse(_maxHeightController.text),
-        // Type de colis accepté
-        'type': _parcelType.value,
-        // Statut
-        'status': 'free',
-        // Trajet
-        'departureGarageId': '',
-        'departureGarageName': _departureController.text,
-        'arrivalGarageId': '',
-        'arrivalGarageName': _arrivalController.text,
-        // Prix (sera négocié)
-        'price': double.tryParse(_basePriceController.text) ?? 0,
-        'proposedPrice': double.tryParse(_pricePerKgController.text) ?? 0,
-        // Options
-        'isUrgent': _isUrgent,
-        'isInsured': _isInsured,
-        // Paiement : le chauffeur déclare ce qu'il accepte, le client tranchera.
-        'acceptedPaymentChannels':
-            PaymentChannel.toValues(_acceptedPaymentChannels),
-        'paymentPhoneNumber': '',
-        // Mode libre service
-        'isFreeForBidding': true,
-        // Chauffeur assigné
-        'driverId': user.id,
-        'driverName': user.fullName,
-        'driverPhone': user.phone,
-        // Date de départ
-        'departureDate': departureDateTime.toIso8601String(),
-        // Notes
-        'notes': notes,
-        // Métadonnées supplémentaires
-        'vehicleModel': _vehicleModel,
-        'vehiclePlate': _vehiclePlate,
-        'vehicleType': _vehicleType,
-        // Messages vocaux
-        'audioUrls': uploadedAudioUrls,
+      // Ce formulaire publie un trajet chauffeur : il doit utiliser
+      // `/advertisements`, pas l'endpoint de création de colis réservé client.
+      final advertisementData = <String, dynamic>{
+        'departureCity': _departureController.text.trim(),
+        'arrivalCity': _arrivalController.text.trim(),
+        'departureAt': departureDateTime.toIso8601String(),
+        'availableWeight': double.parse(_maxWeightController.text),
+        'description': notes,
+        if (uploadedAudioUrl != null) 'audioUrl': uploadedAudioUrl,
       };
+      final result = await _apiService.createAdvertisement(advertisementData);
+      if (result['success'] == false) {
+        throw Exception(
+          result['message']?.toString() ?? 'Publication impossible',
+        );
+      }
 
-      final result =
-          await ref.read(parcelProvider.notifier).createParcel(parcelData);
-
-      if (result != null && mounted) {
-        // Nettoyer les fichiers audio temporaires
+      if (mounted) {
+        // Les fichiers d'enregistrement sont temporaires et peuvent être
+        // supprimés uniquement après confirmation de création par l'API.
         for (final msg in _voiceMessages) {
           try {
             final file = File(msg.path);
             if (file.existsSync()) {
               file.deleteSync();
             }
-          } catch (_) {}
+          } catch (error) {
+            debugPrint(
+              'Nettoyage du message vocal impossible: $error',
+            );
+          }
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -708,8 +673,8 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
                     const SizedBox(height: 32),
                   ],
                 ),
-        ),
-      ),
+              ),
+            ),
     );
   }
 
@@ -723,7 +688,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -734,7 +699,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: primaryBlue.withOpacity( 0.1),
+              color: primaryBlue.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -779,7 +744,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -836,7 +801,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity( 0.1),
+                        color: Colors.black.withOpacity(0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -899,7 +864,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity( 0.1),
+                        color: Colors.black.withOpacity(0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -1003,7 +968,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1108,38 +1073,6 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
             ),
             keyboardType: TextInputType.number,
           ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<ParcelType>(
-            value: _parcelType,
-            decoration: InputDecoration(
-              labelText: 'Type de colis accepté',
-              prefixIcon: const Icon(Icons.category, color: Colors.grey),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: primaryBlue, width: 1.5),
-              ),
-            ),
-            items: ParcelType.values.map((type) {
-              return DropdownMenuItem(
-                value: type,
-                child: Text(type.value),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _parcelType = value);
-              }
-            },
-          ),
-          const SizedBox(height: 18),
-          AcceptedPaymentChannelsField(
-            value: _acceptedPaymentChannels,
-            onChanged: (channels) =>
-                setState(() => _acceptedPaymentChannels = channels),
-          ),
         ],
       ),
     );
@@ -1153,7 +1086,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1340,7 +1273,7 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1391,9 +1324,9 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: primaryBlue.withOpacity( 0.05),
+        color: primaryBlue.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryBlue.withOpacity( 0.2)),
+        border: Border.all(color: primaryBlue.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1459,10 +1392,6 @@ ${_notesController.text.isNotEmpty ? '\n📝 Notes: ${_notesController.text}' : 
             ),
           Text(
             '📏 Dims: ${_getDimensionsText()}',
-            style: TextStyle(fontSize: 13, color: textPrimary),
-          ),
-          Text(
-            '📦 Type: ${_parcelType.value}',
             style: TextStyle(fontSize: 13, color: textPrimary),
           ),
           if (_notesController.text.isNotEmpty)
@@ -1566,9 +1495,10 @@ class _SearchBar extends StatelessWidget {
 class _DriverSearchDelegate extends SearchDelegate<String> {
   final void Function(String query) onSearch;
 
-  _DriverSearchDelegate({required this.onSearch}) : super(
-    searchFieldLabel: 'Rechercher un colis, un chauffeur…',
-  );
+  _DriverSearchDelegate({required this.onSearch})
+      : super(
+          searchFieldLabel: 'Rechercher un colis, un chauffeur…',
+        );
 
   @override
   List<Widget>? buildActions(BuildContext context) {
@@ -1603,7 +1533,8 @@ class _DriverSearchDelegate extends SearchDelegate<String> {
   @override
   Widget buildSuggestions(BuildContext context) {
     return const Center(
-      child: Text('Entrez un numéro de suivi de colis.',
+      child: Text(
+        'Entrez un numéro de suivi de colis.',
         style: TextStyle(color: AppTheme.slate500),
       ),
     );
@@ -1709,6 +1640,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
 
   void _openPublishTrip() {
     showCreateAnnonceSheet(context).then((created) {
+      if (!mounted) return;
       if (created == true) {
         _loadData();
         setState(() => _selectedIndex = 1);
@@ -1793,6 +1725,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
       case 1:
         return _DriverPoolTabScreen(
           parcelState: parcelState,
+          user: user,
           onRefresh: _loadData,
           onPublishTrip: _openPublishTrip,
         );
@@ -1834,8 +1767,8 @@ class _DriverStepAction {
 _DriverStepAction? _driverNextStep(ParcelStatus status) {
   switch (status) {
     case ParcelStatus.pending:
-      return const _DriverStepAction(
-          'confirm', 'Confirmer la prise en charge', Icons.check_circle_rounded);
+      return const _DriverStepAction('confirm', 'Confirmer la prise en charge',
+          Icons.check_circle_rounded);
     case ParcelStatus.confirmed:
       return const _DriverStepAction(
           'pickup', 'Marquer ramassé', Icons.inventory_2_rounded);
@@ -1935,8 +1868,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
     if (!mounted) return;
     final payments = results[3] as List<Map<String, dynamic>>;
     final now = DateTime.now();
-    final weekStart =
-        DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final weekStart = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
     final bars = List<double>.filled(7, 0);
     double weekTotal = 0;
     for (final p in payments) {
@@ -1960,15 +1893,25 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
     });
   }
 
-  void _openItinerary(Parcel parcel) {
-    _api.getAllGarages().then((garages) {
+  Future<void> _openItinerary(Parcel parcel) async {
+    try {
+      final garages = await _api.getAllGarages();
       if (!mounted) return;
       context.push('/driver/itinerary', extra: {
         'departureName': parcel.departureGarageName,
         'arrivalName': parcel.arrivalGarageName ?? '',
         'garages': garages,
       });
-    });
+    } catch (error, stackTrace) {
+      debugPrint(
+        'DriverDashboard: chargement des zones impossible '
+        '($error)\n$stackTrace',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d’ouvrir l’itinéraire.')),
+      );
+    }
   }
 
   String _fcfa(num value) {
@@ -1992,16 +1935,19 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
     final user = widget.user;
     final activeMission =
         _activeMissions.isNotEmpty ? _activeMissions.first : null;
-    final availableParcel = widget.parcelState.freeParcels.isNotEmpty
-        ? widget.parcelState.freeParcels.first
-        : null;
+    final zoneParcels = widget.parcelState.freeParcels
+        .where((parcel) => parcelStartsInUserZone(parcel, user))
+        .toList();
+    final availableParcel = zoneParcels.isNotEmpty ? zoneParcels.first : null;
+    final availableParcelBidId = availableParcel == null
+        ? null
+        : _bidIdForParcel(availableParcel, user?.id);
     final deliveries = _statsDeliveries ??
         user?.completedDeliveries ??
         user?.totalDeliveries ??
         0;
     final activeCount = _activeMissions.length;
-    final wallet =
-        _walletBalance != null ? '${_fcfa(_walletBalance!)}' : '—';
+    final wallet = _walletBalance != null ? '${_fcfa(_walletBalance!)}' : '—';
     // Pas de note inventée : un tiret tant qu'aucun client n'a noté.
     final rating = _statsRating?.toStringAsFixed(1).replaceAll('.', ',') ?? '—';
 
@@ -2015,9 +1961,12 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: _SearchBar(onSearch: (query) {
             if (query.trim().isNotEmpty) {
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => TrackParcelScreen(trackingNumber: query.trim()),
-              ));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        TrackParcelScreen(trackingNumber: query.trim()),
+                  ));
             }
           }),
         ),
@@ -2035,7 +1984,10 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                 childAspectRatio: 1.24,
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverPointsScreen())),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const DriverPointsScreen())),
                     child: PcStatBox(
                       icon: Icons.account_balance_wallet_rounded,
                       value: '$wallet FCFA',
@@ -2065,21 +2017,31 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
               ),
               const SizedBox(height: 14),
               GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverPointsScreen())),
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const DriverPointsScreen())),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     gradient: AppTheme.amberGradient,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.add_circle_rounded, color: AppTheme.amberOnFg, size: 22),
+                      const Icon(Icons.add_circle_rounded,
+                          color: AppTheme.amberOnFg, size: 22),
                       const SizedBox(width: 10),
                       const Expanded(
-                        child: Text('Recharger mon portefeuille', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.amberOnFg)),
+                        child: Text('Recharger mon portefeuille',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: AppTheme.amberOnFg)),
                       ),
-                      const Icon(Icons.chevron_right_rounded, color: AppTheme.amberOnFg),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppTheme.amberOnFg),
                     ],
                   ),
                 ),
@@ -2138,9 +2100,18 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                 _DriverRouteCard(
                   parcel: availableParcel,
                   footerText: '240 km',
-                  primaryActionLabel: 'Faire une offre',
-                  primaryActionIcon: Icons.gavel_rounded,
-                  onPrimaryAction: widget.onViewPool,
+                  primaryActionLabel: availableParcelBidId != null
+                      ? 'Suivi offre'
+                      : 'Faire une offre',
+                  primaryActionIcon: availableParcelBidId != null
+                      ? Icons.chat_bubble_outline_rounded
+                      : Icons.gavel_rounded,
+                  onPrimaryAction: availableParcelBidId != null
+                      ? () => _openBidTracking(
+                            availableParcel,
+                            availableParcelBidId,
+                          )
+                      : widget.onViewPool,
                 )
               else
                 const PcEmptyState(
@@ -2159,6 +2130,37 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Recoupe les offres embarquées dans le colis avec l'endpoint « offres
+  /// envoyées », car les deux versions de l'API ne peuplent pas toujours la
+  /// relation `bids` sur la liste publique.
+  String? _bidIdForParcel(Parcel parcel, String? userId) {
+    final embeddedBid = findUserBid(parcel, userId);
+    if (embeddedBid != null) return embeddedBid.id;
+
+    for (final bid in _bidsSent) {
+      if (bid['parcelId']?.toString() == parcel.id) {
+        return bid['id']?.toString();
+      }
+    }
+    return null;
+  }
+
+  void _openBidTracking(Parcel parcel, String bidId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NegotiationChatScreen(
+          peerId: parcel.senderId,
+          peerName: parcel.senderName,
+          parcelId: parcel.id,
+          bidId: bidId,
+          role: 'driver',
+          onChanged: _loadDashboardData,
+        ),
+      ),
     );
   }
 
@@ -2210,7 +2212,10 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          PcBarChart(bars: _revenueBars, labels: const ['L', 'M', 'M', 'J', 'V', 'S', 'D'], height: 96),
+          PcBarChart(
+              bars: _revenueBars,
+              labels: const ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+              height: 96),
         ],
       ),
     );
@@ -2358,7 +2363,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                             ? NetworkImage(
                                 user.profilePhoto!.startsWith('http')
                                     ? user.profilePhoto!
-                                    : ApiService.resolveMediaUrl(user.profilePhoto!),
+                                    : ApiService.resolveMediaUrl(
+                                        user.profilePhoto!),
                               )
                             : null,
                         child: user != null &&
@@ -2421,8 +2427,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                   IconButton(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                          builder: (_) => const MessagesScreen()),
+                      MaterialPageRoute(builder: (_) => const MessagesScreen()),
                     ),
                     color: Colors.white,
                     icon: Stack(
@@ -2466,14 +2471,18 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                             right: -2,
                             top: -2,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 1),
                               decoration: BoxDecoration(
                                 color: AppTheme.amber400,
                                 borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: AppTheme.teal600, width: 2),
+                                border: Border.all(
+                                    color: AppTheme.teal600, width: 2),
                               ),
                               child: Text(
-                                widget.unreadNotificationsCount > 99 ? '99+' : '${widget.unreadNotificationsCount}',
+                                widget.unreadNotificationsCount > 99
+                                    ? '99+'
+                                    : '${widget.unreadNotificationsCount}',
                                 style: const TextStyle(
                                   color: Color(0xFF3A2600),
                                   fontSize: 10,
@@ -2491,7 +2500,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity( 0.20),
+                  color: Colors.white.withOpacity(0.20),
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 ),
                 child: Row(
@@ -2500,7 +2509,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity( 0.18),
+                        color: Colors.white.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       child: Icon(
@@ -2598,7 +2607,7 @@ class _PublishTripShortcut extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity( 0.18),
+                  color: Colors.white.withOpacity(0.18),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
                 child: const Icon(
@@ -2904,11 +2913,13 @@ class _RouteMeta extends StatelessWidget {
 
 class _DriverPoolTabScreen extends StatefulWidget {
   final ParcelState parcelState;
+  final User? user;
   final VoidCallback onRefresh;
   final VoidCallback onPublishTrip;
 
   const _DriverPoolTabScreen({
     required this.parcelState,
+    required this.user,
     required this.onRefresh,
     required this.onPublishTrip,
   });
@@ -2918,30 +2929,39 @@ class _DriverPoolTabScreen extends StatefulWidget {
 }
 
 class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
-  String _selectedFilter = 'Tous';
+  static const _zoneFilter = 'zone';
+  static const _allFilter = 'all';
+  static const _expressFilter = 'express';
+  static const _lightFilter = 'light';
+  static const _todayFilter = 'today';
+  static const _withOffersFilter = 'with_offers';
 
-  List<String> get _filters => const [
-        'Tous',
-        'Abidjan →',
-        'Express',
-        '< 10 kg',
-        'Aujourd’hui',
-        'Avec offres',
+  String _selectedFilter = _zoneFilter;
+
+  List<MapEntry<String, String>> get _filters => [
+        MapEntry(
+          _zoneFilter,
+          '${resolveUserResidenceZone(widget.user) ?? 'Ma zone'} →',
+        ),
+        const MapEntry(_allFilter, 'Tous'),
+        const MapEntry(_expressFilter, 'Express'),
+        const MapEntry(_lightFilter, '< 10 kg'),
+        const MapEntry(_todayFilter, 'Aujourd’hui'),
+        const MapEntry(_withOffersFilter, 'Avec offres'),
       ];
 
   List<Parcel> get _filteredParcels {
     final parcels = widget.parcelState.freeParcels;
     switch (_selectedFilter) {
-      case 'Abidjan →':
+      case _zoneFilter:
         return parcels
-            .where((parcel) =>
-                parcel.departureGarageName.toLowerCase().contains('abidjan'))
+            .where((parcel) => parcelStartsInUserZone(parcel, widget.user))
             .toList();
-      case 'Express':
+      case _expressFilter:
         return parcels.where((parcel) => parcel.isUrgent).toList();
-      case '< 10 kg':
+      case _lightFilter:
         return parcels.where((parcel) => parcel.weight < 10).toList();
-      case 'Aujourd’hui':
+      case _todayFilter:
         final now = DateTime.now();
         return parcels
             .where((parcel) =>
@@ -2949,7 +2969,7 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
                 parcel.createdAt.month == now.month &&
                 parcel.createdAt.day == now.day)
             .toList();
-      case 'Avec offres':
+      case _withOffersFilter:
         return parcels.where((parcel) => parcel.bids.isNotEmpty).toList();
       default:
         return parcels;
@@ -2971,19 +2991,37 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
       MaterialPageRoute(
         builder: (context) => FreeParcelDetailsScreen(parcel: parcel),
       ),
-    ).then((_) => widget.onRefresh());
+    ).then((_) {
+      if (mounted) widget.onRefresh();
+    });
+  }
+
+  void _openOfferTracking(Parcel parcel, Bid bid) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NegotiationChatScreen(
+          peerId: parcel.senderId,
+          peerName: parcel.senderName,
+          parcelId: parcel.id,
+          bidId: bid.id,
+          role: 'driver',
+          onChanged: widget.onRefresh,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final parcels = _filteredParcels;
+    final userZone = resolveUserResidenceZone(widget.user);
 
     return Column(
       children: [
         _DriverTabHeader(
           title: 'Colis à prendre',
-          subtitle:
-              '${widget.parcelState.freeParcels.length} opportunité(s) disponibles',
+          subtitle: '${parcels.length} opportunité(s) disponibles',
           icon: Icons.sell_rounded,
           actionIcon: Icons.refresh_rounded,
           onAction: widget.onRefresh,
@@ -2998,9 +3036,9 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
             itemBuilder: (context, index) {
               final filter = _filters[index];
               return _DriverFilterChip(
-                label: filter,
-                selected: _selectedFilter == filter,
-                onTap: () => setState(() => _selectedFilter = filter),
+                label: filter.value,
+                selected: _selectedFilter == filter.key,
+                onTap: () => setState(() => _selectedFilter = filter.key),
               );
             },
           ),
@@ -3018,12 +3056,13 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
                 : parcels.isEmpty
                     ? ListView(
                         padding: const EdgeInsets.fromLTRB(24, 90, 24, 120),
-                        children: const [
+                        children: [
                           PcEmptyState(
                             icon: Icons.inventory_2_rounded,
                             title: 'Aucun colis à prendre',
-                            message:
-                                'Les demandes clients en libre service apparaîtront ici.',
+                            message: userZone == null
+                                ? 'Renseignez votre ville dans votre profil pour voir les départs de votre zone.'
+                                : 'Aucun colis ne part actuellement de $userZone.',
                             tone: PcTone.amber,
                           ),
                         ],
@@ -3034,12 +3073,20 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final parcel = parcels[index];
+                          final existingBid =
+                              findUserBid(parcel, widget.user?.id);
                           return _DriverRouteCard(
                             parcel: parcel,
                             footerText: _poolFooter(parcel),
-                            primaryActionLabel: 'Faire une offre',
-                            primaryActionIcon: Icons.gavel_rounded,
-                            onPrimaryAction: () => _openOffer(parcel),
+                            primaryActionLabel: existingBid != null
+                                ? 'Suivi offre'
+                                : 'Faire une offre',
+                            primaryActionIcon: existingBid != null
+                                ? Icons.chat_bubble_outline_rounded
+                                : Icons.gavel_rounded,
+                            onPrimaryAction: existingBid != null
+                                ? () => _openOfferTracking(parcel, existingBid)
+                                : () => _openOffer(parcel),
                           );
                         },
                       ),
@@ -3137,9 +3184,9 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
   Future<void> _refresh() async => widget.onRefresh();
 
   void _openMission(Parcel parcel) {
-    context
-        .push('/parcel/${parcel.id}', extra: parcel)
-        .then((_) => widget.onRefresh());
+    context.push('/parcel/${parcel.id}', extra: parcel).then((_) {
+      if (mounted) widget.onRefresh();
+    });
   }
 
   void _openConfirmDelivery(Parcel parcel) {
@@ -3149,17 +3196,19 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
         builder: (context) => ConfirmDeliveryScreen(parcel: parcel),
       ),
     ).then((updated) {
-      if (updated == true) widget.onRefresh();
+      if (mounted && updated == true) widget.onRefresh();
     });
   }
 
   Widget _buildMissionFooter(Parcel mission) {
     final commissionEstimate =
         mission.price != null ? CommissionService.calculate(mission.price!) : 0;
-    final commissionLabel =
-        mission.status.isCompleted ? 'Commission: ${commissionEstimate.toStringAsFixed(0)} FCFA' : 'Commission est.: ${commissionEstimate.toStringAsFixed(0)} FCFA';
-    final client =
-        mission.senderName.isNotEmpty ? mission.senderName : 'Client SendProcolis';
+    final commissionLabel = mission.status.isCompleted
+        ? 'Commission: ${commissionEstimate.toStringAsFixed(0)} FCFA'
+        : 'Commission est.: ${commissionEstimate.toStringAsFixed(0)} FCFA';
+    final client = mission.senderName.isNotEmpty
+        ? mission.senderName
+        : 'Client SendProcolis';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3273,9 +3322,8 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
                             message: _tabIndex == 0
                                 ? 'Acceptez un colis à prendre pour démarrer une mission.'
                                 : 'Vos livraisons complétées seront visibles ici.',
-                            tone: _tabIndex == 0
-                                ? PcTone.primary
-                                : PcTone.green,
+                            tone:
+                                _tabIndex == 0 ? PcTone.primary : PcTone.green,
                           ),
                         ],
                       )
@@ -3474,8 +3522,8 @@ class _DriverProfileTabScreenState
                           backgroundColor: AppTheme.primaryLight,
                           backgroundImage: hasPhoto
                               ? NetworkImage(
-                                  photoUrl!.startsWith('http')
-                                      ? photoUrl!
+                                  photoUrl.startsWith('http')
+                                      ? photoUrl
                                       : ApiService.resolveMediaUrl(photoUrl),
                                 )
                               : null,
@@ -3618,7 +3666,8 @@ class _DriverProfileTabScreenState
                           : (_garageName ??
                               user?.garageName ??
                               'Zone non renseignée'),
-                      onTap: () => Navigator.push(context,
+                      onTap: () => Navigator.push(
+                          context,
                           MaterialPageRoute(
                               builder: (_) => const DriverGarageScreen())),
                     ),
@@ -3631,7 +3680,9 @@ class _DriverProfileTabScreenState
                         context,
                         MaterialPageRoute(
                             builder: (_) => const DriverParametresScreen()),
-                      ).then((_) => _loadProfileData()),
+                      ).then((_) {
+                        if (mounted) _loadProfileData();
+                      }),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -3646,46 +3697,57 @@ class _DriverProfileTabScreenState
                         context,
                         MaterialPageRoute(
                             builder: (_) => const VehicleDocumentsScreen()),
-                      ).then((_) => _loadProfileData()),
+                      ).then((_) {
+                        if (mounted) _loadProfileData();
+                      }),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.payments_rounded,
                       title: 'Revenus',
                       subtitle: 'Gains et historique des paiements',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const DriverRevenusScreen())),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const DriverRevenusScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.account_balance_wallet_rounded,
                       title: 'Portefeuille & crédits',
                       subtitle: 'Solde FCFA et recharge',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const DriverPointsScreen())),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const DriverPointsScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.campaign_rounded,
                       title: 'Mes annonces',
                       subtitle: 'Gérer mes trajets publiés',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const DriverMesAnnoncesScreen())),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const DriverMesAnnoncesScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.forum_rounded,
                       title: 'Messages',
                       subtitle: 'Discussions avec les clients',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const MessagesScreen())),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const MessagesScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.history_rounded,
                       title: 'Historique',
                       subtitle: 'Courses terminées et annulées',
-                      onTap: () => Navigator.push(context,
+                      onTap: () => Navigator.push(
+                          context,
                           MaterialPageRoute(
                               builder: (_) => const DriverHistoriqueScreen())),
                     ),
@@ -3701,16 +3763,20 @@ class _DriverProfileTabScreenState
                       icon: Icons.settings_rounded,
                       title: 'Paramètres véhicule & PIN',
                       subtitle: 'Véhicule, sécurité',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const DriverParametresScreen())),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const DriverParametresScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
                       icon: Icons.help_rounded,
                       title: 'Aide & support',
                       subtitle: 'Centre d’assistance chauffeur',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const HelpScreen())),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const HelpScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -4081,15 +4147,10 @@ class _DriverAdvertisementsScreenState
       final freeParcels = ref.read(parcelProvider).freeParcels;
 
       _clientRequests = freeParcels
-          .where((p) =>
-              p.senderId != user.id &&
-              p.senderPhone != user.phone &&
-              !_isDriver(p))
+          .where((p) => !isParcelSender(p, user) && !_isDriver(p))
           .toList();
 
-      _myAds = freeParcels
-          .where((p) => p.senderId == user.id || p.senderPhone == user.phone)
-          .toList();
+      _myAds = freeParcels.where((p) => isParcelSender(p, user)).toList();
 
       debugPrint(
           '✅ Demandes clients: ${_clientRequests.length}, Mes annonces: ${_myAds.length}');
@@ -4313,7 +4374,7 @@ class _DriverAdvertisementsScreenState
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.06),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -4360,7 +4421,7 @@ class _DriverAdvertisementsScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity( 0.15),
+                    color: Colors.purple.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -4385,7 +4446,7 @@ class _DriverAdvertisementsScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity( 0.15),
+                      color: Colors.green.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -4402,7 +4463,7 @@ class _DriverAdvertisementsScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity( 0.15),
+                      color: Colors.purple.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -4727,7 +4788,7 @@ class _DriverAdvertisementsScreenState
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: primaryBlue.withOpacity( 0.1),
+                color: primaryBlue.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -4796,6 +4857,7 @@ class _DriverAdvertisementsScreenState
 
   void _createNewAd() {
     showCreateAnnonceSheet(context).then((created) {
+      if (!mounted) return;
       if (created == true) {
         _loadAdvertisements();
       }
@@ -4803,9 +4865,8 @@ class _DriverAdvertisementsScreenState
   }
 
   void _editAd(Parcel parcel) {
-    context
-        .push('/parcel/${parcel.id}', extra: parcel)
-        .then((result) {
+    context.push('/parcel/${parcel.id}', extra: parcel).then((result) {
+      if (!mounted) return;
       if (result == true) {
         _loadAdvertisements();
       }
@@ -5003,9 +5064,7 @@ class _BidsBottomSheetState extends State<_BidsBottomSheet> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isSelected
-            ? Colors.green.withOpacity( 0.08)
-            : Colors.transparent,
+        color: isSelected ? Colors.green.withOpacity(0.08) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: isSelected
             ? Border.all(color: Colors.green, width: 1.5)
@@ -5015,7 +5074,7 @@ class _BidsBottomSheetState extends State<_BidsBottomSheet> {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: primaryBlue.withOpacity( 0.1),
+            backgroundColor: primaryBlue.withOpacity(0.1),
             child: Text(
               bid.driverName.isNotEmpty ? bid.driverName[0].toUpperCase() : '?',
               style: const TextStyle(
@@ -5112,10 +5171,10 @@ class _BidsBottomSheetState extends State<_BidsBottomSheet> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: bid.status.color.withOpacity( 0.1),
+              color: bid.status.color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: bid.status.color.withOpacity( 0.3),
+                color: bid.status.color.withOpacity(0.3),
               ),
             ),
             child: Text(
@@ -5270,7 +5329,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                             builder: (context) => const ProfileScreen(),
                           ),
                         ).then((_) {
-                          _loadFreshUser();
+                          if (mounted) _loadFreshUser();
                         });
                       },
                       child: Container(
@@ -5281,7 +5340,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                           border: Border.all(color: Colors.white, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity( 0.2),
+                              color: Colors.black.withOpacity(0.2),
                               blurRadius: 4,
                               offset: Offset(0, 2),
                             ),
@@ -5296,8 +5355,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
                                     return Container(
-                                      color:
-                                          Colors.white.withOpacity( 0.3),
+                                      color: Colors.white.withOpacity(0.3),
                                       child: Icon(
                                         Icons.person,
                                         color: Colors.white,
@@ -5307,7 +5365,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                                   },
                                 )
                               : Container(
-                                  color: Colors.white.withOpacity( 0.3),
+                                  color: Colors.white.withOpacity(0.3),
                                   child: Icon(
                                     Icons.person,
                                     color: Colors.white,
@@ -5486,7 +5544,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
       width: 80,
       padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity( 0.15),
+        color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -5505,7 +5563,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity( 0.8),
+              color: Colors.white.withOpacity(0.8),
               fontSize: 9,
             ),
             textAlign: TextAlign.center,
@@ -5534,13 +5592,13 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
             Icon(
               Icons.inbox,
               size: 64,
-              color: Colors.grey.withOpacity( 0.3),
+              color: Colors.grey.withOpacity(0.3),
             ),
             SizedBox(height: 16),
             Text(
               'Aucun colis',
               style: TextStyle(
-                color: Colors.grey.withOpacity( 0.6),
+                color: Colors.grey.withOpacity(0.6),
                 fontSize: 16,
               ),
             ),
@@ -5548,7 +5606,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
             Text(
               'Les colis apparaîtront ici',
               style: TextStyle(
-                color: Colors.grey.withOpacity( 0.5),
+                color: Colors.grey.withOpacity(0.5),
                 fontSize: 13,
               ),
             ),
@@ -5704,13 +5762,20 @@ class _ParcelCardState extends State<_ParcelCard> {
 
   String _statusToStep(String status) {
     switch (status) {
-      case 'picked_up': return 'pickup';
-      case 'in_transit': return 'transit';
-      case 'arrived': return 'arrived';
-      case 'out_for_delivery': return 'out-for-delivery';
-      case 'confirmed': return 'confirm';
-      case 'delivered': return 'deliver';
-      default: return status;
+      case 'picked_up':
+        return 'pickup';
+      case 'in_transit':
+        return 'transit';
+      case 'arrived':
+        return 'arrived';
+      case 'out_for_delivery':
+        return 'out-for-delivery';
+      case 'confirmed':
+        return 'confirm';
+      case 'delivered':
+        return 'deliver';
+      default:
+        return status;
     }
   }
 
@@ -5718,7 +5783,8 @@ class _ParcelCardState extends State<_ParcelCard> {
     setState(() => _isUpdating = true);
     final apiService = ApiService();
     try {
-      await apiService.advanceParcel(widget.parcel.id, _statusToStep(newStatus));
+      await apiService.advanceParcel(
+          widget.parcel.id, _statusToStep(newStatus));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -5764,7 +5830,7 @@ class _ParcelCardState extends State<_ParcelCard> {
         builder: (context) => ParcelDetailScreen(parcel: widget.parcel),
       ),
     ).then((_) {
-      widget.onRefresh();
+      if (mounted) widget.onRefresh();
     });
   }
 
@@ -5814,8 +5880,7 @@ class _ParcelCardState extends State<_ParcelCard> {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(parcel.status)
-                          .withOpacity( 0.15),
+                      color: _getStatusColor(parcel.status).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -5863,14 +5928,14 @@ class _ParcelCardState extends State<_ParcelCard> {
                 ],
               ),
               SizedBox(height: 10),
-              Divider(color: Colors.grey.withOpacity( 0.2)),
+              Divider(color: Colors.grey.withOpacity(0.2)),
               SizedBox(height: 8),
               Row(
                 children: [
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: primaryBlue.withOpacity( 0.1),
+                      color: primaryBlue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -5887,7 +5952,7 @@ class _ParcelCardState extends State<_ParcelCard> {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity( 0.1),
+                        color: Colors.red.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(

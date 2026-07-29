@@ -4,13 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/app_config.dart';
 import '../models/broadcast.dart';
 
 class BroadcastService {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:18081/api/v1',
-  );
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
   static const String _cacheKey = 'procolis-broadcasts';
 

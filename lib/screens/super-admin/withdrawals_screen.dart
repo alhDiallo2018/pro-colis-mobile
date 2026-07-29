@@ -356,7 +356,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _statusColor(status).withOpacity(0.12),
+                  color: _statusColor(status).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
@@ -414,7 +414,7 @@ class _WithdrawalsScreenState extends ConsumerState<WithdrawalsScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: _statusColor(status).withOpacity(0.1),
+                      color: _statusColor(status).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(

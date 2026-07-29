@@ -213,7 +213,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   child: ValueListenableBuilder<String>(
                     valueListenable: category,
                     builder: (_, v, __) => DropdownButtonFormField<String>(
-                      value: v,
+                      initialValue: v,
                       decoration: const InputDecoration(labelText: 'Catégorie'),
                       items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                       onChanged: (nv) => category.value = nv ?? 'Autre',
@@ -225,7 +225,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   child: ValueListenableBuilder<String>(
                     valueListenable: status,
                     builder: (_, v, __) => DropdownButtonFormField<String>(
-                      value: v,
+                      initialValue: v,
                       decoration: const InputDecoration(labelText: 'Statut'),
                       items: _statuses.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
                       onChanged: (nv) => status.value = nv ?? 'paid',

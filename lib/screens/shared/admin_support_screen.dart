@@ -40,6 +40,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
   bool _isSending = false;
   bool _isBusyMedia = false;
   Timer? _pollTimer;
+  String? _loadingThreadKey;
 
   // Conversation active
   String? _activeSupportUserId;
@@ -52,6 +53,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
   bool _isPaused = false;
   int _recordDuration = 0;
   Timer? _recordTimer;
+  StreamSubscription<PlayerState>? _audioStateSubscription;
 
   // Lecture audio
   String? _currentlyPlayingAudioUrl;
@@ -65,7 +67,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
       if (_activeUserId != null) _loadThread();
       _loadConversations();
     });
-    _audioPlayer.onPlayerStateChanged.listen((state) {
+    _audioStateSubscription = _audioPlayer.onPlayerStateChanged.listen((state) {
       if (!mounted) return;
       setState(() {
         _isPlayingAudio = state == PlayerState.playing;
@@ -80,6 +82,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _recordTimer?.cancel();
+    _audioStateSubscription?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _audioRecorder.dispose();
@@ -96,25 +99,43 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint(
+        'AdminSupportScreen: chargement des conversations impossible '
+        '($error)\n$stackTrace',
+      );
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadThread() async {
-    if (_activeSupportUserId == null || _activeUserId == null) return;
+    final supportUserId = _activeSupportUserId;
+    final userId = _activeUserId;
+    if (supportUserId == null || userId == null) return;
+    final threadKey = '$supportUserId:$userId';
+    if (_loadingThreadKey == threadKey) return;
+    _loadingThreadKey = threadKey;
     try {
-      final msgs =
-          await _api.adminSupportThread(_activeSupportUserId!, _activeUserId!);
-      if (mounted) {
+      final msgs = await _api.adminSupportThread(supportUserId, userId);
+      if (mounted &&
+          supportUserId == _activeSupportUserId &&
+          userId == _activeUserId) {
         setState(() => _messages = msgs);
         _scrollToBottom();
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        'AdminSupportScreen: chargement du fil $threadKey impossible '
+        '($error)\n$stackTrace',
+      );
+    } finally {
+      if (_loadingThreadKey == threadKey) _loadingThreadKey = null;
+    }
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,

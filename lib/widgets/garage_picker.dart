@@ -74,7 +74,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
           .where((g) =>
               g.city.toLowerCase().contains(q) ||
               g.name.toLowerCase().contains(q) ||
-              (g.region).toLowerCase().contains(q))
+              g.region.toLowerCase().contains(q))
           .toList();
     }
     list.sort((a, b) => a.city.compareTo(b.city));

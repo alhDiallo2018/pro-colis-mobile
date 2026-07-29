@@ -810,7 +810,7 @@ class _GarageCardState extends State<_GarageCard> {
               ),
               Switch(
                 value: garage.isActive,
-                activeColor: AppTheme.primary,
+                activeThumbColor: AppTheme.primary,
                 onChanged: widget.isProcessing
                     ? null
                     : (_) => widget.onToggleActive(),
@@ -1345,7 +1345,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
                     ),
                     Switch(
                       value: _isActive,
-                      activeColor: AppTheme.primary,
+                      activeThumbColor: AppTheme.primary,
                       onChanged: (v) => setState(() => _isActive = v),
                     ),
                   ],

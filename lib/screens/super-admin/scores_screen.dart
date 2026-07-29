@@ -94,7 +94,7 @@ class _ScoresScreenState extends ConsumerState<ScoresScreen> {
                                     const SizedBox(height: 4),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(99)),
+                                      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(99)),
                                       child: Text(level, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
                                     ),
                                   ],

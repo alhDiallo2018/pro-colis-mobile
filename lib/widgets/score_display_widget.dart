@@ -60,7 +60,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0B6E3A).withOpacity( 0.3),
+              color: const Color(0xFF0B6E3A).withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -499,6 +499,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
     try {
       // Simuler un délai de paiement (à remplacer par un vrai appel API)
       await Future.delayed(const Duration(seconds: 1));
+      if (!context.mounted) return;
 
       // Créditer les points
       final success = await ref.read(scoreProvider.notifier).purchasePoints(
@@ -514,6 +515,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
       if (success && context.mounted) {
         // Recharger le score pour mettre à jour l'affichage
         await ref.read(scoreProvider.notifier).loadBalance();
+        if (!context.mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -545,12 +547,16 @@ class ScoreDisplayWidget extends ConsumerWidget {
           ),
         );
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      debugPrint(
+        'ScoreDisplayWidget: achat de points impossible '
+        '($error)\n$stackTrace',
+      );
       if (context.mounted) Navigator.pop(context);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${e.toString()}'),
+          const SnackBar(
+            content: Text('Impossible d’acheter les points. Veuillez réessayer.'),
             backgroundColor: Colors.red,
           ),
         );

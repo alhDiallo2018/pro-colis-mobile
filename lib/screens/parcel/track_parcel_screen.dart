@@ -21,6 +21,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../config/app_config.dart';
 import '../../models/parcel.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
@@ -32,7 +33,8 @@ class TrackParcelScreen extends ConsumerStatefulWidget {
   final bool embedded;
   final String? trackingNumber;
 
-  const TrackParcelScreen({super.key, this.embedded = false, this.trackingNumber});
+  const TrackParcelScreen(
+      {super.key, this.embedded = false, this.trackingNumber});
 
   @override
   ConsumerState<TrackParcelScreen> createState() => _TrackParcelScreenState();
@@ -229,7 +231,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     final parcel = _trackedParcel!;
 
     // Générer l'URL publique de suivi
-    return 'http://localhost:18081track/${parcel.trackingNumber}';
+    return AppConfig.trackingUrl(parcel.trackingNumber);
   }
 
   void _showReceiptDialog() {
@@ -327,7 +329,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Widget _buildReceiptWidget() {
     final parcel = _trackedParcel!;
     final isDelivered = parcel.status.value == 'delivered';
-    final trackingUrl = 'http://localhost:18081track/${parcel.trackingNumber}';
+    final trackingUrl = AppConfig.trackingUrl(parcel.trackingNumber);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -337,7 +339,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -438,10 +440,10 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: primaryBlue.withOpacity( 0.1),
+                      color: primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border:
-                          Border.all(color: primaryBlue.withOpacity( 0.2)),
+                          Border.all(color: primaryBlue.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -587,8 +589,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           File('${tempDir.path}/receipt_${_trackedParcel!.trackingNumber}.png');
       await file.writeAsBytes(pngBytes);
 
-      final trackingUrl =
-          'http://localhost:18081track/${_trackedParcel!.trackingNumber}';
+      final trackingUrl = AppConfig.trackingUrl(_trackedParcel!.trackingNumber);
 
       await Share.shareXFiles(
         [XFile(file.path)],
@@ -675,8 +676,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Future<void> _shareTrackingLink() async {
     if (_trackedParcel == null) return;
 
-    final trackingUrl =
-        'http://localhost:18081track/${_trackedParcel!.trackingNumber}';
+    final trackingUrl = AppConfig.trackingUrl(_trackedParcel!.trackingNumber);
 
     await Share.share(
       '📦 Suivi de colis PRO COLIS\n\n'
@@ -716,6 +716,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       context,
       MaterialPageRoute(builder: (_) => const _QrScannerScreen()),
     ).then((scannedData) {
+      if (!mounted) return;
       if (scannedData != null && scannedData.trim().isNotEmpty) {
         _handleScannedData(scannedData);
       }
@@ -961,8 +962,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
 
   void _shareTrackingNumber() {
     if (_trackedParcel != null) {
-      final trackingUrl =
-          'http://localhost:18081track/${_trackedParcel!.trackingNumber}';
+      final trackingUrl = AppConfig.trackingUrl(_trackedParcel!.trackingNumber);
       Share.share(
         '📦 Suivi de colis PRO COLIS\n\n'
         '🔹 N° de suivi: ${_trackedParcel!.trackingNumber}\n'
@@ -1038,8 +1038,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                         icon: Icons.search_off_rounded,
                         tone: PcTone.amber,
                         title: 'Colis introuvable',
-                        message:
-                            'Vérifiez le numéro de suivi et réessayez.',
+                        message: 'Vérifiez le numéro de suivi et réessayez.',
                       ),
                     ),
                   ],
@@ -1237,8 +1236,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       avatar: const Icon(Icons.history_rounded, size: 16),
       label: Text(
         tracking,
-        style:
-            AppFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w700),
+        style: AppFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w700),
       ),
       onPressed: () => _trackParcel(trackingNumber: tracking),
       side: const BorderSide(color: AppTheme.slate200),
@@ -1295,7 +1293,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                   children: [
                     Container(
                       height: 2,
-                      color: Colors.white.withOpacity( 0.42),
+                      color: Colors.white.withValues(alpha: 0.42),
                     ),
                     const Icon(
                       Icons.local_shipping_rounded,
@@ -1447,10 +1445,12 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     final steps = [
       const _TrackingStep('Créé', 'pending', Icons.inventory_2_rounded),
       const _TrackingStep('Confirmé', 'confirmed', Icons.task_alt_rounded),
-      const _TrackingStep('Pris en charge', 'picked_up', Icons.local_shipping_rounded),
+      const _TrackingStep(
+          'Pris en charge', 'picked_up', Icons.local_shipping_rounded),
       const _TrackingStep('En transit', 'in_transit', Icons.route_rounded),
       const _TrackingStep('Arrivé', 'arrived', Icons.flag_rounded),
-      const _TrackingStep('Livraison', 'out_for_delivery', Icons.delivery_dining_rounded),
+      const _TrackingStep(
+          'Livraison', 'out_for_delivery', Icons.delivery_dining_rounded),
       const _TrackingStep('Livré', 'delivered', Icons.verified_rounded),
     ];
 
@@ -1628,7 +1628,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1641,7 +1641,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: primaryBlue.withOpacity( 0.1),
+                color: primaryBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
@@ -1848,7 +1848,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -1869,7 +1869,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: parcel.status.color.withOpacity( 0.15),
+                        color: parcel.status.color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1897,7 +1897,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: primaryBlue.withOpacity( 0.1),
+                      color: primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -1948,8 +1948,8 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               _buildInfoRow(Icons.delivery_dining, 'Chauffeur',
                   parcel.driverName ?? 'Non assigné'),
             ],
-            _buildInfoRow(
-                Icons.payments_outlined, 'Paiement', parcel.paymentChannelLabel),
+            _buildInfoRow(Icons.payments_outlined, 'Paiement',
+                parcel.paymentChannelLabel),
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 20),
@@ -2092,7 +2092,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: primaryBlue.withOpacity( 0.1),
+            color: primaryBlue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 16, color: primaryBlue),
@@ -2207,9 +2207,8 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   }
 
   Widget _buildPhotoThumbnail(String url) {
-    final fullUrl = url.startsWith('http')
-        ? url
-        : ApiService.resolveMediaUrl(url);
+    final fullUrl =
+        url.startsWith('http') ? url : ApiService.resolveMediaUrl(url);
     return GestureDetector(
       onTap: () => _showPhotoDialog(fullUrl),
       child: Container(
@@ -2250,8 +2249,8 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: isActive
-            ? color.withOpacity( 0.15)
-            : Colors.grey.withOpacity( 0.1),
+            ? color.withValues(alpha: 0.15)
+            : Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isActive ? color : Colors.grey.shade300,
@@ -2293,7 +2292,7 @@ class _DesignStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity( 0.94),
+        color: Colors.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -2507,8 +2506,8 @@ class _DesignInfoRow extends StatelessWidget {
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: (mono ? AppFonts.robotoMono() : AppFonts.manrope())
-                  .copyWith(
+              style:
+                  (mono ? AppFonts.robotoMono() : AppFonts.manrope()).copyWith(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
@@ -2620,7 +2619,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close_rounded),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withOpacity( 0.45),
+                          backgroundColor: Colors.black.withValues(alpha: 0.45),
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -2629,7 +2628,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                         onPressed: _pasteFromClipboard,
                         icon: const Icon(Icons.content_paste_rounded),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withOpacity( 0.45),
+                          backgroundColor: Colors.black.withValues(alpha: 0.45),
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -2640,7 +2639,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity( 0.55),
+                      color: Colors.black.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Column(
@@ -2676,7 +2675,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                             hintText: 'PC-7F3K-2291 ou URL QR',
                             hintStyle: const TextStyle(color: Colors.white54),
                             filled: true,
-                            fillColor: Colors.white.withOpacity( 0.12),
+                            fillColor: Colors.white.withValues(alpha: 0.12),
                             prefixIcon: const Icon(
                               Icons.qr_code_2_rounded,
                               color: Colors.white70,
@@ -2833,7 +2832,8 @@ class _ResultStatusBadge extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(color: colors.dot, shape: BoxShape.circle),
+            decoration:
+                BoxDecoration(color: colors.dot, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           Text(

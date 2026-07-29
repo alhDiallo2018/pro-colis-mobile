@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -172,7 +171,9 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
       if (_suggestions.isNotEmpty) _showOverlay();
     } else {
       Future.delayed(const Duration(milliseconds: 200), () {
-        if (!_focusNode.hasFocus) _hideOverlay();
+        // Le délai laisse le clic sur une suggestion se terminer ; le garde
+        // mounted évite d'accéder au FocusNode après sa destruction.
+        if (mounted && !_focusNode.hasFocus) _hideOverlay();
       });
     }
   }
@@ -471,7 +472,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
             fontWeight: FontWeight.w600,
           ),
           hintStyle: TextStyle(
-            color: Colors.grey.withOpacity(0.5),
+            color: Colors.grey.withValues(alpha: 0.5),
             fontSize: 14,
           ),
           prefixIcon: widget.prefixIcon != null

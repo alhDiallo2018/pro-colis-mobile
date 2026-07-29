@@ -21,6 +21,24 @@ class PayCommissionDialog extends ConsumerStatefulWidget {
     this.onPaid,
   });
 
+  static Future<bool?> show(
+    BuildContext context, {
+    required String parcelId,
+    required double deliveryAmount,
+    required String trackingNumber,
+    VoidCallback? onPaid,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => PayCommissionDialog(
+        parcelId: parcelId,
+        deliveryAmount: deliveryAmount,
+        trackingNumber: trackingNumber,
+        onPaid: onPaid,
+      ),
+    );
+  }
+
   @override
   ConsumerState<PayCommissionDialog> createState() => _PayCommissionDialogState();
 }
@@ -62,7 +80,13 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      // L'estimation locale garde le détail cohérent même si les soldes ne
+      // peuvent pas être chargés ; l'échec reste visible dans les journaux.
+      debugPrint(
+        'PayCommissionDialog: chargement des données impossible '
+        '($error)\n$stackTrace',
+      );
       if (mounted) {
         setState(() {
           _commission = (widget.deliveryAmount * 0.05).clamp(100.0, 500.0);
@@ -116,10 +140,14 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
           });
         }
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      debugPrint(
+        'PayCommissionDialog: paiement de ${widget.parcelId} impossible '
+        '($error)\n$stackTrace',
+      );
       if (mounted) {
         setState(() {
-          _error = 'Erreur: $e';
+          _error = 'Le paiement a échoué. Veuillez réessayer.';
           _paying = false;
         });
       }
@@ -387,21 +415,4 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
     );
   }
 
-  static Future<bool?> show(
-    BuildContext context, {
-    required String parcelId,
-    required double deliveryAmount,
-    required String trackingNumber,
-    VoidCallback? onPaid,
-  }) {
-    return showDialog<bool>(
-      context: context,
-      builder: (_) => PayCommissionDialog(
-        parcelId: parcelId,
-        deliveryAmount: deliveryAmount,
-        trackingNumber: trackingNumber,
-        onPaid: onPaid,
-      ),
-    );
-  }
 }

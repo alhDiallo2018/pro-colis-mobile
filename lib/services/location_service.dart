@@ -1,6 +1,5 @@
-// ignore_for_file: avoid_print
-
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -11,10 +10,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'api_service.dart';
 
 class LocationService {
-  final ApiService _apiService = ApiService();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Timer? _locationTimer;
+  bool _isUpdatingLocation = false;
 
   Future<bool> requestPermission() async {
     final status = await Permission.location.request();
@@ -62,8 +61,13 @@ class LocationService {
         'latitude': latitude,
         'longitude': longitude,
       });
-    } catch (e) {
-      print('LocationService: échec mise à jour position — $e');
+    } catch (error, stackTrace) {
+      developer.log(
+        'Échec de la mise à jour de la position',
+        name: 'LocationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -74,6 +78,10 @@ class LocationService {
     stopLocationTracking();
 
     _locationTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+      // La géolocalisation et l'appel HTTP peuvent approcher l'intervalle de
+      // polling : empêcher deux mises à jour concurrentes évite les doublons.
+      if (_isUpdatingLocation) return;
+      _isUpdatingLocation = true;
       try {
         final position = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
@@ -84,8 +92,15 @@ class LocationService {
           position.latitude,
           position.longitude,
         );
-      } catch (e) {
-        print('LocationService: échec tracking — $e');
+      } catch (error, stackTrace) {
+        developer.log(
+          'Échec du suivi périodique',
+          name: 'LocationService',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      } finally {
+        _isUpdatingLocation = false;
       }
     });
   }

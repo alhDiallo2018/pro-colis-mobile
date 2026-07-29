@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config/app_config.dart';
 import 'brevo_service.dart';
 
 enum NotificationEventType {
@@ -89,7 +92,7 @@ class NotificationContext {
 }
 
 const String _appName = 'SENDPROCOLIS';
-const String _platformUrl = 'http://localhost:18081';
+String get _platformUrl => AppConfig.publicAppUrl;
 
 final _statusLabel = <String, String>{
   'pending': 'En attente',
@@ -132,6 +135,7 @@ $bodyContent
 String parcelCreatedEmail(NotificationContext ctx) {
   final t = ctx.trackingNumber ?? '';
   final d = ctx.description ?? '';
+  final trackingUrl = AppConfig.trackingUrl(t);
   final body = '''
 <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.6;">
 Votre colis <strong style="color:#0d9488;">$t</strong> a bien été enregistré.
@@ -147,7 +151,7 @@ ${d.isNotEmpty ? '<br/><em>"$d"</em>' : ''}
 </td></tr>
 </table>
 <p style="margin:0 0 24px;font-size:14px;color:#64748b;">Suivez l'avancement de votre colis à tout moment via votre tableau de bord.</p>
-<a href="$_platformUrl/client/suivi?tracking=$t" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Suivre mon colis</a>''';
+<a href="$trackingUrl" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Suivre mon colis</a>''';
   return _emailShell('Colis $t enregistré avec succès', body);
 }
 
@@ -155,6 +159,7 @@ String parcelStatusEmail(NotificationContext ctx) {
   final t = ctx.trackingNumber ?? '';
   final status = _statusLabel[ctx.status ?? ''] ?? ctx.status ?? '';
   final price = ctx.price;
+  final trackingUrl = AppConfig.trackingUrl(t);
 
   final body = '''
 <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.6;">
@@ -165,7 +170,7 @@ Le statut de votre colis <strong style="color:#0d9488;">$t</strong> a été mis 
 </div>
 ${ctx.driverName != null && ctx.driverName!.isNotEmpty ? '<p style="margin:0 0 16px;font-size:14px;color:#475569;">Chauffeur assigné : <strong>${ctx.driverName}</strong></p>' : ''}
 ${price != null ? '<p style="margin:0 0 16px;font-size:14px;color:#475569;">Montant : <strong>${price.toStringAsFixed(0)} FCFA</strong></p>' : ''}
-<a href="$_platformUrl/client/suivi?tracking=$t" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Voir le détail</a>''';
+<a href="$trackingUrl" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Voir le détail</a>''';
   return _emailShell('Colis $t : $status', body);
 }
 
@@ -181,7 +186,7 @@ Votre colis <strong style="color:#0d9488;">$t</strong> a été livré avec succ�
 ${ctx.driverName != null && ctx.driverName!.isNotEmpty ? '<p style="margin:4px 0 0;font-size:13px;color:#047857;">par ${ctx.driverName}</p>' : ''}
 </div>
 <p style="margin:0 0 20px;font-size:14px;color:#64748b;">Merci de votre confiance ! Vous pouvez noter le service dans votre tableau de bord.</p>
-<a href="$_platformUrl/client" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Tableau de bord</a>''';
+<a href="$_platformUrl/dashboard" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Tableau de bord</a>''';
   return _emailShell('Colis $t livré !', body);
 }
 
@@ -213,18 +218,19 @@ Votre offre pour le colis <strong style="color:#0d9488;">$t</strong> a été acc
 <p style="margin:0;font-size:15px;font-weight:600;color:#065f46;">Vous êtes assigné à cette livraison.</p>
 ${ctx.bidPrice != null ? '<p style="margin:6px 0 0;font-size:14px;color:#047857;">Prix convenu : ${ctx.bidPrice!.toStringAsFixed(0)} FCFA</p>' : ''}
 </div>
-<a href="$_platformUrl/driver/missions" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Voir mes missions</a>''';
+<a href="$_platformUrl/dashboard" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Voir mes missions</a>''';
   return _emailShell('Offre acceptée pour le colis $t', body);
 }
 
 String driverAssignedEmail(NotificationContext ctx) {
   final t = ctx.trackingNumber ?? '';
+  final trackingUrl = AppConfig.trackingUrl(t);
   final body = '''
 <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.6;">
 Un chauffeur a été assigné à votre colis <strong style="color:#0d9488;">$t</strong>.
 </p>
 ${ctx.driverName != null && ctx.driverName!.isNotEmpty ? '<p style="margin:0 0 16px;font-size:14px;color:#475569;">Chauffeur : <strong>${ctx.driverName}</strong></p>' : ''}
-<a href="$_platformUrl/client/suivi?tracking=$t" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Suivre mon colis</a>''';
+<a href="$trackingUrl" style="display:inline-block;padding:12px 28px;background:#0d9488;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Suivre mon colis</a>''';
   return _emailShell('Chauffeur assigné — Colis $t', body);
 }
 
@@ -243,7 +249,7 @@ Commandez, expédiez ou transportez des colis en toute sécurité entre les prin
 }
 
 String passwordResetEmail(NotificationContext ctx) {
-  final link = ctx.resetLink ?? '$_platformUrl/reset-password';
+  final link = ctx.resetLink ?? '$_platformUrl/login';
   final body = '''
 <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.6;">
 Vous avez demandé la réinitialisation de votre mot de passe.
@@ -269,13 +275,13 @@ Voici votre code de vérification pour $_appName :
 
 String parcelCreatedSms(NotificationContext ctx) {
   final t = ctx.trackingNumber ?? '';
-  return '$_appName : Colis $t enregistré. Suivez-le sur $_platformUrl/suivi';
+  return '$_appName : Colis $t enregistré. Suivez-le sur ${AppConfig.trackingUrl(t)}';
 }
 
 String parcelStatusSms(NotificationContext ctx) {
   final t = ctx.trackingNumber ?? '';
   final status = _statusLabel[ctx.status ?? ''] ?? ctx.status ?? '';
-  return '$_appName : Colis $t — $status. ${ctx.driverName != null ? 'Chauffeur : ${ctx.driverName}. ' : ''}Suivi : $_platformUrl/suivi';
+  return '$_appName : Colis $t — $status. ${ctx.driverName != null ? 'Chauffeur : ${ctx.driverName}. ' : ''}Suivi : ${AppConfig.trackingUrl(t)}';
 }
 
 String parcelDeliveredSms(NotificationContext ctx) {
@@ -295,7 +301,7 @@ String bidAcceptedSms(NotificationContext ctx) {
 
 String driverAssignedSms(NotificationContext ctx) {
   final t = ctx.trackingNumber ?? '';
-  return '$_appName : Chauffeur ${ctx.driverName ?? ''} assigné au colis $t. Suivi : $_platformUrl/suivi';
+  return '$_appName : Chauffeur ${ctx.driverName ?? ''} assigné au colis $t. Suivi : ${AppConfig.trackingUrl(t)}';
 }
 
 String welcomeSms(NotificationContext ctx) {
@@ -306,7 +312,8 @@ String verificationSms(NotificationContext ctx) {
   return '$_appName : Votre code de vérification est ${ctx.verificationCode ?? '—'}. Valable 10 minutes.';
 }
 
-final emailTemplates = <NotificationEventType, String Function(NotificationContext)>{
+final emailTemplates =
+    <NotificationEventType, String Function(NotificationContext)>{
   NotificationEventType.parcelCreated: parcelCreatedEmail,
   NotificationEventType.parcelConfirmed: parcelStatusEmail,
   NotificationEventType.parcelPickedUp: parcelStatusEmail,
@@ -326,7 +333,8 @@ final emailTemplates = <NotificationEventType, String Function(NotificationConte
   NotificationEventType.accountSuspended: parcelStatusEmail,
 };
 
-final smsTemplates = <NotificationEventType, String Function(NotificationContext)>{
+final smsTemplates =
+    <NotificationEventType, String Function(NotificationContext)>{
   NotificationEventType.parcelCreated: parcelCreatedSms,
   NotificationEventType.parcelPickedUp: parcelStatusSms,
   NotificationEventType.parcelInTransit: parcelStatusSms,
@@ -338,26 +346,44 @@ final smsTemplates = <NotificationEventType, String Function(NotificationContext
   NotificationEventType.verification: verificationSms,
 };
 
-String _getSubjectFor(NotificationEventType eventType, NotificationContext ctx) {
+String _getSubjectFor(
+    NotificationEventType eventType, NotificationContext ctx) {
   final t = ctx.trackingNumber ?? '';
   switch (eventType) {
-    case NotificationEventType.parcelCreated: return 'SENDPROCOLIS — Colis $t enregistré';
-    case NotificationEventType.parcelConfirmed: return 'SENDPROCOLIS — Colis $t confirmé';
-    case NotificationEventType.parcelPickedUp: return 'SENDPROCOLIS — Colis $t ramassé';
-    case NotificationEventType.parcelInTransit: return 'SENDPROCOLIS — Colis $t en transit';
-    case NotificationEventType.parcelArrived: return 'SENDPROCOLIS — Colis $t arrivé';
-    case NotificationEventType.parcelOutForDelivery: return 'SENDPROCOLIS — Colis $t en livraison';
-    case NotificationEventType.parcelDelivered: return 'SENDPROCOLIS — Colis $t livré !';
-    case NotificationEventType.parcelCancelled: return 'SENDPROCOLIS — Colis $t annulé';
-    case NotificationEventType.bidReceived: return 'SENDPROCOLIS — Offre reçue pour $t';
-    case NotificationEventType.bidAccepted: return 'SENDPROCOLIS — Offre acceptée pour $t';
-    case NotificationEventType.bidRejected: return 'SENDPROCOLIS — Offre refusée pour $t';
-    case NotificationEventType.driverAssigned: return 'SENDPROCOLIS — Chauffeur assigné à $t';
-    case NotificationEventType.paymentConfirmed: return 'SENDPROCOLIS — Paiement confirmé';
-    case NotificationEventType.welcome: return 'Bienvenue sur SENDPROCOLIS !';
-    case NotificationEventType.passwordReset: return 'SENDPROCOLIS — Réinitialisation du mot de passe';
-    case NotificationEventType.verification: return 'SENDPROCOLIS — Code de vérification';
-    case NotificationEventType.accountSuspended: return 'SENDPROCOLIS — Compte suspendu';
+    case NotificationEventType.parcelCreated:
+      return 'SENDPROCOLIS — Colis $t enregistré';
+    case NotificationEventType.parcelConfirmed:
+      return 'SENDPROCOLIS — Colis $t confirmé';
+    case NotificationEventType.parcelPickedUp:
+      return 'SENDPROCOLIS — Colis $t ramassé';
+    case NotificationEventType.parcelInTransit:
+      return 'SENDPROCOLIS — Colis $t en transit';
+    case NotificationEventType.parcelArrived:
+      return 'SENDPROCOLIS — Colis $t arrivé';
+    case NotificationEventType.parcelOutForDelivery:
+      return 'SENDPROCOLIS — Colis $t en livraison';
+    case NotificationEventType.parcelDelivered:
+      return 'SENDPROCOLIS — Colis $t livré !';
+    case NotificationEventType.parcelCancelled:
+      return 'SENDPROCOLIS — Colis $t annulé';
+    case NotificationEventType.bidReceived:
+      return 'SENDPROCOLIS — Offre reçue pour $t';
+    case NotificationEventType.bidAccepted:
+      return 'SENDPROCOLIS — Offre acceptée pour $t';
+    case NotificationEventType.bidRejected:
+      return 'SENDPROCOLIS — Offre refusée pour $t';
+    case NotificationEventType.driverAssigned:
+      return 'SENDPROCOLIS — Chauffeur assigné à $t';
+    case NotificationEventType.paymentConfirmed:
+      return 'SENDPROCOLIS — Paiement confirmé';
+    case NotificationEventType.welcome:
+      return 'Bienvenue sur SENDPROCOLIS !';
+    case NotificationEventType.passwordReset:
+      return 'SENDPROCOLIS — Réinitialisation du mot de passe';
+    case NotificationEventType.verification:
+      return 'SENDPROCOLIS — Code de vérification';
+    case NotificationEventType.accountSuspended:
+      return 'SENDPROCOLIS — Compte suspendu';
   }
 }
 
@@ -366,11 +392,12 @@ class NotificationEngine {
 
   final BrevoService _brevoService = BrevoService();
 
-  List<NotificationChannel> _getChannels(NotificationEventType eventType, List<NotificationPreference> prefs) {
+  List<NotificationChannel> _getChannels(
+      NotificationEventType eventType, List<NotificationPreference> prefs) {
     final entry = prefs.cast<NotificationPreference?>().firstWhere(
-      (p) => p?.eventType == eventType,
-      orElse: () => null,
-    );
+          (p) => p?.eventType == eventType,
+          orElse: () => null,
+        );
     return entry?.channels ?? [NotificationChannel.inApp];
   }
 
@@ -380,32 +407,64 @@ class NotificationEngine {
     String? userEmail,
     String? userPhone,
   }) async {
-    final prefs = await getPreferences();
-    final channels = _getChannels(eventType, prefs);
+    try {
+      final prefs = await getPreferences();
+      final channels = _getChannels(eventType, prefs);
 
-    if (channels.contains(NotificationChannel.email) && userEmail != null && userEmail.isNotEmpty) {
-      final template = emailTemplates[eventType];
-      if (template != null) {
-        final htmlContent = template(context);
-        final subject = _getSubjectFor(eventType, context);
-        _brevoService.sendEmail(BrevoEmailParams(
-          to: userEmail,
-          toName: context.fullName,
-          subject: subject,
-          htmlContent: htmlContent,
-        )).catchError((_) {});
+      if (channels.contains(NotificationChannel.email) &&
+          userEmail != null &&
+          userEmail.isNotEmpty) {
+        final template = emailTemplates[eventType];
+        if (template != null) {
+          final htmlContent = template(context);
+          final subject = _getSubjectFor(eventType, context);
+          try {
+            final result = await _brevoService.sendEmail(BrevoEmailParams(
+              to: userEmail,
+              toName: context.fullName,
+              subject: subject,
+              htmlContent: htmlContent,
+            ));
+            if (!result.success) {
+              throw StateError(result.error ?? 'Envoi e-mail refusé par l’API');
+            }
+          } catch (error, stackTrace) {
+            // Un canal défaillant ne doit pas empêcher les autres envois.
+            debugPrint(
+              'NotificationEngine: échec du canal e-mail pour '
+              '${eventType.value} ($error)\n$stackTrace',
+            );
+          }
+        }
       }
-    }
 
-    if (channels.contains(NotificationChannel.sms) && userPhone != null && userPhone.isNotEmpty) {
-      final template = smsTemplates[eventType];
-      if (template != null) {
-        final content = template(context);
-        _brevoService.sendSms(BrevoSmsParams(
-          to: userPhone,
-          content: content,
-        )).catchError((_) {});
+      if (channels.contains(NotificationChannel.sms) &&
+          userPhone != null &&
+          userPhone.isNotEmpty) {
+        final template = smsTemplates[eventType];
+        if (template != null) {
+          final content = template(context);
+          try {
+            final result = await _brevoService.sendSms(BrevoSmsParams(
+              to: userPhone,
+              content: content,
+            ));
+            if (!result.success) {
+              throw StateError(result.error ?? 'Envoi SMS refusé par l’API');
+            }
+          } catch (error, stackTrace) {
+            debugPrint(
+              'NotificationEngine: échec du canal SMS pour '
+              '${eventType.value} ($error)\n$stackTrace',
+            );
+          }
+        }
       }
+    } catch (error, stackTrace) {
+      debugPrint(
+        'NotificationEngine: distribution de ${eventType.value} impossible '
+        '($error)\n$stackTrace',
+      );
     }
   }
 
@@ -417,21 +476,37 @@ class NotificationEngine {
         final decoded = _decodeStringList(raw);
         return decoded;
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        'NotificationEngine: lecture des préférences impossible '
+        '($error)\n$stackTrace',
+      );
+    }
     return _defaultPreferences();
   }
 
-  Future<void> updatePreferences(List<NotificationPreference> preferences) async {
-    final sp = await SharedPreferences.getInstance();
-    final encoded = _encodePreferences(preferences);
-    await sp.setString(_prefsKey, encoded);
+  Future<void> updatePreferences(
+      List<NotificationPreference> preferences) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final encoded = _encodePreferences(preferences);
+      await sp.setString(_prefsKey, encoded);
+    } catch (error, stackTrace) {
+      debugPrint(
+        'NotificationEngine: sauvegarde des préférences impossible '
+        '($error)\n$stackTrace',
+      );
+      rethrow;
+    }
   }
 
   List<NotificationPreference> _defaultPreferences() {
-    return allEventTypes.map((e) => NotificationPreference(
-      eventType: e,
-      channels: [NotificationChannel.inApp],
-    )).toList();
+    return allEventTypes
+        .map((e) => NotificationPreference(
+              eventType: e,
+              channels: [NotificationChannel.inApp],
+            ))
+        .toList();
   }
 
   List<NotificationPreference> _decodeStringList(String raw) {
@@ -443,12 +518,16 @@ class NotificationEngine {
         final eventType = NotificationEventType.fromString(segments[0]);
         final channels = segments[1].split(',').map((c) {
           switch (c) {
-            case 'email': return NotificationChannel.email;
-            case 'sms': return NotificationChannel.sms;
-            default: return NotificationChannel.inApp;
+            case 'email':
+              return NotificationChannel.email;
+            case 'sms':
+              return NotificationChannel.sms;
+            default:
+              return NotificationChannel.inApp;
           }
         }).toList();
-        result.add(NotificationPreference(eventType: eventType, channels: channels));
+        result.add(
+            NotificationPreference(eventType: eventType, channels: channels));
       }
     }
     return result.isNotEmpty ? result : _defaultPreferences();
@@ -458,9 +537,12 @@ class NotificationEngine {
     return prefs.map((p) {
       final channelStr = p.channels.map((c) {
         switch (c) {
-          case NotificationChannel.email: return 'email';
-          case NotificationChannel.sms: return 'sms';
-          default: return 'in_app';
+          case NotificationChannel.email:
+            return 'email';
+          case NotificationChannel.sms:
+            return 'sms';
+          default:
+            return 'in_app';
         }
       }).join(',');
       return '${p.eventType.value}:$channelStr';

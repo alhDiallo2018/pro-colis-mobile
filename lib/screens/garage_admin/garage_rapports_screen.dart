@@ -10,7 +10,6 @@ import 'package:intl/intl.dart';
 import '../../models/parcel.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/pc_components.dart';
 
 class GarageRapportsScreen extends ConsumerStatefulWidget {

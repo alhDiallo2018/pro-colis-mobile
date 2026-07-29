@@ -70,7 +70,7 @@ class ProcolisDialog extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF0B464F).withOpacity(0.14),
+                        color: const Color(0xFF0B464F).withValues(alpha: 0.14),
                         blurRadius: 32,
                         offset: const Offset(0, 16),
                       ),

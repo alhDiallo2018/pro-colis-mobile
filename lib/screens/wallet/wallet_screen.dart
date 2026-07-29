@@ -42,13 +42,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       if (mounted) {
         setState(() {
           _balance = wallet.balance;
-          _transactions = wallet.transactions.map((t) => {
-            'id': t.id,
-            'amount': t.amount,
-            'type': t.type.value,
-            'description': t.description,
-            'date': t.createdAt.toIso8601String(),
-          }).toList();
+          _transactions = wallet.transactions
+              .map((t) => {
+                    'id': t.id,
+                    'amount': t.amount,
+                    'type': t.type.value,
+                    'description': t.description,
+                    'date': t.createdAt.toIso8601String(),
+                  })
+              .toList();
           _withdrawals = withdrawals;
           _loading = false;
         });
@@ -214,8 +216,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                result['message']?.toString() ?? 'Erreur lors de l\'annulation'),
+            content: Text(result['message']?.toString() ??
+                'Erreur lors de l\'annulation'),
             backgroundColor: AppTheme.error),
       );
     }
@@ -231,7 +233,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       final amount = (w['amount'] as num?)?.toDouble() ??
           double.tryParse('${w['amount']}') ??
           0;
-      final createdAt = w['createdAt']?.toString() ?? w['created_at']?.toString() ?? '';
+      final createdAt =
+          w['createdAt']?.toString() ?? w['created_at']?.toString() ?? '';
 
       rows.add(Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -241,7 +244,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(Icons.savings_rounded, size: 19, color: color),
@@ -271,7 +274,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(99),
               ),
               child: Text(
@@ -319,7 +322,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       final dateFormatted = date.isNotEmpty ? _formatDate(date) : '';
 
       rows.add(PcListRow(
-        icon: isPositive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+        icon: isPositive
+            ? Icons.trending_up_rounded
+            : Icons.trending_down_rounded,
         iconTone: isPositive ? PcTone.green : PcTone.red,
         title: desc.isNotEmpty ? desc : 'Mouvement',
         subtitle: dateFormatted.isNotEmpty ? dateFormatted : null,
@@ -370,21 +375,30 @@ class _BalanceHero extends StatelessWidget {
                   ),
                 ),
               ),
-              const Icon(Icons.account_balance_wallet_rounded, color: AppTheme.amberOnFg, size: 28),
+              const Icon(Icons.account_balance_wallet_rounded,
+                  color: AppTheme.amberOnFg, size: 28),
             ],
           ),
           const SizedBox(height: 10),
           Text.rich(
             TextSpan(
               text: fmt.format(balance.toInt()),
-              children: const [TextSpan(text: ' FCFA', style: TextStyle(fontSize: 18))],
+              children: const [
+                TextSpan(text: ' FCFA', style: TextStyle(fontSize: 18))
+              ],
             ),
-            style: AppTheme.mono(color: AppTheme.amberOnFg, fontSize: 38, fontWeight: FontWeight.w700),
+            style: AppTheme.mono(
+                color: AppTheme.amberOnFg,
+                fontSize: 38,
+                fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
             'Solde disponible',
-            style: AppFonts.manrope(color: AppTheme.amberOnFg.withOpacity(0.8), fontSize: 12.5, fontWeight: FontWeight.w700),
+            style: AppFonts.manrope(
+                color: AppTheme.amberOnFg.withValues(alpha: 0.8),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -431,20 +445,26 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
     super.dispose();
   }
 
-  bool get _needsPhone => _method == 'wave' || _method == 'orange_money' || _method == 'freemMoney';
+  bool get _needsPhone =>
+      _method == 'wave' || _method == 'orange_money' || _method == 'freemMoney';
 
   Future<void> _submit() async {
     final amountText = _amountCtrl.text.trim();
     final amount = double.tryParse(amountText) ?? 0;
-    if (amount < 500) {
+    if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Montant minimum : 500 FCFA'), backgroundColor: AppTheme.error),
+        const SnackBar(
+          content: Text('Saisissez un montant valide'),
+          backgroundColor: AppTheme.error,
+        ),
       );
       return;
     }
     if (amount > widget.balance) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Solde insuffisant'), backgroundColor: AppTheme.error),
+        const SnackBar(
+            content: Text('Solde insuffisant'),
+            backgroundColor: AppTheme.error),
       );
       return;
     }
@@ -452,7 +472,9 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
       _phoneCtrl.text = widget.userPhone;
       if (widget.userPhone.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Numéro de téléphone requis'), backgroundColor: AppTheme.error),
+          const SnackBar(
+              content: Text('Numéro de téléphone requis'),
+              backgroundColor: AppTheme.error),
         );
         return;
       }
@@ -465,28 +487,62 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
         'method': _method,
         'userId': widget.userId,
       };
-      if (_needsPhone) data['phone'] = _phoneCtrl.text.trim().isNotEmpty
-          ? _phoneCtrl.text.trim()
-          : widget.userPhone;
+      if (_needsPhone)
+        data['phone'] = _phoneCtrl.text.trim().isNotEmpty
+            ? _phoneCtrl.text.trim()
+            : widget.userPhone;
 
       final result = await _api.withdrawWallet(data);
       if (mounted) {
         if (result['success'] == true) {
+          // Un appel traité peut tout de même être refusé immédiatement par
+          // PayDunya. Le statut métier prime donc sur l'enveloppe HTTP.
+          final withdrawal = result['withdrawal'];
+          final withdrawalStatus = withdrawal is Map
+              ? withdrawal['status']?.toString().toUpperCase()
+              : null;
+          if (withdrawalStatus == 'FAILED') {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  result['message']?.toString() ??
+                      'Le retrait a échoué et le montant a été recrédité.',
+                ),
+                backgroundColor: AppTheme.error,
+              ),
+            );
+            widget.onWithdrawn();
+            return;
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Retrait effectué. Traité sous 24-48h.'), backgroundColor: AppTheme.green600),
+            SnackBar(
+              content: Text(
+                result['message']?.toString() ??
+                    (withdrawalStatus == 'SUCCESS'
+                        ? 'Retrait effectué.'
+                        : 'Demande de retrait enregistrée.'),
+              ),
+              backgroundColor: AppTheme.green600,
+            ),
           );
           widget.onWithdrawn();
           Navigator.pop(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message']?.toString() ?? 'Erreur de retrait'), backgroundColor: AppTheme.error),
+            SnackBar(
+                content:
+                    Text(result['message']?.toString() ?? 'Erreur de retrait'),
+                backgroundColor: AppTheme.error),
           );
         }
       }
     } catch (e) {
+      debugPrint('[Wallet] Échec de la demande de retrait: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
+          SnackBar(
+              content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
         );
       }
     } finally {
@@ -511,10 +567,16 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
             margin: const EdgeInsets.only(top: 12),
             width: 40,
             height: 4,
-            decoration: BoxDecoration(color: AppTheme.slate300, borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(
+                color: AppTheme.slate300,
+                borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 8),
-          const Text('Retirer des fonds', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          const Text('Retirer des fonds',
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary)),
           const SizedBox(height: 6),
           Text(
             'Solde disponible : ${fmt.format(widget.balance.toInt())} FCFA',
@@ -527,7 +589,11 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Montant (FCFA)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.textPrimary)),
+                  const Text('Montant (FCFA)',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: AppTheme.textPrimary)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _amountCtrl,
@@ -538,7 +604,11 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Mode de retrait', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.textPrimary)),
+                  const Text('Mode de retrait',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: AppTheme.textPrimary)),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 10,
@@ -546,16 +616,23 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
                     children: _methods.map((m) {
                       final selected = _method == m['value'];
                       return GestureDetector(
-                        onTap: () => setState(() => _method = m['value'] as String),
+                        onTap: () =>
+                            setState(() => _method = m['value'] as String),
                         child: Container(
-                          width: (MediaQuery.of(context).size.width - 60) / 2 - 5,
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                          width:
+                              (MediaQuery.of(context).size.width - 60) / 2 - 5,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 14, horizontal: 12),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: selected ? AppTheme.teal50 : AppTheme.slate50,
-                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            color:
+                                selected ? AppTheme.teal50 : AppTheme.slate50,
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusMd),
                             border: Border.all(
-                              color: selected ? AppTheme.teal500 : AppTheme.slate200,
+                              color: selected
+                                  ? AppTheme.teal500
+                                  : AppTheme.slate200,
                               width: selected ? 2 : 1,
                             ),
                           ),
@@ -564,7 +641,9 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: selected ? AppTheme.teal600 : AppTheme.slate600,
+                              color: selected
+                                  ? AppTheme.teal600
+                                  : AppTheme.slate600,
                             ),
                           ),
                         ),
@@ -591,7 +670,8 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
                     ),
                     child: Text(
                       'Solde disponible : ${fmt.format(widget.balance.toInt())} FCFA. Le retrait sera traité sous 24-48h.',
-                      style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                      style: const TextStyle(
+                          fontSize: 13, color: AppTheme.textSecondary),
                     ),
                   ),
                   const SizedBox(height: 20),

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/parcel.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../utils/parcel_access_policy.dart';
 
 final parcelProvider =
     StateNotifierProvider<ParcelNotifier, ParcelState>((ref) {
@@ -32,7 +33,8 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getSentParcels(status: status);
-      state = state.copyWith(sentParcels: parcels, isLoading: false, error: null);
+      state =
+          state.copyWith(sentParcels: parcels, isLoading: false, error: null);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
@@ -42,7 +44,8 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getReceivedParcels(status: status);
-      state = state.copyWith(receivedParcels: parcels, isLoading: false, error: null);
+      state = state.copyWith(
+          receivedParcels: parcels, isLoading: false, error: null);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
@@ -73,8 +76,8 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
       final sent = <Parcel>[];
       final received = <Parcel>[];
       for (final parcel in byId.values) {
-        final sentByClient = _isSentBy(parcel, client);
-        final receivedByClient = _isReceivedBy(parcel, client);
+        final sentByClient = isParcelSender(parcel, client);
+        final receivedByClient = isParcelRecipient(parcel, client);
 
         if (sentByClient) sent.add(parcel);
         // Un envoi à soi-même reste classé dans « Envoyés » afin que les deux
@@ -92,39 +95,6 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
       debugPrint('❌ Erreur classement des colis client: $e');
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
-  }
-
-  bool _isSentBy(Parcel parcel, User client) {
-    if (parcel.senderId.isNotEmpty && parcel.senderId == client.id) return true;
-    if (_samePhone(parcel.senderPhone, client.phone)) return true;
-    return _sameEmail(parcel.senderEmail, client.email);
-  }
-
-  bool _isReceivedBy(Parcel parcel, User client) {
-    if (_samePhone(parcel.receiverPhone, client.phone)) return true;
-    return _sameEmail(parcel.receiverEmail, client.email);
-  }
-
-  /// Les numéros sénégalais peuvent arriver avec espaces, préfixe `+221` ou
-  /// sans indicatif. Comparer les neuf derniers chiffres couvre ces formats.
-  bool _samePhone(String? first, String? second) {
-    String normalize(String? value) {
-      final digits = value?.replaceAll(RegExp(r'\D'), '') ?? '';
-      if (digits.length < 9) return digits;
-      return digits.substring(digits.length - 9);
-    }
-
-    final normalizedFirst = normalize(first);
-    final normalizedSecond = normalize(second);
-    return normalizedFirst.isNotEmpty &&
-        normalizedFirst == normalizedSecond;
-  }
-
-  bool _sameEmail(String? first, String? second) {
-    final normalizedFirst = first?.trim().toLowerCase() ?? '';
-    final normalizedSecond = second?.trim().toLowerCase() ?? '';
-    return normalizedFirst.isNotEmpty &&
-        normalizedFirst == normalizedSecond;
   }
 
   Future<void> loadDriverParcels() async {
@@ -253,8 +223,7 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     try {
       final parcel = await _apiService.createParcel(data);
       await loadSentParcels();
-      state = state.copyWith(
-          isLoading: false, error: null, isSuccess: true);
+      state = state.copyWith(isLoading: false, error: null, isSuccess: true);
       return parcel;
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
@@ -302,8 +271,8 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
   }
 
   /// Confirm delivery with OTP
-  Future<Map<String, dynamic>> deliverParcel(String parcelId,
-      Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> deliverParcel(
+      String parcelId, Map<String, dynamic> data) async {
     state = state.copyWith(isLoading: true);
     try {
       final result = await _apiService.driverDeliver(parcelId, data);
@@ -332,12 +301,10 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     }
   }
 
-  Future<bool> assignDriverToParcel(
-      String parcelId, String driverId) async {
+  Future<bool> assignDriverToParcel(String parcelId, String driverId) async {
     state = state.copyWith(isLoading: true);
     try {
-      final result =
-          await _apiService.assignDriverToParcel(parcelId, driverId);
+      final result = await _apiService.assignDriverToParcel(parcelId, driverId);
       if (result['success'] == true) {
         await loadGarageParcels();
         state = state.copyWith(isLoading: false, error: null);
@@ -467,18 +434,20 @@ class ParcelState {
 
   List<Parcel> get freeParcelsList => freeParcels;
 
-  List<Parcel> get pendingParcels =>
-      parcels.where((p) =>
+  List<Parcel> get pendingParcels => parcels
+      .where((p) =>
           p.status == ParcelStatus.pending ||
           p.status == ParcelStatus.free ||
-          p.status == ParcelStatus.confirmed).toList();
+          p.status == ParcelStatus.confirmed)
+      .toList();
 
-  List<Parcel> get inProgressParcels =>
-      parcels.where((p) =>
+  List<Parcel> get inProgressParcels => parcels
+      .where((p) =>
           p.status == ParcelStatus.pickedUp ||
           p.status == ParcelStatus.inTransit ||
           p.status == ParcelStatus.arrived ||
-          p.status == ParcelStatus.outForDelivery).toList();
+          p.status == ParcelStatus.outForDelivery)
+      .toList();
 
   List<Parcel> get completedParcels =>
       parcels.where((p) => p.status == ParcelStatus.delivered).toList();

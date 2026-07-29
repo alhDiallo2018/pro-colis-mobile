@@ -13,7 +13,6 @@ import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/availability_toggle.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/segmented_control.dart';
@@ -51,6 +50,7 @@ class _DriverParametresScreenState
   bool _notifMissions = true;
   bool _notifMessages = true;
   bool _notifPromos = false;
+  List<Map<String, dynamic>> _serverNotificationPreferences = [];
 
   static const _statuses = ['available', 'busy', 'offline'];
 
@@ -68,18 +68,21 @@ class _DriverParametresScreenState
   }
 
   Future<void> _loadNotificationPreferences() async {
-    final missions = await _storage.read(key: 'pref_notif_missions');
-    final messages = await _storage.read(key: 'pref_notif_messages');
-    final promos = await _storage.read(key: 'pref_notif_promos');
-    if (mounted) {
+    try {
+      // Le stockage local fournit immédiatement les préférences hors ligne.
+      final missions = await _storage.read(key: 'pref_notif_missions');
+      final messages = await _storage.read(key: 'pref_notif_messages');
+      final promos = await _storage.read(key: 'pref_notif_promos');
+      if (!mounted) return;
       setState(() {
         _notifMissions = missions != 'false';
         _notifMessages = messages != 'false';
         _notifPromos = promos == 'true';
       });
-    }
-    // Tentative API en arrière-plan (fire-and-forget)
-    _apiService.getNotificationPreferences().then((prefs) {
+
+      // Le serveur reste la source de vérité lorsqu'il est joignable.
+      final prefs = await _apiService.getNotificationPreferences();
+      _serverNotificationPreferences = prefs;
       if (prefs.isNotEmpty && mounted) {
         final map = <String, bool>{};
         for (final p in prefs) {
@@ -93,24 +96,58 @@ class _DriverParametresScreenState
           _notifPromos = map['promo'] ?? _notifPromos;
         });
       }
-    }).catchError((_) {});
+    } catch (error, stackTrace) {
+      debugPrint(
+        'DriverParametresScreen: chargement des préférences impossible '
+        '($error)\n$stackTrace',
+      );
+    }
   }
 
-  void _updateNotifPref(String key, bool value) async {
+  Future<void> _updateNotifPref(String key, bool value) async {
     setState(() {
       switch (key) {
-        case 'pref_notif_missions': _notifMissions = value;
-        case 'pref_notif_messages': _notifMessages = value;
-        case 'pref_notif_promos': _notifPromos = value;
+        case 'pref_notif_missions':
+          _notifMissions = value;
+        case 'pref_notif_messages':
+          _notifMessages = value;
+        case 'pref_notif_promos':
+          _notifPromos = value;
       }
     });
-    await _storage.write(key: key, value: value.toString());
-    // Tentative API en arrière-plan
-    _apiService.updateNotificationPreferences([
-      {'type': 'mission', 'enabled': _notifMissions},
-      {'type': 'message', 'enabled': _notifMessages},
-      {'type': 'promo', 'enabled': _notifPromos},
-    ]).catchError((_) {});
+
+    try {
+      // Persistance locale et synchronisation distante forment une seule
+      // opération utilisateur ; toute erreur est journalisée explicitement.
+      await _storage.write(key: key, value: value.toString());
+      const driverTypes = {'mission', 'message', 'promo'};
+      // Les préférences détaillées `{eventType, channels}` partagent le même
+      // document JSON : les recopier évite que ce réglage simplifié les efface.
+      final serverPayload = <Map<String, dynamic>>[
+        ..._serverNotificationPreferences
+            .where((entry) => !driverTypes.contains(entry['type']))
+            .map(Map<String, dynamic>.from),
+        {'type': 'mission', 'enabled': _notifMissions},
+        {'type': 'message', 'enabled': _notifMessages},
+        {'type': 'promo', 'enabled': _notifPromos},
+      ];
+      final synchronized =
+          await _apiService.updateNotificationPreferences(serverPayload);
+      if (synchronized) {
+        _serverNotificationPreferences = serverPayload;
+      }
+      if (!synchronized) {
+        debugPrint(
+          'DriverParametresScreen: préférence $key conservée localement, '
+          'mais refusée ou non reçue par l’API',
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        'DriverParametresScreen: mise à jour de $key impossible '
+        '($error)\n$stackTrace',
+      );
+    }
   }
 
   @override
@@ -171,7 +208,8 @@ class _DriverParametresScreenState
       if (!mounted) return;
 
       if (result['success'] == false) {
-        _showError(result['message']?.toString() ?? 'Enregistrement impossible');
+        _showError(
+            result['message']?.toString() ?? 'Enregistrement impossible');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -311,7 +349,9 @@ class _DriverParametresScreenState
                           keyboardType: TextInputType.number),
                       const SizedBox(height: 18),
                       PcButton(
-                        _isSaving ? 'Enregistrement…' : 'Enregistrer le véhicule',
+                        _isSaving
+                            ? 'Enregistrement…'
+                            : 'Enregistrer le véhicule',
                         icon: Icons.save_rounded,
                         block: true,
                         loading: _isSaving,
@@ -373,7 +413,8 @@ class _DriverParametresScreenState
                         title: 'Nouvelles missions',
                         subtitle: 'Être alerté des courses disponibles',
                         value: _notifMissions,
-                        onChanged: (v) => _updateNotifPref('pref_notif_missions', v),
+                        onChanged: (v) =>
+                            _updateNotifPref('pref_notif_missions', v),
                       ),
                       const PcDivider(),
                       _switchRow(
@@ -382,7 +423,8 @@ class _DriverParametresScreenState
                         title: 'Messages',
                         subtitle: 'Notifications des conversations',
                         value: _notifMessages,
-                        onChanged: (v) => _updateNotifPref('pref_notif_messages', v),
+                        onChanged: (v) =>
+                            _updateNotifPref('pref_notif_messages', v),
                       ),
                       const PcDivider(),
                       _switchRow(
@@ -391,7 +433,8 @@ class _DriverParametresScreenState
                         title: 'Promotions',
                         subtitle: 'Offres et actualités SendProcolis',
                         value: _notifPromos,
-                        onChanged: (v) => _updateNotifPref('pref_notif_promos', v),
+                        onChanged: (v) =>
+                            _updateNotifPref('pref_notif_promos', v),
                       ),
                     ],
                   ),
@@ -423,7 +466,8 @@ class _DriverParametresScreenState
                       children: [
                         TextField(
                           controller: _currentPinController,
-                          decoration: _pinDecoration('PIN actuel', Icons.lock_rounded),
+                          decoration:
+                              _pinDecoration('PIN actuel', Icons.lock_rounded),
                           keyboardType: TextInputType.number,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly
@@ -435,8 +479,8 @@ class _DriverParametresScreenState
                         const SizedBox(height: 14),
                         TextField(
                           controller: _newPinController,
-                          decoration:
-                              _pinDecoration('Nouveau PIN', Icons.lock_reset_rounded),
+                          decoration: _pinDecoration(
+                              'Nouveau PIN', Icons.lock_reset_rounded),
                           keyboardType: TextInputType.number,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly
@@ -573,8 +617,7 @@ class _DriverParametresScreenState
                     ],
                   ],
                 ),
-                if (user.garageName != null &&
-                    user.garageName!.isNotEmpty) ...[
+                if (user.garageName != null && user.garageName!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     user.garageName!,
@@ -616,9 +659,8 @@ class _DriverParametresScreenState
     );
   }
 
-  Widget _inputField(
-      TextEditingController controller, String label, IconData icon,
-      String hint,
+  Widget _inputField(TextEditingController controller, String label,
+      IconData icon, String hint,
       {TextInputType keyboardType = TextInputType.text}) {
     return TextField(
       controller: controller,
@@ -644,8 +686,7 @@ class _DriverParametresScreenState
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: AppFonts.manrope(
-                color: AppTheme.slate500, fontSize: 14)),
+            style: AppFonts.manrope(color: AppTheme.slate500, fontSize: 14)),
         const SizedBox(width: 12),
         Flexible(
           child: Text(value,

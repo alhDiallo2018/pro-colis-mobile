@@ -3,39 +3,33 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../config/app_config.dart';
+
 class ApiClient {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:18081/api/v1',
-  );
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
-  static String get mediaBaseUrl {
-    String b = baseUrl;
-    if (b.endsWith('/api/v1')) return b.substring(0, b.length - '/api/v1'.length);
-    if (b.endsWith('/api/v1/')) return b.substring(0, b.length - '/api/v1/'.length);
-    if (b.endsWith('/api')) return b.substring(0, b.length - '/api'.length);
-    return b;
-  }
+  static String get mediaBaseUrl => AppConfig.mediaBaseUrl;
 
-  static String resolveMediaUrl(String url) {
-    if (url.startsWith('http')) return url;
-    final base = mediaBaseUrl;
-    if (url.startsWith('/')) return '$base$url';
-    return '$base/$url';
-  }
+  static String resolveMediaUrl(String url) => AppConfig.resolveMediaUrl(url);
 
   final Dio dio;
   final FlutterSecureStorage storage = const FlutterSecureStorage();
 
   ApiClient({Dio? dioOverride})
-      : dio = dioOverride ?? Dio(BaseOptions(
-          baseUrl: baseUrl,
-          headers: {'Content-Type': 'application/json'},
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 30),
-          validateStatus: (status) => status! < 500,
-        )) {
-    _setupInterceptors();
+      : dio = dioOverride ??
+            Dio(BaseOptions(
+              baseUrl: baseUrl,
+              headers: {'Content-Type': 'application/json'},
+              connectTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 30),
+              validateStatus: (status) => status! < 500,
+            )) {
+    // Un Dio injecté appartient à son appelant. `ApiService` lui a déjà
+    // installé l'authentification et le refresh : ajouter une seconde chaîne
+    // déclencherait deux renouvellements concurrents sur chaque 401.
+    if (dioOverride == null) {
+      _setupInterceptors();
+    }
   }
 
   static const Set<String> publicRoutes = {
@@ -102,7 +96,8 @@ class ApiClient {
         headers: {'Content-Type': 'application/json'},
         connectTimeout: const Duration(seconds: 30),
       ));
-      final res = await rd.post('/auth/refresh', data: {'refreshToken': refreshToken});
+      final res =
+          await rd.post('/auth/refresh', data: {'refreshToken': refreshToken});
       final data = _decode(res);
       final at = data['accessToken']?.toString();
       if (at != null) {

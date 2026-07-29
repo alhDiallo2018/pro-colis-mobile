@@ -54,13 +54,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _pollTimer;
+  StreamSubscription<PlayerState>? _audioStateSubscription;
+  String? _loadingThreadKey;
   bool _isSending = false;
 
   bool _isRecording = false;
   bool _isPaused = false;
   int _recordDuration = 0;
   Timer? _recordTimer;
-  String? _recordingFilePath;
 
   bool _showPriceInput = false;
   final _priceController = TextEditingController();
@@ -80,7 +81,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       if (_activePeerId != null) _loadMessages();
       _loadConversations();
     });
-    _audioPlayer.onPlayerStateChanged.listen(_onAudioPlayerStateChanged);
+    _audioStateSubscription =
+        _audioPlayer.onPlayerStateChanged.listen(_onAudioPlayerStateChanged);
 
     // Ouverture directe du fil d'un colis (depuis le détail du colis).
     final hasPeer =
@@ -88,7 +90,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     final hasParcel =
         widget.initialParcelId != null && widget.initialParcelId!.isNotEmpty;
     if (hasPeer || hasParcel) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _autoOpenInitial());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _autoOpenInitial();
+      });
     }
   }
 
@@ -139,6 +143,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   void dispose() {
     _pollTimer?.cancel();
     _recordTimer?.cancel();
+    _audioStateSubscription?.cancel();
     _messageController.dispose();
     _priceController.dispose();
     _scrollController.dispose();
@@ -164,35 +169,63 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       if (mounted) {
         setState(() => _conversations = convs);
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        'MessagesScreen: chargement des conversations impossible '
+        '($error)\n$stackTrace',
+      );
+    }
   }
 
   Future<void> _loadMessages() async {
-    if (_activePeerId == null) return;
+    final peerId = _activePeerId;
+    final parcelId = _activeParcelId;
+    if (peerId == null) return;
+    final threadKey = '$peerId:${parcelId ?? ''}';
+    if (_loadingThreadKey == threadKey) return;
+    _loadingThreadKey = threadKey;
     try {
       final msgs = await _apiService.getMessagesThread(
-        _activePeerId!,
-        parcelId: _activeParcelId,
+        peerId,
+        parcelId: parcelId,
       );
-      if (mounted) {
+      // Un ancien appel ne doit jamais remplacer le fil sélectionné pendant
+      // que la requête réseau était en cours.
+      if (mounted &&
+          peerId == _activePeerId &&
+          parcelId == _activeParcelId) {
         setState(() => _messages = msgs);
         _scrollToBottom();
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        'MessagesScreen: chargement du fil $threadKey impossible '
+        '($error)\n$stackTrace',
+      );
+    } finally {
+      if (_loadingThreadKey == threadKey) _loadingThreadKey = null;
+    }
   }
 
   Future<void> _loadParcelDetail() async {
-    if (_activeParcelId == null || _activeParcelId!.isEmpty) return;
+    final parcelId = _activeParcelId;
+    if (parcelId == null || parcelId.isEmpty) return;
     try {
-      final parcel = await _apiService.getParcelById(_activeParcelId!);
-      if (mounted && parcel != null) {
+      final parcel = await _apiService.getParcelById(parcelId);
+      if (mounted && parcelId == _activeParcelId && parcel != null) {
         setState(() => _activeParcel = parcel);
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        'MessagesScreen: chargement du colis $parcelId impossible '
+        '($error)\n$stackTrace',
+      );
+    }
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -327,7 +360,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       try {
         final tempDir = Directory.systemTemp;
         final filePath = '${tempDir.path}/sendprocolis_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        _recordingFilePath = filePath;
         await _audioRecorder.start(
           path: filePath,
           encoder: AudioEncoder.aacLc,
