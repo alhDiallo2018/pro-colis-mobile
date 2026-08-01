@@ -1668,9 +1668,11 @@ class _OfferPreviewRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final bid = offer.bid;
     final driverName = bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName;
-    final subtitle = bid.message?.trim().isNotEmpty == true
-        ? bid.message!.trim()
-        : offer.parcel.trackingNumber;
+    final subtitle = bid.responseMessage?.trim().isNotEmpty == true
+        ? bid.responseMessage!.trim()
+        : bid.message?.trim().isNotEmpty == true
+            ? bid.message!.trim()
+            : offer.parcel.trackingNumber;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(

@@ -238,6 +238,7 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
           peerName: driverName,
           parcelId: parcelId,
           bidId: bid.id,
+          isOwner: true,
           onChanged: _load,
         ),
       ),
@@ -384,20 +385,18 @@ class _ReceivedOfferCard extends StatelessWidget {
           ),
           if (hasMessage || hasResponse) ...[
             const SizedBox(height: 10),
-            if (hasMessage)
+            if (hasResponse)
+              _Bubble(
+                side: _BubbleSide.right,
+                who: 'Vous (contre-proposition)',
+                text: bid.responseMessage!.trim(),
+              )
+            else if (hasMessage)
               _Bubble(
                 side: _BubbleSide.left,
                 who: driverName,
                 text: bid.message!.trim(),
               ),
-            if (hasResponse) ...[
-              const SizedBox(height: 6),
-              _Bubble(
-                side: _BubbleSide.right,
-                who: 'Vous (contre-proposition)',
-                text: bid.responseMessage!.trim(),
-              ),
-            ],
           ],
           if (audioUrl != null && audioUrl.isNotEmpty) ...[
             const SizedBox(height: 10),

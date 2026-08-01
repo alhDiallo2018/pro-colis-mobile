@@ -1104,6 +1104,18 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     );
   }
 
+  bool _isLastNonMePriceAtIndex(int index) {
+    final user = ref.read(authProvider).user;
+    for (int i = _messages.length - 1; i >= 0; i--) {
+      final msg = _messages[i];
+      final body = msg['body']?.toString() ?? '';
+      if (body.startsWith('__PRIX__:') && msg['senderId'] != user?.id) {
+        return i == index;
+      }
+    }
+    return false;
+  }
+
   void _closeConversation() {
     _audioPlayer.stop();
     setState(() {
@@ -1256,7 +1268,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
             itemCount: _messages.length,
             itemBuilder: (context, index) {
               final msg = _messages[index];
-              return _buildMessageBubble(msg, user);
+              final isLastNonMePrice = _isLastNonMePriceAtIndex(index);
+              return _buildMessageBubble(msg, user, isLastNonMePrice: isLastNonMePrice);
             },
           ),
         ),
@@ -1347,7 +1360,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> msg, dynamic user) {
+  Widget _buildMessageBubble(Map<String, dynamic> msg, dynamic user, {bool isLastNonMePrice = false}) {
     final isMe = msg['senderId'] == user?.id;
     final body = msg['body']?.toString() ?? '';
     final audioUrl = msg['audioUrl']?.toString();
@@ -1371,7 +1384,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     }
 
     if (body.startsWith('__PRIX__:')) {
-      return _buildPriceProposal(msg, isMe, body, bidId);
+      return _buildPriceProposal(msg, isMe, body, bidId, isLastNonMePrice: isLastNonMePrice);
     }
 
     return _buildTextBubble(msg, isMe, body);
@@ -1672,7 +1685,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   }
 
   Widget _buildPriceProposal(
-      Map<String, dynamic> msg, bool isMe, String body, String? bidId) {
+      Map<String, dynamic> msg, bool isMe, String body, String? bidId, {bool isLastNonMePrice = false}) {
     final remaining = body.substring('__PRIX__:'.length);
     final parts = remaining.split(':');
     final amountStr = parts.first;
@@ -1680,6 +1693,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         parts.length > 1 ? parts.sublist(1).join(':') : '';
     final amount = double.tryParse(amountStr);
     final nf = NumberFormat.decimalPattern('fr_FR');
+    final showActions = !isMe && bidId != null && bidId.isNotEmpty &&
+        _activeParcel?.senderId == ref.read(authProvider).user?.id &&
+        isLastNonMePrice;
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -1761,7 +1777,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                         color: AppTheme.slate600)),
               ),
             ],
-            if (!isMe && bidId != null && bidId.isNotEmpty) ...[
+            if (showActions) ...[
               const SizedBox(height: 12),
               Row(
                 children: [

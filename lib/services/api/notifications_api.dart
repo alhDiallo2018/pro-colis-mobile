@@ -19,13 +19,16 @@ class NotificationsApi {
   }
 
   /// Enregistre le token FCM de l'appareil côté backend.
-  /// Échoue silencieusement si l'endpoint n'existe pas encore.
-  Future<bool> registerDeviceToken(String token) async {
+  /// Appelle POST /api/v1/users/fcm-token.
+  Future<bool> registerDeviceToken(String token, {String? deviceName}) async {
     try {
-      final res = await client.dio.post('/notifications/device-token', data: {
+      final data = <String, dynamic>{
         'token': token,
         'platform': _platform,
-      });
+      };
+      if (deviceName != null) data['deviceName'] = deviceName;
+
+      final res = await client.dio.post('/users/fcm-token', data: data);
       return client.handle(res)['success'] == true;
     } catch (e) {
       return false;

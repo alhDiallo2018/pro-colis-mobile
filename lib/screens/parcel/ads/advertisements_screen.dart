@@ -405,6 +405,8 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
           peerName: driverName,
           parcelId: parcelId,
           bidId: bid.id,
+          role: 'client',
+          isOwner: true,
           onChanged: () => _loadLibreService(),
         ),
       ),
@@ -762,6 +764,12 @@ class _OfferMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     final audioUrl = bid.audioUrl;
     final hasMessage = bid.message?.trim().isNotEmpty == true;
+    final hasResponse = bid.responseMessage?.trim().isNotEmpty == true;
+    final displayText = hasResponse
+        ? bid.responseMessage!.trim()
+        : hasMessage
+            ? bid.message!.trim()
+            : null;
 
     if (audioUrl != null && audioUrl.isNotEmpty) {
       return Container(
@@ -810,7 +818,7 @@ class _OfferMessage extends StatelessWidget {
       );
     }
 
-    if (!hasMessage) return const SizedBox.shrink();
+    if (displayText == null) return const SizedBox.shrink();
 
     return Container(
       width: double.infinity,
@@ -826,7 +834,7 @@ class _OfferMessage extends StatelessWidget {
         ),
       ),
       child: Text(
-        bid.message!.trim(),
+        displayText,
         maxLines: 4,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(

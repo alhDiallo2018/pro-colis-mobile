@@ -212,6 +212,7 @@ class _DriverMesAnnoncesScreenState
           advertisementId: adId,
           offerId: offerId,
           role: 'driver',
+          isOwner: true,
           onChanged: _loadAds,
         ),
       ),

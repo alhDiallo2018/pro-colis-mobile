@@ -19,15 +19,34 @@ bool isParcelSender(Parcel parcel, User? user) {
   return parcel.senderId == user.id;
 }
 
+/// Normalise un email pour comparaison, comme le fait le backend avec
+/// `normalizeEmail`.
+String? _normalizeEmail(String? value) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  return trimmed.toLowerCase();
+}
+
 /// Le schéma ne possède pas encore de `receiverId`; l'identité du destinataire
-/// repose donc sur un téléphone valide, après normalisation de son format.
+/// repose donc sur le téléphone OU l'email, après normalisation.
+/// Les deux sont comparés avec la même logique que le backend
+/// (`normalizePhone` / `normalizeEmail` du service parcel).
 bool isParcelRecipient(Parcel parcel, User? user) {
   if (user == null) return false;
+
   final receiverPhone = normalizeParcelIdentityPhone(parcel.receiverPhone);
   final userPhone = normalizeParcelIdentityPhone(user.phone);
-  return receiverPhone != null &&
-      userPhone != null &&
-      receiverPhone == userPhone;
+  if (receiverPhone != null && userPhone != null && receiverPhone == userPhone) {
+    return true;
+  }
+
+  final receiverEmail = _normalizeEmail(parcel.receiverEmail);
+  final userEmail = _normalizeEmail(user.email);
+  if (receiverEmail != null && userEmail != null && receiverEmail == userEmail) {
+    return true;
+  }
+
+  return false;
 }
 
 bool canClientReadParcel(Parcel parcel, User? user) {

@@ -368,7 +368,7 @@ Toutes les valeurs renvoyées doivent être reconnues par les enums Dart corrig�
 
 ### Parcours applicatif
 
-`flutter run --dart-define=API_BASE_URL=http://localhost:18081/api/v1`, **sans** `MOCK_API` :
+`flutter run --dart-define=API_BASE_URL=https://sendprocolis.com`, **sans** `MOCK_API` :
 
 - Un compte par rôle, `support` inclus : vérifier l'espace d'atterrissage et la correspondance des gardes de préfixe avec `ROLE_HOME` du web.
 - Visiteur anonyme : `/landing` et `/help` accessibles.

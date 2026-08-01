@@ -55,47 +55,48 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
   /// client. Cette vérification locale empêche une réponse serveur mal filtrée
   /// de placer les colis expédiés dans l'onglet « Reçus ».
   Future<void> loadClientParcels(
-    User client, {
-    String? status,
-  }) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final results = await Future.wait([
-        _apiService.getSentParcels(status: status),
-        _apiService.getReceivedParcels(status: status),
-      ]);
+  User client, {
+  String? status,
+}) async {
+  state = state.copyWith(isLoading: true);
+  try {
+    final results = await Future.wait([
+      _apiService.getSentParcels(status: status),
+      _apiService.getReceivedParcels(status: status),
+    ]);
 
-      // Les deux endpoints peuvent contenir le même colis selon la version de
-      // l'API. La fusion permet de reconstituer une source fiable avant de
-      // séparer expéditeur et destinataire.
-      final byId = <String, Parcel>{};
-      for (final parcel in [...results[0], ...results[1]]) {
-        byId[parcel.id] = parcel;
-      }
-
-      final sent = <Parcel>[];
-      final received = <Parcel>[];
-      for (final parcel in byId.values) {
-        final sentByClient = isParcelSender(parcel, client);
-        final receivedByClient = isParcelRecipient(parcel, client);
-
-        if (sentByClient) sent.add(parcel);
-        // Un envoi à soi-même reste classé dans « Envoyés » afin que les deux
-        // onglets restent mutuellement exclusifs.
-        if (receivedByClient && !sentByClient) received.add(parcel);
-      }
-
-      state = state.copyWith(
-        sentParcels: sent,
-        receivedParcels: received,
-        isLoading: false,
-        error: null,
-      );
-    } catch (e) {
-      debugPrint('❌ Erreur classement des colis client: $e');
-      state = state.copyWith(error: e.toString(), isLoading: false);
+    // Les deux endpoints peuvent contenir le même colis selon la version de
+    // l'API. La fusion permet de reconstituer une source fiable avant de
+    // séparer expéditeur et destinataire.
+    final byId = <String, Parcel>{};
+    for (final parcel in [...results[0], ...results[1]]) {
+      byId[parcel.id] = parcel;
     }
+
+    final sent = <Parcel>[];
+    final received = <Parcel>[];
+    for (final parcel in byId.values) {
+      final sentByClient = isParcelSender(parcel, client);
+      final receivedByClient = isParcelRecipient(parcel, client);
+
+      if (sentByClient) sent.add(parcel);
+      
+      // ✅ CORRECTION : Un colis où l'utilisateur est destinataire 
+      // (même s'il est aussi expéditeur) doit apparaître dans les "Reçus"
+      if (receivedByClient) received.add(parcel);
+    }
+
+    state = state.copyWith(
+      sentParcels: sent,
+      receivedParcels: received,
+      isLoading: false,
+      error: null,
+    );
+  } catch (e) {
+    debugPrint('❌ Erreur classement des colis client: $e');
+    state = state.copyWith(error: e.toString(), isLoading: false);
   }
+}
 
   Future<void> loadDriverParcels() async {
     state = state.copyWith(isLoading: true);

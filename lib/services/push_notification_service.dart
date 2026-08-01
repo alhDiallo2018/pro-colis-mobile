@@ -2,21 +2,18 @@
 //
 // Notifications push via Firebase Cloud Messaging (FCM).
 //
-// IMPORTANT — configuration Firebase requise pour activer le push :
-//   TODO: placer `google-services.json` dans `android/app/` (console Firebase >
-//         Paramètres du projet > Vos applications > Android), puis activer le
-//         plugin Gradle `com.google.gms.google-services` (voir les TODO dans
-//         android/settings.gradle et android/app/build.gradle.kts).
-//   TODO: placer `GoogleService-Info.plist` dans `ios/Runner/` (console
-//         Firebase > Vos applications > iOS) et l'ajouter au target Runner
-//         dans Xcode. Activer aussi la capability "Push Notifications" et
-//         "Background Modes > Remote notifications".
+// Prérequis :
+//   - `google-services.json` dans `android/app/` (console Firebase >
+//     Paramètres du projet > Vos applications > Android)
+//   - Plugin Gradle `com.google.gms.google-services` activé
+//     (android/settings.gradle + android/app/build.gradle.kts)
+//   - `GoogleService-Info.plist` dans `ios/Runner/` (iOS)
 //
-// Sans ces fichiers, `Firebase.initializeApp()` échoue : ce service est conçu
-// pour dégrader proprement — l'app continue de fonctionner, le push est
-// simplement désactivé.
+// Sans ces fichiers, `Firebase.initializeApp()` échoue : ce service dégrade
+// proprement — l'app continue de fonctionner, le push est désactivé.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -66,6 +63,12 @@ class PushNotificationService {
   static NotificationsApi? _notificationsApiOverride;
   static NotificationsApi get _api =>
       _notificationsApiOverride ??= NotificationsApi(ApiClient());
+
+  /// Callback appelé quand l'utilisateur tape sur une notification.
+  /// Le payload contient les données FCM (trackingNumber, parcelId, type…).
+  /// À brancher depuis la couche routing (GoRouter) pour naviguer vers la
+  /// page appropriée (détail colis, messages, etc.).
+  static void Function(Map<String, String> data)? onNotificationTap;
 
   /// `true` si Firebase a pu être initialisé (fichiers de config présents).
   static bool get isAvailable => _firebaseReady;
@@ -159,10 +162,15 @@ class PushNotificationService {
   }
 
   static void _onMessageOpenedApp(RemoteMessage message) {
-    // TODO: brancher la navigation (ex: ouvrir le détail du colis via
-    // message.data['trackingNumber'] / message.data['parcelId']).
+    final data = Map<String, String>.from(
+      message.data.map((k, v) => MapEntry(k, v.toString())),
+    );
     debugPrint(
-        'PushNotificationService: notification ouverte, data=${message.data}');
+      'PushNotificationService: notification ouverte, data=$data',
+    );
+    if (onNotificationTap != null) {
+      onNotificationTap!(data);
+    }
   }
 
   /// Récupère le token FCM courant et l'envoie au backend.
@@ -182,7 +190,11 @@ class PushNotificationService {
 
   static Future<void> _sendTokenToBackend(String token) async {
     try {
-      await _api.registerDeviceToken(token);
+      String? deviceName;
+      try {
+        deviceName = Platform.localHostname;
+      } catch (_) {}
+      await _api.registerDeviceToken(token, deviceName: deviceName);
     } catch (_) {
       // Endpoint peut-être pas encore disponible côté serveur : silencieux.
     }

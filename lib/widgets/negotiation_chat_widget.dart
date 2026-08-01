@@ -31,6 +31,8 @@ class NegotiationChatScreen extends StatefulWidget {
 
   final String? role;
 
+  final bool isOwner;
+
   final void Function()? onChanged;
 
   const NegotiationChatScreen({
@@ -43,6 +45,7 @@ class NegotiationChatScreen extends StatefulWidget {
     this.advertisementId,
     this.offerId,
     this.role,
+    this.isOwner = false,
     this.onChanged,
   });
 
@@ -222,51 +225,32 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   }
 
   Future<void> _handleAcceptPrice(int amount) async {
-    final body =
-        '$_prixPrefix:$amount:Accepté à ${_fcfa(amount.toDouble())} FCFA';
-    await _send(body: body);
+    Map<String, dynamic>? result;
 
-    // 1. On fige le montant convenu sur l'offre…
-    if (widget.bidId != null) {
+    if (widget.offerId != null && widget.advertisementId != null) {
+      result = await _api.acceptAdvertisementOffer(
+          widget.advertisementId!, widget.offerId!);
+    } else if (widget.bidId != null) {
       if (widget.role == 'driver') {
-        await _api.driverRespondToBid(widget.bidId!, {
+        result = await _api.driverRespondToBid(widget.bidId!, {
           'action': 'accept',
           'price': amount,
           'message': 'Offre acceptee',
         });
-      } else {
-        await _api.negotiateBid(widget.bidId!, {
-          'price': amount, 'message': 'Offre acceptee',
-        });
-      }
-    } else if (widget.offerId != null && widget.advertisementId != null) {
-      await _api.negotiateAdvertisementOffer(
-        widget.advertisementId!,
-        widget.offerId!,
-        {'price': amount, 'message': 'Offre acceptée'},
-      );
-    }
-
-    // 2. …puis on valide l'acceptation pour que le colis retienne ce montant
-    // (`negotiatedPrice` + `selectedBidId`) : sans cela le paiement resterait
-    // basé sur le prix de départ et non sur le prix négocié.
-    Map<String, dynamic>? result;
-    if (widget.bidId != null && widget.parcelId != null) {
-      if (widget.role == 'driver') {
-        // L'acceptation est deja faite via driverRespondToBid(action: 'accept')
-        // qui gere negotiatedPrice + selectedBidId + statut du colis
-      } else {
+      } else if (widget.parcelId != null) {
         result = await _api.acceptBid(widget.parcelId!, widget.bidId!);
       }
-    } else if (widget.offerId != null && widget.advertisementId != null) {
-      result = await _api.acceptAdvertisementOffer(
-          widget.advertisementId!, widget.offerId!);
     }
 
     if (result != null && result['success'] == false && mounted) {
       _showSnack(result['message']?.toString() ??
-          'Le prix a été enregistré mais l\'acceptation a échoué');
+          'L\'acceptation a échoué');
+      return;
     }
+
+    final body =
+        '$_prixPrefix:$amount:Accepté à ${_fcfa(amount.toDouble())} FCFA';
+    await _send(body: body);
 
     await _loadParcel();
     widget.onChanged?.call();
@@ -529,6 +513,17 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         ),
       );
     }
+    int lastNonMinePriceIdx = -1;
+    for (int i = _messages.length - 1; i >= 0; i--) {
+      final m = _messages[i];
+      final body = m['body']?.toString() ?? '';
+      if (_parsePrice(body) != null &&
+          m['senderId']?.toString() != widget.peerId) {
+        lastNonMinePriceIdx = i;
+        break;
+      }
+    }
+
     return ListView.builder(
       controller: _scrollCtrl,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -540,6 +535,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         final time = _formatTime(m['createdAt']?.toString());
         final mine = m['senderId']?.toString() == widget.peerId ? false : true;
         final priceData = _parsePrice(body);
+        final isLastNonMinePrice = i == lastNonMinePriceIdx;
 
         if (priceData != null) {
           return _PriceBubble(
@@ -547,8 +543,8 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
             message: priceData.message,
             mine: mine,
             time: time,
-            onAccept: mine ? null : () => _handleAcceptPrice(priceData.amount),
-            onCounter: mine ? null : () => _handleCounterPrice(priceData.amount),
+            onAccept: (!mine && widget.isOwner && isLastNonMinePrice) ? () => _handleAcceptPrice(priceData.amount) : null,
+            onCounter: (!mine && widget.isOwner && isLastNonMinePrice) ? () => _handleCounterPrice(priceData.amount) : null,
           );
         }
 

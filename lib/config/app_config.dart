@@ -5,7 +5,7 @@
 abstract final class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:18081/api/v1',
+    defaultValue: 'https://sendprocolis.com',
   );
 
   static const String _configuredPublicAppUrl = String.fromEnvironment(

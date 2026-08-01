@@ -5131,7 +5131,25 @@ class _BidsBottomSheetState extends State<_BidsBottomSheet> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (bid.message != null && bid.message!.isNotEmpty) ...[
+                if (bid.responseMessage != null && bid.responseMessage!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      bid.responseMessage!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ] else if (bid.message != null && bid.message!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.all(8),

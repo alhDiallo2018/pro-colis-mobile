@@ -1,0 +1,20 @@
+// Fichier généré par flutterfire configure.
+// À exécuter après avoir créé le projet Firebase :
+//   flutterfire configure --project=VOTRE_PROJECT_ID
+//
+// Ce fichier contient les options de configuration Firebase
+// pour chaque plateforme (Android, iOS, Web, etc.).
+//
+// NE PAS COMMITTER ce fichier s'il contient des clés sensibles.
+// Utilisez plutôt des variables d'environnement.
+
+// ignore_for_file: lines_longer_than_80_chars
+
+// import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+
+// class DefaultFirebaseOptions {
+//   static FirebaseOptions get currentPlatform {
+//     // Remplacé par flutterfire configure
+//     throw UnimplementedError('Exécutez "flutterfire configure" pour générer ce fichier');
+//   }
+// }
