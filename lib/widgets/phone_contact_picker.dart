@@ -467,7 +467,10 @@ class _PhoneContactPickerState extends State<PhoneContactPicker>
                         contact.displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       subtitle: Text(
                         [
@@ -475,6 +478,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker>
                           if (contact.phoneLabel?.isNotEmpty == true)
                             contact.phoneLabel!,
                         ].join(' · '),
+                        style: const TextStyle(color: AppTheme.textBody),
                       ),
                       trailing: isSelected
                           ? const Icon(
