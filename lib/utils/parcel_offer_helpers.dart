@@ -7,7 +7,7 @@ import '../models/user.dart';
 /// de rattachement reste un repli utile pour les anciens profils chauffeur qui
 /// ne possèdent pas encore de ville.
 String? resolveUserResidenceZone(User? user) {
-  final candidates = [user?.city, user?.garageName];
+  final candidates = [user?.city, user?.zoneName];
   for (final candidate in candidates) {
     final value = candidate?.trim();
     if (value != null && value.isNotEmpty) return value;
@@ -25,7 +25,7 @@ bool parcelStartsInUserZone(Parcel parcel, User? user) {
   final userZone = normalizeZoneName(resolveUserResidenceZone(user));
   if (userZone.isEmpty) return false;
 
-  return normalizeZoneName(parcel.departureGarageName) == userZone;
+  return normalizeZoneName(parcel.departureZoneName) == userZone;
 }
 
 /// Recherche l'offre déjà envoyée par l'utilisateur sur un colis afin

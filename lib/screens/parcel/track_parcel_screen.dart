@@ -477,10 +477,10 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           const SizedBox(height: 8),
           _buildReceiptInfoRow('👤 Destinataire', parcel.receiverName),
           const SizedBox(height: 8),
-          _buildReceiptInfoRow('📍 Départ', parcel.departureGarageName),
-          if (parcel.arrivalGarageName != null) ...[
+          _buildReceiptInfoRow('📍 Départ', parcel.departureZoneName),
+          if (parcel.arrivalZoneName != null) ...[
             const SizedBox(height: 8),
-            _buildReceiptInfoRow('📍 Arrivée', parcel.arrivalGarageName!),
+            _buildReceiptInfoRow('📍 Arrivée', parcel.arrivalZoneName!),
           ],
           const SizedBox(height: 8),
           _buildReceiptInfoRow('📦 Poids', parcel.formattedWeight),
@@ -1284,7 +1284,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               Expanded(
                 child: _DesignRouteEnd(
                   label: 'Départ',
-                  city: parcel.departureGarageName,
+                  city: parcel.departureZoneName,
                 ),
               ),
               Expanded(
@@ -1306,7 +1306,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               Expanded(
                 child: _DesignRouteEnd(
                   label: 'Arrivée',
-                  city: parcel.arrivalGarageName ?? 'Destination',
+                  city: parcel.arrivalZoneName ?? 'Destination',
                   alignRight: true,
                 ),
               ),
@@ -1549,7 +1549,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               Expanded(
                 child: _ResultRouteField(
                   label: 'Départ',
-                  value: parcel.departureGarageName,
+                  value: parcel.departureZoneName,
                 ),
               ),
               const Padding(
@@ -1560,7 +1560,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               Expanded(
                 child: _ResultRouteField(
                   label: 'Arrivée',
-                  value: parcel.arrivalGarageName ?? 'Destination',
+                  value: parcel.arrivalZoneName ?? 'Destination',
                   alignRight: true,
                 ),
               ),
@@ -1599,8 +1599,8 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   }
 
   String _estimateDistance(Parcel parcel) {
-    if (parcel.departureGarageName.isEmpty ||
-        (parcel.arrivalGarageName ?? '').isEmpty) {
+    if (parcel.departureZoneName.isEmpty ||
+        (parcel.arrivalZoneName ?? '').isEmpty) {
       return '-- km';
     }
     return '240 km';
@@ -1937,11 +1937,11 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             _buildInfoRow(Icons.category, 'Type', parcel.type.label),
             const SizedBox(height: 12),
             _buildInfoRow(
-                Icons.departure_board, 'Départ', parcel.departureGarageName),
-            if (parcel.arrivalGarageName != null) ...[
+                Icons.departure_board, 'Départ', parcel.departureZoneName),
+            if (parcel.arrivalZoneName != null) ...[
               const SizedBox(height: 12),
               _buildInfoRow(
-                  Icons.location_on, 'Arrivée', parcel.arrivalGarageName!),
+                  Icons.location_on, 'Arrivée', parcel.arrivalZoneName!),
             ],
             if (parcel.hasDriver) ...[
               const SizedBox(height: 12),

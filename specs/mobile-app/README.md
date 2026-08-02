@@ -5,7 +5,7 @@ Ce dossier documente les endpoints a consommer depuis l'application Flutter.
 Base URL locale Docker :
 
 ```text
-https://sendprocolis.com
+http://localhost:18081/api/v1
 ```
 
 En emulateur Android, utiliser generalement :

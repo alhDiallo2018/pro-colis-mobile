@@ -13,14 +13,14 @@ final addressesProvider = FutureProvider<List<Address>>(
   (ref) => ref.watch(addressesApiProvider).listAddresses(),
 );
 
-final favoriteGaragesProvider = FutureProvider<List<Garage>>(
-  (ref) => ref.watch(addressesApiProvider).favoriteGarages(),
+final favoriteZonesProvider = FutureProvider<List<Garage>>(
+  (ref) => ref.watch(addressesApiProvider).favoriteZones(),
 );
 
 /// La liste publique est encore portée par le client historique. Seules les
 /// mutations de favoris, nouvelles dans ce lot, passent par l'API modulaire.
-final availableGaragesProvider = FutureProvider<List<Garage>>(
-  (ref) => ApiService().getAllGarages(),
+final availableZonesProvider = FutureProvider<List<Garage>>(
+  (ref) => ApiService().getAllZones(),
 );
 
 Future<void> refreshAddresses(WidgetRef ref) async {
@@ -28,7 +28,7 @@ Future<void> refreshAddresses(WidgetRef ref) async {
   await ref.read(addressesProvider.future);
 }
 
-Future<void> refreshFavoriteGarages(WidgetRef ref) async {
-  ref.invalidate(favoriteGaragesProvider);
-  await ref.read(favoriteGaragesProvider.future);
+Future<void> refreshFavoriteZones(WidgetRef ref) async {
+  ref.invalidate(favoriteZonesProvider);
+  await ref.read(favoriteZonesProvider.future);
 }

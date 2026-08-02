@@ -69,9 +69,9 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   bool _submitting = false;
   String? _error;
 
-  List<Garage> _garages = [];
-  String? _departureId;
-  String? _arrivalId;
+  List<Garage> _zones = [];
+  String? _departureZoneId;
+  String? _arrivalZoneId;
 
   final _receiverName = TextEditingController();
   final _receiverPhone = TextEditingController();
@@ -108,7 +108,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _playingPath = null);
     });
-    _loadGarages();
+    _loadZones();
   }
 
   @override
@@ -403,14 +403,14 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     return double.tryParse(raw) ?? _estimatedPrice.toDouble();
   }
 
-  Future<void> _loadGarages() async {
+  Future<void> _loadZones() async {
     try {
-      final garages = await _api.getAllGarages();
+      final zones = await _api.getAllZones();
       if (mounted) {
         setState(() {
-          _garages = garages;
-          if (garages.isNotEmpty) _departureId = garages.first.id;
-          if (garages.length > 1) _arrivalId = garages[1].id;
+          _zones = zones;
+          if (zones.isNotEmpty) _departureZoneId = zones.first.id;
+          if (zones.length > 1) _arrivalZoneId = zones[1].id;
           _loadingGarages = false;
         });
       }
@@ -419,10 +419,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     }
   }
 
-  Garage? _garageById(String? id) {
+  Garage? _zoneById(String? id) {
     if (id == null) return null;
-    for (final g in _garages) {
-      if (g.id == id) return g;
+    for (final z in _zones) {
+      if (z.id == id) return z;
     }
     return null;
   }
@@ -430,24 +430,24 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   /// Zone ajoutée à la volée : elle n'est pas encore dans la liste publique
   /// (validation en attente), on l'injecte localement pour la rendre
   /// sélectionnable immédiatement.
-  void _addResolvedZone(Garage garage) {
+  void _addResolvedZone(Garage zone) {
     setState(() {
-      _garages = [..._garages.where((g) => g.id != garage.id), garage];
+      _zones = [..._zones.where((z) => z.id != zone.id), zone];
     });
   }
 
   bool get _step1Valid =>
-      _departureId != null &&
-      _arrivalId != null &&
-      _departureId != _arrivalId &&
+      _departureZoneId != null &&
+      _arrivalZoneId != null &&
+      _departureZoneId != _arrivalZoneId &&
       _receiverName.text.trim().isNotEmpty &&
       _receiverPhone.text.trim().isNotEmpty &&
       (_mode != 'driver' || _driverId != null);
 
   Future<void> _submit() async {
     if (_submitting) return;
-    final dep = _garageById(_departureId);
-    final arr = _garageById(_arrivalId);
+    final dep = _zoneById(_departureZoneId);
+    final arr = _zoneById(_arrivalZoneId);
     if (dep == null || arr == null) return;
 
     setState(() {
@@ -473,10 +473,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       'weight': double.tryParse(_weight.text.trim()) ?? 0,
       'type': _type.value,
       'status': isDriverMode ? 'confirmed' : 'free',
-      'departureGarageId': dep.id,
-      'departureGarageName': dep.name,
-      'arrivalGarageId': arr.id,
-      'arrivalGarageName': arr.name,
+      'departureZoneId': dep.id,
+      'departureZoneName': dep.name,
+      'arrivalZoneId': arr.id,
+      'arrivalZoneName': arr.name,
       'price': price,
       'proposedPrice': price,
       'isUrgent': _urgent,
@@ -650,18 +650,18 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         _stepBar(),
         const SizedBox(height: 8),
         RoutePicker(
-          garages: _garages,
-          initialDeparture: _garageById(_departureId),
-          initialArrival: _garageById(_arrivalId),
+          garages: _zones,
+          initialDeparture: _zoneById(_departureZoneId),
+          initialArrival: _zoneById(_arrivalZoneId),
           onDepartureChanged: (g) {
-            setState(() => _departureId = g?.id);
+            setState(() => _departureZoneId = g?.id);
           },
           onArrivalChanged: (g) {
-            setState(() => _arrivalId = g?.id);
+            setState(() => _arrivalZoneId = g?.id);
           },
           onZoneAdded: _addResolvedZone,
         ),
-        if (_departureId != null && _departureId == _arrivalId) ...[
+        if (_departureZoneId != null && _departureZoneId == _arrivalZoneId) ...[
           const SizedBox(height: 12),
           _warning('Le départ et l’arrivée doivent être différents.'),
         ],
@@ -865,8 +865,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     final status = _driverStatusMeta(d);
     final rating = (d.rating ?? 0).toStringAsFixed(1);
     final completed = d.completedDeliveries ?? 0;
-    final subtitle = (d.garageName ?? '').trim().isNotEmpty
-        ? d.garageName!.trim()
+    final subtitle = (d.zoneName ?? '').trim().isNotEmpty
+        ? d.zoneName!.trim()
         : ((d.city ?? '').trim().isNotEmpty ? d.city!.trim() : 'Indépendant');
     return InkWell(
       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -1061,8 +1061,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   }
 
   Widget _buildRecap() {
-    final dep = _garageById(_departureId);
-    final arr = _garageById(_arrivalId);
+    final dep = _zoneById(_departureZoneId);
+    final arr = _zoneById(_arrivalZoneId);
     final driver = _driverById(_driverId);
     final isDriverMode = _mode == 'driver';
     final mediaCount = _photos.length + _videos.length + _voiceMessages.length;

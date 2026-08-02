@@ -482,7 +482,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                [p.departureGarageName, p.arrivalGarageName]
+                [p.departureZoneName, p.arrivalZoneName]
                     .where((e) => e != null && e.isNotEmpty).join(' → '),
                 style: AppFonts.manrope(
                     fontSize: 12, fontWeight: FontWeight.w600,

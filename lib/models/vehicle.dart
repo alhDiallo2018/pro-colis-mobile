@@ -6,7 +6,7 @@ class Vehicle {
   final String model;
   final String type;
   final int capacity;
-  final String garageId;
+  final String zoneId;
   final String? driverId;
   final bool isAvailable;
   final DateTime createdAt;
@@ -17,7 +17,7 @@ class Vehicle {
     required this.model,
     required this.type,
     required this.capacity,
-    required this.garageId,
+    required this.zoneId,
     this.driverId,
     required this.isAvailable,
     required this.createdAt,
@@ -30,7 +30,7 @@ class Vehicle {
       model: json['model']?.toString() ?? '',
       type: json['type']?.toString() ?? '',
       capacity: json['capacity'] ?? 0,
-      garageId: json['garageId']?.toString() ?? '',
+      zoneId: json['zoneId']?.toString() ?? json['garageId']?.toString() ?? '',
       driverId: json['driverId']?.toString(),
       isAvailable: json['isAvailable'] ?? false,
       createdAt: DateTime.parse(json['createdAt'].toString()),
@@ -43,7 +43,7 @@ class Vehicle {
     'model': model,
     'type': type,
     'capacity': capacity,
-    'garageId': garageId,
+    'zoneId': zoneId,
     'driverId': driverId,
     'isAvailable': isAvailable,
     'createdAt': createdAt.toIso8601String(),

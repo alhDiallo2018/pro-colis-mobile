@@ -546,10 +546,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ],
                       ),
-                      if (_user.garageName != null &&
-                          _user.garageName!.isNotEmpty) ...[
+                      if (_user.zoneName != null &&
+                          _user.zoneName!.isNotEmpty) ...[
                         const SizedBox(height: 6),
-                        PcMeta(Icons.garage_rounded, _user.garageName!),
+                        PcMeta(Icons.garage_rounded, _user.zoneName!),
                       ],
                     ],
                   ),

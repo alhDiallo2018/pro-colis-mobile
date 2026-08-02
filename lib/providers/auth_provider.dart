@@ -119,7 +119,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? address,
     String? city,
     String? region,
-    String? garageId,
+    String? zoneId,
   }) async {
     state = AuthState.loading();
     try {
@@ -135,8 +135,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (address != null && address.isNotEmpty) payload['address'] = address;
       if (city != null && city.isNotEmpty) payload['city'] = city;
       if (region != null && region.isNotEmpty) payload['region'] = region;
-      if (garageId != null && garageId.isNotEmpty)
-        payload['garageId'] = garageId;
+      if (zoneId != null && zoneId.isNotEmpty)
+        payload['zoneId'] = zoneId;
 
       final result = await _apiService.register(payload);
 

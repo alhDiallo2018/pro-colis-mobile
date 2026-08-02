@@ -26,7 +26,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
   final ApiService _apiService = ApiService();
   List<User> _users = [];
   List<Parcel> _parcels = [];
-  List<Garage> _garages = [];
+  List<Garage> _zones = [];
   // Indicateurs scalaires renvoyés par le backend (GET /super-admin/stats).
   Map<String, dynamic> _backendStats = {};
   bool _isLoading = true;
@@ -69,13 +69,13 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
       final results = await Future.wait([
         _apiService.getAllUsersSuperAdmin(),
         _apiService.getAllParcelsSuperAdmin(),
-        _apiService.getAllGaragesSuperAdmin(),
+        _apiService.getAllZonesSuperAdmin(),
         _apiService.getAdminStats(),
       ]);
 
       final users = results[0] as List<User>;
       final parcels = results[1] as List<Parcel>;
-      final garages = results[2] as List<Garage>;
+      final zones = results[2] as List<Garage>;
       final statsResponse = results[3] as Map<String, dynamic>;
       // ok() aplatit `data` : les scalaires sont sous la clé `stats`.
       final stats = (statsResponse['stats'] is Map)
@@ -85,7 +85,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
       setState(() {
         _users = users;
         _parcels = parcels;
-        _garages = garages;
+        _zones = zones;
         _backendStats = stats;
         _isLoading = false;
       });
@@ -114,7 +114,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
       .where((p) => p.status == ParcelStatus.delivered)
       .fold(0.0, (sum, p) => sum + (p.price ?? 0));
 
-  int get _totalGarages => _garages.length;
+  int get _totalZones => _zones.length;
 
   // Volume de colis agrégé par mois calendaire (Jan..Déc), toutes années
   // confondues — dérivé de createdAt (le backend ne fournit pas de série prête).
@@ -320,7 +320,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
       ),
       _statTile(
         icon: Icons.garage_outlined,
-        value: '$_totalGarages',
+        value: '$_totalZones',
         label: 'Zones',
         bg: AppTheme.amber50,
         fg: AppTheme.amber600,

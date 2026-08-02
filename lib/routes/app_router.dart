@@ -405,8 +405,8 @@ class AppRouter {
           name: 'driver-itinerary',
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
-            final garagesRaw = extra?['garages'] as List<dynamic>?;
-            final garages = garagesRaw?.whereType<Garage>().toList();
+            final zonesRaw = (extra?['zones'] ?? extra?['garages']) as List<dynamic>?;
+            final zones = zonesRaw?.whereType<Garage>().toList();
             return ItineraryMapScreen(
               departureLat: extra?['departureLat'] as double?,
               departureLng: extra?['departureLng'] as double?,
@@ -414,7 +414,7 @@ class AppRouter {
               arrivalLng: extra?['arrivalLng'] as double?,
               departureName: extra?['departureName']?.toString() ?? '',
               arrivalName: extra?['arrivalName']?.toString() ?? '',
-              garages: garages,
+              garages: zones,
             );
           },
         ),
@@ -697,23 +697,23 @@ class AppRouter {
           builder: (context, state) => const AdminParametresScreen(),
         ),
         GoRoute(
-          path: '/admin/garage/drivers',
-          name: 'admin-garage-drivers',
+          path: '/admin/zone/drivers',
+          name: 'admin-zone-drivers',
           builder: (context, state) {
             final extra = state.extra;
             if (extra is Garage) return GarageDriversScreen(garage: extra);
-            final garageId = state.uri.queryParameters['garageId'] ?? '';
-            return _GarageLoader(garageId: garageId);
+            final zoneId = state.uri.queryParameters['zoneId'] ?? state.uri.queryParameters['garageId'] ?? '';
+            return _ZoneLoader(zoneId: zoneId);
           },
         ),
         GoRoute(
-          path: '/admin/garages/:garageId/drivers',
-          name: 'admin-garage-drivers-by-id',
+          path: '/admin/zones/:zoneId/drivers',
+          name: 'admin-zone-drivers-by-id',
           builder: (context, state) {
             final extra = state.extra;
             if (extra is Garage) return GarageDriversScreen(garage: extra);
-            return _GarageLoader(
-              garageId: state.pathParameters['garageId'] ?? '',
+            return _ZoneLoader(
+              zoneId: state.pathParameters['zoneId'] ?? '',
             );
           },
         ),
@@ -955,16 +955,16 @@ class _AdvertisementLoaderForDriverState
 }
 
 /// Loader pour les zones
-class _GarageLoader extends StatefulWidget {
-  final String garageId;
+class _ZoneLoader extends StatefulWidget {
+  final String zoneId;
 
-  const _GarageLoader({required this.garageId});
+  const _ZoneLoader({required this.zoneId});
 
   @override
-  State<_GarageLoader> createState() => _GarageLoaderState();
+  State<_ZoneLoader> createState() => _ZoneLoaderState();
 }
 
-class _GarageLoaderState extends State<_GarageLoader> {
+class _ZoneLoaderState extends State<_ZoneLoader> {
   late Future<Garage?> _future;
 
   @override
@@ -974,10 +974,10 @@ class _GarageLoaderState extends State<_GarageLoader> {
   }
 
   Future<Garage?> _load() async {
-    if (widget.garageId.isEmpty) return null;
-    final garages = await ApiService().getAllGaragesSuperAdmin();
-    for (final garage in garages) {
-      if (garage.id == widget.garageId) return garage;
+    if (widget.zoneId.isEmpty) return null;
+    final zones = await ApiService().getAllZonesSuperAdmin();
+    for (final zone in zones) {
+      if (zone.id == widget.zoneId) return zone;
     }
     return null;
   }
@@ -987,7 +987,7 @@ class _GarageLoaderState extends State<_GarageLoader> {
     return _ResourceLoader<Garage>(
       future: _future,
       notFoundMessage: 'Zone introuvable',
-      builder: (garage) => GarageDriversScreen(garage: garage),
+      builder: (zone) => GarageDriversScreen(garage: zone),
     );
   }
 }

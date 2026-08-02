@@ -248,7 +248,7 @@ class FavoriteGaragesCard extends ConsumerWidget {
     List<Garage> favorites,
   ) async {
     try {
-      final garages = await ref.read(availableGaragesProvider.future);
+      final garages = await ref.read(availableZonesProvider.future);
       if (!context.mounted) return;
       final selected = await GaragePickerSheet.show(
         context: context,
@@ -263,8 +263,8 @@ class FavoriteGaragesCard extends ConsumerWidget {
         );
         return;
       }
-      await ref.read(addressesApiProvider).addFavoriteGarage(selected.id);
-      await refreshFavoriteGarages(ref);
+      await ref.read(addressesApiProvider).addFavoriteZone(selected.id);
+      await refreshFavoriteZones(ref);
     } catch (error) {
       if (context.mounted) _showError(context, error);
     }
@@ -273,11 +273,11 @@ class FavoriteGaragesCard extends ConsumerWidget {
   Future<void> _remove(
     BuildContext context,
     WidgetRef ref,
-    String garageId,
+    String zoneId,
   ) async {
     try {
-      await ref.read(addressesApiProvider).removeFavoriteGarage(garageId);
-      await refreshFavoriteGarages(ref);
+      await ref.read(addressesApiProvider).removeFavoriteZone(zoneId);
+      await refreshFavoriteZones(ref);
     } catch (error) {
       if (context.mounted) _showError(context, error);
     }
@@ -285,7 +285,7 @@ class FavoriteGaragesCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(favoriteGaragesProvider);
+    final state = ref.watch(favoriteZonesProvider);
     final favorites = state.valueOrNull ?? const <Garage>[];
 
     return PcCard(

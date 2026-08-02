@@ -177,8 +177,8 @@ class User {
   final Gender? gender;
 
   // Affiliation garage
-  final String? garageId;
-  final String? garageName;
+  final String? zoneId;
+  final String? zoneName;
 
   // Informations chauffeur
   final String? vehiclePlate;
@@ -225,8 +225,8 @@ class User {
     this.address,
     this.city,
     this.region,
-    this.garageId,
-    this.garageName,
+    this.zoneId,
+    this.zoneName,
     this.vehiclePlate,
     this.vehicleModel,
     this.vehicleType,
@@ -308,9 +308,9 @@ class User {
       address: json['address']?.toString(),
       city: json['city']?.toString(),
       region: json['region']?.toString(),
-      garageId: json['garageId']?.toString() ?? json['garage_id']?.toString(),
-      garageName:
-          json['garageName']?.toString() ?? json['garage_name']?.toString(),
+      zoneId: json['zoneId']?.toString() ?? json['zone_id']?.toString(),
+      zoneName:
+          json['zoneName']?.toString() ?? json['zone_name']?.toString(),
       vehiclePlate:
           json['vehiclePlate']?.toString() ?? json['vehicle_plate']?.toString(),
       vehicleModel:
@@ -371,8 +371,8 @@ class User {
         'address': address,
         'city': city,
         'region': region,
-        'garageId': garageId,
-        'garageName': garageName,
+        'zoneId': zoneId,
+        'zoneName': zoneName,
         'vehiclePlate': vehiclePlate,
         'vehicleModel': vehicleModel,
         'vehicleType': vehicleType,
@@ -576,8 +576,8 @@ class User {
     String? address,
     String? city,
     String? region,
-    String? garageId,
-    String? garageName,
+    String? zoneId,
+    String? zoneName,
     String? vehiclePlate,
     String? vehicleModel,
     String? vehicleType,
@@ -611,8 +611,8 @@ class User {
       address: address ?? this.address,
       city: city ?? this.city,
       region: region ?? this.region,
-      garageId: garageId ?? this.garageId,
-      garageName: garageName ?? this.garageName,
+      zoneId: zoneId ?? this.zoneId,
+      zoneName: zoneName ?? this.zoneName,
       vehiclePlate: vehiclePlate ?? this.vehiclePlate,
       vehicleModel: vehicleModel ?? this.vehicleModel,
       vehicleType: vehicleType ?? this.vehicleType,
@@ -647,7 +647,7 @@ class User {
     if (address != null) map['address'] = address;
     if (city != null) map['city'] = city;
     if (region != null) map['region'] = region;
-    if (garageId != null) map['garageId'] = garageId;
+    if (zoneId != null) map['zoneId'] = zoneId;
     if (vehiclePlate != null) map['vehiclePlate'] = vehiclePlate;
     if (vehicleModel != null) map['vehicleModel'] = vehicleModel;
     if (vehicleType != null) map['vehicleType'] = vehicleType;

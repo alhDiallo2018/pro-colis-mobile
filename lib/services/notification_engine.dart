@@ -66,7 +66,7 @@ class NotificationContext {
   final double? price;
   final String? fullName;
   final String? driverName;
-  final String? garageName;
+  final String? zoneName;
   final double? bidPrice;
   final String? reason;
   final String? resetLink;
@@ -83,7 +83,7 @@ class NotificationContext {
     this.price,
     this.fullName,
     this.driverName,
-    this.garageName,
+    this.zoneName,
     this.bidPrice,
     this.reason,
     this.resetLink,

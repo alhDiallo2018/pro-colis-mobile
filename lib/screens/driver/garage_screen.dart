@@ -22,7 +22,7 @@ class DriverGarageScreen extends ConsumerStatefulWidget {
 
 class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
   final ApiService _apiService = ApiService();
-  Garage? _garage;
+  Garage? _zone;
   List<User> _colleagues = [];
   bool _isLoading = true;
 
@@ -36,23 +36,23 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
     setState(() => _isLoading = true);
     try {
       final user = ref.read(authProvider).user;
-      final garageId = user?.garageId;
+      final zoneId = user?.zoneId;
 
-      if (garageId == null || garageId.isEmpty) {
+      if (zoneId == null || zoneId.isEmpty) {
         if (mounted) setState(() => _isLoading = false);
         return;
       }
 
       final results = await Future.wait([
-        _apiService.getAllGarages(),
-        _apiService.getGarageColleagues(garageId),
+        _apiService.getAllZones(),
+        _apiService.getGarageColleagues(zoneId),
       ]);
 
-      final garages = results[0] as List<Garage>;
+      final zones = results[0] as List<Garage>;
       final allColleagues = results[1] as List<User>;
 
-      final foundGarage = garages.cast<Garage?>().firstWhere(
-            (g) => g!.id == garageId,
+      final foundZone = zones.cast<Garage?>().firstWhere(
+            (z) => z!.id == zoneId,
             orElse: () => null,
           );
 
@@ -61,7 +61,7 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
 
       if (mounted) {
         setState(() {
-          _garage = foundGarage;
+          _zone = foundZone;
           _colleagues = colleagues;
           _isLoading = false;
         });
@@ -106,8 +106,8 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
   }
 
   Widget _buildContent(User? user) {
-    if (user?.garageId == null || user!.garageId!.isEmpty) {
-      return _buildNoGarage();
+    if (user?.zoneId == null || user!.zoneId!.isEmpty) {
+      return _buildNoZone();
     }
 
     return RefreshIndicator(
@@ -115,7 +115,7 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildGarageCard(user),
+          _buildZoneCard(user),
           const SizedBox(height: 20),
           _buildColleaguesSection(),
         ],
@@ -123,7 +123,7 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
     );
   }
 
-  Widget _buildNoGarage() {
+  Widget _buildNoZone() {
     return PcEmptyState(
       icon: Icons.garage_rounded,
       tone: PcTone.primary,
@@ -146,11 +146,11 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
     );
   }
 
-  Widget _buildGarageCard(User? user) {
-    final name = _garage?.name ?? user?.garageName ?? 'Ma zone';
-    final city = _garage?.city;
-    final region = _garage?.region;
-    final phone = _garage?.phone;
+  Widget _buildZoneCard(User? user) {
+    final name = _zone?.name ?? user?.zoneName ?? 'Ma zone';
+    final city = _zone?.city;
+    final region = _zone?.region;
+    final phone = _zone?.phone;
 
     final parts = [city, region]
         .where((e) => e != null && e.isNotEmpty)

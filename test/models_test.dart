@@ -166,8 +166,8 @@ void main() {
         weight: weight,
         type: ParcelType.package,
         status: status,
-        departureGarageId: 'garage-001',
-        departureGarageName: 'Garage Dakar',
+        departureZoneId: 'garage-001',
+        departureZoneName: 'Garage Dakar',
         price: price,
         negotiatedPrice: negotiatedPrice,
         selectedBidId: selectedBidId,
@@ -191,10 +191,10 @@ void main() {
         'weight': 2.5,
         'type': 'document',
         'status': 'pending',
-        'departureGarageId': 'garage-dkr',
-        'departureGarageName': 'Garage Dakar',
-        'arrivalGarageId': 'garage-ths',
-        'arrivalGarageName': 'Garage Thies',
+        'departureZoneId': 'garage-dkr',
+        'departureZoneName': 'Garage Dakar',
+        'arrivalZoneId': 'garage-ths',
+        'arrivalZoneName': 'Garage Thies',
         'price': 3000,
         'totalAmount': 3500,
         'createdAt': '2026-01-01T00:00:00.000Z',
@@ -555,7 +555,7 @@ void main() {
         'unreadNotifications': 4,
         'scoreBalance': '150',
       });
-      final garageStats = GarageStats.fromJson({
+      final zoneStats = ZoneStats.fromJson({
         'totalParcels': 20,
         'activeParcels': '5',
         'deliveredToday': 2,
@@ -566,8 +566,8 @@ void main() {
 
       expect(userStats.totalParcels, 12);
       expect(userStats.scoreBalance, 150);
-      expect(garageStats.revenue, 125000.5);
-      expect(garageStats.parcelsByStatus['pending'], 3);
+      expect(zoneStats.revenue, 125000.5);
+      expect(zoneStats.parcelsByStatus['pending'], 3);
     });
   });
 

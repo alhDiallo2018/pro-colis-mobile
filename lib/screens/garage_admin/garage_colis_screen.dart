@@ -114,8 +114,8 @@ class _GarageColisScreenState extends ConsumerState<GarageColisScreen> {
       if (q.isEmpty) return true;
       final haystack = [
         p.trackingNumber,
-        p.departureGarageName,
-        p.arrivalGarageName ?? '',
+        p.departureZoneName,
+        p.arrivalZoneName ?? '',
         p.receiverName,
       ].join(' ').toLowerCase();
       return haystack.contains(q);

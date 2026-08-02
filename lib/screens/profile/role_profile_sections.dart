@@ -44,7 +44,7 @@ class RoleStatsRow extends ConsumerWidget {
       case UserRole.driver:
         return _fromAsync(ref.watch(driverStatsProvider), _driverStats);
       case UserRole.admin:
-        return _fromAsync(ref.watch(garageStatsProvider), _garageStats);
+        return _fromAsync(ref.watch(zoneStatsProvider), _zoneStats);
       case UserRole.supportTechnique:
         return _fromAsync(
           ref.watch(supportTechniqueStatsProvider),
@@ -103,7 +103,7 @@ class RoleStatsRow extends ConsumerWidget {
         ),
       ];
 
-  List<RoleStat> _garageStats(GarageStats s) => [
+  List<RoleStat> _zoneStats(ZoneStats s) => [
         RoleStat(
           icon: Icons.inventory_2_rounded,
           value: '${s.activeParcels}',
@@ -133,7 +133,7 @@ class RoleStatsRow extends ConsumerWidget {
         ),
         RoleStat(
           icon: Icons.garage_rounded,
-          value: '${s.totalGarages}',
+          value: '${s.totalZones}',
           label: 'Garages',
           tone: PcTone.green,
         ),
@@ -273,7 +273,7 @@ class RoleProfileSectionCard extends ConsumerWidget {
             ? const SizedBox.shrink()
             : _card(_driverSection(stats));
       case UserRole.admin:
-        final stats = ref.watch(garageStatsProvider).valueOrNull;
+        final stats = ref.watch(zoneStatsProvider).valueOrNull;
         return stats == null
             ? const SizedBox.shrink()
             : _card(_garageSection(stats));
@@ -328,7 +328,7 @@ class RoleProfileSectionCard extends ConsumerWidget {
           RoleInfoRow(
             icon: Icons.garage_rounded,
             title: 'Zone de rattachement',
-            subtitle: user.garageName ?? 'Aucune zone assignée',
+            subtitle: user.zoneName ?? 'Aucune zone assignée',
           ),
           RoleInfoRow(
             icon: Icons.task_alt_rounded,
@@ -347,13 +347,13 @@ class RoleProfileSectionCard extends ConsumerWidget {
         ],
       );
 
-  RoleProfileSection _garageSection(GarageStats s) => RoleProfileSection(
+  RoleProfileSection _garageSection(ZoneStats s) => RoleProfileSection(
         title: 'Ma zone',
         rows: [
           RoleInfoRow(
             icon: Icons.garage_rounded,
             title: 'Zone administrée',
-            subtitle: user.garageName ?? 'Aucune zone assignée',
+            subtitle: user.zoneName ?? 'Aucune zone assignée',
             tone: PcTone.amber,
           ),
           RoleInfoRow(
@@ -401,7 +401,7 @@ class RoleProfileSectionCard extends ConsumerWidget {
             icon: Icons.garage_rounded,
             title: 'Réseau',
             subtitle:
-                '${s.totalGarages} garages · ${s.totalVehicles} véhicules',
+                '${s.totalZones} zones · ${s.totalVehicles} véhicules',
             tone: PcTone.green,
           ),
           RoleInfoRow(

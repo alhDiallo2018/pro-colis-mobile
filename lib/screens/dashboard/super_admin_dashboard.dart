@@ -92,8 +92,8 @@ class GarageNotifier extends StateNotifier<List<Garage>> {
 
   Future<void> loadGarages() async {
     try {
-      final garages = await _apiService.getAllGaragesSuperAdmin();
-      state = garages;
+      final zones = await _apiService.getAllZonesSuperAdmin();
+      state = zones;
     } catch (e) {
       debugPrint('Erreur chargement zones: $e');
     }
@@ -160,9 +160,8 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     final user = authState.user;
     final parcelState = ref.watch(parcelProvider);
     final users = ref.watch(userProvider);
-    final garages = ref.watch(garageProvider);
-
-    // Synchronise l'onglet avec la barre de navigation persistante (AppBottomNav)
+    final zones = ref.watch(garageProvider);
+    // Synchronise l'onglet
     ref.listen<int>(dashboardTabProvider, (prev, next) {
       if (next != _selectedIndex && next >= 0 && next < 5) {
         setState(() => _selectedIndex = next);
@@ -171,7 +170,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: _getScreen(_selectedIndex, user, parcelState, users, garages),
+      body: _getScreen(_selectedIndex, user, parcelState, users, zones),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -206,14 +205,14 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
   }
 
   Widget _getScreen(int index, User? user, ParcelState parcelState,
-      List<User> users, List<Garage> garages) {
+      List<User> users, List<Garage> zones) {
     switch (index) {
       case 0:
         return _SuperAdminHomeScreen(
           user: user,
           parcelState: parcelState,
           users: users,
-          garages: garages,
+          zones: zones,
           onRefresh: _loadData,
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
@@ -237,7 +236,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
           user: user,
           parcelState: parcelState,
           users: users,
-          garages: garages,
+          zones: zones,
           onRefresh: _loadData,
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
@@ -250,7 +249,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   final User? user;
   final ParcelState parcelState;
   final List<User> users;
-  final List<Garage> garages;
+  final List<Garage> zones;
   final VoidCallback onRefresh;
   final VoidCallback onNotificationsTap;
   final int unreadNotificationsCount;
@@ -259,7 +258,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
     required this.user,
     required this.parcelState,
     required this.users,
-    required this.garages,
+    required this.zones,
     required this.onRefresh,
     required this.onNotificationsTap,
     this.unreadNotificationsCount = 0,
@@ -276,7 +275,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   int get _totalUsers => users.length;
   int get _totalDrivers => users.where((u) => u.isDriver).length;
   int get _totalAdmins => users.where((u) => u.isAdmin).length;
-  int get _totalGarages => garages.length;
+  int get _totalZones => zones.length;
 
   // Chauffeurs (dérivés de la liste des utilisateurs) pour le panneau latéral.
   List<User> get _drivers => users.where((u) => u.isDriver).toList();
@@ -577,7 +576,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
       case 'admins':
         return _totalAdmins;
       case 'garages':
-        return _totalGarages;
+        return _totalZones;
       default:
         return 0;
     }
@@ -1038,7 +1037,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
     };
     final place = (driver.city != null && driver.city!.isNotEmpty)
         ? driver.city!
-        : (driver.garageName ?? '—');
+        : (driver.zoneName ?? '—');
     final rating =
         driver.rating != null ? driver.rating!.toStringAsFixed(1) : '—';
     return PcListRow(
@@ -1061,7 +1060,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
           action: 'Tout voir',
           onAction: () => context.push('/admin/zones'),
         ),
-        if (garages.isEmpty)
+        if (zones.isEmpty)
           const PcCard(
             child: PcEmptyState(
               icon: Icons.garage_rounded,
@@ -1075,9 +1074,9 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                for (int i = 0; i < garages.take(5).length; i++) ...[
+                for (int i = 0; i < zones.take(5).length; i++) ...[
                   if (i > 0) const PcDivider(),
-                  _buildGarageRow(garages[i]),
+                  _buildZoneRow(zones[i]),
                 ],
               ],
             ),
@@ -1086,7 +1085,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGarageRow(Garage garage) {
+  Widget _buildZoneRow(Garage zone) {
     return PcListRow(
       leading: Container(
         width: 40,
@@ -1098,8 +1097,8 @@ class _SuperAdminHomeScreen extends StatelessWidget {
         child: const Icon(Icons.garage_rounded,
             size: 22, color: AppTheme.slate500),
       ),
-      title: garage.name,
-      subtitle: garage.city.isNotEmpty ? garage.city : '—',
+      title: zone.name,
+      subtitle: zone.city.isNotEmpty ? zone.city : '—',
     );
   }
 

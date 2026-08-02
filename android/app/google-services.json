@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "808016472071",
+    "project_id": "sendprocolis",
+    "storage_bucket": "sendprocolis.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:808016472071:android:0dc38e6dc1ebeaf37462a2",
+        "android_client_info": {
+          "package_name": "com.example.pro_colis_clean"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2pBUUyObHRl3ISL7yyS1l9c-OWTf8dZI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

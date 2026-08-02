@@ -4,7 +4,7 @@ class AdminStats {
   final int totalUsers;
   final int totalDrivers;
   final int totalClients;
-  final int totalGarages;
+  final int totalZones;
   final int totalVehicles;
   final int totalParcels;
   final int parcelsInTransit;
@@ -15,13 +15,13 @@ class AdminStats {
   final double revenueLastMonth;
   final Map<String, int> parcelsByRegion;
   final List<DailyStats> dailyStats;
-  final List<GaragePerformance> garagePerformance;
+  final List<ZonePerformance> zonePerformance;
 
   AdminStats({
     required this.totalUsers,
     required this.totalDrivers,
     required this.totalClients,
-    required this.totalGarages,
+    required this.totalZones,
     required this.totalVehicles,
     required this.totalParcels,
     required this.parcelsInTransit,
@@ -32,7 +32,7 @@ class AdminStats {
     required this.revenueLastMonth,
     required this.parcelsByRegion,
     required this.dailyStats,
-    required this.garagePerformance,
+    required this.zonePerformance,
   });
 
   factory AdminStats.fromJson(Map<String, dynamic> json) {
@@ -40,7 +40,7 @@ class AdminStats {
       totalUsers: json['totalUsers'] ?? 0,
       totalDrivers: json['totalDrivers'] ?? 0,
       totalClients: json['totalClients'] ?? 0,
-      totalGarages: json['totalGarages'] ?? 0,
+      totalZones: json['totalZones'] ?? json['totalGarages'] ?? 0,
       totalVehicles: json['totalVehicles'] ?? 0,
       totalParcels: json['totalParcels'] ?? 0,
       parcelsInTransit: json['parcelsInTransit'] ?? 0,
@@ -53,8 +53,8 @@ class AdminStats {
       dailyStats: (json['dailyStats'] as List?)
           ?.map((e) => DailyStats.fromJson(e))
           .toList() ?? [],
-      garagePerformance: (json['garagePerformance'] as List?)
-          ?.map((e) => GaragePerformance.fromJson(e))
+      zonePerformance: (json['zonePerformance'] as List? ?? json['garagePerformance'] as List?)
+          ?.map((e) => ZonePerformance.fromJson(e))
           .toList() ?? [],
     );
   }
@@ -63,7 +63,7 @@ class AdminStats {
     'totalUsers': totalUsers,
     'totalDrivers': totalDrivers,
     'totalClients': totalClients,
-    'totalGarages': totalGarages,
+    'totalZones': totalZones,
     'totalVehicles': totalVehicles,
     'totalParcels': totalParcels,
     'parcelsInTransit': parcelsInTransit,
@@ -74,7 +74,7 @@ class AdminStats {
     'revenueLastMonth': revenueLastMonth,
     'parcelsByRegion': parcelsByRegion,
     'dailyStats': dailyStats.map((d) => d.toJson()).toList(),
-    'garagePerformance': garagePerformance.map((g) => g.toJson()).toList(),
+    'zonePerformance': zonePerformance.map((z) => z.toJson()).toList(),
   };
 }
 
@@ -108,18 +108,18 @@ class DailyStats {
   };
 }
 
-class GaragePerformance {
-  final String garageId;
-  final String garageName;
+class ZonePerformance {
+  final String zoneId;
+  final String zoneName;
   final String city;
   final int parcelsHandled;
   final int onTimeDeliveries;
   final double rating;
   final double revenue;
 
-  GaragePerformance({
-    required this.garageId,
-    required this.garageName,
+  ZonePerformance({
+    required this.zoneId,
+    required this.zoneName,
     required this.city,
     required this.parcelsHandled,
     required this.onTimeDeliveries,
@@ -127,10 +127,10 @@ class GaragePerformance {
     required this.revenue,
   });
 
-  factory GaragePerformance.fromJson(Map<String, dynamic> json) {
-    return GaragePerformance(
-      garageId: json['garageId'] ?? '',
-      garageName: json['garageName'] ?? '',
+  factory ZonePerformance.fromJson(Map<String, dynamic> json) {
+    return ZonePerformance(
+      zoneId: json['zoneId'] ?? '',
+      zoneName: json['zoneName'] ?? '',
       city: json['city'] ?? '',
       parcelsHandled: json['parcelsHandled'] ?? 0,
       onTimeDeliveries: json['onTimeDeliveries'] ?? 0,
@@ -140,8 +140,8 @@ class GaragePerformance {
   }
 
   Map<String, dynamic> toJson() => {
-    'garageId': garageId,
-    'garageName': garageName,
+    'zoneId': zoneId,
+    'zoneName': zoneName,
     'city': city,
     'parcelsHandled': parcelsHandled,
     'onTimeDeliveries': onTimeDeliveries,

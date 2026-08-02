@@ -79,8 +79,8 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
       if (q.isEmpty) return true;
       return [
         p.trackingNumber,
-        p.arrivalGarageName,
-        p.departureGarageName,
+        p.arrivalZoneName,
+        p.departureZoneName,
         p.receiverName,
       ].any((v) => v != null && v.toLowerCase().contains(q));
     }).toList();
@@ -239,7 +239,7 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${p.departureGarageName} → ${p.arrivalGarageName ?? '—'}',
+                      Text('${p.departureZoneName} → ${p.arrivalZoneName ?? '—'}',
                           style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                       const SizedBox(height: 4),
                       Row(

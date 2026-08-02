@@ -39,9 +39,9 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   bool _submitting = false;
   String? _error;
 
-  List<Garage> _garages = [];
-  String? _departureId;
-  String? _arrivalId;
+  List<Garage> _zones = [];
+  String? _departureZoneId;
+  String? _arrivalZoneId;
   DateTime? _departureAt;
 
   final _weightController = TextEditingController();
@@ -51,7 +51,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   @override
   void initState() {
     super.initState();
-    _loadGarages();
+    _loadZones();
   }
 
   @override
@@ -65,22 +65,22 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   /// Zone ajoutée à la volée depuis le sélecteur de trajet : absente de la
   /// liste publique tant qu'elle n'est pas validée, on l'injecte localement
   /// pour qu'elle reste sélectionnable.
-  void _addResolvedZone(Garage garage) {
+  void _addResolvedZone(Garage zone) {
     setState(() {
-      _garages = [..._garages.where((g) => g.id != garage.id), garage];
+      _zones = [..._zones.where((z) => z.id != zone.id), zone];
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text('« ${garage.name} » ajoutée — validation en attente.')),
+          content: Text('« ${zone.name} » ajoutée — validation en attente.')),
     );
   }
 
-  Future<void> _loadGarages() async {
+  Future<void> _loadZones() async {
     try {
-      final garages = await _api.getAllGarages();
+      final zones = await _api.getAllZones();
       if (mounted) {
         setState(() {
-          _garages = garages;
+          _zones = zones;
           _loadingGarages = false;
         });
       }
@@ -89,16 +89,16 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
     }
   }
 
-  Garage? _garageById(String? id) {
+  Garage? _zoneById(String? id) {
     if (id == null) return null;
-    for (final g in _garages) {
-      if (g.id == id) return g;
+    for (final z in _zones) {
+      if (z.id == id) return z;
     }
     return null;
   }
 
   bool get _step1Valid =>
-      _departureId != null && _arrivalId != null && _departureId != _arrivalId;
+      _departureZoneId != null && _arrivalZoneId != null && _departureZoneId != _arrivalZoneId;
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
@@ -132,11 +132,11 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
       _error = null;
     });
 
-    final dep = _garageById(_departureId);
-    final arr = _garageById(_arrivalId);
+    final dep = _zoneById(_departureZoneId);
+    final arr = _zoneById(_arrivalZoneId);
     final data = <String, dynamic>{
-      'departureGarageId': _departureId,
-      'arrivalGarageId': _arrivalId,
+      'departureZoneId': _departureZoneId,
+      'arrivalZoneId': _arrivalZoneId,
       'departureCity': dep?.city,
       'arrivalCity': arr?.city,
       'departureAt': _departureAt?.toIso8601String(),
@@ -275,14 +275,14 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
         _stepBar(),
         const SizedBox(height: 8),
         RoutePicker(
-          garages: _garages,
-          initialDeparture: _garageById(_departureId),
-          initialArrival: _garageById(_arrivalId),
+          garages: _zones,
+          initialDeparture: _zoneById(_departureZoneId),
+          initialArrival: _zoneById(_arrivalZoneId),
           onDepartureChanged: (g) {
-            setState(() => _departureId = g?.id);
+            setState(() => _departureZoneId = g?.id);
           },
           onArrivalChanged: (g) {
-            setState(() => _arrivalId = g?.id);
+            setState(() => _arrivalZoneId = g?.id);
           },
           // L'ajout d'un lieu absent se fait depuis le sélecteur lui-même
           // (recherche Google Places + pointage sur carte).
@@ -291,7 +291,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
         const SizedBox(height: 14),
         _fieldLabel('Date et heure de départ'),
         _dateField(),
-        if (_departureId != null && _departureId == _arrivalId) ...[
+        if (_departureZoneId != null && _departureZoneId == _arrivalZoneId) ...[
           const SizedBox(height: 12),
           _warning('Le départ et l’arrivée doivent être différents.'),
         ],
@@ -355,7 +355,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '${_garageById(_departureId)?.city ?? '—'}  →  ${_garageById(_arrivalId)?.city ?? '—'}'
+                  '${_zoneById(_departureZoneId)?.city ?? '—'}  →  ${_zoneById(_arrivalZoneId)?.city ?? '—'}'
                   '${_departureAt != null ? '  ·  ${_formatDate(_departureAt!)}' : ''}',
                   style: AppFonts.plusJakartaSans(
                       fontSize: 13,

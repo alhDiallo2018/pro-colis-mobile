@@ -13,7 +13,7 @@ docker compose up --build
 Par défaut :
 
 - App web : http://localhost:8081
-- API backend : https://sendprocolis.com
+- API backend : http://localhost:18081/api/v1
 
 Variables utiles :
 

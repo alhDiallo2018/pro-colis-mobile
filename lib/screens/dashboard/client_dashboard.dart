@@ -399,8 +399,8 @@ class _MesColisTabState extends State<_MesColisTab> {
     if (query.isNotEmpty) {
       filtered = filtered.where((p) {
         return p.trackingNumber.toLowerCase().contains(query) ||
-            (p.arrivalGarageName?.toLowerCase().contains(query) ?? false) ||
-            p.departureGarageName.toLowerCase().contains(query) ||
+            (p.arrivalZoneName?.toLowerCase().contains(query) ?? false) ||
+            p.departureZoneName.toLowerCase().contains(query) ||
             p.receiverName.toLowerCase().contains(query);
       }).toList();
     }
@@ -859,8 +859,8 @@ class _ClientRecentParcelCard extends StatelessWidget {
     required this.onTap,
   });
 
-  String get _arrival => parcel.arrivalGarageName?.isNotEmpty == true
-      ? parcel.arrivalGarageName!
+  String get _arrival => parcel.arrivalZoneName?.isNotEmpty == true
+      ? parcel.arrivalZoneName!
       : '—';
 
   String get _price {
@@ -936,9 +936,9 @@ class _ClientRecentParcelCard extends StatelessWidget {
               Expanded(
                 child: _ClientRouteEnd(
                   label: 'Départ',
-                  value: parcel.departureGarageName.isEmpty
+                  value: parcel.departureZoneName.isEmpty
                       ? '—'
-                      : parcel.departureGarageName,
+                      : parcel.departureZoneName,
                   alignEnd: false,
                 ),
               ),

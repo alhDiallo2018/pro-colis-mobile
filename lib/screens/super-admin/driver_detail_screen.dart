@@ -101,7 +101,7 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen>
                 const SizedBox(height: 12),
                 Text(user['fullName']?.toString() ?? '', style: AppFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
                 Text(user['phone']?.toString() ?? '', style: AppFonts.manrope(fontSize: 14, color: AppTheme.textSecondary)),
-                if (user['garageName'] != null) Text(user['garageName'].toString(), style: AppFonts.manrope(fontSize: 13, color: AppTheme.primary)),
+                if (user['zoneName'] != null) Text(user['zoneName'].toString(), style: AppFonts.manrope(fontSize: 13, color: AppTheme.primary)),
               ],
             ),
           ),

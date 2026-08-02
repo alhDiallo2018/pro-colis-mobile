@@ -889,8 +889,8 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                                             _InfoRow(label: 'Ville', value: user.city!),
                                           if (user.region != null && user.region!.isNotEmpty)
                                             _InfoRow(label: 'Région', value: user.region!),
-                                          if (user.garageId != null && user.garageId!.isNotEmpty)
-                                            _InfoRow(label: 'ID zone', value: user.garageId!, mono: true),
+                                          if (user.zoneId != null && user.zoneId!.isNotEmpty)
+                                            _InfoRow(label: 'ID zone', value: user.zoneId!, mono: true),
                                           if (user.vehiclePlate != null && user.vehiclePlate!.isNotEmpty)
                                             _InfoRow(label: 'Plaque', value: user.vehiclePlate!, mono: true),
                                           if (user.vehicleModel != null && user.vehicleModel!.isNotEmpty)

@@ -567,10 +567,10 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           const SizedBox(height: 8),
           _buildReceiptInfoRow('👤 Destinataire', parcel.receiverName),
           const SizedBox(height: 8),
-          _buildReceiptInfoRow('📍 Départ', parcel.departureGarageName),
-          if (parcel.arrivalGarageName != null) ...[
+          _buildReceiptInfoRow('📍 Départ', parcel.departureZoneName),
+          if (parcel.arrivalZoneName != null) ...[
             const SizedBox(height: 8),
-            _buildReceiptInfoRow('📍 Arrivée', parcel.arrivalGarageName!),
+            _buildReceiptInfoRow('📍 Arrivée', parcel.arrivalZoneName!),
           ],
           const SizedBox(height: 8),
           _buildReceiptInfoRow('📦 Poids', parcel.formattedWeight),
@@ -864,8 +864,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     );
   }
 
-  String get _arrival => _parcel.arrivalGarageName?.isNotEmpty == true
-      ? _parcel.arrivalGarageName!
+  String get _arrival => _parcel.arrivalZoneName?.isNotEmpty == true
+      ? _parcel.arrivalZoneName!
       : 'Arrivée';
 
   String get _price => '${_formatNumber(_parcel.payableAmount)} FCFA';
@@ -1196,7 +1196,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
             _DriverCard(
               name: _driverName,
               phone: _driverPhone,
-              garage: _parcel.departureGarageName,
+              garage: _parcel.departureZoneName,
               ratingLabel: _driverRatingLabel,
               onCall: _callDriver,
               onChat: _openChat,
@@ -1452,7 +1452,7 @@ class _TrackingHero extends StatelessWidget {
               Expanded(
                 child: _RouteEnd(
                   label: 'Départ',
-                  city: parcel.departureGarageName,
+                  city: parcel.departureZoneName,
                   alignEnd: false,
                 ),
               ),

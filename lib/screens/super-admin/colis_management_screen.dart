@@ -128,8 +128,8 @@ class _ColisManagementScreenState extends ConsumerState<ColisManagementScreen> {
       if (!_filter.matches(p)) return false;
       if (q.isEmpty) return true;
       return p.trackingNumber.toLowerCase().contains(q) ||
-          p.departureGarageName.toLowerCase().contains(q) ||
-          (p.arrivalGarageName ?? '').toLowerCase().contains(q) ||
+          p.departureZoneName.toLowerCase().contains(q) ||
+          (p.arrivalZoneName ?? '').toLowerCase().contains(q) ||
           p.senderName.toLowerCase().contains(q) ||
           p.receiverName.toLowerCase().contains(q);
     }).toList();

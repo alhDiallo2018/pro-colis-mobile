@@ -4,7 +4,7 @@ import 'package:procolis/models/user.dart';
 import 'package:procolis/utils/parcel_offer_helpers.dart';
 
 void main() {
-  User buildUser({String? city, String? garageName}) {
+  User buildUser({String? city, String? zoneName}) {
     return User(
       id: 'driver-1',
       email: 'driver@example.com',
@@ -12,7 +12,7 @@ void main() {
       fullName: 'Chauffeur Test',
       role: UserRole.driver,
       city: city,
-      garageName: garageName,
+      zoneName: zoneName,
       createdAt: DateTime(2026),
     );
   }
@@ -33,8 +33,8 @@ void main() {
       weight: 2,
       type: ParcelType.package,
       status: ParcelStatus.free,
-      departureGarageId: 'zone-1',
-      departureGarageName: departure,
+      departureZoneId: 'zone-1',
+      departureZoneName: departure,
       bids: bids,
       createdAt: DateTime(2026),
     );
@@ -66,7 +66,7 @@ void main() {
     });
 
     test('utilise la zone de rattachement si la ville est absente', () {
-      final user = buildUser(garageName: 'Zone Nord');
+      final user = buildUser(zoneName: 'Zone Nord');
 
       expect(
         parcelStartsInUserZone(

@@ -132,7 +132,7 @@ class _ReputationDashboardScreenState extends ConsumerState<ReputationDashboardS
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(r['fullName']?.toString() ?? '', style: AppFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                  Text(r['garageName']?.toString() ?? '—', style: AppFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
+                  Text(r['zoneName']?.toString() ?? '—', style: AppFonts.manrope(fontSize: 11, color: AppTheme.textSecondary)),
                 ],
               ),
             ),

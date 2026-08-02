@@ -535,7 +535,7 @@ class _LibreParcelCard extends StatelessWidget {
               Expanded(
                 child: _RouteEnd(
                   label: 'Départ',
-                  city: parcel.departureGarageName,
+                  city: parcel.departureZoneName,
                 ),
               ),
               const Icon(Icons.local_shipping_outlined,
@@ -543,7 +543,7 @@ class _LibreParcelCard extends StatelessWidget {
               Expanded(
                 child: _RouteEnd(
                   label: 'Arrivée',
-                  city: parcel.arrivalGarageName ?? 'Destination',
+                  city: parcel.arrivalZoneName ?? 'Destination',
                   alignRight: true,
                 ),
               ),

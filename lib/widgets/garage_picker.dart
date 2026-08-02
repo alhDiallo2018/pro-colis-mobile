@@ -26,7 +26,7 @@ class GaragePickerSheet {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _GaragePickerSheetContent(
-        garages: garages,
+        zones: garages,
         exclude: exclude,
         initial: initial,
         title: title,
@@ -37,14 +37,14 @@ class GaragePickerSheet {
 }
 
 class _GaragePickerSheetContent extends StatefulWidget {
-  final List<Garage> garages;
+  final List<Garage> zones;
   final Garage? exclude;
   final Garage? initial;
   final String title;
   final bool allowAddZone;
 
   const _GaragePickerSheetContent({
-    required this.garages,
+    required this.zones,
     this.exclude,
     this.initial,
     required this.title,
@@ -64,17 +64,17 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
   bool _locating = false;
 
   List<Garage> get _filtered {
-    var list = widget.garages;
+    var list = widget.zones;
     if (widget.exclude != null) {
-      list = list.where((g) => g.id != widget.exclude!.id).toList();
+      list = list.where((z) => z.id != widget.exclude!.id).toList();
     }
     if (_query.isNotEmpty) {
       final q = _query.toLowerCase();
       list = list
-          .where((g) =>
-              g.city.toLowerCase().contains(q) ||
-              g.name.toLowerCase().contains(q) ||
-              g.region.toLowerCase().contains(q))
+          .where((z) =>
+              z.city.toLowerCase().contains(q) ||
+              z.name.toLowerCase().contains(q) ||
+              z.region.toLowerCase().contains(q))
           .toList();
     }
     list.sort((a, b) => a.city.compareTo(b.city));
@@ -83,8 +83,8 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
 
   Map<String, List<Garage>> get _grouped {
     final map = <String, List<Garage>>{};
-    for (final g in _filtered) {
-      map.putIfAbsent(g.city, () => []).add(g);
+    for (final z in _filtered) {
+      map.putIfAbsent(z.city, () => []).add(z);
     }
     return map;
   }
@@ -151,16 +151,16 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
       Garage? nearest;
       double? nearestDist;
 
-      for (final g in widget.garages) {
-        if (widget.exclude != null && g.id == widget.exclude!.id) continue;
-        if (g.latitude == null || g.longitude == null) continue;
+      for (final z in widget.zones) {
+        if (widget.exclude != null && z.id == widget.exclude!.id) continue;
+        if (z.latitude == null || z.longitude == null) continue;
         final dist = Geolocator.distanceBetween(
           position.latitude, position.longitude,
-          g.latitude!, g.longitude!,
+          z.latitude!, z.longitude!,
         );
         if (nearestDist == null || dist < nearestDist) {
           nearestDist = dist;
-          nearest = g;
+          nearest = z;
         }
       }
 
@@ -361,7 +361,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                                     ],
                                   ),
                                 ),
-                                for (final g in list) _garageTile(g),
+                                for (final z in list) _garageTile(z),
                               ],
                             );
                           },

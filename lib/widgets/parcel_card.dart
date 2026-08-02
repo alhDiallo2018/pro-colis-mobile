@@ -73,7 +73,7 @@ class ParcelCard extends StatelessWidget {
                   Expanded(
                     child: _RouteLabel(
                       label: 'Départ',
-                      city: parcel.departureGarageName,
+                      city: parcel.departureZoneName,
                     ),
                   ),
                   const Padding(
@@ -84,7 +84,7 @@ class ParcelCard extends StatelessWidget {
                   Expanded(
                     child: _RouteLabel(
                       label: 'Arrivée',
-                      city: parcel.arrivalGarageName ?? '—',
+                      city: parcel.arrivalZoneName ?? '—',
                       alignEnd: true,
                     ),
                   ),

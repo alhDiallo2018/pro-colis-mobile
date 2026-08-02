@@ -35,8 +35,8 @@ void main() {
       weight: 1,
       type: ParcelType.package,
       status: ParcelStatus.pending,
-      departureGarageId: 'garage-1',
-      departureGarageName: 'Dakar',
+      departureZoneId: 'garage-1',
+      departureZoneName: 'Dakar',
       createdAt: DateTime(2026),
     );
   }

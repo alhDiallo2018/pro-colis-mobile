@@ -35,7 +35,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
       final allUsers = await _apiService.getAllUsersSuperAdmin();
       setState(() {
         _drivers = allUsers.where((u) =>
-          u.role == UserRole.driver && u.garageId == widget.garage.id
+          u.role == UserRole.driver && u.zoneId == widget.garage.id
         ).toList();
         _isLoading = false;
       });
@@ -152,8 +152,8 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
     final subtitleParts = <String>[
       if (driver.city != null && driver.city!.isNotEmpty)
         driver.city!
-      else if (driver.garageName != null && driver.garageName!.isNotEmpty)
-        driver.garageName!,
+      else if (driver.zoneName != null && driver.zoneName!.isNotEmpty)
+        driver.zoneName!,
     ];
     final subtitle = subtitleParts.isEmpty
         ? driver.formattedPhone

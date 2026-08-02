@@ -31,8 +31,8 @@ final driverStatsProvider = FutureProvider<DriverStats>(
   (ref) => ref.watch(statsApiProvider).driverStats(),
 );
 
-final garageStatsProvider = FutureProvider<GarageStats>(
-  (ref) => ref.watch(statsApiProvider).garageStats(),
+final zoneStatsProvider = FutureProvider<ZoneStats>(
+  (ref) => ref.watch(statsApiProvider).zoneStats(),
 );
 
 final globalStatsProvider = FutureProvider<GlobalStats>(

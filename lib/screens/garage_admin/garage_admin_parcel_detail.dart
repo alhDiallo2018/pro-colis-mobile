@@ -79,8 +79,8 @@ class _GarageAdminParcelDetailScreenState
     }
   }
 
-  String get _arrival => widget.parcel.arrivalGarageName?.isNotEmpty == true
-      ? widget.parcel.arrivalGarageName!
+  String get _arrival => widget.parcel.arrivalZoneName?.isNotEmpty == true
+      ? widget.parcel.arrivalZoneName!
       : 'Arrivée';
 
   String get _driverName => widget.parcel.driverName?.isNotEmpty == true
@@ -116,7 +116,7 @@ class _GarageAdminParcelDetailScreenState
           const SizedBox(height: 16),
           _DriverCard(
             name: _driverName,
-            garage: parcel.departureGarageName,
+            garage: parcel.departureZoneName,
             assigned: parcel.driverName?.isNotEmpty == true,
           ),
           const SizedBox(height: 16),
@@ -287,9 +287,9 @@ class _TrackingHero extends StatelessWidget {
               Expanded(
                 child: _RouteEnd(
                   label: 'Départ',
-                  city: parcel.departureGarageName.isEmpty
+                  city: parcel.departureZoneName.isEmpty
                       ? 'Départ'
-                      : parcel.departureGarageName,
+                      : parcel.departureZoneName,
                   alignEnd: false,
                 ),
               ),

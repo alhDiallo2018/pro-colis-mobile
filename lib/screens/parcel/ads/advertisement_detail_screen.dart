@@ -219,15 +219,15 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   // ============================================================
 
   Widget _buildHero() {
-    final departure = _parcelFromAd?.departureGarageName ??
-        widget.parcel?.departureGarageName ??
+    final departure = _parcelFromAd?.departureZoneName ??
+        widget.parcel?.departureZoneName ??
         _adData?['departureCity']?.toString() ??
-        _adData?['departureGarageName']?.toString() ??
+        _adData?['departureZoneName']?.toString() ??
         'Depart';
-    final arrival = _parcelFromAd?.arrivalGarageName ??
-        widget.parcel?.arrivalGarageName ??
+    final arrival = _parcelFromAd?.arrivalZoneName ??
+        widget.parcel?.arrivalZoneName ??
         _adData?['arrivalCity']?.toString() ??
-        _adData?['arrivalGarageName']?.toString() ??
+        _adData?['arrivalZoneName']?.toString() ??
         'Arrivee';
 
     return PcGradientHeader(
@@ -304,8 +304,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
         widget.parcel?.driverPhone ??
         _adData?['driver']?['phone']?.toString() ??
         _adData?['driverPhone']?.toString();
-    final garageName = _adData?['driver']?['garageName']?.toString() ??
-        _adData?['garageName']?.toString();
+    final zoneName = _adData?['driver']?['zoneName']?.toString() ?? _adData?['driver']?['garageName']?.toString() ?? _adData?['zoneName']?.toString() ?? _adData?['garageName']?.toString();
     final rating = (_adData?['driver']?['rating'] as num?)?.toDouble() ??
         (_adData?['rating'] as num?)?.toDouble();
 
@@ -327,10 +326,10 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                if (garageName != null && garageName.isNotEmpty) ...[
+                if (zoneName != null && zoneName.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    garageName,
+                    zoneName,
                     style: AppFonts.manrope(
                       fontSize: 13,
                       color: AppTheme.slate500,

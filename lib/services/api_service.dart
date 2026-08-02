@@ -823,9 +823,9 @@ class ApiService {
     }
   }
 
-  Future<List<User>> getGarageColleagues(String garageId) async {
+  Future<List<User>> getGarageColleagues(String zoneId) async {
     try {
-      final response = await _dio.get('/public/drivers/garage/$garageId');
+      final response = await _dio.get('/public/drivers/garage/$zoneId');
       final responseData = _handleResponse(response);
       final List<dynamic> driversData = responseData['drivers'] ?? [];
       return driversData
@@ -852,13 +852,13 @@ class ApiService {
     }
   }
 
-  Future<List<Garage>> getAllGaragesSuperAdmin() async {
+  Future<List<Garage>> getAllZonesSuperAdmin() async {
     try {
-      final response = await _dio.get('/super-admin/garages');
+      final response = await _dio.get('/super-admin/zones');
       final responseData = _handleResponse(response);
-      final List<dynamic> garagesData =
-          responseData['garages'] ?? responseData['data'] ?? [];
-      return garagesData
+      final List<dynamic> zonesData =
+          responseData['zones'] ?? responseData['garages'] ?? responseData['data'] ?? [];
+      return zonesData
           .map((json) => Garage.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
@@ -919,32 +919,32 @@ class ApiService {
     }
   }
 
-  // ==================== GARAGES (PUBLIC) ====================
+  // ==================== ZONES (PUBLIC) ====================
 
-  static const int _garagePageSize = 100;
-  static const int _garageMaxPages = 20;
+  static const int _zonePageSize = 100;
+  static const int _zoneMaxPages = 20;
 
-  Future<List<Garage>> getAllGarages() async {
+  Future<List<Garage>> getAllZones() async {
     final all = <Garage>[];
     try {
       var page = 1;
       var totalPages = 1;
-      while (page <= totalPages && page <= _garageMaxPages) {
-        final response = await _dio.get('/public/garages',
-            queryParameters: {'page': page, 'limit': _garagePageSize});
+      while (page <= totalPages && page <= _zoneMaxPages) {
+        final response = await _dio.get('/public/zones',
+            queryParameters: {'page': page, 'limit': _zonePageSize});
         final responseData = _handleResponse(response);
         final List<dynamic> batch =
-            responseData['garages'] ?? responseData['data'] ?? [];
+            responseData['zones'] ?? responseData['data'] ?? [];
         all.addAll(batch.map(
             (json) => Garage.fromJson(Map<String, dynamic>.from(json as Map))));
         final pagination = responseData['pagination'];
         totalPages =
             pagination is Map ? (pagination['totalPages'] as int? ?? 1) : 1;
-        if (batch.length < _garagePageSize) break;
+        if (batch.length < _zonePageSize) break;
         page++;
       }
     } catch (e) {
-      debugPrint("❌ [API] getAllGarages failed: $e");
+      debugPrint("❌ [API] getAllZones failed: $e");
     }
     return all;
   }
@@ -1474,14 +1474,14 @@ class ApiService {
 
   Future<List<User>> searchDriversPublic({
     String? city,
-    String? garageId,
+    String? zoneId,
     int limit = 100,
   }) async {
     try {
       final response =
           await _dio.get('/public/drivers/search', queryParameters: {
         if (city != null && city.isNotEmpty) 'city': city,
-        if (garageId != null && garageId.isNotEmpty) 'garageId': garageId,
+        if (zoneId != null && zoneId.isNotEmpty) 'zoneId': zoneId,
         'limit': limit,
       });
       final responseData = _handleResponse(response);
@@ -1554,7 +1554,7 @@ class ApiService {
     String? vehiclePlate,
     String? vehicleModel,
     String? driverStatus,
-    String? garageId,
+    String? zoneId,
   }) async {
     try {
       final response = await _dio.post('/super-admin/users', data: {
@@ -1571,7 +1571,7 @@ class ApiService {
         'vehiclePlate': vehiclePlate,
         'vehicleModel': vehicleModel,
         'driverStatus': driverStatus,
-        'garageId': garageId,
+        'zoneId': zoneId,
       });
       return _handleResponse(response);
     } catch (e) {
@@ -1592,7 +1592,7 @@ class ApiService {
     String? vehiclePlate,
     String? vehicleModel,
     String? driverStatus,
-    String? garageId,
+    String? zoneId,
   }) async {
     try {
       // L'API sépare volontairement le profil, le rôle et le statut afin que
@@ -1609,7 +1609,7 @@ class ApiService {
         'vehiclePlate': vehiclePlate,
         'vehicleModel': vehicleModel,
         'driverStatus': driverStatus,
-        'garageId': garageId,
+        'zoneId': zoneId,
       });
       final profileData = _handleResponse(profileResponse);
       if (profileResponse.statusCode == null ||
@@ -1658,7 +1658,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> createGarageSuperAdmin({
+  Future<Map<String, dynamic>> createZoneSuperAdmin({
     required String name,
     String country = 'Sénégal',
     required String city,
@@ -1670,7 +1670,7 @@ class ApiService {
     bool isActive = true,
   }) async {
     try {
-      final response = await _dio.post('/super-admin/garages', data: {
+      final response = await _dio.post('/super-admin/zones', data: {
         'name': name,
         'country': country,
         'city': city,
@@ -1687,8 +1687,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> updateGarageSuperAdmin({
-    required String garageId,
+  Future<Map<String, dynamic>> updateZoneSuperAdmin({
+    required String zoneId,
     String? name,
     String? country,
     String? city,
@@ -1712,16 +1712,16 @@ class ApiService {
         if (isActive != null) 'isActive': isActive,
       };
       final response =
-          await _dio.put('/super-admin/garages/$garageId', data: data);
+          await _dio.put('/super-admin/zones/$zoneId', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> deleteGarageSuperAdmin(String garageId) async {
+  Future<Map<String, dynamic>> deleteZoneSuperAdmin(String zoneId) async {
     try {
-      final response = await _dio.delete('/super-admin/garages/$garageId');
+      final response = await _dio.delete('/super-admin/zones/$zoneId');
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -1730,7 +1730,7 @@ class ApiService {
 
   // --- Zones ---
 
-  Future<List<Map<String, dynamic>>> getAllZones() async {
+  Future<List<Map<String, dynamic>>> getSuperAdminZones() async {
     try {
       final response = await _dio.get('/super-admin/zones');
       final data = _handleResponse(response);
@@ -1802,7 +1802,7 @@ class ApiService {
         if (city != null) 'city': city,
       });
       final data = _handleResponse(response);
-      final mirror = data['garage'];
+      final mirror = data['zone'] ?? data['garage'];
       if (mirror is Map) {
         return Garage.fromJson(Map<String, dynamic>.from(mirror));
       }

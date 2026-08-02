@@ -93,8 +93,8 @@ class DriverStats {
       );
 }
 
-class GarageStats {
-  final String? garageId;
+class ZoneStats {
+  final String? zoneId;
   final int totalParcels;
   final int activeParcels;
   final int deliveredToday;
@@ -102,8 +102,8 @@ class GarageStats {
   final double revenue;
   final Map<String, int> parcelsByStatus;
 
-  const GarageStats({
-    required this.garageId,
+  const ZoneStats({
+    required this.zoneId,
     required this.totalParcels,
     required this.activeParcels,
     required this.deliveredToday,
@@ -112,9 +112,7 @@ class GarageStats {
     required this.parcelsByStatus,
   });
 
-  factory GarageStats.fromJson(Map<String, dynamic> json) {
-    // L'agrégat Prisma est un objet dynamique ; convertir chaque valeur évite
-    // qu'un entier sérialisé comme chaîne casse l'affichage.
+  factory ZoneStats.fromJson(Map<String, dynamic> json) {
     final rawStatuses = json['parcelsByStatus'];
     final statuses = <String, int>{};
     if (rawStatuses is Map) {
@@ -123,8 +121,8 @@ class GarageStats {
       }
     }
 
-    return GarageStats(
-      garageId: json['garageId']?.toString(),
+    return ZoneStats(
+      zoneId: json['zoneId']?.toString() ?? json['garageId']?.toString(),
       totalParcels: _intValue(json['totalParcels']),
       activeParcels: _intValue(json['activeParcels']),
       deliveredToday: _intValue(json['deliveredToday']),
@@ -139,7 +137,7 @@ class GlobalStats {
   final int totalUsers;
   final int totalDrivers;
   final int totalClients;
-  final int totalGarages;
+  final int totalZones;
   final int totalVehicles;
   final int totalParcels;
   final int parcelsInTransit;
@@ -151,7 +149,7 @@ class GlobalStats {
     required this.totalUsers,
     required this.totalDrivers,
     required this.totalClients,
-    required this.totalGarages,
+    required this.totalZones,
     required this.totalVehicles,
     required this.totalParcels,
     required this.parcelsInTransit,
@@ -164,7 +162,7 @@ class GlobalStats {
         totalUsers: _intValue(json['totalUsers']),
         totalDrivers: _intValue(json['totalDrivers']),
         totalClients: _intValue(json['totalClients']),
-        totalGarages: _intValue(json['totalGarages']),
+        totalZones: _intValue(json['totalZones'] ?? json['totalGarages']),
         totalVehicles: _intValue(json['totalVehicles']),
         totalParcels: _intValue(json['totalParcels']),
         parcelsInTransit: _intValue(json['parcelsInTransit']),

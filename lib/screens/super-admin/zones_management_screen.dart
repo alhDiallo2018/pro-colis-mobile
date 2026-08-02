@@ -92,7 +92,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
   Future<void> _loadZones() async {
     setState(() { _isLoading = true; _error = null; });
     try {
-      final data = await _apiService.getAllZones();
+      final data = await _apiService.getSuperAdminZones();
       setState(() {
         _zones = data.map((e) => Zone.fromJson(e)).toList();
         _isLoading = false;

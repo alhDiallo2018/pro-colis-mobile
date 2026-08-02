@@ -83,7 +83,7 @@ class _ScoresScreenState extends ConsumerState<ScoresScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(s['driverName']?.toString() ?? s['fullName']?.toString() ?? '', style: AppFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                                      Text(s['garageName']?.toString() ?? '', style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
+                                      Text(s['zoneName']?.toString() ?? '', style: AppFonts.manrope(fontSize: 12, color: AppTheme.textSecondary)),
                                     ],
                                   ),
                                 ),

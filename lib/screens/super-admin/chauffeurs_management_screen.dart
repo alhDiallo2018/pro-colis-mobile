@@ -93,7 +93,7 @@ class _ChauffeursManagementScreenState
       return d.fullName.toLowerCase().contains(q) ||
           d.phone.toLowerCase().contains(q) ||
           (d.city ?? '').toLowerCase().contains(q) ||
-          (d.garageName ?? '').toLowerCase().contains(q);
+          (d.zoneName ?? '').toLowerCase().contains(q);
     }).toList();
   }
 
@@ -203,8 +203,8 @@ class _ChauffeursManagementScreenState
     final meta = _statusMeta(driver);
     final location = (driver.city != null && driver.city!.isNotEmpty)
         ? driver.city!
-        : (driver.garageName != null && driver.garageName!.isNotEmpty)
-            ? driver.garageName!
+        : (driver.zoneName != null && driver.zoneName!.isNotEmpty)
+            ? driver.zoneName!
             : null;
 
     return Padding(

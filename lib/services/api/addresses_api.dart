@@ -82,10 +82,10 @@ class AddressesApi {
     _validate(response);
   }
 
-  Future<List<Garage>> favoriteGarages() async {
-    final response = await client.dio.get('/favorites/garages');
+  Future<List<Garage>> favoriteZones() async {
+    final response = await client.dio.get('/favorites/zones');
     final body = _validate(response);
-    final raw = _nested(body, 'garages');
+    final raw = _nested(body, 'zones') ?? _nested(body, 'garages');
     if (raw is! List) return const [];
     return raw
         .whereType<Map>()
@@ -93,13 +93,13 @@ class AddressesApi {
         .toList();
   }
 
-  Future<void> addFavoriteGarage(String garageId) async {
-    final response = await client.dio.post('/favorites/garages/$garageId');
+  Future<void> addFavoriteZone(String zoneId) async {
+    final response = await client.dio.post('/favorites/zones/$zoneId');
     _validate(response);
   }
 
-  Future<void> removeFavoriteGarage(String garageId) async {
-    final response = await client.dio.delete('/favorites/garages/$garageId');
+  Future<void> removeFavoriteZone(String zoneId) async {
+    final response = await client.dio.delete('/favorites/zones/$zoneId');
     _validate(response);
   }
 }

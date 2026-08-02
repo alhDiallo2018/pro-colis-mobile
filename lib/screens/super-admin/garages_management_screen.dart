@@ -31,7 +31,7 @@ class GaragesManagementScreen extends ConsumerStatefulWidget {
 class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScreen> {
   final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
-  List<Garage> _garages = [];
+  List<Garage> _zones = [];
   String _searchQuery = '';
   String _countryFilter = '';
   String _statusFilter = '';
@@ -42,7 +42,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   @override
   void initState() {
     super.initState();
-    _loadGarages();
+    _loadZones();
   }
 
   @override
@@ -53,7 +53,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
 
   List<String> get _countries {
     final set = <String>{};
-    for (final g in _garages) {
+    for (final g in _zones) {
       if (g.country.trim().isNotEmpty) set.add(g.country);
     }
     final list = set.toList()..sort((a, b) => a.compareTo(b));
@@ -62,7 +62,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
 
   List<Garage> get _filteredGarages {
     final q = _searchQuery.trim().toLowerCase();
-    return _garages.where((g) {
+    return _zones.where((g) {
       if (_countryFilter.isNotEmpty && g.country != _countryFilter) return false;
       if (_statusFilter == 'active' && !g.isActive) return false;
       if (_statusFilter == 'inactive' && g.isActive) return false;
@@ -88,16 +88,16 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
     return entries;
   }
 
-  Future<void> _loadGarages() async {
+  Future<void> _loadZones() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final garages = await _apiService.getAllGaragesSuperAdmin();
+      final garages = await _apiService.getAllZonesSuperAdmin();
       setState(() {
-        _garages = garages;
+        _zones = garages;
         _isLoading = false;
       });
       debugPrint('📦 ${garages.length} zones chargées depuis la base de données');
@@ -111,7 +111,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   }
 
   Future<void> _refreshData() async {
-    await _loadGarages();
+    await _loadZones();
   }
 
   Future<void> _addGarage() async {
@@ -123,7 +123,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
     );
     
     if (result == true && mounted) {
-      await _loadGarages();
+      await _loadZones();
       if (mounted) {
         _showSnack('Zone ajoutée avec succès', AppTheme.successColor);
       }
@@ -152,7 +152,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
     );
     
     if (result == true && mounted) {
-      await _loadGarages();
+      await _loadZones();
       if (mounted) {
         _showSnack('Zone modifiée avec succès', AppTheme.successColor);
       }
@@ -162,12 +162,12 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
   Future<void> _toggleActive(Garage garage) async {
     setState(() => _isProcessing = true);
     try {
-      final result = await _apiService.updateGarageSuperAdmin(
-        garageId: garage.id,
+      final result = await _apiService.updateZoneSuperAdmin(
+        zoneId: garage.id,
         isActive: !garage.isActive,
       );
       if (result['success'] == true) {
-        await _loadGarages();
+        await _loadZones();
         if (mounted) {
           _showSnack(
             garage.isActive ? 'Zone désactivée' : 'Zone activée',
@@ -244,9 +244,9 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
     if (confirm == true && mounted) {
       setState(() => _isProcessing = true);
       try {
-        final result = await _apiService.deleteGarageSuperAdmin(garage.id);
+        final result = await _apiService.deleteZoneSuperAdmin(garage.id);
         if (result['success'] == true) {
-          await _loadGarages();
+          await _loadZones();
           if (mounted) {
             _showSnack('Zone supprimée avec succès', AppTheme.successColor);
           }
@@ -284,7 +284,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
             Icons.refresh_rounded,
             variant: PcIconButtonVariant.ghost,
             tooltip: 'Rafraîchir',
-            onPressed: _loadGarages,
+            onPressed: _loadZones,
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8, left: 2),
@@ -356,7 +356,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
           ),
         ),
         Expanded(
-          child: _garages.isEmpty
+          child: _zones.isEmpty
               ? ListView(
                   children: [
                     const SizedBox(height: 40),
@@ -522,7 +522,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
             'Réessayer',
             icon: Icons.refresh_rounded,
             size: PcButtonSize.sm,
-            onPressed: _loadGarages,
+            onPressed: _loadZones,
           ),
         ),
       ],
@@ -1139,8 +1139,8 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
       }
       
       if (widget.isEditing && widget.garage != null) {
-        final result = await _apiService.updateGarageSuperAdmin(
-          garageId: widget.garage!.id,
+        final result = await _apiService.updateZoneSuperAdmin(
+          zoneId: widget.garage!.id,
           name: _nameController.text.trim(),
           country: _country,
           city: _cityController.text.trim(),
@@ -1177,7 +1177,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
           );
         }
       } else {
-        final result = await _apiService.createGarageSuperAdmin(
+        final result = await _apiService.createZoneSuperAdmin(
           name: _nameController.text.trim(),
           country: _country,
           city: _cityController.text.trim(),

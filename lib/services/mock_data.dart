@@ -37,8 +37,8 @@ class MockData {
       pin: pin,
       city: 'Thiès',
       region: 'Thiès',
-      garageId: 'garage-dkr',
-      garageName: 'Zone Dakar Plateau',
+      zoneId: 'garage-dkr',
+      zoneName: 'Zone Dakar Plateau',
       vehiclePlate: 'DK-4587-AA',
       vehicleModel: 'Mercedes Sprinter',
       vehicleType: 'van',
@@ -64,8 +64,8 @@ class MockData {
       pin: pin,
       city: 'Dakar',
       region: 'Dakar',
-      garageId: 'garage-dkr',
-      garageName: 'Zone Dakar Plateau',
+      zoneId: 'garage-dkr',
+      zoneName: 'Zone Dakar Plateau',
       isEmailVerified: true,
       isPhoneVerified: true,
       isProfileComplete: true,
@@ -141,10 +141,10 @@ class MockData {
       weight: 0.4,
       type: ParcelType.document,
       status: ParcelStatus.pending,
-      departureGarageId: 'garage-dkr',
-      departureGarageName: 'Zone Dakar Plateau',
-      arrivalGarageId: 'garage-stl',
-      arrivalGarageName: 'Zone Saint-Louis',
+      departureZoneId: 'garage-dkr',
+      departureZoneName: 'Zone Dakar Plateau',
+      arrivalZoneId: 'garage-stl',
+      arrivalZoneName: 'Zone Saint-Louis',
       price: 2500,
       totalAmount: 2500,
       createdAt: DateTime.now().subtract(const Duration(hours: 5)),
@@ -164,10 +164,10 @@ class MockData {
       weight: 3.2,
       type: ParcelType.fragile,
       status: ParcelStatus.inTransit,
-      departureGarageId: 'garage-dkr',
-      departureGarageName: 'Zone Dakar Plateau',
-      arrivalGarageId: 'garage-ths',
-      arrivalGarageName: 'Zone Thiès',
+      departureZoneId: 'garage-dkr',
+      departureZoneName: 'Zone Dakar Plateau',
+      arrivalZoneId: 'garage-ths',
+      arrivalZoneName: 'Zone Thiès',
       driverId: 'mock-driver-1',
       driverName: 'Moussa Ndiaye',
       driverPhone: '+221772345678',
@@ -192,10 +192,10 @@ class MockData {
       weight: 7.5,
       type: ParcelType.package,
       status: ParcelStatus.free,
-      departureGarageId: 'garage-dkr',
-      departureGarageName: 'Zone Dakar Plateau',
-      arrivalGarageId: 'garage-bby',
-      arrivalGarageName: 'Zone Bambey',
+      departureZoneId: 'garage-dkr',
+      departureZoneName: 'Zone Dakar Plateau',
+      arrivalZoneId: 'garage-bby',
+      arrivalZoneName: 'Zone Bambey',
       proposedPrice: 7000,
       isFreeForBidding: true,
       bids: [
@@ -227,10 +227,10 @@ class MockData {
       weight: 0.8,
       type: ParcelType.valuable,
       status: ParcelStatus.delivered,
-      departureGarageId: 'garage-ths',
-      departureGarageName: 'Zone Thiès',
-      arrivalGarageId: 'garage-dkr',
-      arrivalGarageName: 'Zone Dakar Plateau',
+      departureZoneId: 'garage-ths',
+      departureZoneName: 'Zone Thiès',
+      arrivalZoneId: 'garage-dkr',
+      arrivalZoneName: 'Zone Dakar Plateau',
       driverId: 'mock-driver-1',
       driverName: 'Moussa Ndiaye',
       driverPhone: '+221772345678',
@@ -274,8 +274,8 @@ class MockData {
       case UserRole.admin:
         return parcels
             .where((parcel) =>
-                parcel.departureGarageId == user.garageId ||
-                parcel.arrivalGarageId == user.garageId)
+                parcel.departureZoneId == user.zoneId ||
+                parcel.arrivalZoneId == user.zoneId)
             .toList();
       // Le support consulte tous les colis pour instruire tickets et
       // réclamations ; la restriction est côté écriture, pas côté lecture.

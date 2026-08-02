@@ -242,10 +242,10 @@ class Parcel {
   final ParcelStatus status;
 
   // Trajet
-  final String departureGarageId;
-  final String departureGarageName;
-  final String? arrivalGarageId;
-  final String? arrivalGarageName;
+  final String departureZoneId;
+  final String departureZoneName;
+  final String? arrivalZoneId;
+  final String? arrivalZoneName;
 
   // Chauffeur
   final String? driverId;
@@ -338,10 +338,10 @@ class Parcel {
     this.height,
     required this.type,
     required this.status,
-    required this.departureGarageId,
-    required this.departureGarageName,
-    this.arrivalGarageId,
-    this.arrivalGarageName,
+    required this.departureZoneId,
+    required this.departureZoneName,
+    this.arrivalZoneId,
+    this.arrivalZoneName,
     this.driverId,
     this.driverName,
     this.driverPhone,
@@ -403,8 +403,8 @@ class Parcel {
       status: json['status'] != null
           ? ParcelStatus.fromString(json['status'].toString())
           : ParcelStatus.pending,
-      departureGarageId: json['departureGarageId']?.toString() ?? '',
-      departureGarageName: json['departureGarageName']?.toString() ?? '',
+      departureZoneId: json['departureZoneId']?.toString() ?? '',
+      departureZoneName: json['departureZoneName']?.toString() ?? '',
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())
           : DateTime.now(),
@@ -474,10 +474,10 @@ class Parcel {
       status: json['status'] != null
           ? ParcelStatus.fromString(parseString(json['status'])!)
           : ParcelStatus.pending,
-      departureGarageId: parseString(json['departureGarageId']) ?? '',
-      departureGarageName: parseString(json['departureGarageName']) ?? '',
-      arrivalGarageId: parseString(json['arrivalGarageId']),
-      arrivalGarageName: parseString(json['arrivalGarageName']),
+      departureZoneId: parseString(json['departureZoneId']) ?? '',
+      departureZoneName: parseString(json['departureZoneName']) ?? '',
+      arrivalZoneId: parseString(json['arrivalZoneId']),
+      arrivalZoneName: parseString(json['arrivalZoneName']),
       driverId: parseString(json['driverId']),
       driverName: parseString(json['driverName']),
       driverPhone: parseString(json['driverPhone']),
@@ -551,10 +551,10 @@ class Parcel {
         'height': height,
         'type': type.value,
         'status': status.value,
-        'departureGarageId': departureGarageId,
-        'departureGarageName': departureGarageName,
-        'arrivalGarageId': arrivalGarageId,
-        'arrivalGarageName': arrivalGarageName,
+        'departureZoneId': departureZoneId,
+        'departureZoneName': departureZoneName,
+        'arrivalZoneId': arrivalZoneId,
+        'arrivalZoneName': arrivalZoneName,
         'driverId': driverId,
         'driverName': driverName,
         'driverPhone': driverPhone,
@@ -826,10 +826,10 @@ class Parcel {
     double? height,
     ParcelType? type,
     ParcelStatus? status,
-    String? departureGarageId,
-    String? departureGarageName,
-    String? arrivalGarageId,
-    String? arrivalGarageName,
+    String? departureZoneId,
+    String? departureZoneName,
+    String? arrivalZoneId,
+    String? arrivalZoneName,
     String? driverId,
     String? driverName,
     String? driverPhone,
@@ -889,10 +889,10 @@ class Parcel {
       height: height ?? this.height,
       type: type ?? this.type,
       status: status ?? this.status,
-      departureGarageId: departureGarageId ?? this.departureGarageId,
-      departureGarageName: departureGarageName ?? this.departureGarageName,
-      arrivalGarageId: arrivalGarageId ?? this.arrivalGarageId,
-      arrivalGarageName: arrivalGarageName ?? this.arrivalGarageName,
+      departureZoneId: departureZoneId ?? this.departureZoneId,
+      departureZoneName: departureZoneName ?? this.departureZoneName,
+      arrivalZoneId: arrivalZoneId ?? this.arrivalZoneId,
+      arrivalZoneName: arrivalZoneName ?? this.arrivalZoneName,
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
       driverPhone: driverPhone ?? this.driverPhone,

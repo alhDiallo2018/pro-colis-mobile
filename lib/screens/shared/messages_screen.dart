@@ -694,7 +694,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                             size: 16, color: AppTheme.slate500),
                         const SizedBox(width: 6),
                         Expanded(
-                            child: Text(parcel.departureGarageName,
+                            child: Text(parcel.departureZoneName,
                                 style: TextStyle(
                                     fontSize: 14,
                                     color: AppTheme.textPrimary))),
@@ -708,7 +708,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                         const SizedBox(width: 6),
                         Expanded(
                             child: Text(
-                                parcel.arrivalGarageName ?? 'Non défini',
+                                parcel.arrivalZoneName ?? 'Non défini',
                                 style: TextStyle(
                                     fontSize: 14,
                                     color: AppTheme.textPrimary))),
@@ -1340,7 +1340,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${parcel.departureGarageName} → ${parcel.arrivalGarageName ?? "—"}',
+                    '${parcel.departureZoneName} → ${parcel.arrivalZoneName ?? "—"}',
                     style: AppFonts.manrope(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w500,

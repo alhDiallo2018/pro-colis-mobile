@@ -51,9 +51,9 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   bool _detectingZone = false;
 
   // Step 1 - Livraison
-  List<Garage> _garages = [];
-  String? _departureGarageId;
-  String? _arrivalGarageId;
+  List<Garage> _zones = [];
+  String? _departureZoneId;
+  String? _arrivalZoneId;
 
   bool _isFreeMode = true;
   List<User> _drivers = [];
@@ -85,8 +85,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadGarages();
-    _loadDriversForGarage();
+    _loadZones();
+    _loadDriversForZone();
   }
 
   @override
@@ -118,15 +118,15 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     });
   }
 
-  Future<void> _loadGarages() async {
+  Future<void> _loadZones() async {
     try {
-      final garages = await _apiService.getAllGarages();
-      if (mounted) setState(() => _garages = garages);
+      final zones = await _apiService.getAllZones();
+      if (mounted) setState(() => _zones = zones);
     } catch (_) {}
   }
 
-  Future<void> _loadDriversForGarage({String? garageId}) async {
-    final gid = garageId ?? _departureGarageId;
+  Future<void> _loadDriversForZone({String? zoneId}) async {
+    final gid = zoneId ?? _departureZoneId;
     if (gid == null) return;
     setState(() => _loadingDrivers = true);
     try {
@@ -152,20 +152,20 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   /// Zone ajoutée à la volée depuis le sélecteur de trajet : absente de la
   /// liste publique tant qu'elle n'est pas validée, on l'injecte localement
   /// pour qu'elle reste sélectionnable.
-  void _addResolvedZone(Garage garage) {
+  void _addResolvedZone(Garage zone) {
     setState(() {
-      _garages = [..._garages.where((g) => g.id != garage.id), garage];
+      _zones = [..._zones.where((z) => z.id != zone.id), zone];
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text('« ${garage.name} » ajoutée — validation en attente.')),
+          content: Text('« ${zone.name} » ajoutée — validation en attente.')),
     );
   }
 
-  Garage? _garageById(String? id) {
+  Garage? _zoneById(String? id) {
     if (id == null) return null;
     try {
-      return _garages.firstWhere((g) => g.id == id);
+      return _zones.firstWhere((z) => z.id == id);
     } catch (_) {
       return null;
     }
@@ -181,9 +181,9 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         return _receiverNameCtrl.text.trim().isNotEmpty &&
             _receiverPhoneCtrl.text.trim().isNotEmpty;
       case 1:
-        return _departureGarageId != null &&
-            _arrivalGarageId != null &&
-            _departureGarageId != _arrivalGarageId &&
+        return _departureZoneId != null &&
+            _arrivalZoneId != null &&
+            _departureZoneId != _arrivalZoneId &&
             (_isFreeMode || _selectedDriver != null);
       case 2:
         return _weightCtrl.text.trim().isNotEmpty &&
@@ -316,8 +316,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         'weight': weight,
         'type': _parcelType.value,
         'status': _isFreeMode ? 'free' : 'pending',
-        'departureGarageId': _departureGarageId,
-        'arrivalGarageId': _arrivalGarageId,
+        'departureZoneId': _departureZoneId,
+        'arrivalZoneId': _arrivalZoneId,
         'proposedPrice': proposedPrice,
         'price': proposedPrice,
         'isUrgent': _isUrgent,
@@ -593,20 +593,20 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         _sectionHeader('Trajet', Icons.route_rounded),
         const SizedBox(height: 12),
         RoutePicker(
-          garages: _garages,
-          initialDeparture: _garageById(_departureGarageId),
-          initialArrival: _garageById(_arrivalGarageId),
+          garages: _zones,
+          initialDeparture: _zoneById(_departureZoneId),
+          initialArrival: _zoneById(_arrivalZoneId),
           departureLabel: 'Zone de départ',
           arrivalLabel: "Zone d'arrivée",
           onDepartureChanged: (g) {
             setState(() {
-              _departureGarageId = g?.id;
+              _departureZoneId = g?.id;
               _selectedDriver = null;
             });
-            if (g != null) _loadDriversForGarage(garageId: g.id);
+            if (g != null) _loadDriversForZone(zoneId: g.id);
           },
           onArrivalChanged: (g) {
-            setState(() => _arrivalGarageId = g?.id);
+            setState(() => _arrivalZoneId = g?.id);
           },
           // L'ajout d'un lieu absent se fait désormais depuis le sélecteur
           // lui-même (recherche Google Places + pointage sur carte).
@@ -949,8 +949,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   }
 
   Widget _buildRecap() {
-    final departure = _garageById(_departureGarageId);
-    final arrival = _garageById(_arrivalGarageId);
+    final departure = _zoneById(_departureZoneId);
+    final arrival = _zoneById(_arrivalZoneId);
 
     return ListView(
       padding: const EdgeInsets.all(16),

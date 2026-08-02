@@ -247,9 +247,9 @@ class _GarageAssignationsScreenState
                       children: [
                         Flexible(
                           child: Text(
-                            parcel.departureGarageName.isEmpty
+                            parcel.departureZoneName.isEmpty
                                 ? '—'
-                                : parcel.departureGarageName,
+                                : parcel.departureZoneName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppFonts.plusJakartaSans(
@@ -265,7 +265,7 @@ class _GarageAssignationsScreenState
                         ),
                         Flexible(
                           child: Text(
-                            parcel.arrivalGarageName ?? '—',
+                            parcel.arrivalZoneName ?? '—',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppFonts.plusJakartaSans(

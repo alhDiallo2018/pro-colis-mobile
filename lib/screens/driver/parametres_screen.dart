@@ -569,8 +569,8 @@ class _DriverParametresScreenState
   Widget _accountCard(User user) {
     final metaParts = <String>[];
     if (user.phone.isNotEmpty) metaParts.add(user.formattedPhone);
-    if (user.garageName != null && user.garageName!.isNotEmpty) {
-      metaParts.add(user.garageName!);
+    if (user.zoneName != null && user.zoneName!.isNotEmpty) {
+      metaParts.add(user.zoneName!);
     }
     return PcCard(
       padding: const EdgeInsets.all(18),
@@ -617,10 +617,10 @@ class _DriverParametresScreenState
                     ],
                   ],
                 ),
-                if (user.garageName != null && user.garageName!.isNotEmpty) ...[
+                if (user.zoneName != null && user.zoneName!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    user.garageName!,
+                    user.zoneName!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppFonts.manrope(

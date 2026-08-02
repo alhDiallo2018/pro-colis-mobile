@@ -19,7 +19,7 @@ import 'pc_components.dart';
 
 class ZonePickerSheet {
   /// Renvoie le **garage miroir** de la zone retenue : c'est cet identifiant
-  /// qu'attendent `departureGarageId` / `arrivalGarageId`.
+  /// qu'attendent `departureZoneId` / `arrivalZoneId`.
   static Future<Garage?> show({
     required BuildContext context,
     String? initialQuery,

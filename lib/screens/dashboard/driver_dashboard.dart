@@ -169,12 +169,12 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
       if (mounted) {
         final Set<String> locationSet = {};
         for (final parcel in parcels) {
-          if (parcel.departureGarageName.isNotEmpty) {
-            locationSet.add(parcel.departureGarageName);
+          if (parcel.departureZoneName.isNotEmpty) {
+            locationSet.add(parcel.departureZoneName);
           }
-          if (parcel.arrivalGarageName != null &&
-              parcel.arrivalGarageName!.isNotEmpty) {
-            locationSet.add(parcel.arrivalGarageName!);
+          if (parcel.arrivalZoneName != null &&
+              parcel.arrivalZoneName!.isNotEmpty) {
+            locationSet.add(parcel.arrivalZoneName!);
           }
         }
         setState(() {
@@ -1895,12 +1895,12 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
 
   Future<void> _openItinerary(Parcel parcel) async {
     try {
-      final garages = await _api.getAllGarages();
+      final zones = await _api.getAllZones();
       if (!mounted) return;
       context.push('/driver/itinerary', extra: {
-        'departureName': parcel.departureGarageName,
-        'arrivalName': parcel.arrivalGarageName ?? '',
-        'garages': garages,
+        'departureName': parcel.departureZoneName,
+        'arrivalName': parcel.arrivalZoneName ?? '',
+        'zones': zones,
       });
     } catch (error, stackTrace) {
       debugPrint(
@@ -2701,8 +2701,8 @@ class _DriverRouteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final price = parcel.payableAmount;
-    final destination = parcel.arrivalGarageName?.isNotEmpty == true
-        ? parcel.arrivalGarageName!
+    final destination = parcel.arrivalZoneName?.isNotEmpty == true
+        ? parcel.arrivalZoneName!
         : 'Arrivée';
 
     return PcCard(
@@ -2738,7 +2738,7 @@ class _DriverRouteCard extends StatelessWidget {
               Expanded(
                 child: _RouteEndpoint(
                   label: 'DÉPART',
-                  value: parcel.departureGarageName,
+                  value: parcel.departureZoneName,
                   alignEnd: false,
                 ),
               ),
@@ -3375,7 +3375,7 @@ class _DriverProfileTabScreenState
   Map<String, dynamic>? _vehicle;
   Map<String, dynamic>? _identity;
   double? _wallet;
-  String? _garageName;
+  String? _zoneName;
   bool _loading = true;
 
   User? get user => widget.user;
@@ -3389,28 +3389,28 @@ class _DriverProfileTabScreenState
 
   /// Aucune de ces données n'est exposée par /auth/me : les compteurs portés
   /// par l'utilisateur (livraisons, note, solde) valent toujours 0 et le
-  /// véhicule/garage n'y figure pas. Il faut donc interroger les endpoints
+  /// véhicule/zone n'y figure pas. Il faut donc interroger les endpoints
   /// dédiés, sans quoi l'écran affiche des valeurs vides ou trompeuses.
   Future<void> _loadProfileData() async {
-    final garageId = user?.garageId;
+    final zoneId = user?.zoneId;
     final results = await Future.wait([
       _api.getDriverStats(),
       _api.getDriverVehicle(),
       _api.getIdentityStatus(),
       _api.getWalletBalance(user?.id ?? ''),
-      if (garageId != null && garageId.isNotEmpty)
-        _api.getAllGarages()
+      if (zoneId != null && zoneId.isNotEmpty)
+        _api.getAllZones()
       else
         Future.value(const <Garage>[]),
     ]);
 
     if (!mounted) return;
 
-    final garages = results[4] as List<Garage>;
-    String? garageName;
-    for (final g in garages) {
-      if (g.id == garageId) {
-        garageName = g.name;
+    final zones = results[4] as List<Garage>;
+    String? zoneName;
+    for (final z in zones) {
+      if (z.id == zoneId) {
+        zoneName = z.name;
         break;
       }
     }
@@ -3420,7 +3420,7 @@ class _DriverProfileTabScreenState
       _vehicle = results[1] as Map<String, dynamic>?;
       _identity = results[2] as Map<String, dynamic>?;
       _wallet = results[3] as double;
-      _garageName = garageName;
+      _zoneName = zoneName;
       _loading = false;
     });
   }
@@ -3663,8 +3663,8 @@ class _DriverProfileTabScreenState
                       title: 'Ma zone',
                       subtitle: _loading
                           ? 'Chargement…'
-                          : (_garageName ??
-                              user?.garageName ??
+                          : (_zoneName ??
+                              user?.zoneName ??
                               'Zone non renseignée'),
                       onTap: () => Navigator.push(
                           context,
@@ -4501,7 +4501,7 @@ class _DriverAdvertisementsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'De: ${parcel.departureGarageName}',
+                    'De: ${parcel.departureZoneName}',
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -4526,7 +4526,7 @@ class _DriverAdvertisementsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'À: ${parcel.arrivalGarageName ?? "Non spécifié"}',
+                    'À: ${parcel.arrivalZoneName ?? "Non spécifié"}',
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -5935,7 +5935,7 @@ class _ParcelCardState extends State<_ParcelCard> {
                   SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      parcel.arrivalGarageName ??
+                      parcel.arrivalZoneName ??
                           parcel.receiverAddress ??
                           'Adresse non précisée',
                       style: TextStyle(fontSize: 12, color: Colors.grey),

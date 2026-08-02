@@ -43,8 +43,8 @@ class StatsApi {
   Future<DriverStats> driverStats() async =>
       DriverStats.fromJson(await _load('/driver/stats'));
 
-  Future<GarageStats> garageStats() async =>
-      GarageStats.fromJson(await _load('/garage-admin/stats'));
+  Future<ZoneStats> zoneStats() async =>
+      ZoneStats.fromJson(await _load('/garage-admin/stats'));
 
   Future<GlobalStats> globalStats() async =>
       GlobalStats.fromJson(await _load('/super-admin/stats'));

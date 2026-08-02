@@ -82,7 +82,7 @@ class ZonesApi {
         if (city != null) 'city': city,
       });
       final data = client.handle(res);
-      final mirror = data['garage'];
+      final mirror = data['zone'] ?? data['garage'];
       return mirror is Map ? Garage.fromJson(Map<String, dynamic>.from(mirror)) : null;
     } catch (e) {
       return null;

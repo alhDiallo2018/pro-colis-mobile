@@ -389,8 +389,8 @@ class _FreeParcelDetailsScreenState
       context,
       MaterialPageRoute(
         builder: (_) => ItineraryMapScreen(
-          departureName: widget.parcel.departureGarageName,
-          arrivalName: widget.parcel.arrivalGarageName ?? '',
+          departureName: widget.parcel.departureZoneName,
+          arrivalName: widget.parcel.arrivalZoneName ?? '',
         ),
       ),
     );

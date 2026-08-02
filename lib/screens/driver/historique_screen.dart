@@ -108,11 +108,11 @@ class _HistoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = AppTheme.statusColors(parcel.status);
-    final from = parcel.departureGarageName.isNotEmpty
-        ? parcel.departureGarageName
+    final from = parcel.departureZoneName.isNotEmpty
+        ? parcel.departureZoneName
         : '—';
-    final to = (parcel.arrivalGarageName?.isNotEmpty ?? false)
-        ? parcel.arrivalGarageName!
+    final to = (parcel.arrivalZoneName?.isNotEmpty ?? false)
+        ? parcel.arrivalZoneName!
         : '—';
     final date = parcel.deliveryDate ?? parcel.updatedAt ?? parcel.createdAt;
 
