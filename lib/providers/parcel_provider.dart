@@ -232,6 +232,29 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     }
   }
 
+  /// Corrige un colis pas encore pris en charge. L'API refuse la modification
+  /// dès qu'un chauffeur est assigné, qu'une offre est acceptée ou qu'un
+  /// paiement est engagé ; son message de refus est remonté tel quel.
+  Future<Map<String, dynamic>> updateParcel(
+      String parcelId, Map<String, dynamic> data) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final result = await _apiService.updateParcel(parcelId, data);
+      if (result['success'] == true) {
+        await loadSentParcels();
+        state = state.copyWith(isLoading: false, error: null, isSuccess: true);
+        return result;
+      }
+      final message =
+          result['message']?.toString() ?? 'Erreur lors de la modification';
+      state = state.copyWith(error: message, isLoading: false);
+      return {...result, 'success': false, 'message': message};
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<Parcel?> trackParcel(String trackingNumber) async {
     state = state.copyWith(isLoading: true);
     try {

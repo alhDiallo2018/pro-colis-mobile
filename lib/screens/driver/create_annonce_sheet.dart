@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../models/garage.dart';
+import '../../providers/advertisement_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/form_draft_store.dart';
@@ -30,8 +31,28 @@ Future<bool?> showCreateAnnonceSheet(BuildContext context) {
   );
 }
 
+/// Rouvre le même formulaire sur une annonce existante. [advertisement] est la
+/// forme brute renvoyée par l'API — elle porte les identifiants de zone, que le
+/// modèle `Advertisement` n'expose pas.
+///
+/// Renvoie `true` si l'annonce a été modifiée.
+Future<bool?> showEditAnnonceSheet(
+  BuildContext context,
+  Map<String, dynamic> advertisement,
+) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _CreateAnnonceSheet(existing: advertisement),
+  );
+}
+
 class _CreateAnnonceSheet extends ConsumerStatefulWidget {
-  const _CreateAnnonceSheet();
+  /// Annonce à modifier. `null` en création.
+  final Map<String, dynamic>? existing;
+
+  const _CreateAnnonceSheet({this.existing});
 
   @override
   ConsumerState<_CreateAnnonceSheet> createState() =>
@@ -65,6 +86,15 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  bool get _isEditing => widget.existing != null;
+  String? get _editedAdId => widget.existing?['id']?.toString();
+
+  /// État initial de l'annonce en cours de modification. Sert à n'envoyer que
+  /// les champs réellement changés : renvoyer une `departureAt` déjà passée que
+  /// l'utilisateur n'a pas touchée ferait échouer la requête, l'API exigeant une
+  /// date future.
+  Map<String, dynamic> _initialValues = const {};
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +102,15 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       slot: 'annonce',
       ownerId: ref.read(authProvider).user?.id,
     );
+    _loadZones();
+
+    if (_isEditing) {
+      // Pas de brouillon en modification : il porterait la saisie d'une
+      // création précédente et écraserait l'annonce chargée.
+      _prefillFromExisting(widget.existing!);
+      return;
+    }
+
     for (final controller in [
       _weightController,
       _priceController,
@@ -79,8 +118,51 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
     ]) {
       controller.addListener(_scheduleDraftSave);
     }
-    _loadZones();
     _loadDraft();
+  }
+
+  void _prefillFromExisting(Map<String, dynamic> ad) {
+    String? asText(dynamic value) {
+      final text = value?.toString().trim();
+      return (text == null || text.isEmpty) ? null : text;
+    }
+
+    // Les décimaux arrivent en chaîne depuis l'API ; on les réaffiche sans
+    // zéros superflus pour que le champ reste éditable au clavier numérique.
+    String numberText(dynamic value) {
+      final parsed = num.tryParse(value?.toString() ?? '');
+      if (parsed == null) return '';
+      return parsed == parsed.roundToDouble()
+          ? parsed.round().toString()
+          : parsed.toString();
+    }
+
+    _departureZoneId = asText(ad['departureZoneId']);
+    _arrivalZoneId = asText(ad['arrivalZoneId']);
+    _departureAt = DateTime.tryParse(ad['departureAt']?.toString() ?? '');
+    _weightController.text = numberText(ad['availableWeight']);
+    _priceController.text = numberText(ad['proposedPrice']);
+    _descriptionController.text = asText(ad['description']) ?? '';
+
+    _initialValues = {
+      'departureZoneId': _departureZoneId,
+      'arrivalZoneId': _arrivalZoneId,
+      'departureAt': _departureAt?.toIso8601String(),
+      'availableWeight': _weightController.text,
+      'proposedPrice': _priceController.text,
+      'description': _descriptionController.text,
+    };
+  }
+
+  /// Vrai si la saisie diverge de l'annonce chargée.
+  bool get _hasEdits {
+    if (!_isEditing) return false;
+    return _initialValues['departureZoneId'] != _departureZoneId ||
+        _initialValues['arrivalZoneId'] != _arrivalZoneId ||
+        _initialValues['departureAt'] != _departureAt?.toIso8601String() ||
+        _initialValues['availableWeight'] != _weightController.text ||
+        _initialValues['proposedPrice'] != _priceController.text ||
+        _initialValues['description'] != _descriptionController.text;
   }
 
   @override
@@ -121,7 +203,10 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       };
 
   void _scheduleDraftSave() {
-    if (_draftPending || _submitting) return;
+    // Les sélecteurs de trajet et de date appellent cette méthode sans savoir
+    // dans quel mode ils sont : la modification d'une annonce publiée ne doit
+    // jamais alimenter le brouillon de création.
+    if (_isEditing || _draftPending || _submitting) return;
     _draftSaveTimer?.cancel();
     _draftSaveTimer = Timer(const Duration(milliseconds: 600), _saveDraft);
   }
@@ -221,6 +306,38 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   /// à perdre. Fermer une saisie vide ne doit poser aucune question.
   Future<void> _handleClose() async {
     if (_submitting) return;
+
+    // En modification il n'y a pas de brouillon à garder : on confirme
+    // seulement, et uniquement si quelque chose a bougé.
+    if (_isEditing) {
+      if (!_hasEdits) {
+        if (mounted) Navigator.pop(context, false);
+        return;
+      }
+      final abandon = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+          title: const Text('Abandonner les modifications ?'),
+          content: const Text('Vos changements ne seront pas enregistrés.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Continuer')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+              child: const Text('Abandonner',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      if (abandon == true && mounted) Navigator.pop(context, false);
+      return;
+    }
+
     if (!_hasContent) {
       if (mounted) Navigator.pop(context, false);
       return;
@@ -251,16 +368,11 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
     }
   }
 
-  Future<void> _submit() async {
-    if (!_step1Valid || _submitting) return;
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-
+  /// Charge utile complète, pour la création.
+  Map<String, dynamic> _createPayload() {
     final dep = _zoneById(_departureZoneId);
     final arr = _zoneById(_arrivalZoneId);
-    final data = <String, dynamic>{
+    return <String, dynamic>{
       'departureZoneId': _departureZoneId,
       'arrivalZoneId': _arrivalZoneId,
       'departureCity': dep?.city,
@@ -272,21 +384,83 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
           ? null
           : _descriptionController.text.trim(),
     };
+  }
 
-    final result = await _api.createAdvertisement(data);
+  /// Charge utile différentielle, pour la modification : seuls les champs
+  /// touchés partent. L'API traite l'absence d'un champ comme « inchangé », et
+  /// refuserait une date de départ déjà passée qu'on lui renverrait à
+  /// l'identique.
+  Map<String, dynamic> _updatePayload() {
+    final data = <String, dynamic>{};
+
+    if (_initialValues['departureZoneId'] != _departureZoneId) {
+      data['departureZoneId'] = _departureZoneId;
+      data['departureCity'] = _zoneById(_departureZoneId)?.city;
+    }
+    if (_initialValues['arrivalZoneId'] != _arrivalZoneId) {
+      data['arrivalZoneId'] = _arrivalZoneId;
+      data['arrivalCity'] = _zoneById(_arrivalZoneId)?.city;
+    }
+    if (_initialValues['departureAt'] != _departureAt?.toIso8601String()) {
+      data['departureAt'] = _departureAt?.toIso8601String();
+    }
+    if (_initialValues['availableWeight'] != _weightController.text) {
+      data['availableWeight'] = double.tryParse(_weightController.text.trim());
+    }
+    if (_initialValues['proposedPrice'] != _priceController.text) {
+      data['proposedPrice'] = double.tryParse(_priceController.text.trim());
+    }
+    if (_initialValues['description'] != _descriptionController.text) {
+      final description = _descriptionController.text.trim();
+      data['description'] = description.isEmpty ? null : description;
+    }
+
+    return data;
+  }
+
+  Future<void> _submit() async {
+    if (!_step1Valid || _submitting) return;
+
+    final notifier = ref.read(advertisementProvider.notifier);
+    final adId = _editedAdId;
+
+    if (_isEditing) {
+      if (adId == null) {
+        setState(() => _error = 'Annonce introuvable.');
+        return;
+      }
+      if (!_hasEdits) {
+        Navigator.pop(context, false);
+        return;
+      }
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    final result = _isEditing
+        ? await notifier.updateAdvertisement(adId!, _updatePayload())
+        : await notifier.createAdvertisement(_createPayload());
+
     if (!mounted) return;
     setState(() => _submitting = false);
 
-    if (result['success'] == false) {
-      setState(() =>
-          _error = result['message']?.toString() ?? 'Publication impossible.');
+    if (result['success'] != true) {
+      setState(() => _error = result['message']?.toString() ??
+          (_isEditing
+              ? 'Modification impossible.'
+              : 'Publication impossible.'));
       return;
     }
 
-    // Publiée : le brouillon n'a plus de raison d'être.
-    _draftSaveTimer?.cancel();
-    await _draftStore.clear();
-    if (!mounted) return;
+    if (!_isEditing) {
+      // Publiée : le brouillon n'a plus de raison d'être.
+      _draftSaveTimer?.cancel();
+      await _draftStore.clear();
+      if (!mounted) return;
+    }
     Navigator.pop(context, true);
   }
 
@@ -360,7 +534,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
               color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: Icon(Icons.route_rounded,
+            child: Icon(_isEditing ? Icons.edit_rounded : Icons.route_rounded,
                 color: AppTheme.primary, size: 22),
           ),
           const SizedBox(width: 12),
@@ -368,7 +542,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Créer une annonce',
+                Text(_isEditing ? 'Modifier l’annonce' : 'Créer une annonce',
                     style: AppFonts.plusJakartaSans(
                         fontSize: 17, fontWeight: FontWeight.w800)),
                 Text('Étape ${_step + 1} sur 2',
@@ -544,8 +718,10 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
                 Expanded(
                   flex: 2,
                   child: PcButton(
-                    'Publier l’annonce',
-                    icon: Icons.campaign_rounded,
+                    _isEditing ? 'Enregistrer' : 'Publier l’annonce',
+                    icon: _isEditing
+                        ? Icons.check_rounded
+                        : Icons.campaign_rounded,
                     size: PcButtonSize.lg,
                     block: true,
                     loading: _submitting,

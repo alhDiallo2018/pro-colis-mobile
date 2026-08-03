@@ -364,6 +364,19 @@ class ApiService {
     }
   }
 
+  /// Corrige un colis pas encore pris en charge. L'API refuse la modification
+  /// dès qu'un chauffeur est assigné, qu'une offre est acceptée ou qu'un
+  /// paiement est engagé : le message de refus est renvoyé tel quel à l'appelant.
+  Future<Map<String, dynamic>> updateParcel(
+      String parcelId, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put('/client/parcels/$parcelId', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<Map<String, dynamic>> cancelParcel(String parcelId,
       {String? reason}) async {
     try {
@@ -572,6 +585,46 @@ class ApiService {
     return responseData['advertisement'] ?? responseData;
   }
 
+  /// Modifie une annonce ouverte. L'API n'accepte que les champs du trajet et
+  /// refuse la modification si une offre a déjà été acceptée.
+  Future<Map<String, dynamic>> updateAdvertisement(
+      String advertisementId, Map<String, dynamic> data) async {
+    try {
+      final response =
+          await _dio.put('/advertisements/$advertisementId', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Supprime définitivement une annonce. L'API refuse si une offre acceptée y
+  /// est rattachée — il faut alors la fermer via [closeAdvertisement].
+  Future<Map<String, dynamic>> deleteAdvertisement(
+      String advertisementId) async {
+    try {
+      final response = await _dio.delete('/advertisements/$advertisementId');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Offres reçues sur une annonce. Réservé au chauffeur propriétaire.
+  Future<List<Map<String, dynamic>>> getAdvertisementOffers(
+      String advertisementId) async {
+    try {
+      final response =
+          await _dio.get('/advertisements/$advertisementId/offers');
+      final responseData = _handleResponse(response);
+      final List<dynamic> offersData = responseData['offers'] ?? [];
+      return offersData.map((json) => json as Map<String, dynamic>).toList();
+    } catch (e) {
+      debugPrint('❌ [API] getAdvertisementOffers failed: $e');
+      return [];
+    }
+  }
+
   /// Récupère le colis depuis une annonce (fonctionne pour client ET chauffeur).
   /// [offerId] optionnel — si fourni, cible une offre spécifique (évite de
   /// prendre la 1ère offre alors que l'utilisateur a cliqué sur une autre).
@@ -659,11 +712,18 @@ class ApiService {
     }
   }
 
+  /// Ferme une annonce sans l'effacer : les offres encore en attente sont
+  /// refusées côté API et leurs auteurs prévenus. [reason] est conservée dans
+  /// les métadonnées de l'annonce.
   Future<Map<String, dynamic>> closeAdvertisement(
-      String advertisementId) async {
+    String advertisementId, {
+    String? reason,
+  }) async {
     try {
-      final response =
-          await _dio.post('/advertisements/$advertisementId/close');
+      final response = await _dio.post(
+        '/advertisements/$advertisementId/close',
+        data: {if (reason != null && reason.isNotEmpty) 'reason': reason},
+      );
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -1107,6 +1167,40 @@ class ApiService {
   Future<Map<String, dynamic>> sendMessage(Map<String, dynamic> data) async {
     try {
       final response = await _dio.post('/messages', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Modifie le texte d'un message déjà envoyé. Réservé à son auteur, dans les
+  /// 15 minutes qui suivent l'envoi ; les propositions de prix sont refusées.
+  Future<Map<String, dynamic>> updateMessage(
+      String messageId, String body) async {
+    try {
+      final response =
+          await _dio.patch('/messages/$messageId', data: {'body': body});
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Suppression logique : le message disparaît des deux côtés du fil.
+  Future<Map<String, dynamic>> deleteMessage(String messageId) async {
+    try {
+      final response = await _dio.delete('/messages/$messageId');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Marque un message reçu comme lu. Ouvrir le fil complet le fait déjà pour
+  /// tous ses messages ; cette méthode sert aux accusés de lecture unitaires.
+  Future<Map<String, dynamic>> markMessageRead(String messageId) async {
+    try {
+      final response = await _dio.patch('/messages/$messageId/read');
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../models/parcel.dart';
+import '../../providers/advertisement_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
@@ -33,8 +34,14 @@ class _DriverMesAnnoncesScreenState
     extends ConsumerState<DriverMesAnnoncesScreen>
     with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
-  List<Map<String, dynamic>> _ads = [];
-  bool _isLoading = true;
+
+  /// Les annonces et leurs mutations vivent dans `advertisementProvider` : c'est
+  /// lui qui recharge la liste après chaque écriture, plutôt que chaque action
+  /// d'écran qui l'oublierait. `build` observe le provider, ces raccourcis en
+  /// lisent l'état courant.
+  List<Map<String, dynamic>> get _ads => ref.read(advertisementProvider).myAds;
+  bool get _isLoading => ref.read(advertisementProvider).isLoading;
+
   String? _busyOfferId;
   late final TabController _tabController;
 
@@ -98,35 +105,38 @@ class _DriverMesAnnoncesScreenState
     }
   }
 
-  Future<void> _loadAds() async {
-    setState(() => _isLoading = true);
-    try {
-      final ads = await _apiService.getMyAdvertisements();
-      if (mounted) {
-        setState(() {
-          _ads = ads;
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  Future<void> _loadAds() =>
+      ref.read(advertisementProvider.notifier).loadMyAdvertisements();
+
+  /// Affiche le message renvoyé par l'API. Les refus métier (annonce engagée,
+  /// offre déjà acceptée) portent une explication précise qu'il ne faut pas
+  /// remplacer par un texte générique.
+  void _showResult(Map<String, dynamic> result, String successMessage) {
+    if (!mounted) return;
+    final succeeded = result['success'] == true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(succeeded
+            ? successMessage
+            : result['message']?.toString() ?? 'Opération impossible'),
+        backgroundColor: succeeded ? null : AppTheme.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
-  Future<void> _createAd() async {
-    final created = await showCreateAnnonceSheet(context);
-    if (created == true) await _loadAds();
-  }
-
-  Future<void> _closeAd(String adId) async {
-    final confirm = await showDialog<bool>(
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
-        title: const Text('Fermer l\'annonce ?'),
-        content:
-            const Text('L\'annonce ne sera plus visible pour les clients.'),
+        title: Text(title),
+        content: Text(message),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -134,45 +144,64 @@ class _DriverMesAnnoncesScreenState
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-            child: const Text('Fermer', style: TextStyle(color: Colors.white)),
+            child:
+                Text(confirmLabel, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
-    if (confirm == true) {
-      await _apiService.closeAdvertisement(adId);
-      await _loadAds();
+    return confirmed == true;
+  }
+
+  Future<void> _createAd() async {
+    // Le provider recharge déjà la liste après une création réussie.
+    await showCreateAnnonceSheet(context);
+  }
+
+  Future<void> _editAd(Map<String, dynamic> ad) async {
+    final saved = await showEditAnnonceSheet(context, ad);
+    if (saved == true && mounted) {
+      _showResult({'success': true}, 'Annonce modifiée');
     }
+  }
+
+  Future<void> _closeAd(String adId) async {
+    final confirmed = await _confirm(
+      title: 'Fermer l\'annonce ?',
+      message: 'L\'annonce ne sera plus visible pour les clients et les offres '
+          'encore en attente seront refusées.',
+      confirmLabel: 'Fermer',
+    );
+    if (!confirmed) return;
+    final result =
+        await ref.read(advertisementProvider.notifier).closeAdvertisement(adId);
+    _showResult(result, 'Annonce fermée');
+  }
+
+  /// Suppression définitive. L'API la refuse si une offre a été acceptée — son
+  /// message invite alors à fermer l'annonce, ce qui préserve l'historique.
+  Future<void> _deleteAd(String adId) async {
+    final confirmed = await _confirm(
+      title: 'Supprimer l\'annonce ?',
+      message: 'L\'annonce et les offres reçues seront définitivement '
+          'effacées. Pour garder la trace du trajet, fermez-la plutôt.',
+      confirmLabel: 'Supprimer',
+    );
+    if (!confirmed) return;
+    final result =
+        await ref.read(advertisementProvider.notifier).deleteAdvertisement(adId);
+    _showResult(result, 'Annonce supprimée');
   }
 
   Future<void> _acceptOffer(String adId, String offerId) async {
     setState(() => _busyOfferId = offerId);
     try {
-      final result = await _apiService.acceptAdvertisementOffer(adId, offerId);
-      if (result['success'] != true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                result['message']?.toString() ??
-                    'Impossible d’accepter cette offre',
-              ),
-              backgroundColor: AppTheme.error,
-            ),
-          );
-        }
-        return;
+      final result =
+          await ref.read(advertisementProvider.notifier).acceptOffer(adId, offerId);
+      if (result['success'] == true) {
+        ref.read(parcelProvider.notifier).loadDriverParcels();
       }
-      await _loadAds();
-      ref.read(parcelProvider.notifier).loadDriverParcels();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Offre acceptée'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _showResult(result, 'Offre acceptée');
     } finally {
       if (mounted) setState(() => _busyOfferId = null);
     }
@@ -181,8 +210,9 @@ class _DriverMesAnnoncesScreenState
   Future<void> _rejectOffer(String adId, String offerId) async {
     setState(() => _busyOfferId = offerId);
     try {
-      await _apiService.rejectAdvertisementOffer(adId, offerId);
-      await _loadAds();
+      final result =
+          await ref.read(advertisementProvider.notifier).rejectOffer(adId, offerId);
+      _showResult(result, 'Offre refusée');
     } finally {
       if (mounted) setState(() => _busyOfferId = null);
     }
@@ -285,6 +315,10 @@ class _DriverMesAnnoncesScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Observe le provider pour que la liste se redessine après chaque mutation
+    // d'annonce ; les raccourcis `_ads` / `_isLoading` en relisent l'état.
+    ref.watch(advertisementProvider);
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       bottomNavigationBar: widget.embedded ? null : const AppBottomNav(),
@@ -496,16 +530,58 @@ class _DriverMesAnnoncesScreenState
               ),
               const SizedBox(width: 8),
               PcBadge(_adStatusLabel(status), tone: _adStatusTone(status)),
-              if (isOpen) ...[
-                const SizedBox(width: 4),
-                PcIconButton(
-                  Icons.close_rounded,
-                  variant: PcIconButtonVariant.danger,
-                  size: PcButtonSize.sm,
-                  tooltip: 'Fermer l\'annonce',
-                  onPressed: () => _closeAd(adId),
-                ),
-              ],
+              const SizedBox(width: 4),
+              // Modifier et fermer ne concernent qu'une annonce ouverte ; la
+              // suppression reste offerte sur une annonce fermée pour faire le
+              // ménage. L'API tranche dans tous les cas.
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert_rounded,
+                    size: 20, color: AppTheme.slate500),
+                tooltip: 'Actions',
+                onSelected: (action) {
+                  switch (action) {
+                    case 'edit':
+                      _editAd(ad);
+                    case 'close':
+                      _closeAd(adId);
+                    case 'delete':
+                      _deleteAd(adId);
+                  }
+                },
+                itemBuilder: (_) => [
+                  if (isOpen)
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.edit_rounded, size: 20),
+                        title: Text('Modifier'),
+                      ),
+                    ),
+                  if (isOpen)
+                    const PopupMenuItem(
+                      value: 'close',
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.event_busy_rounded, size: 20),
+                        title: Text('Fermer'),
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.delete_outline_rounded,
+                          size: 20, color: AppTheme.error),
+                      title: Text('Supprimer',
+                          style: TextStyle(color: AppTheme.error)),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 14),

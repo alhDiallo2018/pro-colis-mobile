@@ -27,6 +27,7 @@ import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
 import '../shared/messages_screen.dart';
 import 'confirm_delivery_screen.dart';
+import 'edit_colis_sheet.dart';
 
 /// Action de cycle de vie côté chauffeur : un seul bouton contextuel qui
 /// fait avancer la mission (aligné sur le web MissionsScreen). L'étape
@@ -964,6 +965,18 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   bool get _canCancelParcel =>
       _isClientOwner && !_parcel.isFinished && !_isUpdating;
 
+  /// La modification s'ajoute à l'annulation, mais se referme plus tôt : dès
+  /// qu'un chauffeur s'engage, le contenu du colis est figé.
+  bool get _canEditParcel =>
+      _isClientOwner && !_isUpdating && canEditParcel(_parcel);
+
+  Future<void> _editParcel() async {
+    final updated = await showEditColisSheet(context, _parcel);
+    if (updated == null || !mounted) return;
+    setState(() => _parcel = updated);
+    _showSnack('Colis modifié');
+  }
+
   /// La note du chauffeur n'est proposée que si : (a) je suis le client
   /// propriétaire, (b) le colis est livré, (c) un chauffeur est assigné.
   bool get _canRateDriver =>
@@ -1165,6 +1178,12 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         title: const Text('Détail du colis'),
         shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
         actions: [
+          if (_canEditParcel)
+            IconButton(
+              onPressed: _editParcel,
+              icon: const Icon(Icons.edit_rounded),
+              tooltip: 'Modifier le colis',
+            ),
           IconButton(
             onPressed: _shareTracking,
             icon: const Icon(Icons.share_rounded),

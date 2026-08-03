@@ -16,6 +16,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/parcel.dart';
 import '../../providers/auth_provider.dart';
+// `canEditMessage` / `canDeleteMessage` : règles d'édition partagées avec le
+// provider, pour que l'écran n'en écrive pas une seconde version.
+import '../../providers/message_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
@@ -1371,23 +1374,187 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
     final hasVideo = videoUrl != null && videoUrl.isNotEmpty;
 
+    final Widget bubble;
     if (hasAudio && !hasPhoto && !hasVideo) {
-      return _buildAudioBubble(msg, isMe);
+      bubble = _buildAudioBubble(msg, isMe);
+    } else if (hasPhoto) {
+      bubble = _buildPhotoBubble(msg, isMe, photoUrl, body);
+    } else if (hasVideo) {
+      bubble = _buildVideoBubble(msg, isMe, videoUrl, body);
+    } else if (body.startsWith('__PRIX__:')) {
+      bubble = _buildPriceProposal(msg, isMe, body, bidId,
+          isLastNonMePrice: isLastNonMePrice);
+    } else {
+      bubble = _buildTextBubble(msg, isMe, body);
     }
 
-    if (hasPhoto) {
-      return _buildPhotoBubble(msg, isMe, photoUrl, body);
-    }
+    // Modifier et supprimer se cachent derrière un appui long, comme dans les
+    // messageries usuelles. Les règles (auteur seul, fenêtre de 15 minutes,
+    // propositions de prix figées) viennent du provider pour ne pas être
+    // réécrites ici en divergeant de l'API.
+    final currentUserId = user?.id?.toString();
+    final canEdit = canEditMessage(msg, currentUserId);
+    final canDelete = canDeleteMessage(msg, currentUserId);
+    if (!canEdit && !canDelete) return bubble;
 
-    if (hasVideo) {
-      return _buildVideoBubble(msg, isMe, videoUrl, body);
-    }
+    return GestureDetector(
+      onLongPress: () =>
+          _showMessageActions(msg, canEdit: canEdit, canDelete: canDelete),
+      child: bubble,
+    );
+  }
 
-    if (body.startsWith('__PRIX__:')) {
-      return _buildPriceProposal(msg, isMe, body, bidId, isLastNonMePrice: isLastNonMePrice);
-    }
+  /// Menu contextuel d'un message dont on est l'auteur.
+  Future<void> _showMessageActions(
+    Map<String, dynamic> msg, {
+    required bool canEdit,
+    required bool canDelete,
+  }) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            if (canEdit)
+              ListTile(
+                leading: Icon(Icons.edit_rounded, color: AppTheme.primary),
+                title: Text('Modifier',
+                    style: AppFonts.plusJakartaSans(
+                        fontSize: 15, fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(ctx, 'edit'),
+              ),
+            if (canDelete)
+              ListTile(
+                leading:
+                    Icon(Icons.delete_outline_rounded, color: AppTheme.error),
+                title: Text('Supprimer',
+                    style: AppFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.error)),
+                onTap: () => Navigator.pop(ctx, 'delete'),
+              ),
+            ListTile(
+              leading: Icon(Icons.close_rounded, color: AppTheme.slate500),
+              title: Text('Annuler',
+                  style: AppFonts.manrope(
+                      fontSize: 15, color: AppTheme.textSecondary)),
+              onTap: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
 
-    return _buildTextBubble(msg, isMe, body);
+    if (action == 'edit') {
+      await _editMessage(msg);
+    } else if (action == 'delete') {
+      await _deleteMessage(msg);
+    }
+  }
+
+  Future<void> _editMessage(Map<String, dynamic> msg) async {
+    final messageId = msg['id']?.toString();
+    if (messageId == null || messageId.isEmpty) return;
+
+    final controller =
+        TextEditingController(text: msg['body']?.toString() ?? '');
+    final newBody = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: const Text('Modifier le message'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 5,
+          minLines: 1,
+          maxLength: 4000,
+          style: AppFonts.manrope(fontSize: 14),
+          decoration: const InputDecoration(counterText: ''),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (!mounted || newBody == null || newBody.isEmpty) return;
+    if (newBody == msg['body']?.toString()) return;
+
+    // Mutation via ApiService puis rechargement du fil local : ce fil est la
+    // source d'affichage de l'écran, passer par l'état du provider ferait une
+    // seconde requête pour rien.
+    final result = await _apiService.updateMessage(messageId, newBody);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      await _loadMessages();
+    } else {
+      _showMessageError(result['message']?.toString() ?? 'Modification refusée');
+    }
+  }
+
+  Future<void> _deleteMessage(Map<String, dynamic> msg) async {
+    final messageId = msg['id']?.toString();
+    if (messageId == null || messageId.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: const Text('Supprimer le message ?'),
+        content: const Text(
+            'Il disparaîtra de la conversation, pour vous comme pour votre '
+            'interlocuteur.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+            child: const Text('Supprimer',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final result = await _apiService.deleteMessage(messageId);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      await _loadMessages();
+    } else {
+      _showMessageError(result['message']?.toString() ?? 'Suppression refusée');
+    }
+  }
+
+  void _showMessageError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Widget _buildTextBubble(Map<String, dynamic> msg, bool isMe, String body) {
@@ -1423,7 +1590,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  _formatTime(msg['createdAt'].toString()),
+                  // `createdAt` reste la date d'envoi : un message réécrit ne
+                  // remonte pas dans le fil, il porte seulement la mention.
+                  '${_formatTime(msg['createdAt'].toString())}'
+                  '${msg['isEdited'] == true ? ' · modifié' : ''}',
                   style: AppTheme.mono(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
@@ -1570,7 +1740,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  _formatTime(msg['createdAt'].toString()),
+                  // `createdAt` reste la date d'envoi : un message réécrit ne
+                  // remonte pas dans le fil, il porte seulement la mention.
+                  '${_formatTime(msg['createdAt'].toString())}'
+                  '${msg['isEdited'] == true ? ' · modifié' : ''}',
                   style: AppTheme.mono(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
@@ -1639,7 +1812,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  _formatTime(msg['createdAt'].toString()),
+                  // `createdAt` reste la date d'envoi : un message réécrit ne
+                  // remonte pas dans le fil, il porte seulement la mention.
+                  '${_formatTime(msg['createdAt'].toString())}'
+                  '${msg['isEdited'] == true ? ' · modifié' : ''}',
                   style: AppTheme.mono(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
