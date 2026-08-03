@@ -22,10 +22,13 @@ import '../../models/user.dart';
 import '../../models/voice_message.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
+import '../../services/api/client.dart';
+import '../../services/api/parcels_api.dart';
 import '../../services/api_service.dart';
 import '../../services/form_draft_store.dart';
 import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../widgets/form_draft_ui.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
@@ -102,7 +105,25 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   bool _driversLoaded = false;
   bool _loadingDrivers = false;
 
-  int get _estimatedPrice => _urgent ? 14500 : 12500;
+  /// Estimation renvoyée par l'API, arrondie à l'entier.
+  ///
+  /// Le barème vit dans `SystemConfig` côté serveur : la valeur était codée en
+  /// dur ici (`14500` / `12500`), si bien qu'elle ignorait le poids saisi et
+  /// qu'un tarif réglé par l'administrateur n'avait aucun effet sur l'écran.
+  /// Le repli ne sert qu'avant la première réponse et hors connexion —
+  /// l'utilisateur reste libre de fixer son prix.
+  static const int _fallbackEstimate = 12500;
+  int _estimatedPrice = _fallbackEstimate;
+
+  /// Dernière estimation reçue, conservée pour afficher le supplément réel
+  /// d'urgence plutôt qu'un montant écrit en dur dans l'interface.
+  ParcelEstimate? _lastEstimate;
+
+  final ParcelsApi _parcelsApi = ParcelsApi(ApiClient());
+
+  /// Le poids se saisit caractère par caractère : on laisse la frappe se poser
+  /// avant d'interroger le serveur.
+  Timer? _estimateTimer;
 
   // ---- Brouillon ----
   late final FormDraftStore _draftStore;
@@ -140,16 +161,47 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     ]) {
       controller.addListener(_scheduleDraftSave);
     }
+    // Le poids fait varier l'estimation : on la redemande quand il change.
+    _weight.addListener(_scheduleEstimate);
     _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _playingPath = null);
     });
     _loadZones();
     _loadDraft();
+    _refreshEstimate();
+  }
+
+  /// Laisse la frappe se poser avant d'interroger le serveur.
+  void _scheduleEstimate() {
+    _estimateTimer?.cancel();
+    _estimateTimer =
+        Timer(const Duration(milliseconds: 500), _refreshEstimate);
+  }
+
+  Future<void> _refreshEstimate() async {
+    final weight = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
+    final estimate = await _parcelsApi.estimate(
+      // Sans poids saisi, l'API applique son défaut d'un kilo.
+      weight: weight == null || weight <= 0 ? 1 : weight,
+      isUrgent: _urgent,
+      isInsured: _insurance,
+    );
+    if (!mounted || estimate == null) return;
+
+    setState(() {
+      _estimatedPrice = estimate.amount.round();
+      _lastEstimate = estimate;
+    });
+    // Un prix déjà retouché par l'utilisateur ne doit jamais être écrasé.
+    if (!_priceEdited) {
+      _priceController.text = _estimatedPrice.toString();
+    }
   }
 
   @override
   void dispose() {
     _draftSaveTimer?.cancel();
+    _estimateTimer?.cancel();
     _receiverName.dispose();
     _receiverPhone.dispose();
     _receiverEmail.dispose();
@@ -1356,22 +1408,24 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           _insurance,
           (v) {
             setState(() => _insurance = v);
+            _refreshEstimate();
             _scheduleDraftSave();
           },
         ),
         const PcDivider(),
         _switchRow(
           'Livraison urgente',
-          'Supplément 2 000 FCFA',
+          // Le montant vient du barème serveur : ne l'annoncer que lorsqu'il
+          // est connu, plutôt que d'écrire un chiffre qui pourrait être faux.
+          _urgent && (_lastEstimate?.urgentFee ?? 0) > 0
+              ? 'Supplément ${formatFcfa(_lastEstimate!.urgentFee)}'
+              : 'Prise en charge prioritaire',
           _urgent,
           (v) {
-            setState(() {
-              _urgent = v;
-              // Si l'utilisateur n'a pas saisi de prix personnalisé, on met à
-              // jour la valeur par défaut selon l'option urgente.
-              if (!_priceEdited)
-                _priceController.text = _estimatedPrice.toString();
-            });
+            setState(() => _urgent = v);
+            // Le supplément d'urgence est réglé côté serveur : c'est lui qui
+            // recalcule le prix par défaut, si l'utilisateur ne l'a pas fixé.
+            _refreshEstimate();
             _scheduleDraftSave();
           },
         ),

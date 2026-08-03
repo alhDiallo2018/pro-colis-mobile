@@ -58,6 +58,7 @@ import '../screens/shared/messages_screen.dart';
 import '../screens/shared/support_chat_screen.dart';
 import '../screens/super-admin/admin_parametres_screen.dart';
 import '../screens/super-admin/assistances_screen.dart';
+import '../screens/super-admin/audit_logs_screen.dart';
 import '../screens/super-admin/brevo_config_screen.dart';
 import '../screens/super-admin/broadcasts_page.dart';
 import '../screens/super-admin/cash_declarations_screen.dart';
@@ -71,11 +72,13 @@ import '../screens/super-admin/finance_dashboard_screen.dart';
 import '../screens/super-admin/garage_drivers_screen.dart';
 import '../screens/super-admin/garages_management_screen.dart';
 import '../screens/super-admin/identity_verifications_screen.dart';
+import '../screens/super-admin/logs_screen.dart';
 import '../screens/super-admin/paydunya_config_screen.dart';
 import '../screens/super-admin/payment_notifications_screen.dart';
 import '../screens/super-admin/payments_screen.dart';
 import '../screens/super-admin/reputation_dashboard_screen.dart';
 import '../screens/super-admin/score_detail_screen.dart';
+import '../screens/super-admin/systeme_screen.dart';
 import '../screens/super-admin/scores_screen.dart';
 import '../screens/super-admin/stats_screen.dart';
 import '../screens/super-admin/users_management_screen.dart';
@@ -160,6 +163,17 @@ class AppRouter {
             }
             if (location.startsWith('/support-com') &&
                 !user.isSupportCommercial &&
+                !user.isSuperAdmin) {
+              return '/dashboard';
+            }
+            // Le journal d'audit suit le périmètre du backend, qui n'autorise
+            // que `super_admin`, `support` et `support_technique` sur
+            // `/super-admin/audit-logs` : le support commercial en est exclu,
+            // contrairement au reste de l'espace transverse. Ce cas passe
+            // avant la garde générale, plus permissive.
+            if (location.startsWith('/support-admin/audit') &&
+                !user.isSupportShared &&
+                !user.isSupportTechnique &&
                 !user.isSuperAdmin) {
               return '/dashboard';
             }
@@ -562,6 +576,13 @@ class AppRouter {
           name: 'support-tech-assistances',
           builder: (context, state) => const AssistancesScreen(),
         ),
+        // Même écran que `/admin/logs` : le serveur renvoie au support
+        // technique une vue réduite, l'écran s'adapte au drapeau `redacted`.
+        GoRoute(
+          path: '/support-tech/logs',
+          name: 'support-tech-logs',
+          builder: (context, state) => const LogsScreen(),
+        ),
 
         // --- Support commercial ---
         GoRoute(
@@ -612,6 +633,11 @@ class AppRouter {
           path: '/support-admin/users',
           name: 'support-admin-users',
           builder: (context, state) => const UsersManagementScreen(),
+        ),
+        GoRoute(
+          path: '/support-admin/audit',
+          name: 'support-admin-audit',
+          builder: (context, state) => const AuditLogsScreen(),
         ),
         GoRoute(
           path: '/support-admin/profil',
@@ -694,6 +720,24 @@ class AppRouter {
           path: '/admin/parametres',
           name: 'admin-parametres',
           builder: (context, state) => const AdminParametresScreen(),
+        ),
+        // Journaux techniques (Loki) et journal d'audit métier : deux écrans
+        // distincts, comme côté web — le premier trace l'exécution, le second
+        // les actions fonctionnelles des utilisateurs.
+        GoRoute(
+          path: '/admin/logs',
+          name: 'admin-logs',
+          builder: (context, state) => const LogsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/audit',
+          name: 'admin-audit',
+          builder: (context, state) => const AuditLogsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/systeme',
+          name: 'admin-systeme',
+          builder: (context, state) => const SystemeScreen(),
         ),
         GoRoute(
           path: '/admin/zone/drivers',

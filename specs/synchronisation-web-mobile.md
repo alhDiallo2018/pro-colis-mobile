@@ -309,11 +309,11 @@ Le mobile est ici la **spécification de fait**, puisqu'il porte déjà le modè
 
 ### Dette API constatée
 
-- `DELETE /notifications/all` est enregistrée *après* `DELETE /:notificationId` : Express résout le paramètre en premier, `"all"` part en UUID dans `deleteMany` → erreur 500. Route morte.
+- ~~`DELETE /notifications/all` est enregistrée *après* `DELETE /:notificationId`~~ — **corrigé** : l'ordre est rétabli et épinglé par `tests/notifications-routes.test.js`, la purge se recassant en silence si le paramètre repasse devant.
 - Tous les routeurs sont montés en double (`/api/v1` **et** racine) — dérive silencieuse possible entre clients.
 - `GET /super-admin/stats/advanced` est un alias exact de `/super-admin/stats` ; `revenueLastMonth`, `parcelsByRegion`, `dailyStats`, `garagePerformance` sont des valeurs fixes. Le modèle `AdminStats` mobile les expose comme si elles étaient réelles.
-- `estimateParcel` code en dur `baseFee 1000` / `pricePerKg 500` au lieu de lire `SystemConfig` — l'estimation de prix ignore donc les réglages de WS4.
-- Si Brevo n'est pas configuré, `sendOtp` / `forgotPassword` renvoient le code OTP **en clair** dans la réponse (`auth.controller.js:110-115`). Risque en production.
+- ~~`estimateParcel` code en dur `baseFee 1000` / `pricePerKg 500`~~ — **corrigé** : les quatre clés `pricing.*` de WS4 sont lues dans `SystemConfig` (repli sur les anciennes constantes), semées par `prisma/seed.js`, et couvertes par `tests/parcel-estimate.test.js`. Le mobile appelle désormais `POST /parcels/estimate` au lieu d'afficher `12500` / `14500` en dur.
+- ~~Si Brevo n'est pas configuré, `sendOtp` / `forgotPassword` renvoient le code OTP **en clair**~~ — **corrigé** : le repli est restreint au hors-production. En production sans Brevo, la réponse est un `503 OTP_DELIVERY_UNAVAILABLE` assorti d'un log d'erreur, plutôt qu'un faux succès. Couvert par `tests/otp-disclosure.test.js`.
 - Les trois gestionnaires `adminSupport*` imbriquent sous `data` alors que `ok()` étale à la racine. Le mobile gère déjà ce cas (`api_service.dart:1038,1056`) — **ne pas « corriger »**.
 
 ---

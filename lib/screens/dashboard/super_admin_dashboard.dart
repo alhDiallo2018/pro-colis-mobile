@@ -905,7 +905,36 @@ class _SuperAdminHomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(child: SizedBox()),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.terminal_rounded,
+                label: 'Journaux techniques',
+                tone: PcTone.neutral,
+                onTap: () => context.go('/admin/logs'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.history_rounded,
+                label: 'Journal d\'audit',
+                tone: PcTone.neutral,
+                onTap: () => context.go('/admin/audit'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.dns_rounded,
+                label: 'Système',
+                tone: PcTone.green,
+                onTap: () => context.go('/admin/systeme'),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),

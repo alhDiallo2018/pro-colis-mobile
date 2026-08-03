@@ -747,6 +747,22 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
           route: '/support-tech/incidents',
           tone: PcTone.red,
         ),
+        // Vue réduite côté serveur : le support technique qualifie un incident
+        // sans lire les traces ni le contexte (voir observability.md).
+        RoleQuickLink(
+          icon: Icons.terminal_rounded,
+          title: 'Journaux techniques',
+          subtitle: 'Erreurs de production et état des services',
+          route: '/support-tech/logs',
+          tone: PcTone.amber,
+        ),
+        RoleQuickLink(
+          icon: Icons.history_rounded,
+          title: 'Journal d\'audit',
+          subtitle: 'Qui a fait quoi, et quand',
+          route: '/support-admin/audit',
+          tone: PcTone.neutral,
+        ),
         RoleQuickLink(
           icon: Icons.menu_book_rounded,
           title: 'Base de connaissances',
@@ -806,6 +822,13 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
           route: '/support-admin/colis',
           tone: PcTone.neutral,
         ),
+        RoleQuickLink(
+          icon: Icons.history_rounded,
+          title: 'Journal d\'audit',
+          subtitle: 'Qui a fait quoi, et quand',
+          route: '/support-admin/audit',
+          tone: PcTone.neutral,
+        ),
       ];
 
     case UserRole.superAdmin:
@@ -836,6 +859,20 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
           title: 'Paramètres plateforme',
           subtitle: 'Commissions, zones, notifications',
           route: '/admin/parametres',
+          tone: PcTone.neutral,
+        ),
+        RoleQuickLink(
+          icon: Icons.terminal_rounded,
+          title: 'Journaux techniques',
+          subtitle: 'Erreurs de production et état des services',
+          route: '/admin/logs',
+          tone: PcTone.amber,
+        ),
+        RoleQuickLink(
+          icon: Icons.history_rounded,
+          title: 'Journal d\'audit',
+          subtitle: 'Qui a fait quoi, et quand',
+          route: '/admin/audit',
           tone: PcTone.neutral,
         ),
       ];

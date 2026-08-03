@@ -1,6 +1,13 @@
 // mobile/lib/screens/garage_admin/garage_rapports_screen.dart
 // Rapports / Statistiques pour Admin Garage
 // Aligné Web (StatBox · Panel · BarChart · Badge)
+//
+// Les chiffres viennent de `/garage-admin/reports/{daily,monthly}`, dont le
+// périmètre est limité à la zone côté API. L'écran ne recalcule plus rien à
+// partir d'une page de colis : `getGarageParcels()` est paginé, si bien que
+// « colis traités », le taux de livraison et la série d'activité ne décrivaient
+// que la première page — pas la période. Même correction que le web
+// (`ProColis-Web/src/components/PeriodReportView.tsx`).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,9 +15,15 @@ import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/parcel.dart';
-import '../../services/api_service.dart';
+import '../../models/report.dart';
+import '../../services/api/client.dart';
+import '../../services/api/reports_api.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../widgets/pc_components.dart';
+
+/// Fenêtre du rapport : le jour (série horaire) ou le mois (série par jour).
+enum _ReportPeriod { day, month }
 
 class GarageRapportsScreen extends ConsumerStatefulWidget {
   const GarageRapportsScreen({super.key});
@@ -21,8 +34,9 @@ class GarageRapportsScreen extends ConsumerStatefulWidget {
 }
 
 class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
-  final ApiService _apiService = ApiService();
-  List<Parcel> _parcels = [];
+  final ReportsApi _reportsApi = ReportsApi(ApiClient());
+  PeriodReport? _report;
+  _ReportPeriod _period = _ReportPeriod.day;
   bool _isLoading = true;
   String? _error;
 
@@ -38,59 +52,66 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
       _error = null;
     });
     try {
-      final parcels = await _apiService.getGarageParcels();
+      final now = DateTime.now();
+      final report = _period == _ReportPeriod.day
+          ? await _reportsApi.garageDaily(
+              date: DateFormat('yyyy-MM-dd').format(now),
+            )
+          : await _reportsApi.garageMonthly(year: now.year, month: now.month);
       if (mounted) {
         setState(() {
-          _parcels = parcels;
+          _report = report;
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = e is ReportsApiException ? e.message : e.toString();
           _isLoading = false;
         });
       }
     }
   }
 
-  // ---- Computed stats ----
-
-  int get _totalParcels => _parcels.length;
-  int get _deliveredCount =>
-      _parcels.where((p) => p.status == ParcelStatus.delivered).length;
-  int get _cancelledCount =>
-      _parcels.where((p) => p.status == ParcelStatus.cancelled).length;
-  double get _successRate =>
-      _totalParcels > 0 ? (_deliveredCount / _totalParcels) * 100 : 0;
-
-  // 7-day activity
-  List<Map<String, dynamic>> get _sevenDayActivity {
-    final now = DateTime.now();
-    final days = List.generate(7, (i) {
-      final d = now.subtract(Duration(days: 6 - i));
-      return DateTime(d.year, d.month, d.day);
-    });
-
-    return days.map((day) {
-      final count = _parcels.where((p) {
-        final created = p.createdAt;
-        return created.year == day.year &&
-            created.month == day.month &&
-            created.day == day.day;
-      }).length;
-      final label = DateFormat('EEE', 'fr').format(day);
-      return {'label': label, 'count': count, 'date': day};
-    }).toList();
+  void _selectPeriod(_ReportPeriod period) {
+    if (_period == period) return;
+    setState(() => _period = period);
+    _loadData();
   }
 
-  // Status distribution
+  /// La série du serveur est déjà complète et ordonnée (24 heures, ou tous les
+  /// jours du mois) : il n'y a rien à recalculer, seulement à étiqueter.
+  List<Map<String, dynamic>> get _activity {
+    final series = _report?.series ?? const <ReportPoint>[];
+    // Un mois entier ne tient pas en barres lisibles sur un téléphone : on
+    // montre la fin de la série, c'est-à-dire la période la plus récente.
+    final visible = series.length > 14
+        ? series.sublist(series.length - 14)
+        : series;
+    return visible
+        .map((point) => {
+              'label': _pointLabel(point.key),
+              'count': point.created,
+            })
+        .toList();
+  }
+
+  /// `bucket: hour` donne « 08 », `bucket: day` donne « 2026-08-03 ».
+  String _pointLabel(String key) {
+    if (_report?.bucket == 'hour') return key;
+    final parsed = DateTime.tryParse(key);
+    return parsed == null ? key : DateFormat('d/M').format(parsed);
+  }
+
+  /// Répartition renvoyée par le serveur, retraduite en `ParcelStatus` pour
+  /// réutiliser les libellés et couleurs de statut de l'application.
   Map<ParcelStatus, int> get _statusDistribution {
     final map = <ParcelStatus, int>{};
-    for (final p in _parcels) {
-      map[p.status] = (map[p.status] ?? 0) + 1;
-    }
+    (_report?.parcelsByStatus ?? const <String, int>{}).forEach((key, value) {
+      final status = ParcelStatus.fromString(key);
+      map[status] = (map[status] ?? 0) + value;
+    });
     return map;
   }
 
@@ -119,11 +140,17 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      _buildPeriodSelector(),
+                      const SizedBox(height: 16),
                       _buildStatGrid(),
                       const SizedBox(height: 20),
-                      _buildSevenDayPanel(),
+                      _buildActivityPanel(),
                       const SizedBox(height: 20),
                       _buildStatusDistributionPanel(),
+                      if (_report?.topDrivers.isNotEmpty ?? false) ...[
+                        const SizedBox(height: 20),
+                        _buildTopDriversPanel(),
+                      ],
                     ],
                   ),
                 ),
@@ -144,9 +171,62 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
     );
   }
 
-  // ---- Stat Boxes (2x2) ----
+  // ---- Sélecteur de période (aligné SegmentedControl du web) ----
+
+  Widget _buildPeriodSelector() {
+    Widget segment(_ReportPeriod period, String label, IconData icon) {
+      final selected = _period == period;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => _selectPeriod(period),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: selected ? AppTheme.cardColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+              boxShadow: selected ? AppTheme.shadowXs() : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon,
+                    size: 16,
+                    color: selected ? AppTheme.primary : AppTheme.slate500),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: AppFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? AppTheme.primary : AppTheme.slate500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppTheme.slate100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          segment(_ReportPeriod.day, 'Jour', Icons.today_rounded),
+          segment(_ReportPeriod.month, 'Mois', Icons.calendar_month_rounded),
+        ],
+      ),
+    );
+  }
+
+  // ---- Stat Boxes ----
 
   Widget _buildStatGrid() {
+    final totals = _report?.totals ?? const ReportTotals();
     return Column(
       children: [
         Row(
@@ -155,8 +235,8 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
             Expanded(
               child: PcStatBox(
                 icon: Icons.inventory_2_outlined,
-                value: _totalParcels.toString(),
-                label: 'Colis traités',
+                value: totals.created.toString(),
+                label: 'Colis créés',
                 tone: PcTone.primary,
               ),
             ),
@@ -164,7 +244,7 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
             Expanded(
               child: PcStatBox(
                 icon: Icons.task_alt_rounded,
-                value: _deliveredCount.toString(),
+                value: totals.delivered.toString(),
                 label: 'Livrés',
                 tone: PcTone.green,
               ),
@@ -178,7 +258,7 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
             Expanded(
               child: PcStatBox(
                 icon: Icons.cancel_outlined,
-                value: _cancelledCount.toString(),
+                value: totals.cancelled.toString(),
                 label: 'Annulés',
                 tone: PcTone.red,
               ),
@@ -187,27 +267,88 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
             Expanded(
               child: PcStatBox(
                 icon: Icons.verified_outlined,
-                value: '${_successRate.toStringAsFixed(0)}%',
+                value: '${totals.deliveryRate}%',
                 label: 'Taux de livraison',
                 tone: PcTone.amber,
               ),
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        PcStatBox(
+          icon: Icons.payments_rounded,
+          value: formatFcfa(totals.revenue),
+          label: 'Encaissé sur la période',
+          tone: PcTone.primary,
+        ),
       ],
     );
   }
 
-  // ---- 7-Day Activity Vertical Bar Chart ----
+  // ---- Activité (série du serveur) ----
 
-  Widget _buildSevenDayPanel() {
-    final days = _sevenDayActivity;
+  Widget _buildActivityPanel() {
+    final days = _activity;
     final total = days.fold<int>(0, (s, d) => s + (d['count'] as int));
 
     return _panel(
-      title: 'Activité · 7 jours',
+      title: _period == _ReportPeriod.day
+          ? 'Colis créés · par heure'
+          : 'Colis créés · par jour',
       action: PcBadge('$total colis', tone: PcTone.green),
-      body: _buildBarChart(days),
+      body: days.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Aucune donnée sur la période.',
+                style:
+                    AppFonts.manrope(fontSize: 13.5, color: AppTheme.slate500),
+              ),
+            )
+          : _buildBarChart(days),
+    );
+  }
+
+  // ---- Meilleurs chauffeurs de la période ----
+
+  Widget _buildTopDriversPanel() {
+    final drivers = _report?.topDrivers ?? const <TopDriver>[];
+    return _panel(
+      title: 'Meilleurs chauffeurs de la période',
+      body: Column(
+        children: [
+          for (int i = 0; i < drivers.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            Row(
+              children: [
+                PcBadge('${i + 1}',
+                    tone: i == 0 ? PcTone.amber : PcTone.neutral),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    drivers[i].label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.slate700,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${drivers[i].delivered} livrés',
+                  style: AppTheme.mono(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 
