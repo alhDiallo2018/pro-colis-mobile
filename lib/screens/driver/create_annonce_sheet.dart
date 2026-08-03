@@ -4,12 +4,18 @@
 // Étape 1 : Trajet (départ / arrivée / date).  Étape 2 : Capacité & prix.
 // Aligné sur le CreateAnnonceDialog du web, en flux 2 étapes.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../models/garage.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/form_draft_store.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/form_draft_ui.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/route_picker.dart';
 
@@ -24,15 +30,26 @@ Future<bool?> showCreateAnnonceSheet(BuildContext context) {
   );
 }
 
-class _CreateAnnonceSheet extends StatefulWidget {
+class _CreateAnnonceSheet extends ConsumerStatefulWidget {
   const _CreateAnnonceSheet();
 
   @override
-  State<_CreateAnnonceSheet> createState() => _CreateAnnonceSheetState();
+  ConsumerState<_CreateAnnonceSheet> createState() =>
+      _CreateAnnonceSheetState();
 }
 
-class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
+class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   final ApiService _api = ApiService();
+
+  // ---- Brouillon ----
+  late final FormDraftStore _draftStore;
+  Timer? _draftSaveTimer;
+
+  /// Brouillon retrouvé à l'ouverture, tant que l'utilisateur n'a pas dit s'il
+  /// voulait le reprendre. La sauvegarde automatique reste en pause d'ici là,
+  /// pour ne pas écraser la saisie proposée avant qu'il l'ait vue.
+  FormDraft? _pendingDraft;
+  bool get _draftPending => _pendingDraft != null;
 
   int _step = 0; // 0 = trajet, 1 = capacité & prix
   bool _loadingGarages = true;
@@ -51,15 +68,89 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
   @override
   void initState() {
     super.initState();
+    _draftStore = FormDraftStore(
+      slot: 'annonce',
+      ownerId: ref.read(authProvider).user?.id,
+    );
+    for (final controller in [
+      _weightController,
+      _priceController,
+      _descriptionController,
+    ]) {
+      controller.addListener(_scheduleDraftSave);
+    }
     _loadZones();
+    _loadDraft();
   }
 
   @override
   void dispose() {
+    _draftSaveTimer?.cancel();
     _weightController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  // ---- Brouillon : lecture, écriture, reprise ----
+
+  Future<void> _loadDraft() async {
+    final draft = await _draftStore.load();
+    if (!mounted || draft == null) return;
+    setState(() => _pendingDraft = draft);
+  }
+
+  /// Vrai dès qu'un champ significatif est renseigné. Le seul `_step` ne compte
+  /// pas : avancer d'une étape sans rien saisir ne mérite pas de brouillon.
+  bool get _hasContent =>
+      _departureZoneId != null ||
+      _arrivalZoneId != null ||
+      _departureAt != null ||
+      _weightController.text.trim().isNotEmpty ||
+      _priceController.text.trim().isNotEmpty ||
+      _descriptionController.text.trim().isNotEmpty;
+
+  Map<String, dynamic> _draftPayload() => {
+        'step': _step,
+        'departureZoneId': _departureZoneId,
+        'arrivalZoneId': _arrivalZoneId,
+        'departureAt': _departureAt?.toIso8601String(),
+        'weight': _weightController.text,
+        'price': _priceController.text,
+        'description': _descriptionController.text,
+      };
+
+  void _scheduleDraftSave() {
+    if (_draftPending || _submitting) return;
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(const Duration(milliseconds: 600), _saveDraft);
+  }
+
+  Future<void> _saveDraft() async {
+    if (_draftPending || _submitting || !_hasContent) return;
+    await _draftStore.save(_draftPayload());
+  }
+
+  void _restoreDraft() {
+    final draft = _pendingDraft;
+    if (draft == null) return;
+    final data = draft.data;
+
+    setState(() {
+      _step = (data['step'] as num?)?.toInt() ?? 0;
+      _departureZoneId = data['departureZoneId']?.toString();
+      _arrivalZoneId = data['arrivalZoneId']?.toString();
+      _departureAt = DateTime.tryParse(data['departureAt']?.toString() ?? '');
+      _weightController.text = data['weight']?.toString() ?? '';
+      _priceController.text = data['price']?.toString() ?? '';
+      _descriptionController.text = data['description']?.toString() ?? '';
+      _pendingDraft = null;
+    });
+  }
+
+  Future<void> _discardDraft() async {
+    setState(() => _pendingDraft = null);
+    await _draftStore.clear();
   }
 
   /// Zone ajoutée à la volée depuis le sélecteur de trajet : absente de la
@@ -123,6 +214,41 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
         time?.minute ?? 0,
       );
     });
+    _scheduleDraftSave();
+  }
+
+  /// Sortie du formulaire : on ne propose de garder que s'il y a quelque chose
+  /// à perdre. Fermer une saisie vide ne doit poser aucune question.
+  Future<void> _handleClose() async {
+    if (_submitting) return;
+    if (!_hasContent) {
+      if (mounted) Navigator.pop(context, false);
+      return;
+    }
+
+    _draftSaveTimer?.cancel();
+    final choice = await showDraftExitDialog(
+      context,
+      message: 'Votre annonce n’est pas encore publiée. Gardez-la en brouillon '
+          'pour la reprendre plus tard.',
+    );
+    if (!mounted) return;
+
+    switch (choice) {
+      case DraftExitChoice.keep:
+        // Écrit avant de fermer, sans passer par le débounce : la fenêtre
+        // serait annulée par la destruction de l'état.
+        await _draftStore.save(_draftPayload());
+        if (mounted) Navigator.pop(context, false);
+      case DraftExitChoice.discard:
+        // Fermer d'abord : l'utilisateur a tranché, il n'a pas à attendre le
+        // nettoyage disque. Le magasin survit à la destruction de l'état.
+        Navigator.pop(context, false);
+        await _draftStore.clear();
+      case DraftExitChoice.cancel:
+      case null:
+        break;
+    }
   }
 
   Future<void> _submit() async {
@@ -156,45 +282,58 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
           _error = result['message']?.toString() ?? 'Publication impossible.');
       return;
     }
+
+    // Publiée : le brouillon n'a plus de raison d'être.
+    _draftSaveTimer?.cancel();
+    await _draftStore.clear();
+    if (!mounted) return;
     Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.82,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: AppTheme.backgroundColor,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              children: [
-                _handle(),
-                _header(),
-                Expanded(
-                  child: _loadingGarages
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                              color: AppTheme.primary))
-                      : SingleChildScrollView(
-                          controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                          child: _step == 0 ? _buildStep1() : _buildStep2(),
-                        ),
-                ),
-                _footer(),
-              ],
-            ),
-          );
-        },
+    // `canPop: false` intercepte aussi bien le swipe vers le bas que le retour
+    // système : c'est là que la saisie se perdait silencieusement.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleClose();
+      },
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.82,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppTheme.backgroundColor,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  _handle(),
+                  _header(),
+                  Expanded(
+                    child: _loadingGarages
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: AppTheme.primary))
+                        : SingleChildScrollView(
+                            controller: scrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                            child: _step == 0 ? _buildStep1() : _buildStep2(),
+                          ),
+                  ),
+                  _footer(),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -239,7 +378,7 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
             ),
           ),
           IconButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: _handleClose,
             icon: const Icon(Icons.close_rounded, color: AppTheme.slate500),
           ),
         ],
@@ -273,6 +412,12 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _stepBar(),
+        if (_pendingDraft != null)
+          DraftRestoreBanner(
+            savedAt: _pendingDraft!.savedAt,
+            onRestore: _restoreDraft,
+            onDiscard: _discardDraft,
+          ),
         const SizedBox(height: 8),
         RoutePicker(
           garages: _zones,
@@ -280,9 +425,11 @@ class _CreateAnnonceSheetState extends State<_CreateAnnonceSheet> {
           initialArrival: _zoneById(_arrivalZoneId),
           onDepartureChanged: (g) {
             setState(() => _departureZoneId = g?.id);
+            _scheduleDraftSave();
           },
           onArrivalChanged: (g) {
             setState(() => _arrivalZoneId = g?.id);
+            _scheduleDraftSave();
           },
           // L'ajout d'un lieu absent se fait depuis le sélecteur lui-même
           // (recherche Google Places + pointage sur carte).

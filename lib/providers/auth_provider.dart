@@ -9,6 +9,7 @@ import 'dart:async';
 
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../services/form_draft_store.dart';
 import '../services/push_notification_service.dart';
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
@@ -167,6 +168,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _apiService.logout();
+    // Les brouillons de formulaires contiennent des coordonnées de
+    // destinataires et des pièces jointes : ils ne doivent rien laisser sur
+    // l'appareil pour le compte suivant.
+    await FormDraftStore.clearAll();
     state = AuthState.unauthenticated();
   }
 

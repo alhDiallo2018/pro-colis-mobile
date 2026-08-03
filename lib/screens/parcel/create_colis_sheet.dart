@@ -20,10 +20,13 @@ import '../../models/parcel.dart';
 import '../../models/payment.dart';
 import '../../models/user.dart';
 import '../../models/voice_message.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/form_draft_store.dart';
 import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/form_draft_ui.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/phone_contact_picker.dart';
@@ -101,18 +104,52 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
 
   int get _estimatedPrice => _urgent ? 14500 : 12500;
 
+  // ---- Brouillon ----
+  late final FormDraftStore _draftStore;
+  Timer? _draftSaveTimer;
+
+  /// Brouillon retrouvé à l'ouverture, tant que l'utilisateur n'a pas dit s'il
+  /// voulait le reprendre. La sauvegarde automatique reste en pause d'ici là,
+  /// pour ne pas écraser la saisie proposée avant qu'il l'ait vue.
+  FormDraft? _pendingDraft;
+  bool get _draftPending => _pendingDraft != null;
+
+  /// Quand le brouillon est conservé, les notes vocales lui appartiennent : il
+  /// ne faut surtout pas les effacer en quittant, sinon on garde un brouillon
+  /// qui référence des fichiers disparus.
+  bool _keepVoiceFiles = false;
+
   @override
   void initState() {
     super.initState();
     _priceController.text = _estimatedPrice.toString();
+    _draftStore = FormDraftStore(
+      slot: 'colis',
+      ownerId: ref.read(authProvider).user?.id,
+    );
+    // Les écouteurs sont posés après le prix par défaut : sinon ce pré-remplissage
+    // déclencherait une sauvegarde d'un formulaire encore vide.
+    for (final controller in [
+      _receiverName,
+      _receiverPhone,
+      _receiverEmail,
+      _receiverAddress,
+      _weight,
+      _description,
+      _priceController,
+    ]) {
+      controller.addListener(_scheduleDraftSave);
+    }
     _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _playingPath = null);
     });
     _loadZones();
+    _loadDraft();
   }
 
   @override
   void dispose() {
+    _draftSaveTimer?.cancel();
     _receiverName.dispose();
     _receiverPhone.dispose();
     _receiverEmail.dispose();
@@ -124,10 +161,291 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     _audioCompleteSubscription?.cancel();
     _audioRecorder.dispose();
     _audioPlayer.dispose();
-    for (final voice in _voiceMessages) {
-      _deleteLocalFile(voice.path);
+    if (!_keepVoiceFiles) {
+      for (final voice in _voiceMessages) {
+        _deleteLocalFile(voice.path);
+      }
     }
     super.dispose();
+  }
+
+  // ---- Brouillon : lecture, écriture, reprise ----
+
+  Future<void> _loadDraft() async {
+    final draft = await _draftStore.load();
+    if (!mounted || draft == null) return;
+    setState(() => _pendingDraft = draft);
+  }
+
+  /// Vrai dès qu'un champ significatif est renseigné. Le trajet par défaut et
+  /// le prix estimé ne comptent pas : ils sont pré-remplis, pas saisis.
+  bool get _hasContent =>
+      _receiverName.text.trim().isNotEmpty ||
+      _receiverPhone.text.trim().isNotEmpty ||
+      _receiverEmail.text.trim().isNotEmpty ||
+      _receiverAddress.text.trim().isNotEmpty ||
+      _weight.text.trim().isNotEmpty ||
+      _description.text.trim().isNotEmpty ||
+      _priceEdited ||
+      _type != ParcelType.package ||
+      _urgent ||
+      !_insurance ||
+      _mode != 'free' ||
+      _driverId != null ||
+      _photos.isNotEmpty ||
+      _videos.isNotEmpty ||
+      _voiceMessages.isNotEmpty;
+
+  Map<String, dynamic> _draftPayload({
+    List<String> photos = const [],
+    List<String> videos = const [],
+    List<Map<String, dynamic>> voices = const [],
+  }) =>
+      {
+        'step': _step,
+        'departureZoneId': _departureZoneId,
+        'arrivalZoneId': _arrivalZoneId,
+        'receiverName': _receiverName.text,
+        'receiverPhone': _receiverPhone.text,
+        'receiverEmail': _receiverEmail.text,
+        'receiverAddress': _receiverAddress.text,
+        'type': _type.value,
+        'weight': _weight.text,
+        'description': _description.text,
+        'insurance': _insurance,
+        'urgent': _urgent,
+        'price': _priceController.text,
+        'priceEdited': _priceEdited,
+        'paymentChannel': _paymentChannel.value,
+        'cashCollectionPoint': _cashCollectionPoint.value,
+        'mode': _mode,
+        'driverId': _driverId,
+        'photos': photos,
+        'videos': videos,
+        'voices': voices,
+      };
+
+  void _scheduleDraftSave() {
+    if (_draftPending || _submitting) return;
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(const Duration(milliseconds: 600), _saveDraft);
+  }
+
+  /// Écrit le brouillon en mettant d'abord les pièces jointes à l'abri.
+  /// `adoptMedia` est idempotent, donc les sauvegardes successives ne recopient
+  /// que les fichiers réellement nouveaux.
+  Future<void> _saveDraft() async {
+    if (_draftPending || _submitting || !_hasContent) return;
+
+    // Cas courant : aucune pièce jointe. On écrit sans toucher au disque, et le
+    // ménage d'anciennes pièces retirées se fait en arrière-plan — la sauvegarde
+    // se déclenche à chaque frappe, elle ne doit pas attendre le système de
+    // fichiers.
+    if (_photos.isEmpty && _videos.isEmpty && _voiceMessages.isEmpty) {
+      await _draftStore.save(_draftPayload());
+      unawaited(_draftStore.purgeMedia());
+      return;
+    }
+
+    final photos = await _draftStore.adoptAll(_photos.map((f) => f.path));
+    final videos = await _draftStore.adoptAll(_videos.map((f) => f.path));
+
+    // Les notes vocales sont déplacées, pas copiées : l'enregistreur les écrit
+    // dans le dossier documents, et laisser l'original en place accumulerait des
+    // fichiers que plus personne ne référence.
+    final voices = <VoiceMessage>[];
+    for (final voice in _voiceMessages) {
+      final path = await _draftStore.adoptMedia(voice.path);
+      if (path == null) continue;
+      if (path != voice.path) _deleteLocalFile(voice.path);
+      voices.add(VoiceMessage(
+        path: path,
+        duration: voice.duration,
+        createdAt: voice.createdAt,
+      ));
+    }
+
+    await _draftStore.pruneMediaExcept([
+      ...photos,
+      ...videos,
+      ...voices.map((v) => v.path),
+    ]);
+    await _draftStore.save(_draftPayload(
+      photos: photos,
+      videos: videos,
+      voices: voices
+          .map((v) => {
+                'path': v.path,
+                'duration': v.duration,
+                'createdAt': v.createdAt.toIso8601String(),
+              })
+          .toList(),
+    ));
+
+    // L'état en mémoire suit les fichiers : sans ça, l'écran continuerait de
+    // pointer vers des chemins temporaires que l'OS peut purger en cours de
+    // saisie. L'adoption étant idempotente, cela ne se produit qu'une fois par
+    // pièce jointe.
+    if (!mounted) return;
+    final movedVoice = <String, String>{
+      for (var i = 0; i < voices.length && i < _voiceMessages.length; i++)
+        _voiceMessages[i].path: voices[i].path,
+    };
+    if (_samePaths(_photos, photos) &&
+        _samePaths(_videos, videos) &&
+        movedVoice.entries.every((e) => e.key == e.value)) {
+      return;
+    }
+    setState(() {
+      _photos
+        ..clear()
+        ..addAll(photos.map(XFile.new));
+      _videos
+        ..clear()
+        ..addAll(videos.map(XFile.new));
+      _voiceMessages
+        ..clear()
+        ..addAll(voices);
+      if (_playingPath != null) _playingPath = movedVoice[_playingPath!];
+    });
+  }
+
+  static bool _samePaths(List<XFile> current, List<String> next) {
+    if (current.length != next.length) return false;
+    for (var i = 0; i < next.length; i++) {
+      if (current[i].path != next[i]) return false;
+    }
+    return true;
+  }
+
+  void _restoreDraft() {
+    final draft = _pendingDraft;
+    if (draft == null) return;
+    final data = draft.data;
+
+    // Une pièce jointe peut avoir disparu entre-temps (purge de l'OS,
+    // désinstallation partielle) : on ne restaure que ce qui existe encore et
+    // on le dit, plutôt que d'afficher des vignettes mortes.
+    final photos = _existingPaths(data['photos']);
+    final videos = _existingPaths(data['videos']);
+    final voices = <VoiceMessage>[];
+    final rawVoices = data['voices'];
+    if (rawVoices is List) {
+      for (final entry in rawVoices) {
+        if (entry is! Map) continue;
+        final path = entry['path']?.toString();
+        if (path == null || !File(path).existsSync()) continue;
+        voices.add(VoiceMessage(
+          path: path,
+          duration: (entry['duration'] as num?)?.toInt() ?? 0,
+          createdAt: DateTime.tryParse(entry['createdAt']?.toString() ?? '') ??
+              DateTime.now(),
+        ));
+      }
+    }
+
+    final expectedMedia = _countOf(data['photos']) +
+        _countOf(data['videos']) +
+        _countOf(data['voices']);
+    final restoredMedia = photos.length + videos.length + voices.length;
+
+    setState(() {
+      _step = (data['step'] as num?)?.toInt() ?? 0;
+      _departureZoneId = data['departureZoneId']?.toString() ?? _departureZoneId;
+      _arrivalZoneId = data['arrivalZoneId']?.toString() ?? _arrivalZoneId;
+      _receiverName.text = data['receiverName']?.toString() ?? '';
+      _receiverPhone.text = data['receiverPhone']?.toString() ?? '';
+      _receiverEmail.text = data['receiverEmail']?.toString() ?? '';
+      _receiverAddress.text = data['receiverAddress']?.toString() ?? '';
+      _type = ParcelType.fromString(data['type']?.toString() ?? '');
+      _weight.text = data['weight']?.toString() ?? '';
+      _description.text = data['description']?.toString() ?? '';
+      _insurance = data['insurance'] as bool? ?? true;
+      _urgent = data['urgent'] as bool? ?? false;
+      _priceEdited = data['priceEdited'] as bool? ?? false;
+      _priceController.text =
+          data['price']?.toString() ?? _estimatedPrice.toString();
+      _paymentChannel = PaymentChannel.fromString(data['paymentChannel']);
+      _cashCollectionPoint =
+          CashCollectionPoint.tryParse(data['cashCollectionPoint']) ??
+              CashCollectionPoint.receiverDelivery;
+      _mode = data['mode']?.toString() ?? 'free';
+      _driverId = data['driverId']?.toString();
+
+      _photos
+        ..clear()
+        ..addAll(photos.map(XFile.new));
+      _videos
+        ..clear()
+        ..addAll(videos.map(XFile.new));
+      _voiceMessages
+        ..clear()
+        ..addAll(voices);
+
+      _pendingDraft = null;
+    });
+
+    if (_mode == 'driver') _loadDrivers();
+    if (restoredMedia < expectedMedia) {
+      _showMediaNote(
+        '${expectedMedia - restoredMedia} pièce(s) jointe(s) du brouillon '
+        'n’étaient plus disponibles.',
+      );
+    }
+  }
+
+  static List<String> _existingPaths(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .map((e) => e?.toString() ?? '')
+        .where((p) => p.isNotEmpty && File(p).existsSync())
+        .toList();
+  }
+
+  static int _countOf(dynamic raw) => raw is List ? raw.length : 0;
+
+  Future<void> _discardDraft() async {
+    setState(() => _pendingDraft = null);
+    await _draftStore.clear();
+  }
+
+  /// Sortie du formulaire : on ne propose de garder que s'il y a quelque chose
+  /// à perdre. Fermer une saisie vide ne doit poser aucune question.
+  Future<void> _handleClose() async {
+    if (_submitting) return;
+    if (!_hasContent) {
+      if (mounted) Navigator.pop(context, false);
+      return;
+    }
+
+    _draftSaveTimer?.cancel();
+    final choice = await showDraftExitDialog(
+      context,
+      message: 'Votre colis n’est pas encore publié. Gardez-le en brouillon '
+          'pour reprendre la saisie plus tard.',
+    );
+    if (!mounted) return;
+
+    switch (choice) {
+      case DraftExitChoice.keep:
+        // Si le bandeau de reprise est encore affiché, la saisie en cours prime
+        // sur le brouillon proposé : sans ça la garde `_draftPending` annulerait
+        // l'écriture et « Garder » ne garderait rien.
+        _pendingDraft = null;
+        // Écrit avant de fermer, sans passer par le débounce : la fenêtre
+        // serait annulée par la destruction de l'état.
+        await _saveDraft();
+        _keepVoiceFiles = true;
+        if (mounted) Navigator.pop(context, false);
+      case DraftExitChoice.discard:
+        // Fermer d'abord : l'utilisateur a tranché, il n'a pas à attendre le
+        // nettoyage disque. Le magasin survit à la destruction de l'état.
+        Navigator.pop(context, false);
+        await _draftStore.clear();
+      case DraftExitChoice.cancel:
+      case null:
+        break;
+    }
   }
 
   Future<void> _importReceiverFromContacts() async {
@@ -155,6 +473,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         _photos.add(file);
         _mediaNote = null;
       });
+      _scheduleDraftSave();
     } catch (error) {
       debugPrint('Erreur sélection photo colis: $error');
       _showMediaNote('Photo indisponible (permission refusée ?)');
@@ -215,6 +534,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         _videos.add(file);
         _mediaNote = null;
       });
+      _scheduleDraftSave();
     } catch (error) {
       debugPrint('Erreur sélection vidéo colis: $error');
       _showMediaNote('Vidéo indisponible (permission refusée ?)');
@@ -285,6 +605,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           ),
         );
       });
+      _scheduleDraftSave();
     } catch (error) {
       debugPrint('Erreur arrêt audio colis: $error');
       if (mounted) setState(() => _isRecording = false);
@@ -307,8 +628,15 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     }
   }
 
-  void _removePhoto(int index) => setState(() => _photos.removeAt(index));
-  void _removeVideo(int index) => setState(() => _videos.removeAt(index));
+  void _removePhoto(int index) {
+    setState(() => _photos.removeAt(index));
+    _scheduleDraftSave();
+  }
+
+  void _removeVideo(int index) {
+    setState(() => _videos.removeAt(index));
+    _scheduleDraftSave();
+  }
 
   void _removeVoice(int index) {
     final voice = _voiceMessages[index];
@@ -318,6 +646,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     }
     _deleteLocalFile(voice.path);
     setState(() => _voiceMessages.removeAt(index));
+    _scheduleDraftSave();
   }
 
   void _deleteLocalFile(String path) {
@@ -388,6 +717,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       if (mode == 'free') _driverId = null;
     });
     if (mode == 'driver') _loadDrivers();
+    _scheduleDraftSave();
   }
 
   User? _driverById(String? id) {
@@ -409,8 +739,14 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       if (mounted) {
         setState(() {
           _zones = zones;
-          if (zones.isNotEmpty) _departureZoneId = zones.first.id;
-          if (zones.length > 1) _arrivalZoneId = zones[1].id;
+          // Le pré-remplissage ne doit pas écraser un trajet déjà restauré
+          // depuis un brouillon.
+          if (zones.isNotEmpty && _departureZoneId == null) {
+            _departureZoneId = zones.first.id;
+          }
+          if (zones.length > 1 && _arrivalZoneId == null) {
+            _arrivalZoneId = zones[1].id;
+          }
           _loadingGarages = false;
         });
       }
@@ -506,6 +842,9 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       } catch (error) {
         debugPrint('Erreur upload médias colis: $error');
       }
+      // Publié : le brouillon et ses pièces jointes n'ont plus de raison d'être.
+      _draftSaveTimer?.cancel();
+      await _draftStore.clear();
       await ref.read(parcelProvider.notifier).loadSentParcels();
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -520,43 +859,51 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: AppTheme.backgroundColor,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              children: [
-                _handle(),
-                _header(),
-                Expanded(
-                  child: _loadingGarages
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                              color: AppTheme.primary))
-                      : SingleChildScrollView(
-                          controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                          child: _step == 0
-                              ? _buildStep1()
-                              : _step == 1
-                                  ? _buildStep2()
-                                  : _buildRecap(),
-                        ),
-                ),
-                _footer(),
-              ],
-            ),
-          );
-        },
+    // `canPop: false` intercepte aussi bien le swipe vers le bas que le retour
+    // système : c'est là que la saisie se perdait silencieusement.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleClose();
+      },
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppTheme.backgroundColor,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  _handle(),
+                  _header(),
+                  Expanded(
+                    child: _loadingGarages
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: AppTheme.primary))
+                        : SingleChildScrollView(
+                            controller: scrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                            child: _step == 0
+                                ? _buildStep1()
+                                : _step == 1
+                                    ? _buildStep2()
+                                    : _buildRecap(),
+                          ),
+                  ),
+                  _footer(),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -601,7 +948,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             ),
           ),
           IconButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: _handleClose,
             icon: const Icon(Icons.close_rounded, color: AppTheme.slate500),
           ),
         ],
@@ -648,6 +995,12 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _stepBar(),
+        if (_pendingDraft != null)
+          DraftRestoreBanner(
+            savedAt: _pendingDraft!.savedAt,
+            onRestore: _restoreDraft,
+            onDiscard: _discardDraft,
+          ),
         const SizedBox(height: 8),
         RoutePicker(
           garages: _zones,
@@ -655,9 +1008,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           initialArrival: _zoneById(_arrivalZoneId),
           onDepartureChanged: (g) {
             setState(() => _departureZoneId = g?.id);
+            _scheduleDraftSave();
           },
           onArrivalChanged: (g) {
             setState(() => _arrivalZoneId = g?.id);
+            _scheduleDraftSave();
           },
           onZoneAdded: _addResolvedZone,
         ),
@@ -870,7 +1225,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         : ((d.city ?? '').trim().isNotEmpty ? d.city!.trim() : 'Indépendant');
     return InkWell(
       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-      onTap: () => setState(() => _driverId = selected ? null : d.id),
+      onTap: () {
+        setState(() => _driverId = selected ? null : d.id);
+        _scheduleDraftSave();
+      },
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -996,7 +1354,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           'Assurer le colis',
           'Couvre jusqu’à 200 000 FCFA',
           _insurance,
-          (v) => setState(() => _insurance = v),
+          (v) {
+            setState(() => _insurance = v);
+            _scheduleDraftSave();
+          },
         ),
         const PcDivider(),
         _switchRow(
@@ -1011,6 +1372,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               if (!_priceEdited)
                 _priceController.text = _estimatedPrice.toString();
             });
+            _scheduleDraftSave();
           },
         ),
         const SizedBox(height: 16),
@@ -1023,6 +1385,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         ),
         TextField(
           controller: _priceController,
+          // La sauvegarde est déjà déclenchée par l'écouteur du contrôleur.
           onChanged: (_) => setState(() => _priceEdited = true),
           keyboardType: const TextInputType.numberWithOptions(decimal: false),
           style: AppTheme.mono(
@@ -1041,7 +1404,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         const SizedBox(height: 20),
         PaymentChannelField(
           value: _paymentChannel,
-          onChanged: (channel) => setState(() => _paymentChannel = channel),
+          onChanged: (channel) {
+            setState(() => _paymentChannel = channel);
+            _scheduleDraftSave();
+          },
           footnote: _mode == 'driver'
               ? 'Le chauffeur doit accepter ce mode pour confirmer la course.'
               : 'Les chauffeurs qui n’acceptent pas ce mode ne pourront pas '
@@ -1051,7 +1417,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           const SizedBox(height: 16),
           CashCollectionPointField(
             value: _cashCollectionPoint,
-            onChanged: (point) => setState(() => _cashCollectionPoint = point),
+            onChanged: (point) {
+              setState(() => _cashCollectionPoint = point);
+              _scheduleDraftSave();
+            },
           ),
         ],
         const SizedBox(height: 18),
@@ -1667,7 +2036,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                 child: Text(t.label, overflow: TextOverflow.ellipsis),
               ))
           .toList(),
-      onChanged: (v) => setState(() => _type = v ?? ParcelType.package),
+      onChanged: (v) {
+        setState(() => _type = v ?? ParcelType.package);
+        _scheduleDraftSave();
+      },
     );
   }
 
