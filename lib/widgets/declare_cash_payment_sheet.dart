@@ -162,7 +162,7 @@ class _DeclareCashPaymentSheetState extends State<DeclareCashPaymentSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.backgroundColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
@@ -238,7 +238,7 @@ class _DeclareCashPaymentSheetState extends State<DeclareCashPaymentSheet> {
             color: AppTheme.amber50,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
-          child: const Icon(Icons.payments_rounded,
+          child: Icon(Icons.payments_rounded,
               color: AppTheme.amber600, size: 22),
         ),
         const SizedBox(width: 12),
@@ -268,7 +268,7 @@ class _DeclareCashPaymentSheetState extends State<DeclareCashPaymentSheet> {
         IconButton(
           onPressed:
               _submitting ? null : () => Navigator.pop(context, false),
-          icon: const Icon(Icons.close_rounded, color: AppTheme.slate500),
+          icon: Icon(Icons.close_rounded, color: AppTheme.slate500),
         ),
       ],
     );
@@ -392,7 +392,7 @@ class _DeclareCashPaymentSheetState extends State<DeclareCashPaymentSheet> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded,
+          Icon(Icons.warning_amber_rounded,
               size: 17, color: AppTheme.amber600),
           const SizedBox(width: 8),
           Expanded(
@@ -514,7 +514,7 @@ class _DeclareCashPaymentSheetState extends State<DeclareCashPaymentSheet> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_rounded, size: 17, color: AppTheme.red400),
+          Icon(Icons.error_rounded, size: 17, color: AppTheme.red400),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -544,15 +544,15 @@ class _DeclareCashPaymentSheetState extends State<DeclareCashPaymentSheet> {
       counterText: '',
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        borderSide: const BorderSide(color: AppTheme.slate200),
+        borderSide: BorderSide(color: AppTheme.slate200),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        borderSide: const BorderSide(color: AppTheme.slate200),
+        borderSide: BorderSide(color: AppTheme.slate200),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+        borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
       ),
     );
   }

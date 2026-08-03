@@ -24,29 +24,29 @@ class _ToneChip {
 _ToneChip _toneChip(PcTone tone) {
   switch (tone) {
     case PcTone.primary:
-      return const _ToneChip(AppTheme.teal50, AppTheme.teal500);
+      return _ToneChip(AppTheme.teal50, AppTheme.teal500);
     case PcTone.green:
-      return const _ToneChip(AppTheme.green50, AppTheme.green700);
+      return _ToneChip(AppTheme.green50, AppTheme.green700);
     case PcTone.amber:
-      return const _ToneChip(AppTheme.amber50, AppTheme.amber600);
+      return _ToneChip(AppTheme.amber50, AppTheme.amber600);
     case PcTone.red:
-      return const _ToneChip(AppTheme.red50, AppTheme.red500);
+      return _ToneChip(AppTheme.red50, AppTheme.red500);
     case PcTone.neutral:
-      return const _ToneChip(AppTheme.slate100, AppTheme.slate500);
+      return _ToneChip(AppTheme.slate100, AppTheme.slate500);
   }
 }
 
 TextStyle _display({
   double size = 15,
   FontWeight weight = FontWeight.w700,
-  Color color = AppTheme.textPrimary,
+  Color? color,
   double? letterSpacing,
   double? height,
 }) =>
     AppFonts.plusJakartaSans(
       fontSize: size,
       fontWeight: weight,
-      color: color,
+      color: color ?? AppTheme.textPrimary,
       letterSpacing: letterSpacing,
       height: height,
     );
@@ -54,13 +54,13 @@ TextStyle _display({
 TextStyle _body({
   double size = 14,
   FontWeight weight = FontWeight.w500,
-  Color color = AppTheme.slate600,
+  Color? color,
   double? height,
 }) =>
     AppFonts.manrope(
       fontSize: size,
       fontWeight: weight,
-      color: color,
+      color: color ?? AppTheme.slate600,
       height: height,
     );
 
@@ -328,7 +328,8 @@ class PcCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final Color? accent;
-  final Color color;
+  /// `null` : couleur de carte par défaut, résolue selon le thème courant.
+  final Color? color;
   final double radius;
   final List<BoxShadow>? shadow;
 
@@ -338,7 +339,7 @@ class PcCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.onTap,
     this.accent,
-    this.color = AppTheme.cardColor,
+    this.color,
     this.radius = AppTheme.radiusMd,
     this.shadow,
   });
@@ -348,7 +349,7 @@ class PcCard extends StatelessWidget {
     final content = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color,
+        color: color ?? AppTheme.cardColor,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: AppTheme.slate200),
         boxShadow: shadow,
@@ -616,7 +617,7 @@ class PcAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const palettes = [
+    final palettes = [
       _ToneChip(AppTheme.teal100, AppTheme.teal700),
       _ToneChip(AppTheme.green100, AppTheme.green800),
       _ToneChip(AppTheme.amber100, AppTheme.amber700),
@@ -765,7 +766,7 @@ class PcListRow extends StatelessWidget {
           if (trailing != null) ...[const SizedBox(width: 8), trailing!],
           if (chevron) ...[
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded,
+            Icon(Icons.chevron_right_rounded,
                 size: 22, color: AppTheme.slate400),
           ],
         ],
@@ -787,7 +788,7 @@ class PcListRow extends StatelessWidget {
 class PcDivider extends StatelessWidget {
   const PcDivider({super.key});
   @override
-  Widget build(BuildContext context) => const Padding(
+  Widget build(BuildContext context) => Padding(
         padding: EdgeInsets.symmetric(horizontal: 14),
         child: Divider(height: 1, thickness: 1, color: AppTheme.slate200),
       );

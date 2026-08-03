@@ -142,7 +142,7 @@ class _GarageColisScreenState extends ConsumerState<GarageColisScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
+      return Center(
           child: CircularProgressIndicator(color: AppTheme.primary));
     }
     if (_error != null) {
@@ -243,10 +243,10 @@ class _GarageColisScreenState extends ConsumerState<GarageColisScreen> {
           hintStyle:
               AppFonts.manrope(fontSize: 13.5, color: AppTheme.slate400),
           prefixIcon:
-              const Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
+              Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
           suffixIcon: _search.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.close_rounded,
+                  icon: Icon(Icons.close_rounded,
                       size: 18, color: AppTheme.slate400),
                   onPressed: () {
                     _searchController.clear();
@@ -260,11 +260,11 @@ class _GarageColisScreenState extends ConsumerState<GarageColisScreen> {
           fillColor: AppTheme.backgroundColor,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            borderSide: const BorderSide(color: AppTheme.slate200),
+            borderSide: BorderSide(color: AppTheme.slate200),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+            borderSide: BorderSide(color: AppTheme.primary, width: 2),
           ),
         ),
       ),

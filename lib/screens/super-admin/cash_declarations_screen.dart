@@ -240,7 +240,7 @@ class _CashDeclarationsScreenState
               color: AppTheme.amber50,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: const Icon(Icons.hourglass_top_rounded,
+            child: Icon(Icons.hourglass_top_rounded,
                 color: AppTheme.amber600, size: 21),
           ),
           const SizedBox(width: 12),

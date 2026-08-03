@@ -71,7 +71,7 @@ class DraftRestoreBanner extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.history_rounded,
+              Icon(Icons.history_rounded,
                   size: 18, color: AppTheme.amber600),
               const SizedBox(width: 8),
               Expanded(
@@ -146,12 +146,12 @@ Future<DraftExitChoice?> showDraftExitDialog(
       icon: Container(
         width: 52,
         height: 52,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.amber50,
           shape: BoxShape.circle,
         ),
         child:
-            const Icon(Icons.save_outlined, size: 26, color: AppTheme.amber600),
+            Icon(Icons.save_outlined, size: 26, color: AppTheme.amber600),
       ),
       title: Text(
         'Quitter le formulaire ?',

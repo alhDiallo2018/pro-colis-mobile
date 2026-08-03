@@ -95,7 +95,7 @@ class _PhotoThumbnail extends StatelessWidget {
                 ),
               );
             },
-            errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: AppTheme.slate400, size: 32),
+            errorBuilder: (_, __, ___) => Icon(Icons.broken_image, color: AppTheme.slate400, size: 32),
           ),
         ),
       ),

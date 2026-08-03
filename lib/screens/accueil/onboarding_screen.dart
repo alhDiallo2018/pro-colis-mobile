@@ -412,7 +412,7 @@ class _OnboardingTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 68,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
@@ -433,7 +433,7 @@ class _OnboardingTopBar extends StatelessWidget {
                       letterSpacing: -0.2,
                       color: AppTheme.slate900,
                     ),
-                    children: const [
+                    children: [
                       TextSpan(text: 'Send '),
                       TextSpan(
                         text: 'ProColis',
@@ -726,7 +726,7 @@ class _ChoiceCard extends StatelessWidget {
                           AnimatedOpacity(
                             duration: const Duration(milliseconds: 150),
                             opacity: selected ? 1 : 0,
-                            child: const Icon(
+                            child: Icon(
                               Icons.check_circle_rounded,
                               color: AppTheme.primary,
                               size: 21,
@@ -909,7 +909,7 @@ class _RecommendationView extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
+              Icon(
                 Icons.lightbulb_rounded,
                 color: AppTheme.amber600,
                 size: 22,
@@ -1008,7 +1008,7 @@ class _GuidanceStepRow extends StatelessWidget {
                 Container(
                   width: 30,
                   height: 30,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppTheme.teal50,
                     shape: BoxShape.circle,
                   ),

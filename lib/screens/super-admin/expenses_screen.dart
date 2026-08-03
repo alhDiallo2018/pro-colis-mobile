@@ -103,7 +103,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             decoration: BoxDecoration(color: AppTheme.slate50, borderRadius: BorderRadius.circular(10)),
             child: Column(children: [
               Text(v, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: c)),
-              Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
             ]),
           ),
         );
@@ -159,7 +159,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Row(children: [
                   Text(e['reference']?.toString() ?? '', style: AppTheme.mono(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.primary)),
                   const SizedBox(width: 8),
-                  Text(e['category']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                  Text(e['category']?.toString() ?? '', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
                 ]),
                 const SizedBox(height: 4),
                 Text(e['title']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -172,9 +172,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             ),
           ),
           if (proof != null && proof.isNotEmpty)
-            const Icon(Icons.receipt_long, size: 20, color: AppTheme.primary),
+            Icon(Icons.receipt_long, size: 20, color: AppTheme.primary),
           IconButton(icon: const Icon(Icons.edit, size: 20), onPressed: () => _openForm(e)),
-          IconButton(icon: const Icon(Icons.delete, size: 20, color: AppTheme.red500), onPressed: () => _delete(e)),
+          IconButton(icon: Icon(Icons.delete, size: 20, color: AppTheme.red500), onPressed: () => _delete(e)),
         ],
       ),
     );
@@ -261,9 +261,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   builder: (_, isBusy, __) => Row(
                     children: [
                       if (url != null && url.isNotEmpty)
-                        const Icon(Icons.check_circle, color: AppTheme.green700)
+                        Icon(Icons.check_circle, color: AppTheme.green700)
                       else
-                        const Icon(Icons.receipt_long, color: AppTheme.slate400),
+                        Icon(Icons.receipt_long, color: AppTheme.slate400),
                       const SizedBox(width: 8),
                       TextButton.icon(
                         onPressed: isBusy

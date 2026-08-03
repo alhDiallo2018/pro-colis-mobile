@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/score_provider.dart';
+import '../theme/app_theme.dart';
 
 class ScoreDisplayWidget extends ConsumerWidget {
   const ScoreDisplayWidget({super.key});
@@ -104,7 +105,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.cardColor,
       isScrollControlled: true,
       builder: (context) {
         return DraggableScrollableSheet(

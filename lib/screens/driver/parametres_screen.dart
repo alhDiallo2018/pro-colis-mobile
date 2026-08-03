@@ -212,7 +212,7 @@ class _DriverParametresScreenState
             result['message']?.toString() ?? 'Enregistrement impossible');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
               content: Text('Véhicule enregistré'),
               backgroundColor: AppTheme.green600),
         );
@@ -264,7 +264,7 @@ class _DriverParametresScreenState
             _confirmPinController.clear();
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
                 content: Text('PIN modifié avec succès'),
                 backgroundColor: AppTheme.green600),
           );
@@ -317,7 +317,7 @@ class _DriverParametresScreenState
       appBar: AppBar(
         backgroundColor: AppTheme.cardColor,
         title: const Text('Paramètres'),
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

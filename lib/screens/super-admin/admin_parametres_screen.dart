@@ -328,7 +328,7 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
             color: AppTheme.teal50,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
-          child: const Icon(Icons.settings_rounded,
+          child: Icon(Icons.settings_rounded,
               size: 24, color: AppTheme.primary),
         ),
         const SizedBox(width: 12),
@@ -506,7 +506,7 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
-        border: const Border(top: BorderSide(color: AppTheme.slate200)),
+        border: Border(top: BorderSide(color: AppTheme.slate200)),
         boxShadow: AppTheme.softShadow(alpha: 0.06),
       ),
       child: Column(

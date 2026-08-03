@@ -421,7 +421,7 @@ class _FreeParcelDetailsScreenState
           fontSize: 20,
           fontWeight: FontWeight.w800,
         ),
-        shape: const Border(
+        shape: Border(
           bottom: BorderSide(color: AppTheme.slate200),
         ),
       ),
@@ -494,7 +494,7 @@ class _PoolHeader extends StatelessWidget {
         16,
         14,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
@@ -507,7 +507,7 @@ class _PoolHeader extends StatelessWidget {
               color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: const Icon(Icons.sell_rounded,
+            child: Icon(Icons.sell_rounded,
                 color: AppTheme.primary, size: 23),
           ),
           const SizedBox(width: 12),
@@ -566,7 +566,7 @@ class _PoolFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
@@ -620,7 +620,7 @@ class _FreeParcelItem extends StatelessWidget {
         const SizedBox(height: 10),
         Row(
           children: [
-            const Icon(Icons.gavel_rounded, size: 16, color: AppTheme.slate400),
+            Icon(Icons.gavel_rounded, size: 16, color: AppTheme.slate400),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -888,15 +888,15 @@ class _OfferMessageField extends StatelessWidget {
             contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              borderSide: const BorderSide(color: AppTheme.slate200),
+              borderSide: BorderSide(color: AppTheme.slate200),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              borderSide: const BorderSide(color: AppTheme.slate200),
+              borderSide: BorderSide(color: AppTheme.slate200),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+              borderSide: BorderSide(color: AppTheme.primary, width: 2),
             ),
           ),
         ),
@@ -1073,11 +1073,11 @@ class _OfferSuccessScreen extends StatelessWidget {
                 Container(
                   width: 92,
                   height: 92,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppTheme.teal50,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.gavel_rounded,
+                  child: Icon(Icons.gavel_rounded,
                       color: AppTheme.primary, size: 50),
                 ),
                 const SizedBox(height: 22),

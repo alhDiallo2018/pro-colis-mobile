@@ -120,7 +120,7 @@ class _WalletDetailScreenState extends ConsumerState<WalletDetailScreen> {
                               icon: const Icon(Icons.remove, size: 18),
                               label: const Text('Débiter'),
                               onPressed: () => _showRechargeDebitDialog(false),
-                              style: OutlinedButton.styleFrom(foregroundColor: AppTheme.errorColor, side: const BorderSide(color: AppTheme.errorColor)),
+                              style: OutlinedButton.styleFrom(foregroundColor: AppTheme.errorColor, side: BorderSide(color: AppTheme.errorColor)),
                             ),
                           ),
                         ],

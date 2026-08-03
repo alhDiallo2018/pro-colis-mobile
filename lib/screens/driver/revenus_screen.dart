@@ -173,7 +173,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
                   color: AppTheme.amber50,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
-                child: const Icon(Icons.hourglass_top_rounded,
+                child: Icon(Icons.hourglass_top_rounded,
                     color: AppTheme.amber600, size: 20),
               ),
               const SizedBox(width: 10),
@@ -392,7 +392,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
                         decoration: BoxDecoration(
                           gradient: isLast
                               ? null
-                              : const LinearGradient(
+                              : LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [AppTheme.teal400, AppTheme.teal600],
@@ -633,7 +633,7 @@ class _DriverRevenusScreenState extends ConsumerState<DriverRevenusScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: AppTheme.slate200),
+          Divider(height: 1, thickness: 1, color: AppTheme.slate200),
           if (flush)
             body
           else

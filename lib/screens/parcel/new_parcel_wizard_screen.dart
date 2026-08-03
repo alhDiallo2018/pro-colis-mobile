@@ -541,7 +541,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
 
   Widget _buildDetectedZoneChip() {
     if (_detectingZone) {
-      return const Row(
+      return Row(
         children: [
           SizedBox(
             width: 14,
@@ -569,12 +569,12 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.explore_rounded, size: 16, color: AppTheme.teal600),
+          Icon(Icons.explore_rounded, size: 16, color: AppTheme.teal600),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
               'Zone détectée : $label',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.teal700,
@@ -681,7 +681,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                               d.fullName.isNotEmpty
                                   ? d.fullName[0].toUpperCase()
                                   : '?',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: AppTheme.primary),
                             ),
@@ -696,7 +696,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                           ),
                           Text(
                             '${d.completedDeliveries} liv.',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 10, color: AppTheme.slate500),
                           ),
                         ],
@@ -751,7 +751,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               ),
             ),
             if (selected)
-              const Icon(Icons.check_circle, color: AppTheme.primary, size: 22),
+              Icon(Icons.check_circle, color: AppTheme.primary, size: 22),
           ],
         ),
       ),
@@ -909,12 +909,12 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         if (_photos.isNotEmpty) ...[
           const SizedBox(height: 10),
           Text('${_photos.length} photo(s)',
-              style: const TextStyle(fontSize: 12, color: AppTheme.slate500)),
+              style: TextStyle(fontSize: 12, color: AppTheme.slate500)),
         ],
         if (_voiceMessages.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text('${_voiceMessages.length} message(s) vocal(aux)',
-              style: const TextStyle(fontSize: 12, color: AppTheme.slate500)),
+              style: TextStyle(fontSize: 12, color: AppTheme.slate500)),
         ],
       ],
     );
@@ -1023,7 +1023,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         Icon(icon, size: 20, color: AppTheme.primary),
         const SizedBox(width: 8),
         Text(title,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary)),
@@ -1043,7 +1043,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               Icon(icon, size: 18, color: AppTheme.primary),
               const SizedBox(width: 8),
               Text(title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary)),
@@ -1051,7 +1051,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               if (onEdit != null)
                 GestureDetector(
                   onTap: onEdit,
-                  child: const Icon(Icons.edit_rounded,
+                  child: Icon(Icons.edit_rounded,
                       size: 18, color: AppTheme.primary),
                 ),
             ],
@@ -1071,14 +1071,14 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           SizedBox(
             width: 100,
             child: Text(label,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12.5,
                     color: AppTheme.textSecondary,
                     fontWeight: FontWeight.w600)),
           ),
           Expanded(
               child: Text(value,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary))),
@@ -1098,7 +1098,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           SizedBox(
             width: 100,
             child: Text(label,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12.5,
                     color: AppTheme.textSecondary,
                     fontWeight: FontWeight.w600)),
@@ -1123,7 +1123,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
-        border: const Border(top: BorderSide(color: AppTheme.slate200)),
+        border: Border(top: BorderSide(color: AppTheme.slate200)),
       ),
       child: Row(
         children: [
@@ -1132,7 +1132,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               onPressed: _prevStep,
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(100, 46),
-                side: const BorderSide(color: AppTheme.slate300),
+                side: BorderSide(color: AppTheme.slate300),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
               ),

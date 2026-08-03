@@ -439,7 +439,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
       if (!mounted) return;
       if (confirm['status'] == 'completed') {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Paiement confirmé via PayDunya'),
             backgroundColor: AppTheme.green600,
           ),
@@ -447,7 +447,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'Paiement ouvert. Le solde sera crédité après confirmation.',
             ),
@@ -474,7 +474,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -491,7 +491,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Recharger mon portefeuille',
             style: TextStyle(
               fontSize: 20,
@@ -500,7 +500,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             '1 FCFA = 1 crédit. Les crédits sont utilisés pour payer les commissions.',
             style: TextStyle(fontSize: 13, color: AppTheme.slate500),
           ),
@@ -512,7 +512,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Packs grid
-                  const Text('Choisir un pack',
+                  Text('Choisir un pack',
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -568,7 +568,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                                       : AppTheme.textPrimary,
                                 ),
                               ),
-                              const Text(
+                              Text(
                                 'FCFA',
                                 style: TextStyle(
                                   fontSize: 12,
@@ -619,7 +619,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                                 : AppTheme.slate400,
                           ),
                           const SizedBox(width: 12),
-                          const Text(
+                          Text(
                             'Montant personnalisé',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
@@ -649,7 +649,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
 
                   // PayDunya présente ensuite les canaux réellement activés
                   // par la configuration serveur (mobile money ou carte).
-                  const Text('Paiement sécurisé',
+                  Text('Paiement sécurisé',
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -662,7 +662,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       border: Border.all(color: AppTheme.teal500),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
                         Icon(Icons.verified_user_rounded,
                             color: AppTheme.teal600),

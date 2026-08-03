@@ -86,6 +86,7 @@ class _SupportCommercialDashboardState
             onNotificationsTap: _openNotifications,
             onSeeLeads: () => _goToTab(1),
             onSeeCoverage: () => _goToTab(2),
+            onSeeProfile: () => _goToTab(3),
           ),
           const _LeadsTab(),
           const _CoverageTab(),
@@ -122,12 +123,14 @@ class _SupportCommercialHome extends ConsumerWidget {
   final VoidCallback onNotificationsTap;
   final VoidCallback onSeeLeads;
   final VoidCallback onSeeCoverage;
+  final VoidCallback onSeeProfile;
 
   const _SupportCommercialHome({
     required this.user,
     required this.onNotificationsTap,
     required this.onSeeLeads,
     required this.onSeeCoverage,
+    required this.onSeeProfile,
   });
 
   @override
@@ -149,6 +152,7 @@ class _SupportCommercialHome extends ConsumerWidget {
           RoleDashboardHero(
             user: user,
             onNotificationsTap: onNotificationsTap,
+            onProfileTap: onSeeProfile,
             unreadCount: statsAsync.valueOrNull?.overdueFollowUps ?? 0,
             footer: _heroFooter(statsAsync.valueOrNull),
           ),
@@ -181,7 +185,7 @@ class _SupportCommercialHome extends ConsumerWidget {
                       padding: const EdgeInsets.all(18),
                       child: Row(
                         children: [
-                          const Icon(Icons.flag_outlined,
+                          Icon(Icons.flag_outlined,
                               color: AppTheme.slate400, size: 22),
                           const SizedBox(width: 12),
                           Expanded(

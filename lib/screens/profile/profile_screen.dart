@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -35,8 +36,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  static const Color successColor = AppTheme.successColor;
-  static const Color errorColor = AppTheme.errorColor;
+  static Color get successColor => AppTheme.successColor;
+  static Color get errorColor => AppTheme.errorColor;
 
   late User _user;
   bool _isLoading = false;
@@ -203,7 +204,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const PcDivider(),
             ListTile(
-              leading: const Icon(Icons.photo_library_rounded,
+              leading: Icon(Icons.photo_library_rounded,
                   color: AppTheme.primary),
               title: const Text('Choisir dans la galerie'),
               onTap: () {
@@ -213,7 +214,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             ListTile(
               leading:
-                  const Icon(Icons.camera_alt_rounded, color: AppTheme.primary),
+                  Icon(Icons.camera_alt_rounded, color: AppTheme.primary),
               title: const Text('Prendre une photo'),
               onTap: () {
                 Navigator.pop(context);
@@ -352,7 +353,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _logout() async {
     await ref.read(authProvider.notifier).logout();
     if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/login');
+    // L'app navigue avec go_router : `Navigator.pushReplacementNamed` échouait
+    // ici faute de `onGenerateRoute`, laissant l'utilisateur bloqué sur le
+    // profil alors que sa session venait d'être effacée.
+    GoRouter.of(context).go('/login');
   }
 
   // ==================== BUILD ====================
@@ -364,7 +368,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!_isInitialized || authState.user == null) {
       return Scaffold(
         backgroundColor: AppTheme.backgroundColor,
-        body: const Center(
+        body: Center(
           child: CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
           ),
@@ -383,7 +387,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_rounded),
@@ -782,7 +786,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       onChanged: onChanged,
       style: mono
           ? AppTheme.mono(fontSize: 15, color: AppTheme.textPrimary)
-          : const TextStyle(fontSize: 15, color: AppTheme.textPrimary),
+          : TextStyle(fontSize: 15, color: AppTheme.textPrimary),
     );
   }
 
@@ -954,7 +958,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   color: AppTheme.red50,
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
-                child: const Icon(Icons.logout_rounded,
+                child: Icon(Icons.logout_rounded,
                     size: 22, color: AppTheme.red400),
               ),
               const SizedBox(width: 12),

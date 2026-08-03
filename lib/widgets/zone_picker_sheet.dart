@@ -187,7 +187,7 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
       maxChildSize: 0.95,
       expand: false,
       builder: (ctx, scrollCtrl) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
         ),
@@ -220,7 +220,7 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
                     ),
                     IconButton(
                       onPressed: _busy ? null : () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded, color: AppTheme.slate400),
+                      icon: Icon(Icons.close_rounded, color: AppTheme.slate400),
                     ),
                   ],
                 ),
@@ -326,7 +326,7 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.my_location_rounded,
+                          Icon(Icons.my_location_rounded,
                               size: 14, color: AppTheme.slate400),
                           const SizedBox(width: 6),
                           Text(

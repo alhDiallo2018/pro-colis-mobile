@@ -8,6 +8,7 @@ import 'package:procolis/theme/fonts.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../models/garage.dart';
+import '../services/location_fix.dart';
 import '../theme/app_theme.dart';
 import 'pc_components.dart';
 import 'zone_picker_sheet.dart';
@@ -121,7 +122,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.add_location_alt_rounded,
+              Icon(Icons.add_location_alt_rounded,
                   size: 20, color: AppTheme.primary),
               const SizedBox(width: 10),
               Expanded(
@@ -131,7 +132,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                         fontWeight: FontWeight.w700,
                         color: AppTheme.teal700)),
               ),
-              const Icon(Icons.chevron_right_rounded,
+              Icon(Icons.chevron_right_rounded,
                   size: 20, color: AppTheme.primary),
             ],
           ),
@@ -143,9 +144,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
   Future<void> _findNearest() async {
     setState(() => _locating = true);
     try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-      );
+      final position = await resolveCurrentPosition();
       if (!mounted) return;
 
       Garage? nearest;
@@ -178,7 +177,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Géolocalisation: $e')),
+          SnackBar(content: Text(locationErrorMessage(e))),
         );
       }
     } finally {
@@ -210,7 +209,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
       expand: false,
       builder: (ctx, scrollCtrl) {
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppTheme.cardColor,
             borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
           ),
@@ -256,7 +255,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                               color: AppTheme.teal50,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.my_location_rounded,
+                            child: Icon(Icons.my_location_rounded,
                                 size: 18, color: AppTheme.primary),
                           ),
                         ),
@@ -277,12 +276,12 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText: 'Rechercher une ville, une zone...',
-                      prefixIcon: const Icon(Icons.search_rounded,
+                      prefixIcon: Icon(Icons.search_rounded,
                           color: AppTheme.slate400),
                       suffixIcon: _query.isNotEmpty
                           ? GestureDetector(
                               onTap: () => _searchCtrl.clear(),
-                              child: const Icon(Icons.close_rounded,
+                              child: Icon(Icons.close_rounded,
                                   color: AppTheme.slate400),
                             )
                           : null,
@@ -292,15 +291,15 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                           horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        borderSide: const BorderSide(color: AppTheme.slate200),
+                        borderSide: BorderSide(color: AppTheme.slate200),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        borderSide: const BorderSide(color: AppTheme.slate200),
+                        borderSide: BorderSide(color: AppTheme.slate200),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        borderSide: const BorderSide(color: AppTheme.primary),
+                        borderSide: BorderSide(color: AppTheme.primary),
                       ),
                     ),
                   ),
@@ -345,7 +344,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                                           color: AppTheme.teal50,
                                           borderRadius: BorderRadius.circular(8),
                                         ),
-                                        child: const Icon(
+                                        child: Icon(
                                             Icons.location_city_rounded,
                                             size: 16, color: AppTheme.primary),
                                       ),
@@ -411,7 +410,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle_rounded,
+              Icon(Icons.check_circle_rounded,
                   color: AppTheme.primary, size: 22),
             if (g.driversCount > 0)
               Padding(

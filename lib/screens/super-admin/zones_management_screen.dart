@@ -145,7 +145,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
         content: Text('Voulez-vous supprimer la zone "${zone.name}" ?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Supprimer', style: TextStyle(color: AppTheme.red500))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Supprimer', style: TextStyle(color: AppTheme.red500))),
         ],
       ),
     );
@@ -326,7 +326,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
               ? Center(child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Erreur: $_error', style: const TextStyle(color: AppTheme.red500)),
+                    Text('Erreur: $_error', style: TextStyle(color: AppTheme.red500)),
                     const SizedBox(height: 10),
                     ElevatedButton(onPressed: _loadZones, child: const Text('Reessayer')),
                   ],
@@ -336,10 +336,10 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.map_outlined, size: 48, color: AppTheme.slate400),
+                          Icon(Icons.map_outlined, size: 48, color: AppTheme.slate400),
                           const SizedBox(height: 12),
                           Text(_zones.isEmpty ? 'Aucune zone' : 'Aucun resultat',
-                              style: const TextStyle(color: AppTheme.textSecondary)),
+                              style: TextStyle(color: AppTheme.textSecondary)),
                         ],
                       ),
                     )
@@ -410,7 +410,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
         if (z.city != null) z.city,
         if (z.type == 'CIRCLE') 'Rayon ${z.radiusKm.toStringAsFixed(1)} km',
         '${z.driversCount} chauffeur(s)',
-      ].join(' · '), style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+      ].join(' · '), style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -445,7 +445,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
                 const PopupMenuItem(value: 'reject', child: Text('⛔ Rejeter')),
               const PopupMenuItem(value: 'edit', child: Text('Modifier')),
               PopupMenuItem(value: 'toggle', child: Text(z.isActive ? 'Desactiver' : 'Activer')),
-              const PopupMenuItem(value: 'delete', child: Text('Supprimer', style: TextStyle(color: AppTheme.red500))),
+              PopupMenuItem(value: 'delete', child: Text('Supprimer', style: TextStyle(color: AppTheme.red500))),
             ],
           ),
         ],

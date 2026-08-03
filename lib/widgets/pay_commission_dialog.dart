@@ -175,7 +175,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                           color: AppTheme.amber50,
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                         ),
-                        child: const Icon(Icons.receipt_long_rounded, color: AppTheme.amber600, size: 22),
+                        child: Icon(Icons.receipt_long_rounded, color: AppTheme.amber600, size: 22),
                       ),
                       const SizedBox(width: 12),
                       Text(
@@ -213,7 +213,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                         const SizedBox(height: 8),
                         _rowInfo('Montant livraison', _fcfa(widget.deliveryAmount), AppTheme.textBody),
                         _rowInfo('Commission (${_percentage.toInt()}%)', '- ${_fcfa(_commission)}', AppTheme.red500),
-                        const Divider(color: AppTheme.amber200, height: 16),
+                        Divider(color: AppTheme.amber200, height: 16),
                         _rowInfo('Votre gain net', _fcfa(_netAmount), AppTheme.green700),
                       ],
                     ),
@@ -270,7 +270,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.join_full_rounded, size: 16, color: AppTheme.teal600),
+                              Icon(Icons.join_full_rounded, size: 16, color: AppTheme.teal600),
                               const SizedBox(width: 6),
                               Text(
                                 'Portefeuille + Points',
@@ -308,7 +308,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
 
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!, style: const TextStyle(color: AppTheme.red500, fontSize: 12)),
+                    Text(_error!, style: TextStyle(color: AppTheme.red500, fontSize: 12)),
                   ],
                   const SizedBox(height: 20),
 

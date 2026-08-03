@@ -156,6 +156,7 @@ class _SupportAdminDashboardState extends ConsumerState<SupportAdminDashboard> {
           onSeeAssistances: () => _goToTab(2),
           onSeeChauffeurs: _openChauffeurs,
           onSeeUtilisateurs: _openUtilisateurs,
+          onSeeProfile: () => _goToTab(4),
         );
     }
   }
@@ -172,6 +173,7 @@ class _SupportAdminHome extends ConsumerWidget {
   final VoidCallback onSeeAssistances;
   final VoidCallback onSeeChauffeurs;
   final VoidCallback onSeeUtilisateurs;
+  final VoidCallback onSeeProfile;
 
   const _SupportAdminHome({
     required this.user,
@@ -180,6 +182,7 @@ class _SupportAdminHome extends ConsumerWidget {
     required this.onSeeAssistances,
     required this.onSeeChauffeurs,
     required this.onSeeUtilisateurs,
+    required this.onSeeProfile,
   });
 
   @override
@@ -217,6 +220,7 @@ class _SupportAdminHome extends ConsumerWidget {
                 : 'Aucune conversation en attente',
             onNotificationsTap: onNotificationsTap,
             unreadCount: unread,
+            onProfileTap: onSeeProfile,
           ),
           // Les annonces super-admin s'affichent sous le hero du rôle.
           const BroadcastBanner(),

@@ -580,7 +580,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         height: MediaQuery.of(ctx).size.height * 0.85,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
@@ -630,7 +630,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
 
                     // Description
                     if (parcel.description.isNotEmpty) ...[
-                      const Text('Description',
+                      Text('Description',
                           style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
@@ -682,7 +682,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     ],
 
                     // Route
-                    const Text('Itinéraire',
+                    Text('Itinéraire',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -690,7 +690,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.trip_origin,
+                        Icon(Icons.trip_origin,
                             size: 16, color: AppTheme.slate500),
                         const SizedBox(width: 6),
                         Expanded(
@@ -703,7 +703,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.flag,
+                        Icon(Icons.flag,
                             size: 16, color: AppTheme.slate500),
                         const SizedBox(width: 6),
                         Expanded(
@@ -717,7 +717,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     const SizedBox(height: 16),
 
                     // Receiver info
-                    const Text('Destinataire',
+                    Text('Destinataire',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -740,7 +740,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     const SizedBox(height: 16),
 
                     // Sender info
-                    const Text('Expéditeur',
+                    Text('Expéditeur',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -753,7 +753,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
 
                     // Driver info if assigned
                     if (parcel.hasDriver) ...[
-                      const Text('Chauffeur',
+                      Text('Chauffeur',
                           style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
@@ -771,7 +771,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
 
                     // Photos
                     if (parcel.photoUrls.isNotEmpty) ...[
-                      const Text('Photos',
+                      Text('Photos',
                           style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
@@ -796,7 +796,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                                   width: 80,
                                   height: 80,
                                   color: AppTheme.slate100,
-                                  child: const Icon(
+                                  child: Icon(
                                       Icons.broken_image,
                                       color: AppTheme.slate400),
                                 ),
@@ -810,7 +810,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
 
                     // Videos
                     if (parcel.videoUrls.isNotEmpty) ...[
-                      const Text('Vidéos',
+                      Text('Vidéos',
                           style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
@@ -832,7 +832,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.videocam,
+                                  Icon(Icons.videocam,
                                       color: AppTheme.primary),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -845,7 +845,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                                           fontSize: 13),
                                     ),
                                   ),
-                                  const Icon(Icons.open_in_new,
+                                  Icon(Icons.open_in_new,
                                       size: 16,
                                       color: AppTheme.slate400),
                                 ],
@@ -859,7 +859,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
 
                     // Audio messages
                     if (parcel.audioUrls.isNotEmpty) ...[
-                      const Text('Messages vocaux',
+                      Text('Messages vocaux',
                           style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
@@ -919,7 +919,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     ],
 
                     // Dates
-                    const Text('Dates',
+                    Text('Dates',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -1309,7 +1309,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                 color: AppTheme.cardColor,
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               ),
-              child: const Icon(Icons.inventory_2_rounded,
+              child: Icon(Icons.inventory_2_rounded,
                   size: 20, color: AppTheme.primary),
             ),
             const SizedBox(width: 10),
@@ -1352,7 +1352,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.info_outline_rounded,
+            Icon(Icons.info_outline_rounded,
                 size: 18, color: AppTheme.teal600),
           ],
         ),
@@ -1719,7 +1719,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
           children: [
             Row(
               children: [
-                const Icon(Icons.payments_rounded,
+                Icon(Icons.payments_rounded,
                     size: 18, color: AppTheme.amber600),
                 const SizedBox(width: 6),
                 Expanded(
@@ -1892,7 +1892,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.payments_rounded,
+                  Icon(Icons.payments_rounded,
                       size: 20, color: AppTheme.amber600),
                   const SizedBox(width: 8),
                   Expanded(
@@ -1957,7 +1957,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(top: BorderSide(color: AppTheme.slate200)),
       ),

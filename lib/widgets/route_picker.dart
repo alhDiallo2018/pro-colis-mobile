@@ -138,7 +138,7 @@ class _RoutePickerState extends State<RoutePicker> {
                     color: AppTheme.slate100,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.swap_horiz_rounded,
+                  child: Icon(Icons.swap_horiz_rounded,
                       size: 20, color: AppTheme.slate500),
                 ),
               ),
@@ -212,7 +212,7 @@ class _RoutePickerState extends State<RoutePicker> {
                           style: AppFonts.manrope(
                               fontSize: 13, color: AppTheme.slate400)),
                 ),
-                const Icon(Icons.chevron_right_rounded,
+                Icon(Icons.chevron_right_rounded,
                     color: AppTheme.slate400, size: 20),
               ],
             ),
@@ -249,12 +249,12 @@ class _RoutePill extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: const Icon(Icons.local_shipping_rounded,
+            child: Icon(Icons.local_shipping_rounded,
                 size: 18, color: AppTheme.teal500),
           ),
           Container(
             width: 48, height: 1,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: AppTheme.teal400, style: BorderStyle.solid),
               ),

@@ -338,7 +338,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.share,
+                            icon: Icon(Icons.share,
                                 color: AppTheme.primary),
                             onPressed: () =>
                                 _shareReceipt(sheetContext, receiptKey),
@@ -346,7 +346,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                           ),
                           IconButton(
                             icon:
-                                const Icon(Icons.link, color: AppTheme.primary),
+                                Icon(Icons.link, color: AppTheme.primary),
                             onPressed: _shareTracking,
                             tooltip: 'Partager le lien',
                           ),
@@ -537,10 +537,10 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.open_in_new,
+                        Icon(Icons.open_in_new,
                             size: 16, color: AppTheme.primary),
                         const SizedBox(width: 8),
-                        const Text(
+                        Text(
                           'Voir en ligne',
                           style: TextStyle(
                             fontSize: 12,
@@ -751,7 +751,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                             width: 80,
                             height: 80,
                             color: AppTheme.slate100,
-                            child: const Icon(Icons.broken_image_rounded,
+                            child: Icon(Icons.broken_image_rounded,
                                 color: AppTheme.slate400),
                           ),
                         ),
@@ -1048,7 +1048,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
               ),
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppTheme.cardColor,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
@@ -1068,7 +1068,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Noter le chauffeur',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
@@ -1081,7 +1081,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                       _driverName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
@@ -1163,7 +1163,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Détail du colis'),
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
         actions: [
           IconButton(
             onPressed: _shareTracking,
@@ -1300,13 +1300,13 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                         color: AppTheme.green50,
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.verified_rounded,
                         color: AppTheme.successColor,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1658,7 +1658,7 @@ class _DriverCard extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
@@ -1671,7 +1671,7 @@ class _DriverCard extends StatelessWidget {
                   ratingLabel != null ? '$garage · $ratingLabel' : garage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -1721,7 +1721,7 @@ class _InfoValue extends StatelessWidget {
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
               )
-            : const TextStyle(
+            : TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
@@ -1867,7 +1867,7 @@ class _TimelineTile extends StatelessWidget {
                     Expanded(
                       child: Text(
                         step.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 14.5,
                           fontWeight: FontWeight.w900,
@@ -1888,7 +1888,7 @@ class _TimelineTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   step.subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
                     height: 1.35,
@@ -1953,7 +1953,7 @@ class _DeliveryCodeCard extends StatelessWidget {
               color: AppTheme.primaryLight,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.vpn_key_rounded,
               color: AppTheme.primary,
             ),
@@ -1963,7 +1963,7 @@ class _DeliveryCodeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Code de livraison',
                   style: TextStyle(
                     color: AppTheme.textPrimary,
@@ -1989,7 +1989,7 @@ class _DeliveryCodeCard extends StatelessWidget {
                         ),
                       ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Communiquez ce code au livreur pour confirmer la réception',
                   style: TextStyle(
                     color: AppTheme.textSecondary,
@@ -2027,7 +2027,7 @@ class _MediaLabel extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.w800,
@@ -2066,14 +2066,14 @@ class _MediaTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
+              Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
             ],
           ),
         ),
@@ -2395,7 +2395,7 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
       if (confirmation['status'] == 'completed') {
         widget.onDone();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Paiement confirmé'),
             backgroundColor: AppTheme.green600,
           ),
@@ -2432,7 +2432,7 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
                   color: AppTheme.amber50,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
-                child: const Icon(Icons.payments_rounded,
+                child: Icon(Icons.payments_rounded,
                     color: AppTheme.amber600, size: 22),
               ),
               const SizedBox(width: 12),
@@ -2481,13 +2481,13 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(_error!,
-                style: const TextStyle(color: AppTheme.red500, fontSize: 12)),
+                style: TextStyle(color: AppTheme.red500, fontSize: 12)),
           ],
           if (_paymentInfo != null) ...[
             const SizedBox(height: 8),
             Text(
               _paymentInfo!,
-              style: const TextStyle(color: AppTheme.amber700, fontSize: 12),
+              style: TextStyle(color: AppTheme.amber700, fontSize: 12),
             ),
           ],
           const SizedBox(height: 14),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
 import '../../models/parcel.dart';
 import '../../services/api_service.dart';
@@ -218,7 +219,10 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: PcCard(
-        onTap: () => Navigator.pushNamed(context, '/parcel/${p.id}'),
+        // L'app navigue avec go_router : les routes nommées de `Navigator`
+        // échouaient faute de `onGenerateRoute`. `push` conserve la pile, donc
+        // le retour ramène bien à la liste.
+        onTap: () => context.push('/parcel/${p.id}'),
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +274,7 @@ class _ClientLibreServiceScreenState extends ConsumerState<ClientLibreServiceScr
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.visibility, size: 16),
                 label: const Text('Voir les offres reçues'),
-                onPressed: () => Navigator.pushNamed(context, '/client/offres'),
+                onPressed: () => context.push('/client/offres'),
                 style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primary),
               ),
             ),

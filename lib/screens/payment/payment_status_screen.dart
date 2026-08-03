@@ -85,7 +85,7 @@ class PaymentStatusScreen extends StatelessWidget {
                 Text(
                   content.message,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.slate500,
                     height: 1.45,
                   ),

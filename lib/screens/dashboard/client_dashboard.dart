@@ -40,7 +40,8 @@ class ClientDashboard extends ConsumerStatefulWidget {
   ConsumerState<ClientDashboard> createState() => _ClientDashboardState();
 }
 
-class _ClientDashboardState extends ConsumerState<ClientDashboard> {
+class _ClientDashboardState extends ConsumerState<ClientDashboard>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   int _unreadNotificationsCount = 0;
   int _unreadMessagesCount = 0;
@@ -50,15 +51,20 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
     _loadNotificationsCount();
     _loadMessagesUnread();
 
+    // Seuls les compteurs (badges + notification de nouveau message) sont
+    // rafraîchis périodiquement : recharger les colis toutes les 15 s remettait
+    // `isLoading` à vrai et faisait clignoter les listes en permanence. Les
+    // colis se rechargent à l'ouverture, au changement d'onglet, au
+    // pull-to-refresh et à la restauration de session.
     _refreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (mounted) {
         _loadNotificationsCount();
         _loadMessagesUnread();
-        _loadData();
       } else {
         timer.cancel();
       }
@@ -67,8 +73,20 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  /// Rattrapage au retour d'arrière-plan : sans rechargement périodique, un
+  /// colis modifié pendant que l'app était en veille resterait affiché avec
+  /// son ancien état jusqu'au prochain pull-to-refresh.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    _loadData();
+    _loadNotificationsCount();
+    _loadMessagesUnread();
   }
 
   void _loadData() {
@@ -184,7 +202,8 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
           ProcolisTabItem(
             icon: Icons.inventory_2_rounded,
             label: 'Mes colis',
-            badge: parcelState.sentParcels.length + parcelState.receivedParcels.length,
+            badge: parcelState.sentParcels.length +
+                parcelState.receivedParcels.length,
           ),
           const ProcolisTabItem(
             icon: Icons.qr_code_scanner_rounded,
@@ -269,7 +288,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard> {
         children: [
           const AppLogo(size: 28),
           const SizedBox(width: 10),
-          const Text(
+          Text(
             'SENDPROCOLIS',
             style: TextStyle(
               fontWeight: FontWeight.bold,
@@ -384,10 +403,9 @@ class _MesColisTabState extends State<_MesColisTab> {
     super.dispose();
   }
 
-  List<Parcel> get _currentParcels =>
-      _sentReceivedIndex == 0
-          ? widget.parcelState.sentParcels
-          : widget.parcelState.receivedParcels;
+  List<Parcel> get _currentParcels => _sentReceivedIndex == 0
+      ? widget.parcelState.sentParcels
+      : widget.parcelState.receivedParcels;
 
   List<Parcel> _applyFilters(List<Parcel> parcels) {
     final query = _searchQuery.trim().toLowerCase();
@@ -426,9 +444,7 @@ class _MesColisTabState extends State<_MesColisTab> {
     final match = _statusGroups[_groupIndex].$2;
     final base = match.isEmpty
         ? _currentParcels
-        : _currentParcels
-            .where((p) => match.contains(p.status))
-            .toList();
+        : _currentParcels.where((p) => match.contains(p.status)).toList();
     return _applyFilters(base);
   }
 
@@ -459,7 +475,7 @@ class _MesColisTabState extends State<_MesColisTab> {
       onTap: _showSortSheet,
       child: Row(
         children: [
-          const Text(
+          Text(
             'Trier par',
             style: TextStyle(
               color: AppTheme.textSecondary,
@@ -469,14 +485,14 @@ class _MesColisTabState extends State<_MesColisTab> {
           const SizedBox(width: 6),
           Text(
             _sortLabels[_selectedSort]!,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.primary,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
           ),
           const Spacer(),
-          const Icon(Icons.unfold_more_rounded, size: 16, color: AppTheme.slate400),
+          Icon(Icons.unfold_more_rounded, size: 16, color: AppTheme.slate400),
         ],
       ),
     );
@@ -517,7 +533,7 @@ class _MesColisTabState extends State<_MesColisTab> {
                   return ListTile(
                     title: Text(entry.value),
                     trailing: selected
-                        ? const Icon(Icons.check_rounded, color: AppTheme.primary)
+                        ? Icon(Icons.check_rounded, color: AppTheme.primary)
                         : null,
                     onTap: () {
                       setState(() => _selectedSort = entry.key);
@@ -548,7 +564,7 @@ class _MesColisTabState extends State<_MesColisTab> {
             8,
             10,
           ),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppTheme.cardColor,
             border: Border(bottom: BorderSide(color: AppTheme.slate200)),
           ),
@@ -571,7 +587,7 @@ class _MesColisTabState extends State<_MesColisTab> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppTheme.cardColor,
           ),
           child: SegmentedControl(
@@ -584,7 +600,7 @@ class _MesColisTabState extends State<_MesColisTab> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppTheme.cardColor,
             border: Border(bottom: BorderSide(color: AppTheme.slate200)),
           ),
@@ -608,8 +624,10 @@ class _MesColisTabState extends State<_MesColisTab> {
                     onChanged: (value) => setState(() => _searchQuery = value),
                     decoration: InputDecoration(
                       hintText: 'Rechercher (suivi, ville, nom…)',
-                      hintStyle: const TextStyle(fontSize: 14, color: AppTheme.slate400),
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
+                      hintStyle:
+                          TextStyle(fontSize: 14, color: AppTheme.slate400),
+                      prefixIcon: Icon(Icons.search_rounded,
+                          size: 20, color: AppTheme.slate400),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.close_rounded, size: 18),
@@ -621,7 +639,8 @@ class _MesColisTabState extends State<_MesColisTab> {
                           : null,
                       filled: true,
                       fillColor: AppTheme.slate50,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                         borderSide: BorderSide.none,
@@ -632,7 +651,8 @@ class _MesColisTabState extends State<_MesColisTab> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                        borderSide:
+                            BorderSide(color: AppTheme.primary, width: 1.5),
                       ),
                     ),
                     style: const TextStyle(fontSize: 14),
@@ -820,7 +840,7 @@ class _MesColisEmptyState extends StatelessWidget {
               color: AppTheme.primaryLight,
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.inbox_rounded,
               color: AppTheme.primary,
               size: 34,
@@ -833,7 +853,7 @@ class _MesColisEmptyState extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Vos colis de cette catégorie apparaîtront ici.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.textSecondary),
@@ -891,7 +911,7 @@ class _ClientRecentParcelCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.qr_code_2_rounded,
                 color: AppTheme.slate400,
                 size: 18,
@@ -914,7 +934,7 @@ class _ClientRecentParcelCard extends StatelessWidget {
                     ),
                     if (parcel.isUrgent) ...[
                       const SizedBox(width: 5),
-                      const Text(
+                      Text(
                         '»',
                         style: TextStyle(
                           color: AppTheme.red400,
@@ -943,7 +963,7 @@ class _ClientRecentParcelCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(
+              Icon(
                 Icons.local_shipping_rounded,
                 color: AppTheme.teal500,
                 size: 22,
@@ -1005,7 +1025,7 @@ class _ClientRecentParcelCard extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   backgroundColor: AppTheme.primaryLight,
                   foregroundColor: AppTheme.primary,
-                  side: const BorderSide(color: AppTheme.teal100),
+                  side: BorderSide(color: AppTheme.teal100),
                 ),
               ),
             ),
@@ -1062,7 +1082,7 @@ class _ClientRouteEnd extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.slate400,
             fontSize: 11,
             fontWeight: FontWeight.w900,
@@ -1075,7 +1095,7 @@ class _ClientRouteEnd extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: alignEnd ? TextAlign.right : TextAlign.left,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w900,
@@ -1107,7 +1127,7 @@ class _ClientParcelMeta extends StatelessWidget {
             text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
@@ -1184,6 +1204,7 @@ class HomeScreen extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const MessagesScreen()),
             ),
+            onProfileTap: () => onNavigateToTab?.call(4),
           ),
           // Les annonces globales restent sous l'en-tête du rôle afin de ne
           // jamais précéder l'AppBar visuelle du dashboard.
@@ -1317,12 +1338,16 @@ class _ClientHomeHero extends StatelessWidget {
   final VoidCallback onNotificationsTap;
   final VoidCallback onChatTap;
 
+  /// Ouvre l'onglet « Profil » depuis la photo de profil.
+  final VoidCallback? onProfileTap;
+
   const _ClientHomeHero({
     required this.user,
     required this.unreadNotificationsCount,
     required this.unreadMessagesCount,
     required this.onNotificationsTap,
     required this.onChatTap,
+    this.onProfileTap,
   });
 
   @override
@@ -1338,44 +1363,56 @@ class _ClientHomeHero extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: Colors.white.withOpacity(0.18),
-                        backgroundImage: user.profilePhoto != null && user.profilePhoto!.isNotEmpty
-                            ? NetworkImage(
-                                user.profilePhoto!.startsWith('http')
-                                    ? user.profilePhoto!
-                                    : ApiService.resolveMediaUrl(user.profilePhoto!),
-                              )
-                            : null,
-                        child: user.profilePhoto != null && user.profilePhoto!.isNotEmpty
-                            ? null
-                            : Text(
-                                user.initials,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 2,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: AppTheme.green500,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                  GestureDetector(
+                    onTap: onProfileTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Semantics(
+                      button: onProfileTap != null,
+                      label: 'Mon profil',
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: Colors.white.withOpacity(0.18),
+                            backgroundImage: user.profilePhoto != null &&
+                                    user.profilePhoto!.isNotEmpty
+                                ? NetworkImage(
+                                    user.profilePhoto!.startsWith('http')
+                                        ? user.profilePhoto!
+                                        : ApiService.resolveMediaUrl(
+                                            user.profilePhoto!),
+                                  )
+                                : null,
+                            child: user.profilePhoto != null &&
+                                    user.profilePhoto!.isNotEmpty
+                                ? null
+                                : Text(
+                                    user.initials,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
                           ),
-                        ),
+                          Positioned(
+                            right: 0,
+                            bottom: 2,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: AppTheme.green500,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1563,7 +1600,7 @@ class _ClientEmptyRecent extends StatelessWidget {
               color: AppTheme.primaryLight,
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             ),
-            child: const Icon(Icons.inbox_rounded, color: AppTheme.primary),
+            child: Icon(Icons.inbox_rounded, color: AppTheme.primary),
           ),
           const SizedBox(height: 12),
           Text(
@@ -1571,7 +1608,7 @@ class _ClientEmptyRecent extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Créez un colis pour démarrer le suivi.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.textSecondary),
@@ -1771,7 +1808,7 @@ class _DesignStatBox extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 26,
               fontWeight: FontWeight.w900,
@@ -1783,7 +1820,7 @@ class _DesignStatBox extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -1823,7 +1860,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity( 0.2),
+            color: color.withOpacity(0.2),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

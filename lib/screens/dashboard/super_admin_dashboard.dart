@@ -154,6 +154,11 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     );
   }
 
+  void _goToTab(int index) {
+    setState(() => _selectedIndex = index);
+    ref.read(dashboardTabProvider.notifier).state = index;
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -173,10 +178,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
       body: _getScreen(_selectedIndex, user, parcelState, users, zones),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() => _selectedIndex = index);
-          ref.read(dashboardTabProvider.notifier).state = index;
-        },
+        onTap: _goToTab,
         items: [
           const ProcolisTabItem(
             icon: Icons.dashboard_rounded,
@@ -216,6 +218,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
           onRefresh: _loadData,
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
+          onProfileTap: () => _goToTab(4),
         );
       case 1:
         return const UsersManagementScreen(embedded: true);
@@ -240,6 +243,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
           onRefresh: _loadData,
           onNotificationsTap: _onNotificationsTap,
           unreadNotificationsCount: _unreadNotificationsCount,
+          onProfileTap: () => _goToTab(4),
         );
     }
   }
@@ -254,6 +258,9 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   final VoidCallback onNotificationsTap;
   final int unreadNotificationsCount;
 
+  /// Ouvre l'onglet « Profil » depuis la photo de profil.
+  final VoidCallback? onProfileTap;
+
   const _SuperAdminHomeScreen({
     required this.user,
     required this.parcelState,
@@ -262,6 +269,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
     required this.onRefresh,
     required this.onNotificationsTap,
     this.unreadNotificationsCount = 0,
+    this.onProfileTap,
   });
 
   int get _totalParcels => parcelState.parcels.length;
@@ -382,26 +390,34 @@ class _SuperAdminHomeScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: const Color(0xFFC9F3EE),
-                    backgroundImage: hasPhoto
-                        ? NetworkImage(
-                            photoUrl.startsWith('http')
-                                ? photoUrl
-                                : ApiService.resolveMediaUrl(photoUrl),
-                          )
-                        : null,
-                    child: hasPhoto
-                        ? null
-                        : Text(
-                            user?.initials ?? 'SA',
-                            style: const TextStyle(
-                              color: AppTheme.teal700,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                  GestureDetector(
+                    onTap: onProfileTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Semantics(
+                      button: onProfileTap != null,
+                      label: 'Mon profil',
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: const Color(0xFFC9F3EE),
+                        backgroundImage: hasPhoto
+                            ? NetworkImage(
+                                photoUrl.startsWith('http')
+                                    ? photoUrl
+                                    : ApiService.resolveMediaUrl(photoUrl),
+                              )
+                            : null,
+                        child: hasPhoto
+                            ? null
+                            : Text(
+                                user?.initials ?? 'SA',
+                                style: TextStyle(
+                                  color: AppTheme.teal700,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1094,8 +1110,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
           color: AppTheme.slate100,
           borderRadius: BorderRadius.circular(AppTheme.radiusSm),
         ),
-        child: const Icon(Icons.garage_rounded,
-            size: 22, color: AppTheme.slate500),
+        child: Icon(Icons.garage_rounded, size: 22, color: AppTheme.slate500),
       ),
       title: zone.name,
       subtitle: zone.city.isNotEmpty ? zone.city : '—',
@@ -1112,7 +1127,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
       children: [
         const PcSectionHeader('Activité récente'),
         if (parcelState.isLoading)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
             child: Center(
                 child: CircularProgressIndicator(color: AppTheme.primary)),

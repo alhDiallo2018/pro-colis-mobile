@@ -562,7 +562,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.badge_outlined,
+                        Icon(Icons.badge_outlined,
                             size: 11, color: AppTheme.teal600),
                         const SizedBox(width: 3),
                         Text(
@@ -647,7 +647,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.badge_outlined,
+                Icon(Icons.badge_outlined,
                     size: 11, color: AppTheme.slate400),
                 const SizedBox(width: 3),
                 Text(
@@ -921,7 +921,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(999),
-                    borderSide: const BorderSide(color: AppTheme.primary),
+                    borderSide: BorderSide(color: AppTheme.primary),
                   ),
                 ),
                 onChanged: (_) => setState(() {}),

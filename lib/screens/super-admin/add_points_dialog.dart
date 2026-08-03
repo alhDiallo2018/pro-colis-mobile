@@ -103,7 +103,7 @@ class _AddPointsDialogState extends State<AddPointsDialog> {
             decoration: InputDecoration(
               labelText: 'Points',
               hintText: 'Ex: 150',
-              prefixIcon: const Icon(Icons.stars, color: AppTheme.amber400),
+              prefixIcon: Icon(Icons.stars, color: AppTheme.amber400),
             ),
           ),
           const SizedBox(height: 14),
@@ -125,12 +125,12 @@ class _AddPointsDialogState extends State<AddPointsDialog> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, size: 16, color: AppTheme.red400),
+                  Icon(Icons.error_outline, size: 16, color: AppTheme.red400),
                   const SizedBox(width: 8),
                   Expanded(child: Text(_error!, style: TextStyle(fontSize: 13, color: AppTheme.red500))),
                   GestureDetector(
                     onTap: () => setState(() => _error = null),
-                    child: const Icon(Icons.close, size: 14, color: AppTheme.red400),
+                    child: Icon(Icons.close, size: 14, color: AppTheme.red400),
                   ),
                 ],
               ),

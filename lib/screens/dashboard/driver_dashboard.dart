@@ -109,9 +109,10 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   bool _isLoadingLocations = false;
 
   static const Color primaryBlue = Color(0xFF2563EB);
-  static const Color textPrimary = Color(0xFF1A2332);
-  static const Color textSecondary = Color(0xFF6B7A8F);
-  static const Color backgroundColor = Color(0xFFF0F4F8);
+  // Palette locale alignée sur le thème pour suivre le mode sombre.
+  static Color get textPrimary => AppTheme.textPrimary;
+  static Color get textSecondary => AppTheme.textSecondary;
+  static Color get backgroundColor => AppTheme.backgroundColor;
 
   @override
   void initState() {
@@ -713,7 +714,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Annonce de voyage',
                   style: TextStyle(
                     fontSize: 18,
@@ -753,7 +754,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '📍 Trajet',
             style: TextStyle(
               fontSize: 16,
@@ -977,7 +978,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '📦 Capacité de chargement',
             style: TextStyle(
               fontSize: 16,
@@ -1095,7 +1096,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '🎤 Message vocal (optionnel)',
             style: TextStyle(
               fontSize: 16,
@@ -1282,7 +1283,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '📝 Informations complémentaires',
             style: TextStyle(
               fontSize: 16,
@@ -1475,7 +1476,7 @@ class _SearchBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.search, size: 20, color: AppTheme.slate400),
+            Icon(Icons.search, size: 20, color: AppTheme.slate400),
             const SizedBox(width: 10),
             Text(
               'Rechercher un colis, un chauffeur…',
@@ -1532,7 +1533,7 @@ class _DriverSearchDelegate extends SearchDelegate<String> {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    return const Center(
+    return Center(
       child: Text(
         'Entrez un numéro de suivi de colis.',
         style: TextStyle(color: AppTheme.slate500),
@@ -1550,7 +1551,8 @@ class DriverDashboard extends ConsumerStatefulWidget {
   ConsumerState<DriverDashboard> createState() => _DriverDashboardState();
 }
 
-class _DriverDashboardState extends ConsumerState<DriverDashboard> {
+class _DriverDashboardState extends ConsumerState<DriverDashboard>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   int _unreadNotificationsCount = 0;
   int _unreadMessagesCount = 0;
@@ -1561,21 +1563,35 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
     _loadNotificationsCount();
     _loadMessagesUnread();
+    // Seuls les compteurs sont interrogés périodiquement : recharger les colis
+    // toutes les 15 s repassait `isLoading` à vrai et rechargeait les listes en
+    // boucle. Les colis se rechargent à l'ouverture et au pull-to-refresh.
     _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (!mounted) return;
       _loadNotificationsCount();
       _loadMessagesUnread();
-      _loadData();
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
     super.dispose();
+  }
+
+  /// Rattrapage au retour d'arrière-plan : une mission acceptée ou annulée
+  /// pendant la veille est reprise ici, faute de rechargement périodique.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    _loadData();
+    _loadNotificationsCount();
+    _loadMessagesUnread();
   }
 
   void _loadData() {
@@ -1657,6 +1673,11 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
     if (mounted) setState(() => _isUpdatingStatus = false);
   }
 
+  void _goToTab(int index) {
+    setState(() => _selectedIndex = index);
+    ref.read(dashboardTabProvider.notifier).state = index;
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -1675,10 +1696,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
       body: _getScreen(_selectedIndex, user, parcelState),
       bottomNavigationBar: ProcolisTabBar(
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() => _selectedIndex = index);
-          ref.read(dashboardTabProvider.notifier).state = index;
-        },
+        onTap: _goToTab,
         items: [
           const ProcolisTabItem(
             icon: Icons.dashboard_rounded,
@@ -1718,9 +1736,11 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
           unreadMessagesCount: _unreadMessagesCount,
           onViewMissions: () => setState(() => _selectedIndex = 2),
           onViewPool: () => setState(() => _selectedIndex = 1),
+          onViewProfile: () => _goToTab(4),
           onPublishTrip: _openPublishTrip,
           isUpdatingStatus: _isUpdatingStatus,
           onToggleAvailability: _toggleAvailability,
+          onRefresh: _loadData,
         );
       case 1:
         return _DriverPoolTabScreen(
@@ -1797,9 +1817,13 @@ class _DriverTableauScreen extends StatefulWidget {
   final int unreadMessagesCount;
   final VoidCallback onViewMissions;
   final VoidCallback onViewPool;
+
+  /// Ouvre l'onglet « Profil » depuis la photo de profil du bandeau.
+  final VoidCallback onViewProfile;
   final VoidCallback onPublishTrip;
   final bool isUpdatingStatus;
   final Future<void> Function() onToggleAvailability;
+  final VoidCallback onRefresh;
 
   const _DriverTableauScreen({
     required this.parcelState,
@@ -1809,16 +1833,19 @@ class _DriverTableauScreen extends StatefulWidget {
     required this.unreadMessagesCount,
     required this.onViewMissions,
     required this.onViewPool,
+    required this.onViewProfile,
     required this.onPublishTrip,
     required this.isUpdatingStatus,
     required this.onToggleAvailability,
+    required this.onRefresh,
   });
 
   @override
   State<_DriverTableauScreen> createState() => _DriverTableauScreenState();
 }
 
-class _DriverTableauScreenState extends State<_DriverTableauScreen> {
+class _DriverTableauScreenState extends State<_DriverTableauScreen>
+    with WidgetsBindingObserver {
   final ApiService _api = ApiService();
   double? _walletBalance;
   List<Map<String, dynamic>> _bidsSent = [];
@@ -1826,7 +1853,6 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
   double _weekRevenue = 0;
   List<double> _revenueBars = List<double>.filled(7, 0);
   Map<String, dynamic> _stats = {};
-  Timer? _refreshTimer;
 
   /// Livraisons réellement terminées (GET /driver/stats). Les compteurs portés
   /// par l'utilisateur ne sont pas maintenus par le backend et valent 0.
@@ -1845,16 +1871,30 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboardData();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (mounted) _loadDashboardData();
-    });
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// Rattrapage au retour d'arrière-plan (portefeuille, stats, offres). Le
+  /// dashboard parent recharge les colis de son côté.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) _loadDashboardData();
+  }
+
+  /// Rafraîchissement manuel (pull-to-refresh) : portefeuille, stats et
+  /// annonces d'un côté, colis du dashboard parent de l'autre. Remplace
+  /// l'ancien rechargement automatique toutes les 15 s, qui relançait cinq
+  /// appels API et reconstruisait le tableau en continu.
+  Future<void> _refreshAll() async {
+    widget.onRefresh();
+    await _loadDashboardData();
   }
 
   Future<void> _loadDashboardData() async {
@@ -1971,162 +2011,167 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
           }),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
-            children: [
-              GridView.count(
-                crossAxisCount: 2,
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.24,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const DriverPointsScreen())),
-                    child: PcStatBox(
-                      icon: Icons.account_balance_wallet_rounded,
-                      value: '$wallet FCFA',
-                      label: 'Portefeuille',
+          child: RefreshIndicator(
+            color: AppTheme.primary,
+            onRefresh: _refreshAll,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
+              children: [
+                GridView.count(
+                  crossAxisCount: 2,
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.24,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const DriverPointsScreen())),
+                      child: PcStatBox(
+                        icon: Icons.account_balance_wallet_rounded,
+                        value: '$wallet FCFA',
+                        label: 'Portefeuille',
+                        tone: PcTone.amber,
+                      ),
+                    ),
+                    PcStatBox(
+                      icon: Icons.local_shipping_rounded,
+                      value: '$activeCount',
+                      label: 'Missions actives',
+                      tone: PcTone.primary,
+                    ),
+                    PcStatBox(
+                      icon: Icons.task_alt_rounded,
+                      value: '$deliveries',
+                      label: 'Livraisons',
+                      tone: PcTone.green,
+                    ),
+                    PcStatBox(
+                      icon: Icons.star_rounded,
+                      value: rating,
+                      label: 'Note moyenne',
                       tone: PcTone.amber,
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const DriverPointsScreen())),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.amberGradient,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.add_circle_rounded,
+                            color: AppTheme.amberOnFg, size: 22),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text('Recharger mon portefeuille',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: AppTheme.amberOnFg)),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: AppTheme.amberOnFg),
+                      ],
+                    ),
                   ),
-                  PcStatBox(
+                ),
+                const SizedBox(height: 12),
+                _PublishTripShortcut(onTap: widget.onPublishTrip),
+                const SizedBox(height: 28),
+                PcSectionHeader(
+                  'Mission en cours',
+                  action: 'Voir tout',
+                  onAction: widget.onViewMissions,
+                ),
+                if (activeMission != null)
+                  _DriverRouteCard(
+                    parcel: activeMission,
+                    primaryActionLabel: 'Continuer la livraison',
+                    primaryActionIcon: Icons.arrow_forward_rounded,
+                    onPrimaryAction: widget.onViewMissions,
+                    customFooter: Row(
+                      children: [
+                        Expanded(
+                          child: PcButton(
+                            'Itinéraire',
+                            icon: Icons.navigation_rounded,
+                            variant: PcButtonVariant.secondary,
+                            block: true,
+                            onPressed: () => _openItinerary(activeMission),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: PcButton(
+                            'Gérer',
+                            icon: Icons.checklist_rounded,
+                            block: true,
+                            onPressed: widget.onViewMissions,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  const PcEmptyState(
                     icon: Icons.local_shipping_rounded,
-                    value: '$activeCount',
-                    label: 'Missions actives',
+                    title: 'Aucune mission en cours',
+                    message: 'Les missions acceptées apparaîtront ici.',
                     tone: PcTone.primary,
                   ),
-                  PcStatBox(
-                    icon: Icons.task_alt_rounded,
-                    value: '$deliveries',
-                    label: 'Livraisons',
-                    tone: PcTone.green,
-                  ),
-                  PcStatBox(
-                    icon: Icons.star_rounded,
-                    value: rating,
-                    label: 'Note moyenne',
+                const SizedBox(height: 28),
+                PcSectionHeader(
+                  'Colis à prendre',
+                  action: 'Tout voir',
+                  onAction: widget.onViewPool,
+                ),
+                if (availableParcel != null)
+                  _DriverRouteCard(
+                    parcel: availableParcel,
+                    footerText: '240 km',
+                    primaryActionLabel: availableParcelBidId != null
+                        ? 'Suivi offre'
+                        : 'Faire une offre',
+                    primaryActionIcon: availableParcelBidId != null
+                        ? Icons.chat_bubble_outline_rounded
+                        : Icons.gavel_rounded,
+                    onPrimaryAction: availableParcelBidId != null
+                        ? () => _openBidTracking(
+                              availableParcel,
+                              availableParcelBidId,
+                            )
+                        : widget.onViewPool,
+                  )
+                else
+                  const PcEmptyState(
+                    icon: Icons.sell_rounded,
+                    title: 'Aucun colis disponible',
+                    message: 'Les colis en libre service apparaîtront ici.',
                     tone: PcTone.amber,
                   ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              GestureDetector(
-                onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const DriverPointsScreen())),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.amberGradient,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.add_circle_rounded,
-                          color: AppTheme.amberOnFg, size: 22),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text('Recharger mon portefeuille',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: AppTheme.amberOnFg)),
-                      ),
-                      const Icon(Icons.chevron_right_rounded,
-                          color: AppTheme.amberOnFg),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _PublishTripShortcut(onTap: widget.onPublishTrip),
-              const SizedBox(height: 28),
-              PcSectionHeader(
-                'Mission en cours',
-                action: 'Voir tout',
-                onAction: widget.onViewMissions,
-              ),
-              if (activeMission != null)
-                _DriverRouteCard(
-                  parcel: activeMission,
-                  primaryActionLabel: 'Continuer la livraison',
-                  primaryActionIcon: Icons.arrow_forward_rounded,
-                  onPrimaryAction: widget.onViewMissions,
-                  customFooter: Row(
-                    children: [
-                      Expanded(
-                        child: PcButton(
-                          'Itinéraire',
-                          icon: Icons.navigation_rounded,
-                          variant: PcButtonVariant.secondary,
-                          block: true,
-                          onPressed: () => _openItinerary(activeMission),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: PcButton(
-                          'Gérer',
-                          icon: Icons.checklist_rounded,
-                          block: true,
-                          onPressed: widget.onViewMissions,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                const PcEmptyState(
-                  icon: Icons.local_shipping_rounded,
-                  title: 'Aucune mission en cours',
-                  message: 'Les missions acceptées apparaîtront ici.',
-                  tone: PcTone.primary,
-                ),
-              const SizedBox(height: 28),
-              PcSectionHeader(
-                'Colis à prendre',
-                action: 'Tout voir',
-                onAction: widget.onViewPool,
-              ),
-              if (availableParcel != null)
-                _DriverRouteCard(
-                  parcel: availableParcel,
-                  footerText: '240 km',
-                  primaryActionLabel: availableParcelBidId != null
-                      ? 'Suivi offre'
-                      : 'Faire une offre',
-                  primaryActionIcon: availableParcelBidId != null
-                      ? Icons.chat_bubble_outline_rounded
-                      : Icons.gavel_rounded,
-                  onPrimaryAction: availableParcelBidId != null
-                      ? () => _openBidTracking(
-                            availableParcel,
-                            availableParcelBidId,
-                          )
-                      : widget.onViewPool,
-                )
-              else
-                const PcEmptyState(
-                  icon: Icons.sell_rounded,
-                  title: 'Aucun colis disponible',
-                  message: 'Les colis en libre service apparaîtront ici.',
-                  tone: PcTone.amber,
-                ),
-              const SizedBox(height: 28),
-              _buildRevenuePanel(),
-              const SizedBox(height: 28),
-              _buildBidsPanel(),
-              const SizedBox(height: 28),
-              _buildAdsPanel(),
-            ],
+                const SizedBox(height: 28),
+                _buildRevenuePanel(),
+                const SizedBox(height: 28),
+                _buildBidsPanel(),
+                const SizedBox(height: 28),
+                _buildAdsPanel(),
+              ],
+            ),
           ),
         ),
       ],
@@ -2175,7 +2220,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Revenus · 7 jours',
                   style: TextStyle(
@@ -2191,7 +2236,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
                   MaterialPageRoute(
                       builder: (_) => const DriverRevenusScreen()),
                 ),
-                child: const Text(
+                child: Text(
                   'Voir tout',
                   style: TextStyle(
                     color: AppTheme.primary,
@@ -2351,51 +2396,60 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen> {
             children: [
               Row(
                 children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      CircleAvatar(
-                        radius: 31,
-                        backgroundColor: const Color(0xFFC9F3EE),
-                        backgroundImage: user != null &&
-                                user.profilePhoto != null &&
-                                user.profilePhoto!.isNotEmpty
-                            ? NetworkImage(
-                                user.profilePhoto!.startsWith('http')
-                                    ? user.profilePhoto!
-                                    : ApiService.resolveMediaUrl(
-                                        user.profilePhoto!),
-                              )
-                            : null,
-                        child: user != null &&
-                                user.profilePhoto != null &&
-                                user.profilePhoto!.isNotEmpty
-                            ? null
-                            : Text(
-                                user?.initials ?? 'PC',
-                                style: const TextStyle(
-                                  color: AppTheme.teal700,
-                                  fontSize: 21,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                      ),
-                      Positioned(
-                        right: -1,
-                        bottom: 3,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: available
-                                ? AppTheme.green500
-                                : AppTheme.slate400,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
+                  GestureDetector(
+                    onTap: widget.onViewProfile,
+                    behavior: HitTestBehavior.opaque,
+                    child: Semantics(
+                      button: true,
+                      label: 'Mon profil',
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CircleAvatar(
+                            radius: 31,
+                            backgroundColor: const Color(0xFFC9F3EE),
+                            backgroundImage: user != null &&
+                                    user.profilePhoto != null &&
+                                    user.profilePhoto!.isNotEmpty
+                                ? NetworkImage(
+                                    user.profilePhoto!.startsWith('http')
+                                        ? user.profilePhoto!
+                                        : ApiService.resolveMediaUrl(
+                                            user.profilePhoto!),
+                                  )
+                                : null,
+                            child: user != null &&
+                                    user.profilePhoto != null &&
+                                    user.profilePhoto!.isNotEmpty
+                                ? null
+                                : Text(
+                                    user?.initials ?? 'PC',
+                                    style: TextStyle(
+                                      color: AppTheme.teal700,
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                           ),
-                        ),
+                          Positioned(
+                            right: -1,
+                            bottom: 3,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: available
+                                    ? AppTheme.green500
+                                    : AppTheme.slate400,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 3),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -2653,7 +2707,7 @@ class _PublishTripShortcut extends StatelessWidget {
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.arrow_forward_rounded,
                   color: AppTheme.primary,
                   size: 22,
@@ -2714,8 +2768,7 @@ class _DriverRouteCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.qr_code_2_rounded,
-                  size: 20, color: AppTheme.slate400),
+              Icon(Icons.qr_code_2_rounded, size: 20, color: AppTheme.slate400),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -2742,7 +2795,7 @@ class _DriverRouteCard extends StatelessWidget {
                   alignEnd: false,
                 ),
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 14),
                 child: Icon(
                   Icons.local_shipping_rounded,
@@ -2797,12 +2850,11 @@ class _DriverRouteCard extends StatelessWidget {
             const SizedBox(height: 18),
             Row(
               children: [
-                const Icon(Icons.route_rounded,
-                    size: 18, color: AppTheme.slate500),
+                Icon(Icons.route_rounded, size: 18, color: AppTheme.slate500),
                 const SizedBox(width: 6),
                 Text(
                   footerText!,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -2852,7 +2904,7 @@ class _RouteEndpoint extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.slate400,
             fontSize: 13,
             fontWeight: FontWeight.w900,
@@ -2865,7 +2917,7 @@ class _RouteEndpoint extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: alignEnd ? TextAlign.right : TextAlign.left,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 21,
             fontWeight: FontWeight.w800,
@@ -2897,7 +2949,7 @@ class _RouteMeta extends StatelessWidget {
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 15,
               fontWeight: FontWeight.w500,
@@ -3230,7 +3282,7 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.right,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -3531,7 +3583,7 @@ class _DriverProfileTabScreenState
                               ? null
                               : Text(
                                   user?.initials ?? 'PC',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppTheme.teal700,
                                     fontSize: 28,
                                     fontWeight: FontWeight.w900,
@@ -3557,7 +3609,7 @@ class _DriverProfileTabScreenState
                     Text(
                       displayName,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -3567,24 +3619,24 @@ class _DriverProfileTabScreenState
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.star_rounded,
+                        Icon(Icons.star_rounded,
                             color: AppTheme.amber500, size: 20),
                         const SizedBox(width: 4),
                         Text(
                           _rating,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppTheme.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const Text(
+                        Text(
                           ' · ',
                           style: TextStyle(color: AppTheme.textSecondary),
                         ),
                         Text(
                           '$_deliveries livraisons',
-                          style: const TextStyle(color: AppTheme.textSecondary),
+                          style: TextStyle(color: AppTheme.textSecondary),
                         ),
                       ],
                     ),
@@ -3690,7 +3742,7 @@ class _DriverProfileTabScreenState
                       title: 'Documents & permis',
                       subtitle: _documentsSubtitle,
                       trailing: _isVerified
-                          ? const Icon(Icons.verified_rounded,
+                          ? Icon(Icons.verified_rounded,
                               color: AppTheme.successColor)
                           : null,
                       onTap: () => Navigator.push(
@@ -3828,7 +3880,7 @@ class _DriverTabHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
@@ -3854,7 +3906,7 @@ class _DriverTabHeader extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
@@ -3865,7 +3917,7 @@ class _DriverTabHeader extends StatelessWidget {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -3999,7 +4051,7 @@ class _DriverProfileStat extends StatelessWidget {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 21,
                     fontWeight: FontWeight.w900,
@@ -4011,7 +4063,7 @@ class _DriverProfileStat extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -4079,14 +4131,14 @@ class _DriverProfileRow extends StatelessWidget {
           subtitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
           ),
         ),
         trailing: trailing ??
-            const Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
+            Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
       ),
     );
   }
@@ -4115,8 +4167,8 @@ class _DriverAdvertisementsScreenState
   final ApiService _apiService = ApiService();
 
   static const Color primaryBlue = Color(0xFF2563EB);
-  static const Color backgroundColor = Color(0xFFF0F4F8);
-  static const Color textPrimary = Color(0xFF1A2332);
+  static Color get backgroundColor => AppTheme.backgroundColor;
+  static Color get textPrimary => AppTheme.textPrimary;
 
   @override
   void initState() {
@@ -4212,7 +4264,7 @@ class _DriverAdvertisementsScreenState
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Annonces',
                     style: TextStyle(
@@ -4350,7 +4402,7 @@ class _DriverAdvertisementsScreenState
     return RefreshIndicator(
       onRefresh: _loadAdvertisements,
       color: primaryBlue,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.cardColor,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         itemCount: advertisements.length,
@@ -4487,7 +4539,7 @@ class _DriverAdvertisementsScreenState
             const SizedBox(height: 12),
             Text(
               parcel.trackingNumber,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'monospace',
@@ -5131,7 +5183,8 @@ class _BidsBottomSheetState extends State<_BidsBottomSheet> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (bid.responseMessage != null && bid.responseMessage!.isNotEmpty) ...[
+                if (bid.responseMessage != null &&
+                    bid.responseMessage!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.all(8),

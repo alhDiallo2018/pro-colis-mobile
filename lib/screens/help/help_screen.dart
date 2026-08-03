@@ -68,7 +68,7 @@ class _HelpScreenState extends State<HelpScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
@@ -141,7 +141,7 @@ class _HelpScreenState extends State<HelpScreen> {
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.support_agent_rounded,
                     color: AppTheme.primary,
                     size: 28,
@@ -338,7 +338,7 @@ class _FaqTileState extends State<_FaqTile> {
                 AnimatedRotation(
                   turns: _open ? 0.5 : 0,
                   duration: const Duration(milliseconds: 180),
-                  child: const Icon(
+                  child: Icon(
                     Icons.expand_more_rounded,
                     color: AppTheme.slate500,
                   ),

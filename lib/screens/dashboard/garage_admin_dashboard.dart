@@ -135,7 +135,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
+      return Center(child: CircularProgressIndicator(color: AppTheme.primary));
     }
     if (_error != null) return _buildErrorView();
 
@@ -243,7 +243,7 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                       Container(
                         width: 8,
                         height: 8,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppTheme.green300,
                           shape: BoxShape.circle,
                         ),
@@ -751,7 +751,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                         color: AppTheme.teal50,
                         borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                       ),
-                      child: const Icon(Icons.inventory_2_rounded, size: 20, color: AppTheme.primary),
+                      child: Icon(Icons.inventory_2_rounded, size: 20, color: AppTheme.primary),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -813,7 +813,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.delivery_dining_rounded, size: 16, color: AppTheme.green700),
+                        Icon(Icons.delivery_dining_rounded, size: 16, color: AppTheme.green700),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -830,7 +830,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                         Container(
                           width: 6,
                           height: 6,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppTheme.green500,
                             shape: BoxShape.circle,
                           ),
@@ -841,7 +841,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                 ],
 
                 const SizedBox(height: 12),
-                const Divider(height: 1, color: AppTheme.slate200),
+                Divider(height: 1, color: AppTheme.slate200),
                 const SizedBox(height: 12),
 
                 // Boutons d'action
@@ -891,7 +891,7 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                                     Container(
                                       width: 6,
                                       height: 6,
-                                      decoration: const BoxDecoration(
+                                      decoration: BoxDecoration(
                                         color: AppTheme.green500,
                                         shape: BoxShape.circle,
                                       ),
@@ -938,33 +938,33 @@ class _DriversTab extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ListTile(
-              leading: const Icon(Icons.phone_rounded, color: AppTheme.primary),
+              leading: Icon(Icons.phone_rounded, color: AppTheme.primary),
               title: const Text('Téléphone'),
               subtitle: Text(driver.phone),
               dense: true,
             ),
             ListTile(
-              leading: const Icon(Icons.email_rounded, color: AppTheme.primary),
+              leading: Icon(Icons.email_rounded, color: AppTheme.primary),
               title: const Text('Email'),
               subtitle: Text(driver.email),
               dense: true,
             ),
             ListTile(
-              leading: const Icon(Icons.badge_rounded, color: AppTheme.primary),
+              leading: Icon(Icons.badge_rounded, color: AppTheme.primary),
               title: const Text('Statut'),
               subtitle: Text(driver.driverStatus?.label ?? 'Disponible'),
               dense: true,
             ),
             if (driver.vehiclePlate != null)
               ListTile(
-                leading: const Icon(Icons.directions_car_rounded, color: AppTheme.primary),
+                leading: Icon(Icons.directions_car_rounded, color: AppTheme.primary),
                 title: const Text('Plaque'),
                 subtitle: Text(driver.vehiclePlate!),
                 dense: true,
               ),
             if (driver.vehicleModel != null)
               ListTile(
-                leading: const Icon(Icons.car_repair_rounded, color: AppTheme.primary),
+                leading: Icon(Icons.car_repair_rounded, color: AppTheme.primary),
                 title: const Text('Modèle'),
                 subtitle: Text(driver.vehicleModel!),
                 dense: true,
@@ -1102,7 +1102,7 @@ class _DriversTab extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Icon(Icons.local_shipping_rounded, size: 13, color: AppTheme.slate400),
+                          Icon(Icons.local_shipping_rounded, size: 13, color: AppTheme.slate400),
                           const SizedBox(width: 3),
                           Text(
                             '${driver.completedDeliveries ?? 0}',
@@ -1120,7 +1120,7 @@ class _DriversTab extends StatelessWidget {
                 const SizedBox(width: 6),
                 PcBadge(statusLabel, tone: tone),
                 const SizedBox(width: 2),
-                const Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.slate400),
+                Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.slate400),
               ],
             ),
           );

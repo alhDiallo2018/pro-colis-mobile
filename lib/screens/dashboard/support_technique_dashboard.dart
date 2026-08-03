@@ -92,6 +92,7 @@ class _SupportTechniqueDashboardState
             onNotificationsTap: _openNotifications,
             onSeeTickets: () => _goToTab(1),
             onSeeIncidents: () => _goToTab(2),
+            onSeeProfile: () => _goToTab(3),
           ),
           const _TicketsTab(),
           const _IncidentsTab(),
@@ -130,12 +131,14 @@ class _SupportTechniqueHome extends ConsumerWidget {
   final VoidCallback onNotificationsTap;
   final VoidCallback onSeeTickets;
   final VoidCallback onSeeIncidents;
+  final VoidCallback onSeeProfile;
 
   const _SupportTechniqueHome({
     required this.user,
     required this.onNotificationsTap,
     required this.onSeeTickets,
     required this.onSeeIncidents,
+    required this.onSeeProfile,
   });
 
   @override
@@ -158,6 +161,7 @@ class _SupportTechniqueHome extends ConsumerWidget {
             user: user,
             onNotificationsTap: onNotificationsTap,
             unreadCount: statsAsync.valueOrNull?.slaAtRisk ?? 0,
+            onProfileTap: onSeeProfile,
           ),
           // Les annonces super-admin s'affichent sous le hero du rôle.
           const BroadcastBanner(),
@@ -309,7 +313,7 @@ class _SlaAlertCard extends StatelessWidget {
               color: AppTheme.red100,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: const Icon(Icons.warning_amber_rounded,
+            child: Icon(Icons.warning_amber_rounded,
                 size: 22, color: AppTheme.red500),
           ),
           const SizedBox(width: 12),
@@ -337,7 +341,7 @@ class _SlaAlertCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppTheme.red500),
+          Icon(Icons.chevron_right_rounded, color: AppTheme.red500),
         ],
       ),
     );

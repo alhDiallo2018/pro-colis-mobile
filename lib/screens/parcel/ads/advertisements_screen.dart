@@ -158,7 +158,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
 
   Widget _buildTripsTab() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppTheme.primary),
       );
     }
@@ -235,12 +235,12 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
             fontWeight: FontWeight.w500,
             color: AppTheme.slate400,
           ),
-          prefixIcon: const Icon(Icons.search_rounded,
+          prefixIcon: Icon(Icons.search_rounded,
               size: 20, color: AppTheme.slate400),
           suffixIcon: _tripQuery.isEmpty
               ? null
               : IconButton(
-                  icon: const Icon(Icons.close_rounded,
+                  icon: Icon(Icons.close_rounded,
                       size: 18, color: AppTheme.slate400),
                   onPressed: () {
                     _tripSearchController.clear();
@@ -251,15 +251,15 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
               const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            borderSide: const BorderSide(color: AppTheme.slate200),
+            borderSide: BorderSide(color: AppTheme.slate200),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            borderSide: const BorderSide(color: AppTheme.slate200),
+            borderSide: BorderSide(color: AppTheme.slate200),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+            borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
           ),
         ),
       ),
@@ -268,7 +268,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppTheme.primary),
       );
     }
@@ -449,7 +449,7 @@ class _LibreServiceHeader extends StatelessWidget {
         18,
         16,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(
           bottom: BorderSide(color: AppTheme.slate200),
@@ -507,7 +507,7 @@ class _LibreParcelCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.qr_code_2_rounded,
+              Icon(Icons.qr_code_2_rounded,
                   size: 20, color: AppTheme.slate400),
               const SizedBox(width: 10),
               Expanded(
@@ -538,7 +538,7 @@ class _LibreParcelCard extends StatelessWidget {
                   city: parcel.departureZoneName,
                 ),
               ),
-              const Icon(Icons.local_shipping_outlined,
+              Icon(Icons.local_shipping_outlined,
                   color: AppTheme.primary, size: 28),
               Expanded(
                 child: _RouteEnd(
@@ -550,7 +550,7 @@ class _LibreParcelCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(height: 1, color: AppTheme.slate200),
+          Divider(height: 1, color: AppTheme.slate200),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -807,7 +807,7 @@ class _OfferMessage extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               isPlaying ? 'En cours' : 'Message vocal',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 color: AppTheme.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -824,7 +824,7 @@ class _OfferMessage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       margin: const EdgeInsets.only(top: 4),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.slate100,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(AppTheme.radiusSm),
@@ -837,7 +837,7 @@ class _OfferMessage extends StatelessWidget {
         displayText,
         maxLines: 4,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           height: 1.4,
           color: AppTheme.slate700,
@@ -892,7 +892,7 @@ class _NoOffersCard extends StatelessWidget {
               color: AppTheme.slate100,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: const Icon(Icons.inbox_outlined, color: AppTheme.slate500),
+            child: Icon(Icons.inbox_outlined, color: AppTheme.slate500),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -937,7 +937,7 @@ class _RouteEnd extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
@@ -1106,7 +1106,7 @@ class _TripCard extends StatelessWidget {
                   color: AppTheme.teal50,
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
-                child: const Icon(Icons.local_shipping_rounded,
+                child: Icon(Icons.local_shipping_rounded,
                     color: AppTheme.primary, size: 20),
               ),
               const SizedBox(width: 12),
@@ -1121,7 +1121,7 @@ class _TripCard extends StatelessWidget {
                               color: AppTheme.textPrimary),
                           overflow: TextOverflow.ellipsis),
                     ),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 6),
                       child: Icon(Icons.arrow_forward_rounded,
                           size: 16, color: AppTheme.slate400),
@@ -1137,7 +1137,7 @@ class _TripCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
+              Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
             ],
           ),
           const SizedBox(height: 12),

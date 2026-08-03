@@ -99,7 +99,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Détail du voyage'),
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
@@ -145,7 +145,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 color: AppTheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.local_shipping_rounded,
+              child: Icon(Icons.local_shipping_rounded,
                   color: AppTheme.primary),
             ),
             const SizedBox(width: 14),
@@ -159,7 +159,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   if (date != null) ...[
                     const SizedBox(height: 4),
                     Text('Départ : ${_formatDate(date)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13, color: AppTheme.textSecondary)),
                   ],
                 ],
@@ -193,7 +193,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           const SizedBox(height: 2),
           Text(label,
               style:
-                  const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                  TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
         ],
       );
 
@@ -216,7 +216,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  const Text('Chauffeur',
+                  Text('Chauffeur',
                       style: TextStyle(
                           fontSize: 12, color: AppTheme.textSecondary)),
                 ],
@@ -234,7 +234,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text(description,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13, height: 1.5, color: AppTheme.textPrimary)),
           ],
         ),
@@ -287,7 +287,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 label: const Text('Appeler'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppTheme.primary,
-                  side: const BorderSide(color: AppTheme.primary),
+                  side: BorderSide(color: AppTheme.primary),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),

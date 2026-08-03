@@ -114,7 +114,7 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
   @override
   Widget build(BuildContext context) {
     final content = _isLoading
-        ? const Center(
+        ? Center(
             child: CircularProgressIndicator(color: AppTheme.primary))
         : _buildBody();
 
@@ -422,7 +422,7 @@ class _ReceivedOfferCard extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.check_circle_rounded,
+                    Icon(Icons.check_circle_rounded,
                         size: 18, color: AppTheme.green500),
                     const SizedBox(width: 6),
                     Text(

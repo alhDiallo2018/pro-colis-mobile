@@ -61,13 +61,13 @@ class _DriverHistoriqueScreenState
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
       body: RefreshIndicator(
         color: AppTheme.primary,
         onRefresh: _load,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+            ? Center(child: CircularProgressIndicator(color: AppTheme.primary))
             : _history.isEmpty
                 ? ListView(
                     children: const [
@@ -131,7 +131,7 @@ class _HistoryRow extends StatelessWidget {
                           style: AppFonts.plusJakartaSans(
                               fontSize: 14.5, fontWeight: FontWeight.w700)),
                     ),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 4),
                       child: Icon(Icons.arrow_right_alt_rounded,
                           size: 16, color: AppTheme.slate400),

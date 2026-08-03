@@ -132,7 +132,7 @@ class _NotificationPreferencesScreenState
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Impossible d’enregistrer les préférences'),
             backgroundColor: AppTheme.error,
           ),
@@ -179,7 +179,7 @@ class _NotificationPreferencesScreenState
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline,
+                      Icon(Icons.info_outline,
                           color: AppTheme.teal600, size: 20),
                       const SizedBox(width: 10),
                       Expanded(

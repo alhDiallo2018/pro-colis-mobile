@@ -108,7 +108,7 @@ class _GarageAssignationsScreenState
     }
     if (assignments.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
             content: Text('Aucune assignation à effectuer'),
             backgroundColor: AppTheme.warningColor),
       );
@@ -120,7 +120,7 @@ class _GarageAssignationsScreenState
           a['parcelId']!, a['driverId']!);
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
           content: Text('Assignation en masse effectuée'),
           backgroundColor: AppTheme.green600),
     );
@@ -258,7 +258,7 @@ class _GarageAssignationsScreenState
                                 color: AppTheme.textPrimary),
                           ),
                         ),
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4),
                           child: Icon(Icons.arrow_right_alt_rounded,
                               size: 18, color: AppTheme.slate400),
@@ -338,7 +338,7 @@ class _GarageAssignationsScreenState
                       style: AppFonts.manrope(
                           fontSize: 13, color: AppTheme.slate400),
                     ),
-                    icon: const Icon(Icons.expand_more_rounded,
+                    icon: Icon(Icons.expand_more_rounded,
                         color: AppTheme.slate400),
                     decoration: InputDecoration(
                       isDense: true,
@@ -347,13 +347,13 @@ class _GarageAssignationsScreenState
                       enabledBorder: OutlineInputBorder(
                         borderRadius:
                             BorderRadius.circular(AppTheme.radiusSm),
-                        borderSide: const BorderSide(color: AppTheme.slate200),
+                        borderSide: BorderSide(color: AppTheme.slate200),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius:
                             BorderRadius.circular(AppTheme.radiusSm),
                         borderSide:
-                            const BorderSide(color: AppTheme.primary, width: 2),
+                            BorderSide(color: AppTheme.primary, width: 2),
                       ),
                     ),
                     items: _drivers.map((d) {
@@ -491,7 +491,7 @@ class _GarageAssignationsScreenState
       if (mounted) setState(() => _playingAudioKey = null);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
               content: Text('Lecture audio impossible'),
               backgroundColor: AppTheme.error),
         );
@@ -543,7 +543,7 @@ class _GarageAssignationsScreenState
                             width: 64,
                             height: 64,
                             color: AppTheme.slate100,
-                            child: const Icon(Icons.broken_image_rounded,
+                            child: Icon(Icons.broken_image_rounded,
                                 color: AppTheme.slate400),
                           ),
                         ),
@@ -633,7 +633,7 @@ class _GarageAssignationsScreenState
                       fontWeight: FontWeight.w600),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
+              Icon(Icons.chevron_right_rounded,
                   color: AppTheme.slate400, size: 20),
             ],
           ),

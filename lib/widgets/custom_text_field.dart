@@ -67,13 +67,13 @@ class CustomTextField extends StatelessWidget {
       autofocus: autoFocus,
       textAlign: textAlign,
       style:
-          style ?? const TextStyle(fontSize: 16, color: AppTheme.textPrimary),
+          style ?? TextStyle(fontSize: 16, color: AppTheme.textPrimary),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         helperText: helperText,
         errorText: errorText,
-        labelStyle: const TextStyle(
+        labelStyle: TextStyle(
           color: AppTheme.textSecondary,
           fontSize: 13,
           fontWeight: FontWeight.w600,

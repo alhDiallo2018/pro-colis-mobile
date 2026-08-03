@@ -468,7 +468,7 @@ class _DriverMesAnnoncesScreenState
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(Icons.location_on_outlined,
+              Icon(Icons.location_on_outlined,
                   size: 18, color: AppTheme.slate500),
               const SizedBox(width: 4),
               Expanded(
@@ -481,7 +481,7 @@ class _DriverMesAnnoncesScreenState
                     ),
                     children: [
                       TextSpan(text: departure),
-                      const WidgetSpan(
+                      WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
                         child: Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4),
@@ -603,7 +603,7 @@ class _DriverMesAnnoncesScreenState
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppTheme.slate100)),
       ),
       child: Column(
@@ -936,7 +936,7 @@ class _ParcelSheetState extends State<_ParcelSheet> {
           children: [
             Row(
               children: [
-                const Icon(Icons.inventory_2_outlined,
+                Icon(Icons.inventory_2_outlined,
                     size: 20, color: AppTheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1041,7 +1041,7 @@ class _ParcelSheetState extends State<_ParcelSheet> {
                           width: 80,
                           height: 80,
                           color: AppTheme.slate100,
-                          child: const Icon(Icons.broken_image_rounded,
+                          child: Icon(Icons.broken_image_rounded,
                               color: AppTheme.slate400),
                         ),
                       ),
@@ -1127,7 +1127,7 @@ class _MediaLabel extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.w800,
@@ -1167,14 +1167,14 @@ class _MediaTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
+              Icon(Icons.chevron_right_rounded, color: AppTheme.slate400),
             ],
           ),
         ),
@@ -1329,7 +1329,7 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.location_on_outlined,
+                              Icon(Icons.location_on_outlined,
                                   size: 18, color: AppTheme.slate500),
                               const SizedBox(width: 6),
                               Expanded(
@@ -1342,7 +1342,7 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
                                     ),
                                     children: [
                                       TextSpan(text: departure),
-                                      const WidgetSpan(
+                                      WidgetSpan(
                                         alignment: PlaceholderAlignment.middle,
                                         child: Padding(
                                           padding: EdgeInsets.symmetric(
@@ -1399,7 +1399,7 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
                     const SizedBox(height: 22),
                     Row(
                       children: [
-                        const Icon(Icons.handshake_rounded,
+                        Icon(Icons.handshake_rounded,
                             size: 20, color: AppTheme.primary),
                         const SizedBox(width: 8),
                         Text(

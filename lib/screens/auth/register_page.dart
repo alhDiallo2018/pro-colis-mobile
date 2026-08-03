@@ -128,7 +128,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'L’inscription a échoué. Vérifiez votre connexion et réessayez.',
             ),
@@ -652,7 +652,7 @@ class _PhoneFieldState extends State<_PhoneField> {
                   style:
                       AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
-                const Icon(Icons.arrow_drop_down,
+                Icon(Icons.arrow_drop_down,
                     size: 18, color: AppTheme.slate500),
               ],
             ),

@@ -28,7 +28,7 @@ class ColisInterditsPage extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.warning_amber_rounded, color: AppTheme.red400, size: 28),
+                Icon(Icons.warning_amber_rounded, color: AppTheme.red400, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

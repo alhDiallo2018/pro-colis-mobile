@@ -512,7 +512,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                         decoration: BoxDecoration(
                           gradient: highlight
                               ? null
-                              : const LinearGradient(
+                              : LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [AppTheme.teal400, AppTheme.teal600],
@@ -670,7 +670,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
                     child: Opacity(
                       opacity: opacity,
                       child: Container(
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
@@ -886,7 +886,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: AppTheme.slate200),
+          Divider(height: 1, thickness: 1, color: AppTheme.slate200),
           if (flush)
             body
           else

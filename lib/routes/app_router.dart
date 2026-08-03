@@ -7,6 +7,7 @@ import '../models/garage.dart';
 import '../models/parcel.dart';
 import '../providers/auth_provider.dart';
 import '../screens/accueil/onboarding_screen.dart';
+import '../screens/accueil/splash_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/client/client_libre_service_screen.dart';
@@ -186,9 +187,7 @@ class AppRouter {
         ),
         GoRoute(
           path: '/splash',
-          builder: (context, state) => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          ),
+          builder: (context, state) => const SplashScreen(),
         ),
         GoRoute(
           path: '/login',

@@ -345,7 +345,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
-        border: const Border(top: BorderSide(color: AppTheme.slate200)),
+        border: Border(top: BorderSide(color: AppTheme.slate200)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

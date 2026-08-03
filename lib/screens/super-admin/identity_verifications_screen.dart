@@ -175,7 +175,7 @@ class _IdentityVerificationsScreenState extends State<IdentityVerificationsScree
                   children: [
                     Text(user?['fullName']?.toString() ?? '—', style: const TextStyle(fontWeight: FontWeight.w700)),
                     Text('${user?['phone'] ?? ''} · ${v['documentType'] ?? '—'}',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                   ],
                 ),
               ),
@@ -195,7 +195,7 @@ class _IdentityVerificationsScreenState extends State<IdentityVerificationsScree
           ],
           if (st == 'rejected' && (v['rejectionReason']?.toString().isNotEmpty ?? false)) ...[
             const SizedBox(height: 6),
-            Text('Motif : ${v['rejectionReason']}', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            Text('Motif : ${v['rejectionReason']}', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
           ],
           if (st == 'pending' || st == 'rejected') ...[
             const SizedBox(height: 10),
@@ -205,8 +205,8 @@ class _IdentityVerificationsScreenState extends State<IdentityVerificationsScree
                 if (st == 'pending')
                   TextButton.icon(
                     onPressed: () => _reject(v),
-                    icon: const Icon(Icons.close, color: AppTheme.red500, size: 18),
-                    label: const Text('Rejeter', style: TextStyle(color: AppTheme.red500)),
+                    icon: Icon(Icons.close, color: AppTheme.red500, size: 18),
+                    label: Text('Rejeter', style: TextStyle(color: AppTheme.red500)),
                   ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
@@ -237,7 +237,7 @@ class _IdentityVerificationsScreenState extends State<IdentityVerificationsScree
                 width: 56,
                 height: 56,
                 color: AppTheme.slate100,
-                child: const Icon(Icons.broken_image, color: AppTheme.slate400),
+                child: Icon(Icons.broken_image, color: AppTheme.slate400),
               ),
             ),
           ),

@@ -94,7 +94,7 @@ class ProcolisDialog extends StatelessWidget {
                       Text(
                         title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary,
@@ -147,7 +147,7 @@ class ProcolisDialogActions extends StatelessWidget {
             onPressed: primaryLoading ? null : onSecondary,
             style: OutlinedButton.styleFrom(
               foregroundColor: AppTheme.textPrimary,
-              side: const BorderSide(color: AppTheme.slate300),
+              side: BorderSide(color: AppTheme.slate300),
               minimumSize: const Size(0, 46),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),

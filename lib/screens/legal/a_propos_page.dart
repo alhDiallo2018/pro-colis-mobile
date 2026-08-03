@@ -48,7 +48,7 @@ class AProposPage extends StatelessWidget {
                       letterSpacing: -0.3,
                       color: AppTheme.textPrimary,
                     ),
-                    children: const [
+                    children: [
                       TextSpan(text: 'PRO'),
                       TextSpan(
                         text: 'COLIS',
@@ -211,7 +211,7 @@ class AProposPage extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 4),
             child: Icon(Icons.check_circle, color: AppTheme.primary, size: 18),
           ),

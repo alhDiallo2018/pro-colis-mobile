@@ -257,7 +257,7 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
                             decoration: BoxDecoration(
                               gradient: isLast
                                   ? null
-                                  : const LinearGradient(
+                                  : LinearGradient(
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
@@ -430,7 +430,7 @@ class _GarageRapportsScreenState extends ConsumerState<GarageRapportsScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: AppTheme.slate200),
+          Divider(height: 1, thickness: 1, color: AppTheme.slate200),
           Padding(padding: const EdgeInsets.all(16), child: body),
         ],
       ),

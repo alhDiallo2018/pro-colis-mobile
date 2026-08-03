@@ -264,7 +264,7 @@ class PaymentChannelField extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.info_outline_rounded,
+              Icon(Icons.info_outline_rounded,
                   size: 14, color: AppTheme.slate400),
               const SizedBox(width: 6),
               Expanded(

@@ -37,6 +37,9 @@ class RoleDashboardHero extends StatelessWidget {
   /// Contenu additionnel sous l'accroche (chips de contexte, jauge…).
   final Widget? footer;
 
+  /// Ouvre le profil ; l'avatar n'est cliquable que si ce rappel est fourni.
+  final VoidCallback? onProfileTap;
+
   const RoleDashboardHero({
     super.key,
     required this.user,
@@ -44,6 +47,7 @@ class RoleDashboardHero extends StatelessWidget {
     this.onNotificationsTap,
     this.unreadCount = 0,
     this.footer,
+    this.onProfileTap,
   });
 
   @override
@@ -67,21 +71,29 @@ class RoleDashboardHero extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: Colors.white.withAlpha(48),
-                    backgroundImage:
-                        photoUrl != null ? NetworkImage(photoUrl) : null,
-                    child: photoUrl != null
-                        ? null
-                        : Text(
-                            user?.initials ?? '?',
-                            style: AppFonts.plusJakartaSans(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                  GestureDetector(
+                    onTap: onProfileTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Semantics(
+                      button: onProfileTap != null,
+                      label: 'Mon profil',
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: Colors.white.withAlpha(48),
+                        backgroundImage:
+                            photoUrl != null ? NetworkImage(photoUrl) : null,
+                        child: photoUrl != null
+                            ? null
+                            : Text(
+                                user?.initials ?? '?',
+                                style: AppFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -361,14 +373,14 @@ class RoleBreakdownCard extends StatelessWidget {
   final List<RoleBreakdown> items;
 
   /// Palette par défaut, parcourue dans l'ordre des catégories reçues.
-  static const List<Color> defaultPalette = [
-    AppTheme.teal500,
-    AppTheme.amber400,
-    Color(0xFF7C3AED),
-    AppTheme.green500,
-    AppTheme.red400,
-    AppTheme.deep500,
-  ];
+  static List<Color> get defaultPalette => [
+        AppTheme.teal500,
+        AppTheme.amber400,
+        Color(0xFF7C3AED),
+        AppTheme.green500,
+        AppTheme.red400,
+        AppTheme.deep500,
+      ];
 
   const RoleBreakdownCard({
     super.key,

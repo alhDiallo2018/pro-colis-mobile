@@ -163,7 +163,7 @@ class RoleStatsRow extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded,
+            Icon(Icons.cloud_off_rounded,
                 size: 16, color: AppTheme.slate400),
             const SizedBox(width: 6),
             Text(
@@ -872,7 +872,7 @@ class RoleQuickLinksCard extends StatelessWidget {
                         color: AppTheme.amber50,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
+                      child: Text(
                         'À venir',
                         style: TextStyle(
                           color: AppTheme.amber600,

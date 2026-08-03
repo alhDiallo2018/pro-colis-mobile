@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'api_service.dart';
+import 'location_fix.dart';
 
 class LocationService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -20,17 +21,10 @@ class LocationService {
     return status.isGranted;
   }
 
-  Future<Position> getCurrentPosition() async {
-    final hasPermission = await requestPermission();
-    if (!hasPermission) {
-      throw Exception('Permission de localisation refusée');
-    }
-    return await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
-    );
-  }
+  /// Délègue à [resolveCurrentPosition] : service vérifié, permission demandée
+  /// et délai maximum appliqué, pour ne pas laisser deux logiques de
+  /// localisation divergentes dans l'app. Lève un [LocationFailure].
+  Future<Position> getCurrentPosition() => resolveCurrentPosition();
 
   Stream<Position> getPositionStream() {
     return Geolocator.getPositionStream(

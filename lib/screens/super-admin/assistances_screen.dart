@@ -141,7 +141,7 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
             decoration: BoxDecoration(color: AppTheme.slate50, borderRadius: BorderRadius.circular(10)),
             child: Column(children: [
               Text('${v ?? 0}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: c)),
-              Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
             ]),
           ),
         );
@@ -225,7 +225,7 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
                 Row(
                   children: [
                     if (user != null)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(right: 3),
                         child: Icon(Icons.verified_user_rounded, size: 13, color: AppTheme.green700),
                       ),
@@ -235,7 +235,7 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
                         '${handledBy != null ? ' · $handledBy' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                       ),
                     ),
                   ],
@@ -245,13 +245,13 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
           ),
           if (st != 'resolved')
             IconButton(
-              icon: const Icon(Icons.task_alt_rounded, size: 20, color: AppTheme.green700),
+              icon: Icon(Icons.task_alt_rounded, size: 20, color: AppTheme.green700),
               tooltip: 'Marquer résolu',
               onPressed: () => _resolve(a),
             ),
           IconButton(icon: const Icon(Icons.edit, size: 20), onPressed: () => _openForm(a)),
           if (_canDelete)
-            IconButton(icon: const Icon(Icons.delete, size: 20, color: AppTheme.red500), onPressed: () => _delete(a)),
+            IconButton(icon: Icon(Icons.delete, size: 20, color: AppTheme.red500), onPressed: () => _delete(a)),
         ],
       ),
     );
@@ -286,11 +286,11 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.person_search_rounded, size: 20, color: AppTheme.textSecondary),
+            Icon(Icons.person_search_rounded, size: 20, color: AppTheme.textSecondary),
             const SizedBox(width: 10),
             Expanded(
               child: user == null
-                  ? const Text('Utilisateur assisté — appuyer pour choisir',
+                  ? Text('Utilisateur assisté — appuyer pour choisir',
                       style: TextStyle(color: AppTheme.textSecondary))
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,7 +303,7 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
                           [user['phone']?.toString(), _roleLabels[role] ?? role]
                               .where((s) => s != null && s.isNotEmpty)
                               .join(' · '),
-                          style: const TextStyle(fontSize: 11.5, color: AppTheme.textSecondary),
+                          style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary),
                         ),
                       ],
                     ),
@@ -384,7 +384,7 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
                           final u = users[i];
                           final role = u['role']?.toString();
                           return ListTile(
-                            leading: const Icon(Icons.account_circle_rounded, color: AppTheme.textSecondary),
+                            leading: Icon(Icons.account_circle_rounded, color: AppTheme.textSecondary),
                             title: Text(u['fullName']?.toString() ?? ''),
                             subtitle: Text([
                               u['phone']?.toString(),
@@ -392,7 +392,7 @@ class _AssistancesScreenState extends ConsumerState<AssistancesScreen> {
                               u['city']?.toString(),
                             ].where((s) => s != null && s.isNotEmpty).join(' · ')),
                             trailing: u['status'] == 'suspended'
-                                ? const Text('SUSPENDU',
+                                ? Text('SUSPENDU',
                                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.red500))
                                 : null,
                             onTap: () => Navigator.pop(ctx, u),

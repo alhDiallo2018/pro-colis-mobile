@@ -159,7 +159,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
       bottomNavigationBar: const AppBottomNav(),
       body: SafeArea(
@@ -174,7 +174,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
                   color: AppTheme.primaryLight,
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.lock_open_rounded,
                   color: AppTheme.primary,
                   size: 30,
@@ -195,7 +195,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
                       text: widget.parcel.receiverName.isEmpty
                           ? 'au destinataire'
                           : widget.parcel.receiverName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontWeight: FontWeight.w800,
                       ),
@@ -207,7 +207,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
                   ],
                 ),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 14,
                   height: 1.45,
@@ -218,7 +218,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
               _OtpBoxes(value: _pin),
               if (_isSubmitting) ...[
                 const SizedBox(height: 18),
-                const CircularProgressIndicator(color: AppTheme.primary),
+                CircularProgressIndicator(color: AppTheme.primary),
               ],
               const Spacer(),
               _Keypad(onKey: _pushKey),
@@ -285,11 +285,11 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
               Container(
                 width: 92,
                 height: 92,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppTheme.green50,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.task_alt_rounded,
                   color: AppTheme.successColor,
                   size: 56,
@@ -316,7 +316,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
                   ],
                 ),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 14,
                   height: 1.45,
@@ -432,7 +432,7 @@ class _DeliveryProofScreenState extends State<DeliveryProofScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
       bottomNavigationBar: const AppBottomNav(),
       body: ListView(
@@ -444,7 +444,7 @@ class _DeliveryProofScreenState extends State<DeliveryProofScreen> {
               color: AppTheme.green50,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 Icon(Icons.verified_rounded, color: AppTheme.green700),
                 SizedBox(width: 8),
@@ -597,7 +597,7 @@ class _Keypad extends StatelessWidget {
             foregroundColor: AppTheme.textPrimary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              side: const BorderSide(color: AppTheme.slate200),
+              side: BorderSide(color: AppTheme.slate200),
             ),
           ),
           child: key == 'del'
@@ -624,7 +624,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppTheme.textPrimary,
         fontSize: 14,
         fontWeight: FontWeight.w900,
@@ -648,7 +648,7 @@ class _PhotoTile extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: photo == null
-          ? const Icon(Icons.image_rounded, size: 44, color: AppTheme.slate400)
+          ? Icon(Icons.image_rounded, size: 44, color: AppTheme.slate400)
           : kIsWeb
               ? Image.network(photo!.path, fit: BoxFit.cover)
               : Image.file(File(photo!.path), fit: BoxFit.cover),
@@ -672,7 +672,7 @@ class _AddPhotoTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(color: AppTheme.teal100, width: 1.5),
         ),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.add_a_photo_rounded, color: AppTheme.primary, size: 32),

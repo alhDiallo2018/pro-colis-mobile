@@ -398,7 +398,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
           SizedBox(
             width: 90,
             child: Text(label,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
           ),
           Expanded(
             child: Text(value,
@@ -428,7 +428,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                 color: AppTheme.teal600, size: 22),
             const SizedBox(width: 6),
             Text(playing ? 'Lecture…' : 'Message vocal',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
           ],
         ),
       ),
@@ -490,7 +490,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Icon(Icons.info_outline, size: 18, color: AppTheme.teal500),
+            Icon(Icons.info_outline, size: 18, color: AppTheme.teal500),
           ],
         ),
       ),
@@ -504,7 +504,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.forum, size: 32, color: AppTheme.slate300),
+            Icon(Icons.forum, size: 32, color: AppTheme.slate300),
             const SizedBox(height: 8),
             Text('Démarrez la négociation avec ${widget.peerName}.',
                 style: AppFonts.manrope(
@@ -578,11 +578,11 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(99),
-                  borderSide: const BorderSide(color: AppTheme.amber400),
+                  borderSide: BorderSide(color: AppTheme.amber400),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(99),
-                  borderSide: const BorderSide(color: AppTheme.amber400),
+                  borderSide: BorderSide(color: AppTheme.amber400),
                 ),
                 filled: true,
                 fillColor: AppTheme.amber50,
@@ -595,7 +595,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
             onTap: _sendPrice,
             child: Container(
               width: 40, height: 40,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppTheme.amber500, shape: BoxShape.circle,
               ),
               child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
@@ -609,7 +609,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(top: BorderSide(color: AppTheme.slate200)),
       ),
@@ -623,7 +623,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.slate100, shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close, color: AppTheme.textSecondary),
+                    child: Icon(Icons.close, color: AppTheme.textSecondary),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -662,7 +662,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                     onTap: _resumeRecording,
                     child: Container(
                       width: 40, height: 40,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppTheme.teal500, shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
@@ -673,7 +673,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                     onTap: _pauseRecording,
                     child: Container(
                       width: 40, height: 40,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppTheme.amber500, shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.pause_rounded, color: Colors.white, size: 20),
@@ -684,7 +684,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                   onTap: _stopRecording,
                   child: Container(
                     width: 40, height: 40,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppTheme.teal500, shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
@@ -719,11 +719,11 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                       fillColor: AppTheme.cardColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(99),
-                        borderSide: const BorderSide(color: AppTheme.slate200),
+                        borderSide: BorderSide(color: AppTheme.slate200),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(99),
-                        borderSide: const BorderSide(color: AppTheme.slate200),
+                        borderSide: BorderSide(color: AppTheme.slate200),
                       ),
                     ),
                   ),
@@ -746,7 +746,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
                     onTap: _startRecording,
                     child: Container(
                       width: 40, height: 40,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppTheme.teal500, shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.mic, color: Colors.white, size: 22),
@@ -896,7 +896,7 @@ class _PriceBubble extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.payments, size: 18, color: AppTheme.amber600),
+                Icon(Icons.payments, size: 18, color: AppTheme.amber600),
                 const SizedBox(width: 6),
                 Text(mine ? 'Prix proposé' : 'Proposition de prix',
                     style: AppFonts.manrope(
@@ -914,7 +914,7 @@ class _PriceBubble extends StatelessWidget {
                         fontSize: 24, fontWeight: FontWeight.w800,
                         color: AppTheme.amber600),
                   ),
-                  const TextSpan(
+                  TextSpan(
                     text: ' FCFA',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
                         color: AppTheme.amber600),
@@ -945,7 +945,7 @@ class _PriceBubble extends StatelessWidget {
             Align(
               alignment: Alignment.bottomRight,
               child: Text(time,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 9.5, color: AppTheme.amber500)),
             ),
           ],

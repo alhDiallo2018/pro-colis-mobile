@@ -316,7 +316,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
-                              const Icon(Icons.arrow_drop_down,
+                              Icon(Icons.arrow_drop_down,
                                   size: 18, color: AppTheme.slate500),
                             ],
                           ),

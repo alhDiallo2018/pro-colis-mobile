@@ -155,7 +155,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
         builder: (context, setDialogState) => AlertDialog(
           title: Text(
             isEditing ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur',
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               color: AppTheme.textPrimary,
             ),
@@ -377,7 +377,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
       alignment: Alignment.centerLeft,
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppTheme.textSecondary,
@@ -415,7 +415,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
+          borderSide: BorderSide(
             color: AppTheme.primaryBlue,
             width: 2,
           ),
@@ -427,7 +427,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
       items: items,
       onChanged: onChanged,
       dropdownColor: AppTheme.cardColor,
-      style: const TextStyle(color: AppTheme.textPrimary),
+      style: TextStyle(color: AppTheme.textPrimary),
       icon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryBlue),
       borderRadius: BorderRadius.circular(12),
     );
@@ -549,13 +549,13 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Confirmation',
           style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
         ),
         content: Text(
           'Voulez-vous vraiment supprimer ${user.fullName} ?',
-          style: const TextStyle(color: AppTheme.textPrimary),
+          style: TextStyle(color: AppTheme.textPrimary),
         ),
         backgroundColor: AppTheme.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

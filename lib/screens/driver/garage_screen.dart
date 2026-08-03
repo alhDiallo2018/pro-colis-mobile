@@ -173,7 +173,7 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
               color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.garage_rounded,
               size: 30,
               color: AppTheme.primary,

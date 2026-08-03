@@ -153,7 +153,7 @@ class _ContactPageState extends State<ContactPage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.check_circle_rounded,
+                          Icon(Icons.check_circle_rounded,
                               color: AppTheme.green600, size: 20),
                           const SizedBox(width: 10),
                           Expanded(

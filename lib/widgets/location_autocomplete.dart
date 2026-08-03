@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:geolocator/geolocator.dart';
+
+import '../services/location_fix.dart';
+import '../theme/app_theme.dart';
 
 class PlaceResult {
   final String description;
@@ -298,11 +300,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
 
   Future<void> _geolocate() async {
     try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
+      final position = await resolveCurrentPosition();
 
       final lat = position.latitude;
       final lng = position.longitude;
@@ -359,7 +357,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Géolocalisation: ${e.toString()}')),
+          SnackBar(content: Text(locationErrorMessage(e))),
         );
       }
     }
@@ -504,7 +502,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
                 )
               : null,
           filled: true,
-          fillColor: Colors.white,
+          fillColor: AppTheme.cardColor,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),

@@ -202,12 +202,12 @@ class _AddressBookCardState extends ConsumerState<AddressBookCard> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-            error: (_, __) => const Text(
+            error: (_, __) => Text(
               'Carnet d’adresses indisponible.',
               style: TextStyle(color: AppTheme.slate400),
             ),
             data: (items) => items.isEmpty
-                ? const Text(
+                ? Text(
                     'Aucune adresse enregistrée.',
                     style: TextStyle(color: AppTheme.slate500),
                   )
@@ -308,12 +308,12 @@ class FavoriteGaragesCard extends ConsumerWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-            error: (_, __) => const Text(
+            error: (_, __) => Text(
               'Garages favoris indisponibles.',
               style: TextStyle(color: AppTheme.slate400),
             ),
             data: (items) => items.isEmpty
-                ? const Text(
+                ? Text(
                     'Aucun garage favori.',
                     style: TextStyle(color: AppTheme.slate500),
                   )
@@ -322,7 +322,7 @@ class FavoriteGaragesCard extends ConsumerWidget {
                       for (final garage in items)
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: const Icon(
+                          leading: Icon(
                             Icons.star_rounded,
                             color: AppTheme.amber500,
                           ),

@@ -102,7 +102,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -208,7 +208,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     if (!mounted) return;
     if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
             content: Text('Demande de retrait annulée'),
             backgroundColor: AppTheme.green600),
       );
@@ -453,7 +453,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
     final amount = double.tryParse(amountText) ?? 0;
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Saisissez un montant valide'),
           backgroundColor: AppTheme.error,
         ),
@@ -462,7 +462,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
     }
     if (amount > widget.balance) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
             content: Text('Solde insuffisant'),
             backgroundColor: AppTheme.error),
       );
@@ -472,7 +472,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
       _phoneCtrl.text = widget.userPhone;
       if (widget.userPhone.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
               content: Text('Numéro de téléphone requis'),
               backgroundColor: AppTheme.error),
         );
@@ -557,7 +557,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -572,7 +572,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
                 borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 8),
-          const Text('Retirer des fonds',
+          Text('Retirer des fonds',
               style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -580,7 +580,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
           const SizedBox(height: 6),
           Text(
             'Solde disponible : ${fmt.format(widget.balance.toInt())} FCFA',
-            style: const TextStyle(fontSize: 13, color: AppTheme.slate500),
+            style: TextStyle(fontSize: 13, color: AppTheme.slate500),
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -589,7 +589,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Montant (FCFA)',
+                  Text('Montant (FCFA)',
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -604,7 +604,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Mode de retrait',
+                  Text('Mode de retrait',
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -670,7 +670,7 @@ class _WithdrawSheetContentState extends State<_WithdrawSheetContent> {
                     ),
                     child: Text(
                       'Solde disponible : ${fmt.format(widget.balance.toInt())} FCFA. Le retrait sera traité sous 24-48h.',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 13, color: AppTheme.textSecondary),
                     ),
                   ),

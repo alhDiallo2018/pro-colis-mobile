@@ -89,12 +89,12 @@ Future<PhoneContactSelection?> showPhoneContactPicker({
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.contact_phone_rounded,
                       color: AppTheme.primary,
                     ),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Choisir un contact',
                         style: TextStyle(
@@ -138,7 +138,7 @@ Future<PhoneContactSelection?> showPhoneContactPicker({
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
             'Impossible d’ouvrir les contacts pour le moment.',
           ),
@@ -347,7 +347,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker>
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Impossible d’ouvrir les réglages du téléphone.'),
           backgroundColor: AppTheme.errorColor,
           behavior: SnackBarBehavior.floating,
@@ -368,7 +368,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -467,7 +467,7 @@ class _PhoneContactPickerState extends State<PhoneContactPicker>
                         contact.displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppTheme.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
@@ -478,10 +478,10 @@ class _PhoneContactPickerState extends State<PhoneContactPicker>
                           if (contact.phoneLabel?.isNotEmpty == true)
                             contact.phoneLabel!,
                         ].join(' · '),
-                        style: const TextStyle(color: AppTheme.textBody),
+                        style: TextStyle(color: AppTheme.textBody),
                       ),
                       trailing: isSelected
-                          ? const Icon(
+                          ? Icon(
                               Icons.check_circle_rounded,
                               color: AppTheme.primary,
                             )
@@ -569,7 +569,7 @@ class _ContactStateMessage extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -579,7 +579,7 @@ class _ContactStateMessage extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppTheme.textSecondary),
             ),
             if (actionLabel != null && onPressed != null) ...[
               const SizedBox(height: 18),

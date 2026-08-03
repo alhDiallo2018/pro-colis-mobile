@@ -53,7 +53,7 @@ class RoleIdentity {
   static RoleIdentity of(UserRole role) {
     switch (role) {
       case UserRole.client:
-        return const RoleIdentity(
+        return RoleIdentity(
           label: 'Client',
           spaceName: 'Espace client',
           tagline: 'Expédiez, suivez et recevez vos colis',
@@ -71,7 +71,7 @@ class RoleIdentity {
         );
 
       case UserRole.driver:
-        return const RoleIdentity(
+        return RoleIdentity(
           label: 'Chauffeur',
           spaceName: 'Espace chauffeur',
           tagline: 'Vos missions, vos revenus, votre véhicule',
@@ -89,7 +89,7 @@ class RoleIdentity {
         );
 
       case UserRole.admin:
-        return const RoleIdentity(
+        return RoleIdentity(
           label: 'Admin zone',
           spaceName: 'Espace admin zone',
           tagline: 'Pilotez les colis et les chauffeurs de votre zone',
@@ -107,14 +107,14 @@ class RoleIdentity {
         );
 
       case UserRole.supportTechnique:
-        return const RoleIdentity(
+        return RoleIdentity(
           label: 'Support technique',
           spaceName: 'Espace support technique',
           tagline: 'Tickets, incidents et assistance aux utilisateurs',
           dashboardIntro: 'Vos tickets du jour et les incidents ouverts',
           icon: Icons.support_agent,
-          accent: Color(0xFF7C3AED),
-          accentSoft: Color(0xFFEFE7FB),
+          accent: AppTheme.tone(Color(0xFF7C3AED), Color(0xFFC4A7F5)),
+          accentSoft: AppTheme.tone(Color(0xFFEFE7FB), Color(0xFF1F1533)),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -125,7 +125,7 @@ class RoleIdentity {
         );
 
       case UserRole.supportCommercial:
-        return const RoleIdentity(
+        return RoleIdentity(
           label: 'Support commercial',
           spaceName: 'Espace support commercial',
           tagline: 'Prospects, partenaires et développement du réseau',
@@ -147,14 +147,14 @@ class RoleIdentity {
       // pour ne pas le confondre avec le violet (technique) ni le bleu
       // profond (commercial).
       case UserRole.support:
-        return const RoleIdentity(
+        return RoleIdentity(
           label: 'Support',
           spaceName: 'Espace support',
           tagline: 'Conversations, assistances et suivi des colis',
           dashboardIntro: 'Vos conversations et assistances à traiter',
           icon: Icons.headset_mic_rounded,
-          accent: Color(0xFF475569),
-          accentSoft: Color(0xFFE8ECF1),
+          accent: AppTheme.tone(Color(0xFF475569), Color(0xFFAEBACD)),
+          accentSoft: AppTheme.tone(Color(0xFFE8ECF1), Color(0xFF1B2230)),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -165,7 +165,7 @@ class RoleIdentity {
         );
 
       case UserRole.superAdmin:
-        return const RoleIdentity(
+        return RoleIdentity(
           label: 'Super Admin',
           spaceName: 'Espace super admin',
           tagline: 'Vue d\'ensemble et gouvernance de la plateforme',

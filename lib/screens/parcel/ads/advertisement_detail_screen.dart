@@ -181,7 +181,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
           _buildHero(),
           Expanded(
             child: _isLoading
-                ? const Center(
+                ? Center(
                     child: CircularProgressIndicator(color: AppTheme.primary),
                   )
                 : RefreshIndicator(
@@ -344,7 +344,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.phone_rounded,
+                        Icon(Icons.phone_rounded,
                             size: 14, color: AppTheme.primary),
                         const SizedBox(width: 5),
                         Text(
@@ -373,7 +373,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.star_rounded,
+                  Icon(Icons.star_rounded,
                       size: 15, color: AppTheme.amber500),
                   const SizedBox(width: 3),
                   Text(
@@ -495,7 +495,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
             const SizedBox(height: 14),
             Row(
               children: [
-                const Icon(Icons.headphones_rounded,
+                Icon(Icons.headphones_rounded,
                     size: 18, color: AppTheme.slate500),
                 const SizedBox(width: 8),
                 Text(
@@ -710,7 +710,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     if (_isLoading) return const SizedBox.shrink();
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(top: BorderSide(color: AppTheme.slate200)),
       ),
@@ -770,7 +770,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               ),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppTheme.cardColor,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
                 ),

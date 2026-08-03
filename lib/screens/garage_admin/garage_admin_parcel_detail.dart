@@ -56,7 +56,7 @@ class _GarageAdminParcelDetailScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Statut mis à jour avec succès'),
             backgroundColor: AppTheme.successColor,
             behavior: SnackBarBehavior.floating,
@@ -98,7 +98,7 @@ class _GarageAdminParcelDetailScreenState
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Détail du colis'),
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
         actions: [
           IconButton(
             onPressed: () => setState(() {}),
@@ -487,7 +487,7 @@ class _DriverCard extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
@@ -498,7 +498,7 @@ class _DriverCard extends StatelessWidget {
                   garage.isEmpty ? 'Zone de départ' : garage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -575,7 +575,7 @@ class _InfoValue extends StatelessWidget {
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
               )
-            : const TextStyle(
+            : TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
@@ -604,10 +604,10 @@ class _DeliveryInfoCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.verified_rounded,
+              Icon(Icons.verified_rounded,
                   color: AppTheme.successColor, size: 20),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Livraison terminée',
                 style: TextStyle(
                   color: AppTheme.successColor,
@@ -652,7 +652,7 @@ class _MiniRow extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
@@ -669,7 +669,7 @@ class _MiniRow extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                     )
-                  : const TextStyle(
+                  : TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w800,

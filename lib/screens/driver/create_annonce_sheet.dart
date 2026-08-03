@@ -309,7 +309,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
           expand: false,
           builder: (context, scrollController) {
             return Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
@@ -319,7 +319,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
                   _header(),
                   Expanded(
                     child: _loadingGarages
-                        ? const Center(
+                        ? Center(
                             child: CircularProgressIndicator(
                                 color: AppTheme.primary))
                         : SingleChildScrollView(
@@ -360,7 +360,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
               color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: const Icon(Icons.route_rounded,
+            child: Icon(Icons.route_rounded,
                 color: AppTheme.primary, size: 22),
           ),
           const SizedBox(width: 12),
@@ -379,7 +379,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
           ),
           IconButton(
             onPressed: _handleClose,
-            icon: const Icon(Icons.close_rounded, color: AppTheme.slate500),
+            icon: Icon(Icons.close_rounded, color: AppTheme.slate500),
           ),
         ],
       ),
@@ -497,7 +497,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
           color: AppTheme.teal50,
           child: Row(
             children: [
-              const Icon(Icons.route_rounded,
+              Icon(Icons.route_rounded,
                   color: AppTheme.primary, size: 18),
               const SizedBox(width: 10),
               Expanded(
@@ -579,15 +579,15 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        borderSide: const BorderSide(color: AppTheme.slate200),
+        borderSide: BorderSide(color: AppTheme.slate200),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        borderSide: const BorderSide(color: AppTheme.slate200),
+        borderSide: BorderSide(color: AppTheme.slate200),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+        borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
       ),
       counterText: '',
     );

@@ -90,7 +90,7 @@ class _ToastWidgetState extends State<_ToastWidget>
       case ToastType.warning:
         return AppTheme.amber50;
       case ToastType.info:
-        return const Color(0xFFE4F1F4);
+        return AppTheme.infoSoft;
     }
   }
 
@@ -156,7 +156,7 @@ class _ToastWidgetState extends State<_ToastWidget>
                         children: [
                           Text(
                             widget.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
                               color: AppTheme.textPrimary,
@@ -165,7 +165,7 @@ class _ToastWidgetState extends State<_ToastWidget>
                           if (widget.message != null)
                             Text(
                               widget.message!,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.textSecondary,
                               ),

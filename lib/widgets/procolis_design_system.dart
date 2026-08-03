@@ -7,14 +7,15 @@ class ProcolisCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
-  final Color color;
+  /// `null` : couleur de carte par défaut, résolue selon le thème courant.
+  final Color? color;
 
   const ProcolisCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.onTap,
-    this.color = AppTheme.cardColor,
+    this.color,
   });
 
   @override
@@ -22,7 +23,7 @@ class ProcolisCard extends StatelessWidget {
     final card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color,
+        color: color ?? AppTheme.cardColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(color: AppTheme.slate200),
         boxShadow: AppTheme.softShadow(alpha: 0.06),
@@ -139,7 +140,7 @@ class ProcolisQuickAction extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.slate700,
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
@@ -219,7 +220,7 @@ class ProcolisTabBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: AppTheme.cardColor,
-          border: const Border(top: BorderSide(color: AppTheme.slate200)),
+          border: Border(top: BorderSide(color: AppTheme.slate200)),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFF0B464F).withValues(alpha: 0.05),

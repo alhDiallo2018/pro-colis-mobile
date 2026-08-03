@@ -11,7 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:procolis/screens/parcel/parcel_detail_screen.dart';
 import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/widgets/app_logo.dart';
@@ -1071,7 +1073,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         12,
         12,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border(bottom: BorderSide(color: AppTheme.slate200)),
       ),
@@ -1209,9 +1211,9 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               !_isSearching &&
               _trackingController.text.isEmpty) ...[
             const SizedBox(height: 16),
-            const Divider(height: 1, color: AppTheme.slate200),
+            Divider(height: 1, color: AppTheme.slate200),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Recherches récentes',
               style: TextStyle(
                 fontSize: 13,
@@ -1239,7 +1241,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         style: AppFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w700),
       ),
       onPressed: () => _trackParcel(trackingNumber: tracking),
-      side: const BorderSide(color: AppTheme.slate200),
+      side: BorderSide(color: AppTheme.slate200),
       backgroundColor: AppTheme.slate50,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(999),
@@ -1340,7 +1342,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           children: [
             _DesignSoftIcon(icon: Icons.person_search_rounded),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Chauffeur en attente d\'assignation',
                 style: TextStyle(
@@ -1373,7 +1375,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   'Zone partenaire · 4,8 ★ · Camion',
                   style: TextStyle(
                     color: AppTheme.textSecondary,
@@ -1416,20 +1418,20 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             label: 'Type',
             value: parcel.type.label,
           ),
-          const Divider(height: 1, color: AppTheme.slate200),
+          Divider(height: 1, color: AppTheme.slate200),
           _DesignInfoRow(
             icon: Icons.scale_rounded,
             label: 'Poids',
             value: parcel.formattedWeight,
             mono: true,
           ),
-          const Divider(height: 1, color: AppTheme.slate200),
+          Divider(height: 1, color: AppTheme.slate200),
           _DesignInfoRow(
             icon: Icons.person_pin_rounded,
             label: 'Destinataire',
             value: parcel.receiverName,
           ),
-          const Divider(height: 1, color: AppTheme.slate200),
+          Divider(height: 1, color: AppTheme.slate200),
           _DesignInfoRow(
             icon: Icons.call_rounded,
             label: 'Téléphone',
@@ -1552,7 +1554,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                   value: parcel.departureZoneName,
                 ),
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 10),
                 child: Icon(Icons.local_shipping_rounded,
                     color: AppTheme.teal400, size: 22),
@@ -1567,7 +1569,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: AppTheme.slate200),
+          Divider(height: 1, color: AppTheme.slate200),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -2493,7 +2495,7 @@ class _DesignInfoRow extends StatelessWidget {
             width: 96,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,
@@ -2575,7 +2577,7 @@ class _DesignTimelineItem extends StatelessWidget {
           ),
         ),
         if (completed)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6),
             child: Icon(Icons.check_rounded, color: AppTheme.primary, size: 18),
           ),
@@ -2592,12 +2594,48 @@ class _QrScannerScreen extends StatefulWidget {
 }
 
 class _QrScannerScreenState extends State<_QrScannerScreen> {
-  final TextEditingController _controller = TextEditingController();
+  /// Côté du viseur, aligné sur [_ScannerOverlay] : la fenêtre de détection et
+  /// le cadre dessiné à l'écran doivent désigner la même zone, sinon on rejette
+  /// des codes que l'utilisateur voit pourtant dans le cadre.
+  static const double _scanWindowSide = 250;
+
+  final MobileScannerController _scanner = MobileScannerController(
+    // `noDuplicates` évite de repopper l'écran en boucle sur le même code.
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    formats: const [
+      BarcodeFormat.qrCode,
+      BarcodeFormat.dataMatrix,
+      BarcodeFormat.code128,
+      BarcodeFormat.code39,
+      BarcodeFormat.ean13,
+    ],
+  );
+
+  /// Une capture peut arriver alors qu'un `pop` est déjà en cours.
+  bool _handled = false;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _scanner.dispose();
     super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_handled) return;
+
+    final code = capture.barcodes
+        .map((barcode) => barcode.rawValue?.trim() ?? '')
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (code.isEmpty) return;
+
+    _close(code);
+  }
+
+  void _close(String code) {
+    if (_handled || !mounted) return;
+    _handled = true;
+    HapticFeedback.mediumImpact();
+    Navigator.pop(context, code);
   }
 
   @override
@@ -2605,8 +2643,23 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          Container(color: Colors.black),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final layout = constraints.biggest;
+              return MobileScanner(
+                controller: _scanner,
+                onDetect: _onDetect,
+                errorBuilder: _buildError,
+                scanWindow: Rect.fromCenter(
+                  center: layout.center(Offset.zero),
+                  width: _scanWindowSide,
+                  height: _scanWindowSide,
+                ),
+              );
+            },
+          ),
           const _ScannerOverlay(),
           SafeArea(
             child: Padding(
@@ -2615,22 +2668,33 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                 children: [
                   Row(
                     children: [
-                      IconButton.filled(
+                      _circleButton(
+                        icon: Icons.close_rounded,
+                        tooltip: 'Fermer',
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withValues(alpha: 0.45),
-                          foregroundColor: Colors.white,
-                        ),
                       ),
                       const Spacer(),
-                      IconButton.filled(
-                        onPressed: _pasteFromClipboard,
-                        icon: const Icon(Icons.content_paste_rounded),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withValues(alpha: 0.45),
-                          foregroundColor: Colors.white,
-                        ),
+                      ValueListenableBuilder<MobileScannerState>(
+                        valueListenable: _scanner,
+                        builder: (context, state, _) {
+                          if (state.torchState == TorchState.unavailable) {
+                            return const SizedBox.shrink();
+                          }
+                          final on = state.torchState == TorchState.on;
+                          return _circleButton(
+                            icon: on
+                                ? Icons.flash_on_rounded
+                                : Icons.flash_off_rounded,
+                            tooltip: on ? 'Éteindre la lampe' : 'Lampe',
+                            onPressed: _scanner.toggleTorch,
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _circleButton(
+                        icon: Icons.cameraswitch_rounded,
+                        tooltip: 'Changer de caméra',
+                        onPressed: _scanner.switchCamera,
                       ),
                     ],
                   ),
@@ -2656,7 +2720,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Collez le contenu du QR code ou entrez le numéro de suivi.',
+                          'Placez le QR code du colis dans le cadre.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white70,
@@ -2665,55 +2729,18 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        TextField(
-                          controller: _controller,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'monospace',
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'PC-7F3K-2291 ou URL QR',
-                            hintStyle: const TextStyle(color: Colors.white54),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.12),
-                            prefixIcon: const Icon(
-                              Icons.qr_code_2_rounded,
-                              color: Colors.white70,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide.none,
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _showManualEntry,
+                            icon: const Icon(Icons.keyboard_rounded),
+                            label: const Text('Saisir le code à la main'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white30),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                           ),
-                          onSubmitted: (_) => _submit(),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _pasteFromClipboard,
-                                icon: const Icon(Icons.content_paste_rounded),
-                                label: const Text('Coller'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white30),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _submit,
-                                icon: const Icon(Icons.search_rounded),
-                                label: const Text('Rechercher'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF018982),
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),
@@ -2727,17 +2754,181 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
     );
   }
 
-  Future<void> _pasteFromClipboard() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text?.trim();
-    if (text == null || text.isEmpty) return;
-    _controller.text = text;
+  Widget _circleButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton.filled(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      tooltip: tooltip,
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.black.withValues(alpha: 0.45),
+        foregroundColor: Colors.white,
+      ),
+    );
   }
 
-  void _submit() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    Navigator.pop(context, text);
+  /// Caméra indisponible ou refusée : sans porte de sortie, l'écran serait un
+  /// cul-de-sac. On explique et on propose les réglages puis la saisie manuelle.
+  Widget _buildError(BuildContext context, MobileScannerException error) {
+    final denied =
+        error.errorCode == MobileScannerErrorCode.permissionDenied;
+    final message = denied
+        ? 'SendProColis n’a pas accès à la caméra. Autorisez-la dans les '
+            'réglages pour scanner les colis.'
+        : 'La caméra n’est pas disponible sur cet appareil.';
+
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.no_photography_rounded,
+                color: Colors.white70,
+                size: 46,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (denied)
+                TextButton.icon(
+                  onPressed: openAppSettings,
+                  icon: const Icon(Icons.settings_rounded),
+                  label: const Text('Ouvrir les réglages'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white),
+                ),
+              ElevatedButton.icon(
+                onPressed: _showManualEntry,
+                icon: const Icon(Icons.keyboard_rounded),
+                label: const Text('Saisir le code à la main'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF018982),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showManualEntry() async {
+    final controller = TextEditingController();
+    final code = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14181A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) {
+        void submit() {
+          final text = controller.text.trim();
+          if (text.isEmpty) return;
+          Navigator.pop(sheetContext, text);
+        }
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            18,
+            16,
+            18 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Numéro de suivi',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'monospace',
+                ),
+                decoration: InputDecoration(
+                  hintText: 'PC-7F3K-2291 ou URL QR',
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.12),
+                  prefixIcon: const Icon(
+                    Icons.qr_code_2_rounded,
+                    color: Colors.white70,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onSubmitted: (_) => submit(),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final data =
+                            await Clipboard.getData(Clipboard.kTextPlain);
+                        final text = data?.text?.trim();
+                        if (text != null && text.isNotEmpty) {
+                          controller.text = text;
+                        }
+                      },
+                      icon: const Icon(Icons.content_paste_rounded),
+                      label: const Text('Coller'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white30),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: submit,
+                      icon: const Icon(Icons.search_rounded),
+                      label: const Text('Rechercher'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF018982),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    controller.dispose();
+    if (code != null && code.isNotEmpty) _close(code);
   }
 }
 

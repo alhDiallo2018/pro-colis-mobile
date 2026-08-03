@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../screens/help/help_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../theme/app_theme.dart';
@@ -201,7 +202,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: const Border(
+        shape: Border(
           bottom: BorderSide(color: AppTheme.slate200),
         ),
       ),
@@ -247,6 +248,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   chevron: true,
                   onTap: () {},
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+
+          // ==================== APPARENCE ====================
+          const PcSectionHeader('Apparence'),
+          PcCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                PcListRow(
+                  icon: Icons.dark_mode_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Thème',
+                  subtitle: 'Clair, sombre ou selon l\'appareil',
+                  trailing: Text(
+                    themeModeLabel(ref.watch(themeModeProvider)),
+                    style: AppFonts.plusJakartaSans(
+                      color: AppTheme.slate500,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                  child: _themeModeSelector(),
                 ),
               ],
             ),
@@ -376,6 +406,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Sélecteur segmenté du mode d'affichage. Le choix est appliqué et persisté
+  /// immédiatement : toute l'application se reconstruit dans le nouveau thème.
+  Widget _themeModeSelector() {
+    final current = ref.watch(themeModeProvider);
+    return Row(
+      children: [
+        _themeModeOption(ThemeMode.system, Icons.brightness_auto_rounded, current),
+        const SizedBox(width: 8),
+        _themeModeOption(ThemeMode.light, Icons.light_mode_rounded, current),
+        const SizedBox(width: 8),
+        _themeModeOption(ThemeMode.dark, Icons.dark_mode_rounded, current),
+      ],
+    );
+  }
+
+  Widget _themeModeOption(ThemeMode mode, IconData icon, ThemeMode current) {
+    final selected = mode == current;
+    return Expanded(
+      child: Material(
+        color: selected ? AppTheme.primary : AppTheme.slate100,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          onTap: selected
+              ? null
+              : () => ref.read(themeModeProvider.notifier).setMode(mode),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: selected ? Colors.white : AppTheme.slate500,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  themeModeLabel(mode),
+                  style: AppFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : AppTheme.slate600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

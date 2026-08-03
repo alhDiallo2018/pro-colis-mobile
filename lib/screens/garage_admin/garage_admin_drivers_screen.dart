@@ -88,7 +88,7 @@ class _GarageAdminDriversScreenState extends ConsumerState<GarageAdminDriversScr
         ],
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(color: AppTheme.primary),
             )
           : _error != null
@@ -258,7 +258,7 @@ class _DriverCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 2),
-                  const Icon(Icons.star_rounded, size: 14, color: AppTheme.amber400),
+                  Icon(Icons.star_rounded, size: 14, color: AppTheme.amber400),
                 ],
               ),
               const SizedBox(height: 3),
@@ -276,7 +276,7 @@ class _DriverCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.badge_outlined, size: 16, color: AppTheme.primary),
+                  Icon(Icons.badge_outlined, size: 16, color: AppTheme.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

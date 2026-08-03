@@ -116,7 +116,7 @@ class _ProcolisSwitchState extends State<ProcolisSwitch>
             Expanded(
               child: Text(
                 widget.label!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary,

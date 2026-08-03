@@ -41,7 +41,7 @@ class PcBarChart extends StatelessWidget {
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
                       gradient: useAmber
                           ? null
-                          : const LinearGradient(
+                          : LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [AppTheme.teal400, AppTheme.teal600],

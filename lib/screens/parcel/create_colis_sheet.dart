@@ -502,14 +502,14 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(Icons.photo_camera_rounded,
+              leading: Icon(Icons.photo_camera_rounded,
                   color: AppTheme.primary),
               title: Text('Prendre une photo',
                   style: AppFonts.manrope(fontWeight: FontWeight.w600)),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_rounded,
+              leading: Icon(Icons.photo_library_rounded,
                   color: AppTheme.primary),
               title: Text('Choisir dans la galerie',
                   style: AppFonts.manrope(fontWeight: FontWeight.w600)),
@@ -875,7 +875,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           expand: false,
           builder: (context, scrollController) {
             return Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
@@ -885,7 +885,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                   _header(),
                   Expanded(
                     child: _loadingGarages
-                        ? const Center(
+                        ? Center(
                             child: CircularProgressIndicator(
                                 color: AppTheme.primary))
                         : SingleChildScrollView(
@@ -930,7 +930,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: const Icon(Icons.local_shipping_rounded,
+            child: Icon(Icons.local_shipping_rounded,
                 color: AppTheme.primary, size: 22),
           ),
           const SizedBox(width: 12),
@@ -949,7 +949,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           ),
           IconButton(
             onPressed: _handleClose,
-            icon: const Icon(Icons.close_rounded, color: AppTheme.slate500),
+            icon: Icon(Icons.close_rounded, color: AppTheme.slate500),
           ),
         ],
       ),
@@ -1175,7 +1175,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           Container(
             width: 48,
             height: 48,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppTheme.teal50,
             ),
@@ -1277,7 +1277,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.star_rounded,
+                Icon(Icons.star_rounded,
                     size: 16, color: AppTheme.amber500),
                 const SizedBox(width: 3),
                 Text(rating,
@@ -1589,7 +1589,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.edit_rounded,
+                      Icon(Icons.edit_rounded,
                           size: 15, color: AppTheme.primary),
                       const SizedBox(width: 3),
                       Text('Modifier',
@@ -1666,7 +1666,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       children: [
         Row(
           children: [
-            const Icon(Icons.attach_file_rounded,
+            Icon(Icons.attach_file_rounded,
                 size: 18, color: AppTheme.primary),
             const SizedBox(width: 6),
             Text('Pièces jointes',
@@ -1839,7 +1839,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                       color: Colors.white,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.cancel_rounded,
+                    child: Icon(Icons.cancel_rounded,
                         color: AppTheme.red500, size: 20),
                   ),
                 ),
@@ -1995,15 +1995,15 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          borderSide: const BorderSide(color: AppTheme.slate200),
+          borderSide: BorderSide(color: AppTheme.slate200),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          borderSide: const BorderSide(color: AppTheme.slate200),
+          borderSide: BorderSide(color: AppTheme.slate200),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+          borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
         ),
         counterText: '',
       );
@@ -2027,7 +2027,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     return DropdownButtonFormField<ParcelType>(
       initialValue: _type,
       isExpanded: true,
-      icon: const Icon(Icons.expand_more_rounded, color: AppTheme.slate500),
+      icon: Icon(Icons.expand_more_rounded, color: AppTheme.slate500),
       decoration: _dec('', Icons.category_rounded),
       style: AppFonts.manrope(fontSize: 13.5, color: AppTheme.textPrimary),
       items: ParcelType.values

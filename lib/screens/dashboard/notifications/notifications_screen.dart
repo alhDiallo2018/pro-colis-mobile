@@ -65,7 +65,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       if (!mounted) return;
       if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Impossible de marquer les notifications comme lues'),
             backgroundColor: AppTheme.error,
           ),
@@ -85,7 +85,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Impossible de marquer les notifications comme lues'),
             backgroundColor: AppTheme.error,
           ),
@@ -166,7 +166,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: const Border(bottom: BorderSide(color: AppTheme.slate200)),
+        shape: Border(bottom: BorderSide(color: AppTheme.slate200)),
         actions: [
           IconButton(
             onPressed: unreadCount == 0 ? null : _markAllAsRead,
@@ -317,7 +317,7 @@ class _NotificationTile extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 2),
-                        const Icon(
+                        Icon(
                           Icons.chevron_right_rounded,
                           size: 17,
                           color: AppTheme.primary,
@@ -464,19 +464,19 @@ class _NotificationItem {
     if (type.contains('rejected') ||
         type.contains('cancelled') ||
         type.contains('failed')) {
-      return const _NotificationTone.red();
+      return _NotificationTone.red();
     }
     if (type.contains('accepted') ||
         type.contains('confirmed') ||
         type.contains('delivered')) {
-      return const _NotificationTone.green();
+      return _NotificationTone.green();
     }
     if (type.contains('payment') ||
         type.contains('wallet') ||
         type.contains('commission')) {
-      return const _NotificationTone.amber();
+      return _NotificationTone.amber();
     }
-    return const _NotificationTone.primary();
+    return _NotificationTone.primary();
   }
 
   static DateTime? _parseDate(dynamic raw) {
@@ -734,7 +734,7 @@ class _NotificationDetailSheet extends StatelessWidget {
                           foreground: notification.tone.foreground,
                           background: notification.tone.background,
                         ),
-                        const _DetailChip(
+                        _DetailChip(
                           label: 'Lu',
                           foreground: AppTheme.green700,
                           background: AppTheme.green50,
@@ -769,7 +769,7 @@ class _NotificationDetailSheet extends StatelessWidget {
               IconButton(
                 onPressed: () => Navigator.pop(context),
                 tooltip: 'Fermer',
-                icon: const Icon(
+                icon: Icon(
                   Icons.close_rounded,
                   color: AppTheme.slate500,
                 ),
@@ -838,7 +838,7 @@ class _NotificationDetailSheet extends StatelessWidget {
                     detail: details[index],
                   ),
                   if (index < details.length - 1)
-                    const Divider(
+                    Divider(
                       height: 1,
                       indent: 48,
                       color: AppTheme.slate100,
@@ -992,19 +992,19 @@ class _NotificationTone {
     required this.background,
   });
 
-  const _NotificationTone.primary()
+  _NotificationTone.primary()
       : foreground = AppTheme.primary,
         background = AppTheme.primaryLight;
 
-  const _NotificationTone.green()
+  _NotificationTone.green()
       : foreground = AppTheme.green700,
         background = AppTheme.green50;
 
-  const _NotificationTone.amber()
+  _NotificationTone.amber()
       : foreground = AppTheme.amber700,
         background = AppTheme.amber50;
 
-  const _NotificationTone.red()
+  _NotificationTone.red()
       : foreground = AppTheme.red500,
         background = AppTheme.red50;
 }

@@ -17,8 +17,6 @@ PODS:
   - GoogleMaps/Base (8.4.0)
   - GoogleMaps/Maps (8.4.0):
     - GoogleMaps/Base
-  - image_gallery_saver (1.5.0):
-    - Flutter
   - record (0.0.1):
     - Flutter
   - share_plus (0.0.1):
@@ -32,7 +30,6 @@ DEPENDENCIES:
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
   - google_maps_flutter_ios (from `.symlinks/plugins/google_maps_flutter_ios/ios`)
-  - image_gallery_saver (from `.symlinks/plugins/image_gallery_saver/ios`)
   - record (from `.symlinks/plugins/record/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - video_compress (from `.symlinks/plugins/video_compress/ios`)
@@ -53,8 +50,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
   google_maps_flutter_ios:
     :path: ".symlinks/plugins/google_maps_flutter_ios/ios"
-  image_gallery_saver:
-    :path: ".symlinks/plugins/image_gallery_saver/ios"
   record:
     :path: ".symlinks/plugins/record/ios"
   share_plus:
@@ -70,11 +65,10 @@ SPEC CHECKSUMS:
   Google-Maps-iOS-Utils: 66d6de12be1ce6d3742a54661e7a79cb317a9321
   google_maps_flutter_ios: 0cf046caf50b00d95071f79e8031fcd5ef902beb
   GoogleMaps: 8939898920281c649150e0af74aa291c60f2e77d
-  image_gallery_saver: 50ed0238a5f3747c340f4357c21e8c54b7ead376
   record: 426d0643542aaca81f738c5d214ad99626b2f134
   share_plus: de6030e33b4e106470e09322d87cf2a4258d2d1d
   video_compress: f2133a07762889d67f0711ac831faa26f956980e
 
-PODFILE CHECKSUM: 465d8d84556336191c4f027159313d16b8558ba0
+PODFILE CHECKSUM: db4d3eec026215b1d00c6bcb70b38951ca0e0557
 
 COCOAPODS: 1.16.2

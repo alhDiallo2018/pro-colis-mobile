@@ -41,7 +41,7 @@ class ParcelCard extends StatelessWidget {
               // En-tête : QR + n° de suivi + badge statut.
               Row(
                 children: [
-                  const Icon(Icons.qr_code_2_rounded,
+                  Icon(Icons.qr_code_2_rounded,
                       size: 18, color: AppTheme.slate400),
                   const SizedBox(width: 6),
                   Expanded(
@@ -76,7 +76,7 @@ class ParcelCard extends StatelessWidget {
                       city: parcel.departureZoneName,
                     ),
                   ),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
                     child: Icon(Icons.local_shipping_rounded,
                         size: 20, color: AppTheme.teal400),
@@ -92,7 +92,7 @@ class ParcelCard extends StatelessWidget {
               ),
               if (hasMeta) ...[
                 const SizedBox(height: 12),
-                const Divider(height: 1, color: AppTheme.slate200),
+                Divider(height: 1, color: AppTheme.slate200),
                 const SizedBox(height: 10),
                 Row(
                   children: [

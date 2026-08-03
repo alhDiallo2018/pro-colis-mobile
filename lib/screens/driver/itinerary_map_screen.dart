@@ -401,7 +401,7 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.trip_origin, size: 16, color: AppTheme.green500),
+                Icon(Icons.trip_origin, size: 16, color: AppTheme.green500),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -413,7 +413,7 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: Icon(Icons.arrow_forward_rounded,
                       size: 18, color: AppTheme.slate400),
@@ -429,7 +429,7 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(Icons.location_on,
+                Icon(Icons.location_on,
                     size: 18, color: AppTheme.red400),
               ],
             ),
@@ -474,7 +474,7 @@ class _ItineraryMapScreenState extends State<ItineraryMapScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.route,
+                        Icon(Icons.route,
                             size: 20, color: AppTheme.teal500),
                         const SizedBox(width: 8),
                         Text(

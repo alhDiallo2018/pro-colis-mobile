@@ -153,13 +153,13 @@ class _VehicleDocumentsScreenState
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(Icons.photo_camera_rounded,
+              leading: Icon(Icons.photo_camera_rounded,
                   color: AppTheme.primary),
               title: const Text('Prendre une photo'),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_rounded,
+              leading: Icon(Icons.photo_library_rounded,
                   color: AppTheme.primary),
               title: const Text('Choisir dans la galerie'),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
@@ -351,7 +351,7 @@ class _VehicleDocumentsScreenState
             tooltip: 'Retour',
           ),
           const SizedBox(width: 4),
-          const Text(
+          Text(
             'Documents & véhicule',
             style: TextStyle(
               color: AppTheme.textPrimary,
@@ -399,7 +399,7 @@ class _VehicleDocumentsScreenState
                   color: AppTheme.teal50,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
-                child: const Icon(Icons.directions_car_rounded,
+                child: Icon(Icons.directions_car_rounded,
                     color: AppTheme.primary),
               ),
               const SizedBox(width: 12),
@@ -409,7 +409,7 @@ class _VehicleDocumentsScreenState
                   children: [
                     Text(
                       field('model', 'Véhicule'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
@@ -418,7 +418,7 @@ class _VehicleDocumentsScreenState
                     const SizedBox(height: 2),
                     Text(
                       field('type', 'Type non renseigné'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
@@ -457,7 +457,7 @@ class _VehicleDocumentsScreenState
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 'Ajoutez des photos de votre véhicule (avant, arrière, intérieur).',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.slate500,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w500,
@@ -506,7 +506,7 @@ class _VehicleDocumentsScreenState
               Expanded(
                 child: Text(
                   doc.label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w900,
@@ -547,7 +547,7 @@ class _VehicleDocumentsScreenState
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.slate500,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -555,7 +555,7 @@ class _VehicleDocumentsScreenState
             ),
             const SizedBox(width: 6),
             if (url != null)
-              const Icon(Icons.check_circle_rounded,
+              Icon(Icons.check_circle_rounded,
                   size: 16, color: AppTheme.green500),
           ],
         ),
@@ -588,7 +588,7 @@ class _VehicleInfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.slate500,
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
@@ -600,7 +600,7 @@ class _VehicleInfoRow extends StatelessWidget {
               value,
               textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
@@ -634,7 +634,7 @@ class _PhotoThumb extends StatelessWidget {
             height: 88,
             color: AppTheme.slate100,
             child:
-                const Icon(Icons.broken_image_rounded, color: AppTheme.slate400),
+                Icon(Icons.broken_image_rounded, color: AppTheme.slate400),
           ),
         ),
       ),
@@ -655,7 +655,7 @@ class _UploadingTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.slate200),
       ),
-      child: const Center(
+      child: Center(
         child: SizedBox(
           width: 22,
           height: 22,
@@ -690,7 +690,7 @@ class _AddTile extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.add_a_photo_rounded,
+            Icon(Icons.add_a_photo_rounded,
                 color: AppTheme.primary, size: 24),
             const SizedBox(height: 4),
             Padding(
@@ -700,7 +700,7 @@ class _AddTile extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.primary,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
@@ -740,7 +740,7 @@ class _DocSlotTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(color: AppTheme.slate200),
         ),
-        child: const Center(
+        child: Center(
           child: SizedBox(
             width: 22,
             height: 22,
@@ -766,7 +766,7 @@ class _DocSlotTile extends StatelessWidget {
                 errorBuilder: (_, __, ___) => Container(
                   height: h,
                   color: AppTheme.slate100,
-                  child: const Icon(Icons.broken_image_rounded,
+                  child: Icon(Icons.broken_image_rounded,
                       color: AppTheme.slate400),
                 ),
               ),
@@ -803,7 +803,7 @@ class _DocSlotTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(color: AppTheme.slate200),
         ),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.add_photo_alternate_rounded,

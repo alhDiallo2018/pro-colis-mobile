@@ -209,7 +209,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
         ),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded,
+            Icon(Icons.warning_amber_rounded,
                 color: AppTheme.red400, size: 28),
             const SizedBox(width: 12),
             Text('Supprimer la zone',
@@ -441,7 +441,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
                       () => _countryFilter = _countryFilter == c ? '' : c),
                 ),
               )),
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(horizontal: 10),
             child: VerticalDivider(width: 1, color: AppTheme.slate200),
           ),
@@ -485,11 +485,11 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
             fontSize: 14,
             color: AppTheme.slate400,
           ),
-          prefixIcon: const Icon(Icons.search_rounded,
+          prefixIcon: Icon(Icons.search_rounded,
               color: AppTheme.slate400, size: 22),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.close_rounded,
+                  icon: Icon(Icons.close_rounded,
                       color: AppTheme.slate400, size: 20),
                   onPressed: () {
                     _searchController.clear();
@@ -686,7 +686,7 @@ class _GarageCardState extends State<_GarageCard> {
                         color: AppTheme.teal50,
                         borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                       ),
-                      child: const Icon(Icons.garage_rounded,
+                      child: Icon(Icons.garage_rounded,
                           color: AppTheme.primary, size: 23),
                     ),
                     const SizedBox(width: 12),
@@ -727,7 +727,7 @@ class _GarageCardState extends State<_GarageCard> {
                     AnimatedRotation(
                       turns: _expanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 180),
-                      child: const Icon(Icons.expand_more_rounded,
+                      child: Icon(Icons.expand_more_rounded,
                           color: AppTheme.slate400, size: 22),
                     ),
                   ],
@@ -1108,7 +1108,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
                 ],
               ),
             ),
-            const Icon(Icons.expand_more_rounded,
+            Icon(Icons.expand_more_rounded,
                 color: AppTheme.slate400, size: 22),
           ],
         ),

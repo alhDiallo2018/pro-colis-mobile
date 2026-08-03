@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
@@ -25,9 +23,9 @@ class PaymentNotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentNotificationsScreenState
-    extends ConsumerState<PaymentNotificationsScreen> {
+    extends ConsumerState<PaymentNotificationsScreen>
+    with WidgetsBindingObserver {
   final ApiService _api = ApiService();
-  Timer? _timer;
   List<Map<String, dynamic>> _payments = [];
   bool _loading = true;
   bool _refreshing = false;
@@ -45,14 +43,21 @@ class _PaymentNotificationsScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initialize();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _load());
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// Rattrapage silencieux au retour d'arrière-plan : les paiements arrivés
+  /// pendant la veille apparaissent sans vider la liste ni attendre un geste.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) _load();
   }
 
   Future<void> _initialize() async {
@@ -236,9 +241,12 @@ class _PaymentNotificationsScreenState
                       onPressed: () => _load(initial: true)),
                 )
               : RefreshIndicator(
-                  onRefresh: () => _load(initial: true),
+                  // Rafraîchissement silencieux : l'indicateur du geste suffit,
+                  // inutile de vider la liste avec l'état de chargement plein.
+                  onRefresh: () => _load(),
                   color: AppTheme.primary,
                   child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                     children: [
                       _buildStats(newPayments.length, todayPayments.length,
@@ -360,7 +368,9 @@ class _PaymentNotificationsScreenState
         ),
         const SizedBox(width: 6),
         Text(
-          'Actualisation automatique toutes les 15 s',
+          _refreshing
+              ? 'Actualisation en cours…'
+              : 'Tirez vers le bas pour actualiser',
           style: AppFonts.manrope(
             fontSize: 12,
             fontWeight: FontWeight.w500,
