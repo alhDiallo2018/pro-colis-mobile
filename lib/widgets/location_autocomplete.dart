@@ -124,6 +124,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   final Dio _dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
   bool _billingWarningShown = false;
   bool _isGeolocating = false;
+  bool _suppressListener = false;
 
   String _buildAddressFromComponents(List components) {
     final parts = <String>[];
@@ -181,6 +182,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   }
 
   void _onTextChange() {
+    if (_suppressListener) return;
     _debounce?.cancel();
     final text = widget.controller.text;
     if (text == 'Position actuelle' || _isGeolocating) return;
@@ -252,7 +254,9 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   }
 
   void _selectPlace(PlaceResult place) {
+    _suppressListener = true;
     widget.controller.text = place.description;
+    _suppressListener = false;
     setState(() {
       _suggestions = [];
       _showSuggestions = false;
@@ -316,7 +320,6 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
             'language': 'fr',
           },
         );
-        _isGeolocating = false;
         if (response.statusCode == 200) {
           final data = response.data;
           if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
@@ -350,9 +353,10 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
             widget.controller.text = 'Position actuelle';
           }
         }
-      } catch (_) {
         _isGeolocating = false;
+      } catch (_) {
         widget.controller.text = 'Position actuelle';
+        _isGeolocating = false;
       }
     } catch (e) {
       if (mounted) {
