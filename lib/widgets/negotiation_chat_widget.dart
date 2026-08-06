@@ -1,6 +1,8 @@
 // mobile/lib/widgets/negotiation_chat_widget.dart
-// Widget de chat de négociation réutilisable — aligné sur le web NegotiationChat.
-// Supporte messages texte, propositions de prix, enregistrement vocal, détail colis.
+// Widget de négociation — aligné sur le nouveau système de négociation.
+// Affiche les propositions de prix (historique de négociation),
+// la dernière proposition en évidence, boutons Accepter/Contre-proposer,
+// et le chat textuel.
 
 import 'dart:async';
 import 'dart:io';
@@ -15,8 +17,6 @@ import '../models/parcel.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'pc_components.dart';
-
-const _prixPrefix = '__PRIX__';
 
 class NegotiationChatScreen extends StatefulWidget {
   final String peerId;
@@ -34,6 +34,7 @@ class NegotiationChatScreen extends StatefulWidget {
   final bool isOwner;
 
   final void Function()? onChanged;
+  final void Function(bool finalized)? onNegotiationFinalized;
 
   const NegotiationChatScreen({
     super.key,
@@ -47,6 +48,7 @@ class NegotiationChatScreen extends StatefulWidget {
     this.role,
     this.isOwner = false,
     this.onChanged,
+    this.onNegotiationFinalized,
   });
 
   @override
@@ -62,9 +64,11 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   final _scrollCtrl = ScrollController();
 
   List<Map<String, dynamic>> _messages = [];
+  List<BidNegotiation> _negotiations = [];
   bool _loading = true;
   bool _loadingMessages = false;
   bool _sending = false;
+  bool _accepting = false;
   Parcel? _parcel;
 
   bool _showPrice = false;
@@ -76,6 +80,9 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   StreamSubscription<PlayerState>? _playerStateSubscription;
   String? _playingAudio;
 
+  String? _lastProposedBy;
+  double _lastPrice = 0;
+
   @override
   void initState() {
     super.initState();
@@ -84,10 +91,12 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       _loadParcel();
     }
     _loadMessages();
-    // Conserver les ressources asynchrones permet de les arrêter au dispose
-    // et évite que le chat continue à interroger l'API hors écran.
+    _loadNegotiations();
     _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (mounted) _loadMessages();
+      if (mounted) {
+        _loadMessages();
+        _loadNegotiations();
+      }
     });
     _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen((s) {
       if (mounted && (s == PlayerState.completed || s == PlayerState.stopped)) {
@@ -123,6 +132,39 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     }
   }
 
+  Future<void> _loadNegotiations() async {
+    if (_loading) return;
+    try {
+      List<BidNegotiation> negotiations = [];
+      if (widget.bidId != null) {
+        final raw = await _api.getBidNegotiations(widget.bidId!);
+        negotiations = raw.map((j) => BidNegotiation.fromJson(j)).toList();
+      } else if (widget.offerId != null && widget.advertisementId != null) {
+        final raw = await _api.getOfferNegotiations(
+            widget.advertisementId!, widget.offerId!);
+        negotiations = raw.map((j) => BidNegotiation.fromJson(j)).toList();
+      }
+
+      if (mounted && negotiations.isNotEmpty) {
+        final last = negotiations.last;
+        setState(() {
+          _negotiations = negotiations;
+          _lastPrice = last.price;
+          _lastProposedBy = last.authorRole;
+          _loading = false;
+        });
+      } else if (mounted) {
+        setState(() => _loading = false);
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        'NegotiationChatScreen: chargement negociations impossible '
+        '($error)\n$stackTrace',
+      );
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _loadMessages() async {
     if (_loadingMessages) return;
     _loadingMessages = true;
@@ -132,7 +174,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         parcelId: widget.parcelId,
       );
       if (mounted) {
-        setState(() { _messages = msgs; _loading = false; });
+        setState(() { _messages = msgs; });
         _scrollToBottom();
       }
     } catch (error, stackTrace) {
@@ -140,7 +182,6 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         'NegotiationChatScreen: chargement des messages impossible '
         '($error)\n$stackTrace',
       );
-      if (mounted) setState(() => _loading = false);
     } finally {
       _loadingMessages = false;
     }
@@ -170,12 +211,28 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     return b.toString();
   }
 
+  bool get _canAccept {
+    if (_lastProposedBy == null || _negotiations.isEmpty) return false;
+    if (!_isNegotiationActive) return false;
+    if (widget.role != null) return _lastProposedBy != widget.role;
+    return widget.isOwner;
+  }
+
+  bool get _isNegotiationActive {
+    if (_negotiations.isEmpty) return true;
+    return !_negotiations.any((n) => n.isAccepted);
+  }
+
+  // --- Text chat ---
+
   Future<void> _sendText() async {
     final body = _msgCtrl.text.trim();
     if (body.isEmpty || _sending) return;
     _msgCtrl.clear();
     await _send(body: body);
   }
+
+  // --- Price proposal ---
 
   Future<void> _sendPrice() async {
     final raw = _priceCtrl.text.trim();
@@ -204,11 +261,11 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       );
     }
 
-    final body = '$_prixPrefix:${amount.toInt()}${msg.isNotEmpty ? ':$msg' : ''}';
     _msgCtrl.clear();
     _priceCtrl.clear();
     setState(() => _showPrice = false);
-    await _send(body: body);
+    await _loadNegotiations();
+    widget.onChanged?.call();
   }
 
   Future<void> _send({String? body, String? audioUrl}) async {
@@ -220,40 +277,60 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       if (widget.parcelId != null) 'parcelId': widget.parcelId,
     });
     await _loadMessages();
-    widget.onChanged?.call();
-    if (mounted) setState(() => _sending = false);
+    setState(() => _sending = false);
   }
 
-  Future<void> _handleAcceptPrice(int amount) async {
+  // --- Accept / Counter ---
+
+  Future<void> _handleAccept() async {
+    if (_accepting) return;
+    setState(() => _accepting = true);
+
     Map<String, dynamic>? result;
 
     if (widget.offerId != null && widget.advertisementId != null) {
-      result = await _api.acceptAdvertisementOffer(
-          widget.advertisementId!, widget.offerId!);
+      if (widget.role == 'driver') {
+        result = await _api.acceptAdvertisementOffer(
+            widget.advertisementId!, widget.offerId!);
+      } else {
+        result = await _api.clientAcceptAdvertisementOffer(
+            widget.advertisementId!, widget.offerId!);
+      }
     } else if (widget.bidId != null) {
       if (widget.role == 'driver') {
         result = await _api.driverRespondToBid(widget.bidId!, {
           'action': 'accept',
-          'price': amount,
-          'message': 'Offre acceptee',
+          'price': _lastPrice.toInt(),
         });
       } else if (widget.parcelId != null) {
         result = await _api.acceptBid(widget.parcelId!, widget.bidId!);
       }
     }
 
-    if (result != null && result['success'] == false && mounted) {
-      _showSnack(result['message']?.toString() ??
-          'L\'acceptation a échoué');
-      return;
+    if (mounted) {
+      if (result != null && result['finalized'] == true) {
+        _showSnack('Accord confirmé ! Le colis a été assigné avec succès.');
+        await _loadNegotiations();
+        await _loadParcel();
+        widget.onChanged?.call();
+        widget.onNegotiationFinalized?.call(true);
+      } else if (result != null && result['success'] == false) {
+        _showSnack(result['message']?.toString() ?? 'L\'acceptation a échoué');
+      } else {
+        await _loadNegotiations();
+        await _loadParcel();
+        widget.onChanged?.call();
+      }
+      setState(() => _accepting = false);
     }
+  }
 
-    final body =
-        '$_prixPrefix:$amount:Accepté à ${_fcfa(amount.toDouble())} FCFA';
-    await _send(body: body);
-
-    await _loadParcel();
-    widget.onChanged?.call();
+  void _handleCounter() {
+    setState(() {
+      _showPrice = true;
+      _priceCtrl.clear();
+      _msgCtrl.text = '';
+    });
   }
 
   void _showSnack(String message) {
@@ -261,14 +338,6 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
-  }
-
-  void _handleCounterPrice(int amount) {
-    setState(() {
-      _showPrice = true;
-      _priceCtrl.clear();
-      _msgCtrl.text = 'Contre-proposition à ${_fcfa(amount.toDouble())} FCFA : ';
-    });
   }
 
   // --- Voice recording ---
@@ -435,6 +504,8 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     );
   }
 
+  // --- Build ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -446,9 +517,9 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       body: Column(
         children: [
           if (_parcel != null) _buildParcelHeader(),
-          Expanded(child: _buildMessages()),
-          if (_showPrice) _buildPriceBar(),
-          _buildInputBar(),
+          Expanded(child: _buildBody()),
+          if (_showPrice && _isNegotiationActive) _buildPriceBar(),
+          if (_isNegotiationActive) _buildInputBar(),
         ],
       ),
     );
@@ -497,69 +568,272 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     );
   }
 
-  Widget _buildMessages() {
+  Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_messages.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.forum, size: 32, color: AppTheme.slate300),
-            const SizedBox(height: 8),
-            Text('Démarrez la négociation avec ${widget.peerName}.',
-                style: AppFonts.manrope(
-                    fontSize: 13, color: AppTheme.textSecondary)),
-          ],
-        ),
-      );
-    }
-    int lastNonMinePriceIdx = -1;
-    for (int i = _messages.length - 1; i >= 0; i--) {
-      final m = _messages[i];
-      final body = m['body']?.toString() ?? '';
-      if (_parsePrice(body) != null &&
-          m['senderId']?.toString() != widget.peerId) {
-        lastNonMinePriceIdx = i;
-        break;
-      }
-    }
 
     return ListView.builder(
       controller: _scrollCtrl,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      itemCount: _messages.length,
-      itemBuilder: (_, i) {
-        final m = _messages[i];
-        final body = m['body']?.toString() ?? '';
-        final audioUrl = m['audioUrl']?.toString();
-        final time = _formatTime(m['createdAt']?.toString());
-        final mine = m['senderId']?.toString() == widget.peerId ? false : true;
-        final priceData = _parsePrice(body);
-        final isLastNonMinePrice = i == lastNonMinePriceIdx;
+      itemCount: _getItemCount(),
+      itemBuilder: (_, i) => _buildItem(i),
+    );
+  }
 
-        if (priceData != null) {
-          return _PriceBubble(
-            amount: priceData.amount,
-            message: priceData.message,
-            mine: mine,
-            time: time,
-            onAccept: (!mine && widget.isOwner && isLastNonMinePrice) ? () => _handleAcceptPrice(priceData.amount) : null,
-            onCounter: (!mine && widget.isOwner && isLastNonMinePrice) ? () => _handleCounterPrice(priceData.amount) : null,
-          );
-        }
+  int _getItemCount() {
+    int count = 0;
+    if (_negotiations.isNotEmpty) {
+      count += 1; // header
+      if (_canAccept && _isNegotiationActive) count += 1; // action buttons
+      count += _negotiations.length; // history items
+      count += 1; // chat separator
+    }
+    count += _messages.length;
+    return count;
+  }
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _MsgBubble(
-            body: body,
-            audioUrl: audioUrl,
-            playingAudio: _playingAudio,
-            mine: mine,
-            time: time,
-            onPlayAudio: (u) => _toggleAudio(u),
+  Widget _buildItem(int i) {
+    int idx = 0;
+
+    if (_negotiations.isNotEmpty) {
+      if (i == idx) return _buildNegotiationHeader();
+      idx++;
+
+      if (_canAccept && _isNegotiationActive) {
+        if (i == idx) return _buildActionButtons();
+        idx++;
+      }
+
+      final negIdx = i - idx;
+      if (negIdx < _negotiations.length) {
+        return _buildNegotiationEntry(_negotiations[negIdx], negIdx == _negotiations.length - 1);
+      }
+      idx += _negotiations.length;
+
+      if (i == idx) return _buildChatSeparator();
+      idx++;
+    }
+
+    final msgIdx = i - idx;
+    if (msgIdx < _messages.length) {
+      final m = _messages[msgIdx];
+      final body = m['body']?.toString() ?? '';
+      final audioUrl = m['audioUrl']?.toString();
+      final time = _formatTime(m['createdAt']?.toString());
+      final mine = m['senderId']?.toString() == widget.peerId ? false : true;
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: _MsgBubble(
+          body: body,
+          audioUrl: audioUrl,
+          playingAudio: _playingAudio,
+          mine: mine,
+          time: time,
+          onPlayAudio: (u) => _toggleAudio(u),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildNegotiationHeader() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.amber50,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.amber200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.handshake_rounded, size: 18, color: AppTheme.amber700),
+              const SizedBox(width: 6),
+              Text('Dernière proposition',
+                  style: AppFonts.manrope(
+                      fontSize: 11, fontWeight: FontWeight.w800,
+                      color: AppTheme.amber700)),
+            ],
           ),
-        );
-      },
+          const SizedBox(height: 8),
+          _buildPriceLine(_lastPrice),
+          const SizedBox(height: 4),
+          Text(
+            'Proposé par : ${_lastProposedBy == 'driver' ? 'Chauffeur' : 'Client'}',
+            style: AppFonts.manrope(fontSize: 13, color: AppTheme.slate700),
+          ),
+          if (_negotiations.isNotEmpty && _negotiations.last.message != null && _negotiations.last.message!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(_negotiations.last.message!,
+                style: AppFonts.manrope(fontSize: 12, color: AppTheme.slate500, fontStyle: FontStyle.italic)),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            _formatDateTime(_negotiations.last.createdAt),
+            style: TextStyle(fontSize: 10, color: AppTheme.slate400),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceLine(double price) {
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '${_fcfa(price)}',
+            style: AppTheme.mono(
+                fontSize: 22, fontWeight: FontWeight.w800,
+                color: AppTheme.amber600),
+          ),
+          TextSpan(
+            text: ' FCFA',
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: AppTheme.amber600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: PcButton(
+                    'Contre-proposer',
+                    variant: PcButtonVariant.secondary,
+                    size: PcButtonSize.sm,
+                    icon: Icons.swap_horiz_rounded,
+                    onPressed: _handleCounter,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: PcButton(
+                    'Accepter',
+                    icon: Icons.check_rounded,
+                    size: PcButtonSize.sm,
+                    loading: _accepting,
+                    onPressed: _handleAccept,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _lastProposedBy == 'driver'
+                ? 'Ce montant est proposé par le chauffeur'
+                : 'Ce montant est proposé par le client',
+            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNegotiationEntry(BidNegotiation n, bool isLast) {
+    return Container(
+      margin: EdgeInsets.only(bottom: isLast ? 12 : 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isLast ? AppTheme.amber50 : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(
+              color: n.isAccepted
+                  ? Colors.green
+                  : n.isInitial
+                      ? AppTheme.amber400
+                      : Colors.deepOrange,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  n.typeLabel,
+                  style: AppFonts.manrope(
+                      fontSize: 11, fontWeight: FontWeight.w700,
+                      color: AppTheme.slate600),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      '${_fcfa(n.price)} FCFA',
+                      style: AppFonts.manrope(
+                          fontSize: 12, fontWeight: FontWeight.w600,
+                          color: AppTheme.slate700),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      n.authorName ?? n.authorRole,
+                      style: TextStyle(
+                          fontSize: 10, color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
+                if (n.message != null && n.message!.isNotEmpty)
+                  Text(
+                    n.message!,
+                    style: TextStyle(
+                        fontSize: 10, color: AppTheme.slate500,
+                        fontStyle: FontStyle.italic),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            _formatTime(n.createdAt.toIso8601String()),
+            style: TextStyle(fontSize: 9, color: AppTheme.slate400),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatSeparator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: AppTheme.slate200)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text('Messages',
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary)),
+          ),
+          Expanded(child: Divider(color: AppTheme.slate200)),
+        ],
+      ),
     );
   }
 
@@ -764,14 +1038,10 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
     } catch (_) { return ''; }
   }
-}
 
-({int amount, String? message})? _parsePrice(String body) {
-  if (!body.startsWith(_prixPrefix)) return null;
-  final parts = body.substring(_prixPrefix.length + 1).split(':');
-  final a = int.tryParse(parts[0]);
-  if (a == null || a <= 0) return null;
-  return (amount: a, message: parts.length > 1 ? parts.sublist(1).join(':').trim() : null);
+  String _formatDateTime(DateTime d) {
+    return '${d.day}/${d.month}/${d.year} à ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
 }
 
 class _MsgBubble extends StatelessWidget {
@@ -839,115 +1109,6 @@ class _MsgBubble extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 9.5,
                     color: mine ? Colors.white60 : AppTheme.slate400)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PriceBubble extends StatelessWidget {
-  final int amount;
-  final String? message;
-  final bool mine;
-  final String time;
-  final VoidCallback? onAccept;
-  final VoidCallback? onCounter;
-
-  const _PriceBubble({
-    required this.amount,
-    this.message,
-    required this.mine,
-    required this.time,
-    this.onAccept,
-    this.onCounter,
-  });
-
-  String _fcfa(int v) {
-    final s = v.toString();
-    final b = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
-      b.write(s[i]);
-    }
-    return b.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppTheme.amber50,
-          border: Border.all(color: AppTheme.amber100),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(14),
-            topRight: const Radius.circular(14),
-            bottomLeft: Radius.circular(mine ? 14 : 4),
-            bottomRight: Radius.circular(mine ? 4 : 14),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.payments, size: 18, color: AppTheme.amber600),
-                const SizedBox(width: 6),
-                Text(mine ? 'Prix proposé' : 'Proposition de prix',
-                    style: AppFonts.manrope(
-                        fontSize: 11, fontWeight: FontWeight.w700,
-                        color: AppTheme.amber700)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: _fcfa(amount),
-                    style: AppTheme.mono(
-                        fontSize: 24, fontWeight: FontWeight.w800,
-                        color: AppTheme.amber600),
-                  ),
-                  TextSpan(
-                    text: ' FCFA',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                        color: AppTheme.amber600),
-                  ),
-                ],
-              ),
-            ),
-            if (message != null && message!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(message!,
-                  style: AppFonts.manrope(
-                      fontSize: 13, color: AppTheme.slate700)),
-            ],
-            if (!mine && onAccept != null && onCounter != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  PcButton('Contre-proposition',
-                      variant: PcButtonVariant.secondary,
-                      size: PcButtonSize.sm, onPressed: onCounter),
-                  const SizedBox(width: 8),
-                  PcButton('Accepter', icon: Icons.check_rounded,
-                      size: PcButtonSize.sm, onPressed: onAccept),
-                ],
-              ),
-            ],
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Text(time,
-                  style: TextStyle(
-                      fontSize: 9.5, color: AppTheme.amber500)),
-            ),
           ],
         ),
       ),

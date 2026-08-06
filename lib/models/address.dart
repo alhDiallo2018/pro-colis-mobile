@@ -59,4 +59,18 @@ class Address {
         if (longitude != null) 'longitude': longitude,
         'isDefault': isDefault,
       };
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        if (userId != null) 'userId': userId,
+        if (label != null) 'label': label,
+        'address': address,
+        if (city != null) 'city': city,
+        if (region != null) 'region': region,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        'isDefault': isDefault,
+        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+        if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+      };
 }

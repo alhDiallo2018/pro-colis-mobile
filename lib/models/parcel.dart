@@ -20,6 +20,7 @@ double _toDouble(dynamic v) {
 enum ParcelStatus {
   pending('pending', 'En attente', Colors.orange),
   free('free', 'Libre service', Colors.purple),
+  negotiating('negotiating', 'En négociation', Colors.deepOrange),
   confirmed('confirmed', 'Confirmé', Colors.blue),
   pickedUp('picked_up', 'Ramassé', Colors.indigo),
   inTransit('in_transit', 'En transit', Colors.deepPurple),
@@ -42,8 +43,10 @@ enum ParcelStatus {
 
   bool get isFree => this == ParcelStatus.free;
   bool get isPending => this == ParcelStatus.pending;
+  bool get isNegotiating => this == ParcelStatus.negotiating;
   bool get isConfirmed => this == ParcelStatus.confirmed;
   bool get isInProgress =>
+      this == ParcelStatus.negotiating ||
       this == ParcelStatus.confirmed ||
       this == ParcelStatus.pickedUp ||
       this == ParcelStatus.inTransit ||
@@ -77,6 +80,7 @@ enum ParcelType {
 // ==================== ENUM BID STATUS ====================
 enum BidStatus {
   pending('pending', 'En attente', Colors.orange),
+  negotiating('negotiating', 'En négociation', Colors.deepOrange),
   accepted('accepted', 'Acceptée', Colors.green),
   rejected('rejected', 'Refusée', Colors.red);
 
@@ -93,6 +97,80 @@ enum BidStatus {
   }
 }
 
+// ==================== CLASSE BID NEGOTIATION ====================
+class BidNegotiation {
+  final String id;
+  final String bidId;
+  final String authorId;
+  final String authorRole;
+  final String? authorName;
+  final double price;
+  final String? message;
+  final String type;
+  final DateTime createdAt;
+
+  BidNegotiation({
+    required this.id,
+    required this.bidId,
+    required this.authorId,
+    required this.authorRole,
+    this.authorName,
+    required this.price,
+    this.message,
+    required this.type,
+    required this.createdAt,
+  });
+
+  factory BidNegotiation.fromJson(Map<String, dynamic> json) {
+    return BidNegotiation(
+      id: json['id']?.toString() ?? '',
+      bidId: json['bidId']?.toString() ?? json['bid_id']?.toString() ?? '',
+      authorId: json['authorId']?.toString() ?? json['author_id']?.toString() ?? '',
+      authorRole: json['authorRole']?.toString() ?? json['author_role']?.toString() ?? '',
+      authorName: json['authorName']?.toString(),
+      price: _toDouble(json['price']),
+      message: json['message']?.toString(),
+      type: json['type']?.toString() ?? 'counter',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'].toString())
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'bidId': bidId,
+        'authorId': authorId,
+        'authorRole': authorRole,
+        'authorName': authorName,
+        'price': price,
+        'message': message,
+        'type': type,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  bool get isDriver => authorRole == 'driver';
+  bool get isClient => authorRole == 'client';
+  bool get isInitial => type == 'initial';
+  bool get isCounter => type == 'counter';
+  bool get isAccepted => type == 'accepted';
+
+  String get formattedPrice => '${price.toInt()} FCFA';
+
+  String get typeLabel {
+    switch (type) {
+      case 'initial':
+        return 'Offre initiale';
+      case 'counter':
+        return isDriver ? 'Contre-proposition chauffeur' : 'Contre-proposition client';
+      case 'accepted':
+        return 'Acceptation';
+      default:
+        return type;
+    }
+  }
+}
+
 // ==================== CLASSE BID (OFFRE) ====================
 class Bid {
   final String id;
@@ -106,7 +184,8 @@ class Bid {
   final DateTime createdAt;
   final DateTime? respondedAt;
   final String? responseMessage;
-  final String? audioUrl; // ✅ URL du message audio du chauffeur
+  final String? lastProposedBy;
+  final String? audioUrl;
 
   Bid({
     required this.id,
@@ -120,6 +199,7 @@ class Bid {
     required this.createdAt,
     this.respondedAt,
     this.responseMessage,
+    this.lastProposedBy,
     this.audioUrl,
   });
 
@@ -154,6 +234,8 @@ class Bid {
               : null),
       responseMessage: json['responseMessage']?.toString() ??
           json['response_message']?.toString(),
+      lastProposedBy: json['lastProposedBy']?.toString() ??
+          json['last_proposed_by']?.toString(),
       audioUrl: json['audioUrl']?.toString() ?? json['audio_url']?.toString(),
     );
   }
@@ -170,6 +252,7 @@ class Bid {
         'createdAt': createdAt.toIso8601String(),
         'respondedAt': respondedAt?.toIso8601String(),
         'responseMessage': responseMessage,
+        'lastProposedBy': lastProposedBy,
         'audioUrl': audioUrl,
       };
 
@@ -178,8 +261,12 @@ class Bid {
   String get formattedDate =>
       '${createdAt.day}/${createdAt.month} à ${createdAt.hour}h${createdAt.minute}';
   bool get isPending => status == BidStatus.pending;
+  bool get isNegotiating => status == BidStatus.negotiating;
   bool get isAccepted => status == BidStatus.accepted;
   bool get isRejected => status == BidStatus.rejected;
+  bool get isActive => status == BidStatus.pending || status == BidStatus.negotiating;
+  bool get isLastProposedByDriver => lastProposedBy == 'driver';
+  bool get isLastProposedByClient => lastProposedBy == 'client';
   bool get hasAudio => audioUrl != null && audioUrl!.isNotEmpty;
 
   Bid copyWith({
@@ -194,6 +281,7 @@ class Bid {
     DateTime? createdAt,
     DateTime? respondedAt,
     String? responseMessage,
+    String? lastProposedBy,
     String? audioUrl,
   }) {
     return Bid(
@@ -208,6 +296,7 @@ class Bid {
       createdAt: createdAt ?? this.createdAt,
       respondedAt: respondedAt ?? this.respondedAt,
       responseMessage: responseMessage ?? this.responseMessage,
+      lastProposedBy: lastProposedBy ?? this.lastProposedBy,
       audioUrl: audioUrl ?? this.audioUrl,
     );
   }
@@ -292,6 +381,10 @@ class Parcel {
   final double? cashCollectedAmount;
   final DateTime? cashCollectedAt;
 
+  final String? assignedDriverId;
+  final String? proposedDriverId;
+  final String? proposalStatus;
+
   // Médias
   final List<String> photoUrls;
   final List<String> videoUrls;
@@ -366,6 +459,9 @@ class Parcel {
     this.cashCollectionPoint,
     this.cashCollectedAmount,
     this.cashCollectedAt,
+    this.assignedDriverId,
+    this.proposedDriverId,
+    this.proposalStatus,
     this.photoUrls = const [],
     this.videoUrls = const [],
     this.audioUrls = const [], // ✅
@@ -514,6 +610,12 @@ class Parcel {
           json['cashCollectedAmount'] ?? json['cash_collected_amount']),
       cashCollectedAt:
           parseDateTime(json['cashCollectedAt'] ?? json['cash_collected_at']),
+      assignedDriverId:
+          parseString(json['assignedDriverId'] ?? json['assigned_driver_id']),
+      proposedDriverId:
+          parseString(json['proposedDriverId'] ?? json['proposed_driver_id']),
+      proposalStatus:
+          parseString(json['proposalStatus'] ?? json['proposal_status']),
       photoUrls: parseList(json['photoUrls']),
       videoUrls: parseList(json['videoUrls']),
       audioUrls: parseList(json['audioUrls']), // ✅
@@ -579,6 +681,9 @@ class Parcel {
         'cashCollectionPoint': cashCollectionPoint?.value,
         'cashCollectedAmount': cashCollectedAmount,
         'cashCollectedAt': cashCollectedAt?.toIso8601String(),
+        'assignedDriverId': assignedDriverId,
+        'proposedDriverId': proposedDriverId,
+        'proposalStatus': proposalStatus,
         'photoUrls': photoUrls,
         'videoUrls': videoUrls,
         'audioUrls': audioUrls, // ✅
@@ -775,6 +880,8 @@ class Parcel {
         return '⏳';
       case ParcelStatus.free:
         return '🔓';
+      case ParcelStatus.negotiating:
+        return '🤝';
       case ParcelStatus.confirmed:
         return '✅';
       case ParcelStatus.pickedUp:
@@ -795,6 +902,7 @@ class Parcel {
   String get biddingStatusText {
     if (!isFreeForBidding) return 'Non disponible pour marchandage';
     if (selectedBidId != null) return 'Offre acceptée';
+    if (bids.any((b) => b.isNegotiating)) return 'En négociation';
     if (bids.isEmpty) return 'Aucune offre pour le moment';
     return '${bids.length} offre(s) reçue(s)';
   }
@@ -802,6 +910,7 @@ class Parcel {
   Color get biddingStatusColor {
     if (!isFreeForBidding) return Colors.grey;
     if (selectedBidId != null) return Colors.green;
+    if (bids.any((b) => b.isNegotiating)) return Colors.deepOrange;
     if (bids.isEmpty) return Colors.orange;
     return Colors.blue;
   }
@@ -854,6 +963,9 @@ class Parcel {
     CashCollectionPoint? cashCollectionPoint,
     double? cashCollectedAmount,
     DateTime? cashCollectedAt,
+    String? assignedDriverId,
+    String? proposedDriverId,
+    String? proposalStatus,
     List<String>? photoUrls,
     List<String>? videoUrls,
     List<String>? audioUrls,
@@ -918,6 +1030,9 @@ class Parcel {
       cashCollectionPoint: cashCollectionPoint ?? this.cashCollectionPoint,
       cashCollectedAmount: cashCollectedAmount ?? this.cashCollectedAmount,
       cashCollectedAt: cashCollectedAt ?? this.cashCollectedAt,
+      assignedDriverId: assignedDriverId ?? this.assignedDriverId,
+      proposedDriverId: proposedDriverId ?? this.proposedDriverId,
+      proposalStatus: proposalStatus ?? this.proposalStatus,
       photoUrls: photoUrls ?? this.photoUrls,
       videoUrls: videoUrls ?? this.videoUrls,
       audioUrls: audioUrls ?? this.audioUrls,

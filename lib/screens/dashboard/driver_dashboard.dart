@@ -10,7 +10,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -23,6 +22,7 @@ import 'package:procolis/services/api_service.dart';
 import 'package:procolis/services/commission_service.dart';
 import 'package:procolis/services/notification_service.dart';
 import 'package:procolis/theme/app_theme.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:record/record.dart';
 
 import '../../providers/auth_provider.dart';
@@ -39,21 +39,21 @@ import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../driver/create_annonce_sheet.dart';
-import '../driver/revenus_screen.dart';
+import '../driver/garage_screen.dart';
+import '../driver/historique_screen.dart';
 import '../driver/mes_annonces_screen.dart';
 import '../driver/parametres_screen.dart';
 import '../driver/points_screen.dart';
-import '../driver/garage_screen.dart';
-import '../driver/historique_screen.dart';
+import '../driver/revenus_screen.dart';
 import '../driver/vehicle_documents_screen.dart';
 import '../help/help_screen.dart';
-import '../shared/messages_screen.dart';
-import '../parcel/free_parcels_screen.dart';
-import '../parcel/track_parcel_screen.dart';
 import '../parcel/confirm_delivery_screen.dart';
+import '../parcel/free_parcels_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
+import '../parcel/track_parcel_screen.dart';
 import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
+import '../shared/messages_screen.dart';
 
 // ==================== ÉCRAN DE CRÉATION D'ANNONCE POUR CHAUFFEUR ====================
 
@@ -631,7 +631,6 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      // PAS D'APP BAR ICI - elle est dans le DriverDashboard parent
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(
@@ -645,31 +644,18 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // En-tête
                     _buildHeader(),
                     const SizedBox(height: 16),
-
-                    // Informations du voyage
                     _buildTripSection(),
                     const SizedBox(height: 16),
-
-                    // Détails du véhicule et capacité
                     _buildVehicleSection(),
                     const SizedBox(height: 16),
-
-                    // Message vocal
                     _buildVoiceSection(),
                     const SizedBox(height: 16),
-
-                    // Notes
                     _buildNotesSection(),
                     const SizedBox(height: 16),
-
-                    // Résumé
                     _buildSummarySection(),
                     const SizedBox(height: 24),
-
-                    // Bouton publier
                     _buildPublishButton(),
                     const SizedBox(height: 32),
                   ],
@@ -763,7 +749,6 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // Lieu de départ avec autocomplétion
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -834,7 +819,6 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // Lieu d'arrivée avec autocomplétion
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1313,7 +1297,6 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   }
 
   Widget _buildSummarySection() {
-    // Récupération des valeurs en temps réel
     final departure = _departureController.text;
     final arrival = _arrivalController.text;
     final date = _departureDateController.text;
@@ -1567,9 +1550,6 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     _loadData();
     _loadNotificationsCount();
     _loadMessagesUnread();
-    // Seuls les compteurs sont interrogés périodiquement : recharger les colis
-    // toutes les 15 s repassait `isLoading` à vrai et rechargeait les listes en
-    // boucle. Les colis se rechargent à l'ouverture et au pull-to-refresh.
     _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (!mounted) return;
       _loadNotificationsCount();
@@ -1584,8 +1564,6 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     super.dispose();
   }
 
-  /// Rattrapage au retour d'arrière-plan : une mission acceptée ou annulée
-  /// pendant la veille est reprise ici, faute de rechargement périodique.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed || !mounted) return;
@@ -1608,8 +1586,6 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     } catch (_) {}
   }
 
-  /// Messages non-lus (conversations où je suis destinataire) + notification
-  /// locale à la réception d'un nouveau message.
   Future<void> _loadMessagesUnread() async {
     final myId = ref.read(authProvider).user?.id;
     if (myId == null) return;
@@ -1684,7 +1660,6 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     final user = authState.user;
     final parcelState = ref.watch(parcelProvider);
 
-    // Synchronise l'onglet avec la barre de navigation persistante (AppBottomNav)
     ref.listen<int>(dashboardTabProvider, (prev, next) {
       if (next != _selectedIndex && next >= 0 && next < 5) {
         setState(() => _selectedIndex = next);
@@ -1753,6 +1728,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
         return _DriverMissionsTabScreen(
           parcelState: parcelState,
           onRefresh: _loadData,
+          user: user,
         );
       case 3:
         return const DriverMesAnnoncesScreen(embedded: true);
@@ -1769,14 +1745,16 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
         return _DriverMissionsTabScreen(
           parcelState: parcelState,
           onRefresh: _loadData,
+          user: user,
         );
     }
   }
 }
 
-/// Action de cycle de vie côté chauffeur : un seul bouton contextuel qui fait
-/// avancer la mission (aligné sur le web MissionsScreen). L'étape `deliver`
-/// bascule vers le flux OTP (ConfirmDeliveryScreen).
+// ============================================================
+// ✅ ACTION DE CYCLE DE VIE CHAUFFEUR (CORRIGÉ)
+// ============================================================
+
 class _DriverStepAction {
   final String step;
   final String label;
@@ -1787,8 +1765,9 @@ class _DriverStepAction {
 _DriverStepAction? _driverNextStep(ParcelStatus status) {
   switch (status) {
     case ParcelStatus.pending:
-      return const _DriverStepAction('confirm', 'Confirmer la prise en charge',
-          Icons.check_circle_rounded);
+      return null; // ✅ Plus de "Confirmer" pour les propositions
+    case ParcelStatus.negotiating:
+      return null; // ✅ Négociation en cours
     case ParcelStatus.confirmed:
       return const _DriverStepAction(
           'pickup', 'Marquer ramassé', Icons.inventory_2_rounded);
@@ -1809,6 +1788,10 @@ _DriverStepAction? _driverNextStep(ParcelStatus status) {
   }
 }
 
+// ============================================================
+// ✅ TABLEAU DE BORD CHAUFFEUR
+// ============================================================
+
 class _DriverTableauScreen extends StatefulWidget {
   final ParcelState parcelState;
   final User? user;
@@ -1817,8 +1800,6 @@ class _DriverTableauScreen extends StatefulWidget {
   final int unreadMessagesCount;
   final VoidCallback onViewMissions;
   final VoidCallback onViewPool;
-
-  /// Ouvre l'onglet « Profil » depuis la photo de profil du bandeau.
   final VoidCallback onViewProfile;
   final VoidCallback onPublishTrip;
   final bool isUpdatingStatus;
@@ -1853,15 +1834,15 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   double _weekRevenue = 0;
   List<double> _revenueBars = List<double>.filled(7, 0);
   Map<String, dynamic> _stats = {};
+  
+  // ✅ NOUVEAU : Propositions reçues
+  List<Parcel> _proposals = [];
 
-  /// Livraisons réellement terminées (GET /driver/stats). Les compteurs portés
-  /// par l'utilisateur ne sont pas maintenus par le backend et valent 0.
   int? get _statsDeliveries {
     final value = _stats['completedDeliveries'];
     return value is num ? value.toInt() : null;
   }
 
-  /// `null` tant qu'aucune note n'a été attribuée.
   double? get _statsRating {
     final value = _stats['rating'] ?? widget.user?.rating;
     if (value is! num || value <= 0) return null;
@@ -1873,6 +1854,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadDashboardData();
+    _loadProposals();
   }
 
   @override
@@ -1881,20 +1863,18 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     super.dispose();
   }
 
-  /// Rattrapage au retour d'arrière-plan (portefeuille, stats, offres). Le
-  /// dashboard parent recharge les colis de son côté.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted) _loadDashboardData();
+    if (state == AppLifecycleState.resumed && mounted) {
+      _loadDashboardData();
+      _loadProposals();
+    }
   }
 
-  /// Rafraîchissement manuel (pull-to-refresh) : portefeuille, stats et
-  /// annonces d'un côté, colis du dashboard parent de l'autre. Remplace
-  /// l'ancien rechargement automatique toutes les 15 s, qui relançait cinq
-  /// appels API et reconstruisait le tableau en continu.
   Future<void> _refreshAll() async {
     widget.onRefresh();
     await _loadDashboardData();
+    await _loadProposals();
   }
 
   Future<void> _loadDashboardData() async {
@@ -1933,25 +1913,105 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     });
   }
 
-  Future<void> _openItinerary(Parcel parcel) async {
+  // ✅ NOUVEAU : Charger les propositions
+  Future<void> _loadProposals() async {
     try {
-      final zones = await _api.getAllZones();
-      if (!mounted) return;
-      context.push('/driver/itinerary', extra: {
-        'departureName': parcel.departureZoneName,
-        'arrivalName': parcel.arrivalZoneName ?? '',
-        'zones': zones,
+      final allParcels = widget.parcelState.parcels;
+      final userId = widget.user?.id;
+      
+      setState(() {
+        _proposals = allParcels.where((p) => 
+          p.proposedDriverId == userId && 
+          p.proposalStatus == 'pending'
+        ).toList();
       });
-    } catch (error, stackTrace) {
-      debugPrint(
-        'DriverDashboard: chargement des zones impossible '
-        '($error)\n$stackTrace',
-      );
+    } catch (e) {
+      debugPrint('❌ Erreur chargement propositions: $e');
+    }
+  }
+
+  // ✅ NOUVEAU : Répondre à une proposition
+  Future<void> _respondToProposal(String parcelId, String action, {double? price}) async {
+    try {
+      await _api.respondToProposal(parcelId, action, price: price);
+      await _loadProposals();
+      await _loadDashboardData();
+      
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir l’itinéraire.')),
+        SnackBar(
+          content: Text(
+            action == 'accept' 
+              ? '✅ Proposition acceptée !' 
+              : action == 'reject' 
+                ? '❌ Proposition refusée'
+                : '💬 Contre-offre envoyée'
+          ),
+          backgroundColor: action == 'accept' ? Colors.green : Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Erreur: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
+  }
+
+  // ✅ NOUVEAU : Dialog de négociation
+  void _showNegotiationDialog(Parcel parcel) {
+    final priceController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('💬 Négocier le prix'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Prix proposé: ${(parcel.proposedPrice ?? parcel.price ?? 0).toStringAsFixed(0)} FCFA',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Votre contre-offre (FCFA)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.attach_money),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final price = double.tryParse(priceController.text);
+              if (price != null && price > 0) {
+                Navigator.pop(context);
+                _respondToProposal(parcel.id, 'counter', price: price);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _fcfa(num value) {
@@ -1964,8 +2024,9 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   List<Parcel> get _activeMissions {
     final missions = widget.parcelState.parcels
         .where((parcel) =>
-            parcel.status.isInProgress ||
-            parcel.status == ParcelStatus.confirmed)
+            (parcel.assignedDriverId == widget.user?.id || 
+             parcel.driverId == widget.user?.id) &&
+            (parcel.status.isInProgress || parcel.status == ParcelStatus.confirmed))
         .toList();
     return missions.isNotEmpty ? missions : widget.parcelState.parcels;
   }
@@ -1988,14 +2049,11 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
         0;
     final activeCount = _activeMissions.length;
     final wallet = _walletBalance != null ? '${_fcfa(_walletBalance!)}' : '—';
-    // Pas de note inventée : un tiret tant qu'aucun client n'a noté.
     final rating = _statsRating?.toStringAsFixed(1).replaceAll('.', ',') ?? '—';
 
     return Column(
       children: [
         _buildHero(user),
-        // Le bandeau administrateur appartient au contenu du dashboard : il
-        // doit venir après l'AppBar visuelle du chauffeur.
         const BroadcastBanner(),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -2018,6 +2076,17 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
               children: [
+                // ✅ NOUVEAU : Section Propositions reçues
+                if (_proposals.isNotEmpty) ...[
+                  PcSectionHeader(
+                    '📩 Propositions reçues',
+                    action: 'Voir tout',
+                    onAction: widget.onViewPool,
+                  ),
+                  const SizedBox(height: 12),
+                  ..._proposals.map((proposal) => _buildProposalCard(proposal)),
+                  const SizedBox(height: 28),
+                ],
                 GridView.count(
                   crossAxisCount: 2,
                   padding: EdgeInsets.zero,
@@ -2178,13 +2247,88 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     );
   }
 
-  /// Recoupe les offres embarquées dans le colis avec l'endpoint « offres
-  /// envoyées », car les deux versions de l'API ne peuplent pas toujours la
-  /// relation `bids` sur la liste publique.
+  // ✅ NOUVEAU : Widget pour une proposition
+  Widget _buildProposalCard(Parcel proposal) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.primaryLight.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.how_to_vote_rounded, color: AppTheme.primary, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Proposition de colis',
+                  style: TextStyle(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              ProcolisStatusBadge(
+                status: ParcelStatus.pending,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _DriverRouteCard(
+            parcel: proposal,
+            showPrimaryAction: false,
+            primaryActionLabel: 'Voir',
+            primaryActionIcon: Icons.arrow_forward_rounded,
+            onPrimaryAction: () { },
+            customFooter: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: PcButton(
+                        '✅ Accepter',
+                        icon: Icons.check_rounded,
+                        variant: PcButtonVariant.primary,
+                        block: true,
+                        onPressed: () => _respondToProposal(proposal.id, 'accept'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: PcButton(
+                        '💬 Négocier',
+                        icon: Icons.forum_rounded,
+                        variant: PcButtonVariant.amber,
+                        block: true,
+                        onPressed: () => _showNegotiationDialog(proposal),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                PcButton(
+                  '❌ Refuser',
+                  icon: Icons.close_rounded,
+                  variant: PcButtonVariant.danger,
+                  block: true,
+                  onPressed: () => _respondToProposal(proposal.id, 'reject'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String? _bidIdForParcel(Parcel parcel, String? userId) {
     final embeddedBid = findUserBid(parcel, userId);
     if (embeddedBid != null) return embeddedBid.id;
-
     for (final bid in _bidsSent) {
       if (bid['parcelId']?.toString() == parcel.id) {
         return bid['id']?.toString();
@@ -2209,7 +2353,27 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     );
   }
 
-  // ---- Revenus · 7 jours (mini graphique, logique de revenus_screen) ----
+  Future<void> _openItinerary(Parcel parcel) async {
+    try {
+      final zones = await _api.getAllZones();
+      if (!mounted) return;
+      context.push('/driver/itinerary', extra: {
+        'departureName': parcel.departureZoneName,
+        'arrivalName': parcel.arrivalZoneName ?? '',
+        'zones': zones,
+      });
+    } catch (error, stackTrace) {
+      debugPrint(
+        'DriverDashboard: chargement des zones impossible '
+        '($error)\n$stackTrace',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d’ouvrir l’itinéraire.')),
+      );
+    }
+  }
+
   Widget _buildRevenuePanel() {
     return PcCard(
       radius: AppTheme.radiusLg,
@@ -2266,7 +2430,6 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     );
   }
 
-  // ---- Mes offres (offres envoyées par le chauffeur) ----
   Widget _buildBidsPanel() {
     final top = _bidsSent.take(3).toList();
     return Column(
@@ -2325,7 +2488,6 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     );
   }
 
-  // ---- Mes annonces (trajets publiés par le chauffeur) ----
   Widget _buildAdsPanel() {
     final top = _ads.take(3).toList();
     return Column(
@@ -2721,6 +2883,10 @@ class _PublishTripShortcut extends StatelessWidget {
   }
 }
 
+// ============================================================
+// ✅ DRIVER ROUTE CARD (CORRIGÉ)
+// ============================================================
+
 class _DriverRouteCard extends StatelessWidget {
   final Parcel parcel;
   final String? footerText;
@@ -2744,8 +2910,6 @@ class _DriverRouteCard extends StatelessWidget {
 
   String _formatFcfa(double amount) {
     final rawAmount = amount.toStringAsFixed(0);
-    // Sépare les milliers sans dépendre d'une locale système indisponible
-    // dans certains environnements Flutter de test.
     return rawAmount.replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+$)'),
       (match) => '${match[1]} ',
@@ -3029,8 +3193,6 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
   }
 
   String _poolFooter(Parcel parcel) {
-    // Les maquettes exposent une distance statique; tant que l'API ne fournit
-    // pas cette donnée, on conserve un fallback visuel stable.
     final offers = parcel.bids.length;
     return '240 km · $offers offre${offers > 1 ? 's' : ''}';
   }
@@ -3154,10 +3316,12 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
 class _DriverMissionsTabScreen extends StatefulWidget {
   final ParcelState parcelState;
   final VoidCallback onRefresh;
+  final User? user;
 
   const _DriverMissionsTabScreen({
     required this.parcelState,
     required this.onRefresh,
+    required this.user,
   });
 
   @override
@@ -3169,6 +3333,7 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
   int _tabIndex = 0;
   final ApiService _api = ApiService();
   String? _advancingId;
+  String? _respondingBidId;
 
   Future<void> _advanceMission(Parcel mission, String step) async {
     setState(() => _advancingId = mission.id);
@@ -3185,6 +3350,56 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     } finally {
       if (mounted) setState(() => _advancingId = null);
     }
+  }
+
+  Future<void> _acceptOffer(Parcel mission, String bidId) async {
+    setState(() => _respondingBidId = bidId);
+    try {
+      final res = await _api.driverRespondToBid(bidId, {'action': 'accept'});
+      if (res['success'] == false) {
+        _snack(res['message']?.toString() ?? 'Action impossible');
+      } else {
+        _snack('Offre acceptée — vous êtes maintenant assigné');
+        widget.onRefresh();
+      }
+    } catch (_) {
+      _snack('Action impossible');
+    } finally {
+      if (mounted) setState(() => _respondingBidId = null);
+    }
+  }
+
+  Future<void> _rejectOffer(Parcel mission, String bidId) async {
+    setState(() => _respondingBidId = bidId);
+    try {
+      final res = await _api.driverRespondToBid(bidId, {'action': 'reject'});
+      if (res['success'] == false) {
+        _snack(res['message']?.toString() ?? 'Action impossible');
+      } else {
+        _snack('Offre refusée');
+        widget.onRefresh();
+      }
+    } catch (_) {
+      _snack('Action impossible');
+    } finally {
+      if (mounted) setState(() => _respondingBidId = null);
+    }
+  }
+
+  void _openNegotiation(Parcel mission, Bid bid) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NegotiationChatScreen(
+          peerId: mission.senderId,
+          peerName: mission.senderName,
+          parcelId: mission.id,
+          bidId: bid.id,
+          role: 'driver',
+          onChanged: widget.onRefresh,
+        ),
+      ),
+    );
   }
 
   /// Sur une course en espèces, l'étape qui déclenche la remise d'argent
@@ -3221,13 +3436,17 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
 
   List<Parcel> get _activeMissions => widget.parcelState.parcels
       .where((parcel) =>
-          parcel.status == ParcelStatus.pending ||
-          parcel.status == ParcelStatus.confirmed ||
-          parcel.status.isInProgress)
+          (parcel.assignedDriverId == widget.user?.id || 
+           parcel.driverId == widget.user?.id) &&
+          (parcel.status == ParcelStatus.confirmed ||
+           parcel.status.isInProgress))
       .toList();
 
   List<Parcel> get _completedMissions => widget.parcelState.parcels
-      .where((parcel) => parcel.status == ParcelStatus.delivered)
+      .where((parcel) => 
+          (parcel.assignedDriverId == widget.user?.id || 
+           parcel.driverId == widget.user?.id) &&
+          parcel.status == ParcelStatus.delivered)
       .toList();
 
   List<Parcel> get _visibleMissions =>
@@ -3253,6 +3472,118 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
   }
 
   Widget _buildMissionFooter(Parcel mission) {
+    final userId = widget.user?.id;
+    
+    // ✅ Vérifier si c'est une mission assignée ou une proposition
+    final isAssigned = mission.assignedDriverId == userId || mission.driverId == userId;
+    
+    // ✅ Si c'est une proposition en attente (pas encore assignée)
+    if (!isAssigned && mission.proposalStatus == 'pending') {
+      final activeBid = mission.bids.firstWhere(
+        (b) => b.driverId == userId && b.isActive,
+        orElse: () => Bid(
+          id: '', parcelId: '', driverId: '', driverName: '', driverPhone: '',
+          price: 0, createdAt: DateTime.now(), status: BidStatus.rejected,
+        ),
+      );
+      
+      if (activeBid.id.isNotEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: PcButton(
+                    '❌ Refuser',
+                    icon: Icons.close_rounded,
+                    block: true,
+                    variant: PcButtonVariant.danger,
+                    size: PcButtonSize.sm,
+                    loading: _respondingBidId == activeBid.id,
+                    onPressed: _respondingBidId == activeBid.id
+                        ? null
+                        : () => _rejectOffer(mission, activeBid.id),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: PcButton(
+                    '💬 Négocier',
+                    icon: Icons.forum_rounded,
+                    block: true,
+                    variant: PcButtonVariant.amber,
+                    size: PcButtonSize.sm,
+                    onPressed: () => _openNegotiation(mission, activeBid),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: PcButton(
+                    '✅ Accepter',
+                    icon: Icons.check_rounded,
+                    block: true,
+                    variant: PcButtonVariant.primary,
+                    size: PcButtonSize.sm,
+                    loading: _respondingBidId == activeBid.id,
+                    onPressed: _respondingBidId == activeBid.id
+                        ? null
+                        : () => _acceptOffer(mission, activeBid.id),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      }
+    }
+
+    // ✅ Si c'est une mission assignée, afficher les actions normales
+    if (isAssigned && _driverNextStep(mission.status) != null) {
+      final next = _driverNextStep(mission.status)!;
+      final loading = _advancingId == mission.id;
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: PcButton(
+          next.label,
+          icon: next.icon,
+          block: true,
+          loading: loading,
+          onPressed: loading
+              ? null
+              : () => next.step == 'deliver'
+                  ? _openConfirmDelivery(mission)
+                  : _advanceMission(mission, next.step),
+        ),
+      );
+    }
+
+    // ✅ Si la proposition est en négociation
+    if (mission.proposalStatus == 'countered') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: PcButton(
+          '💬 Répondre à la contre-offre',
+          icon: Icons.forum_rounded,
+          block: true,
+          variant: PcButtonVariant.amber,
+          onPressed: () {
+            final activeBid = mission.bids.firstWhere(
+              (b) => b.driverId == userId && b.isActive,
+              orElse: () => Bid(
+                id: '', parcelId: '', driverId: '', driverName: '', driverPhone: '',
+                price: 0, createdAt: DateTime.now(), status: BidStatus.rejected,
+              ),
+            );
+            if (activeBid.id.isNotEmpty) {
+              _openNegotiation(mission, activeBid);
+            }
+          },
+        ),
+      );
+    }
+
+    // ✅ Commission et client (inchangé)
     final commissionEstimate =
         mission.price != null ? CommissionService.calculate(mission.price!) : 0;
     final commissionLabel = mission.status.isCompleted
@@ -3262,54 +3593,34 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
         ? mission.senderName
         : 'Client SendProcolis';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Text(
-              commissionLabel,
-              style: AppTheme.mono(
-                color: AppTheme.slate500,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Text(
+            commissionLabel,
+            style: AppTheme.mono(
+              color: AppTheme.slate500,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Spacer(),
+          Flexible(
+            child: Text(
+              'Client · $client',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const Spacer(),
-            Flexible(
-              child: Text(
-                'Client · $client',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (_driverNextStep(mission.status) != null) ...[
-          const SizedBox(height: 10),
-          Builder(builder: (_) {
-            final next = _driverNextStep(mission.status)!;
-            final loading = _advancingId == mission.id;
-            return PcButton(
-              next.label,
-              icon: next.icon,
-              block: true,
-              loading: loading,
-              onPressed: loading
-                  ? null
-                  : () => next.step == 'deliver'
-                      ? _openConfirmDelivery(mission)
-                      : _advanceMission(mission, next.step),
-            );
-          }),
+          ),
         ],
-      ],
+      ),
     );
   }
 
@@ -3439,10 +3750,6 @@ class _DriverProfileTabScreenState
     _loadProfileData();
   }
 
-  /// Aucune de ces données n'est exposée par /auth/me : les compteurs portés
-  /// par l'utilisateur (livraisons, note, solde) valent toujours 0 et le
-  /// véhicule/zone n'y figure pas. Il faut donc interroger les endpoints
-  /// dédiés, sans quoi l'écran affiche des valeurs vides ou trompeuses.
   Future<void> _loadProfileData() async {
     final zoneId = user?.zoneId;
     final results = await Future.wait([
@@ -3485,8 +3792,6 @@ class _DriverProfileTabScreenState
 
   double get _walletBalance => _wallet ?? user?.walletBalance ?? 0;
 
-  /// `null` tant qu'aucune note n'a été attribuée : on affiche alors un tiret
-  /// plutôt qu'une note inventée.
   double? get _ratingValue {
     final fromStats = _stats['rating'];
     final value = fromStats is num ? fromStats.toDouble() : user?.rating;
@@ -3497,11 +3802,8 @@ class _DriverProfileTabScreenState
   String get _rating =>
       _ratingValue?.toStringAsFixed(1).replaceAll('.', ',') ?? '—';
 
-  /// Statut KYC réel : le badge ne doit pas affirmer que le chauffeur est
-  /// vérifié tant qu'un administrateur ne l'a pas validé.
   bool get _isVerified => user?.isVerified ?? false;
 
-  /// Résumé du dossier documents à partir de /identity/status.
   String get _documentsSubtitle {
     if (_loading) return 'Chargement…';
     if (_isVerified) return 'Vérifiés';
@@ -4144,7 +4446,7 @@ class _DriverProfileRow extends StatelessWidget {
   }
 }
 
-// ==================== ÉCRAN ANNONCES POUR CHAUFFEUR (SANS APP BAR) ====================
+// ==================== ÉCRAN ANNONCES POUR CHAUFFEUR ====================
 
 class DriverAdvertisementsScreen extends ConsumerStatefulWidget {
   const DriverAdvertisementsScreen({super.key});
@@ -4256,10 +4558,8 @@ class _DriverAdvertisementsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      // PAS D'APP BAR ICI - elle est dans le DriverDashboard parent
       body: Column(
         children: [
-          // Header avec titre et refresh
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -5376,7 +5676,6 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
 
     return Column(
       children: [
-        // Header avec gradient - PAS UNE APP BAR
         Container(
           padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -5521,7 +5820,6 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                       },
                     ),
                     SizedBox(width: 8),
-                    // PAS DE NOTIFICATION ICI - elle est dans l'AppBar du DriverDashboard
                   ],
                 ),
                 SizedBox(height: 12),
@@ -5563,7 +5861,6 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
             ),
           ),
         ),
-        // TabBar et liste
         Container(
           color: Colors.white,
           child: TabBar(
@@ -5727,6 +6024,8 @@ class _ParcelCardState extends State<_ParcelCard> {
         return Colors.orange;
       case ParcelStatus.free:
         return Colors.purple;
+      case ParcelStatus.negotiating:
+        return Colors.deepOrange;
       case ParcelStatus.confirmed:
         return Colors.blue;
       case ParcelStatus.pickedUp:
@@ -5750,6 +6049,8 @@ class _ParcelCardState extends State<_ParcelCard> {
         return '⏳';
       case ParcelStatus.free:
         return '🔓';
+      case ParcelStatus.negotiating:
+        return '🤝';
       case ParcelStatus.confirmed:
         return '✅';
       case ParcelStatus.pickedUp:

@@ -22,7 +22,7 @@ class ApiClient {
               headers: {'Content-Type': 'application/json'},
               connectTimeout: const Duration(seconds: 30),
               receiveTimeout: const Duration(seconds: 30),
-              validateStatus: (status) => status! < 500,
+              validateStatus: (status) => (status ?? 200) < 500,
             )) {
     // Un Dio injecté appartient à son appelant. `ApiService` lui a déjà
     // installé l'authentification et le refresh : ajouter une seconde chaîne

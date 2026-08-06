@@ -56,6 +56,7 @@ class _GarageAssignationsScreenState
       final pendingParcels = parcels
           .where((p) =>
               p.status == ParcelStatus.pending ||
+              p.status == ParcelStatus.negotiating ||
               p.status == ParcelStatus.confirmed ||
               p.status == ParcelStatus.free)
           .toList();

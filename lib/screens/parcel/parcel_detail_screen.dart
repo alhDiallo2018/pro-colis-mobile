@@ -25,6 +25,7 @@ import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
+import '../../widgets/negotiation_chat_widget.dart';
 import '../shared/messages_screen.dart';
 import 'confirm_delivery_screen.dart';
 import 'edit_colis_sheet.dart';
@@ -42,6 +43,7 @@ class _DriverStepAction {
 _DriverStepAction? _driverNextStep(ParcelStatus status) {
   switch (status) {
     case ParcelStatus.pending:
+    case ParcelStatus.negotiating:
       return const _DriverStepAction('confirm', 'Confirmer la prise en charge',
           Icons.check_circle_rounded);
     case ParcelStatus.confirmed:
@@ -902,10 +904,22 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         (_parcel.driverId == null && _parcel.bestBid?.driverId == me.id);
   }
 
-  _DriverStepAction? get _driverStep =>
-      _parcel.isCancelled || _parcel.isDelivered
-          ? null
-          : _driverNextStep(_parcel.status);
+  /// Le chauffeur a une offre active (négociation en cours) sur ce colis,
+  /// sans avoir encore été assigné définitivement.
+  bool get _hasActiveBid {
+    final me = ref.read(authProvider).user;
+    if (me == null || !me.isDriver) return false;
+    if (_parcel.driverId != null) return false;
+    return _parcel.bids.any((b) =>
+        b.driverId == me.id &&
+        (b.status == BidStatus.pending || b.status == BidStatus.negotiating));
+  }
+
+  _DriverStepAction? get _driverStep {
+    if (_parcel.isCancelled || _parcel.isDelivered) return null;
+    if (_hasActiveBid) return null;
+    return _driverNextStep(_parcel.status);
+  }
 
   Future<void> _advanceStep(String step) async {
     if (_isUpdating) return;
@@ -916,8 +930,6 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         _showSnack(res['message']?.toString() ?? 'Action impossible');
       } else {
         await _loadDetailData();
-        // Franchir le jalon d'encaissement (ramassage ou livraison selon qui
-        // paie) déclenche la déclaration des espèces reçues.
         await _promptCashDeclarationIfNeeded();
       }
     } catch (_) {
@@ -925,6 +937,25 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     } finally {
       if (mounted) setState(() => _isUpdating = false);
     }
+  }
+
+  void _openBidNegotiation(Bid bid) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NegotiationChatScreen(
+          peerId: _parcel.senderId,
+          peerName: _parcel.senderName,
+          parcelId: _parcel.id,
+          bidId: bid.id,
+          role: 'driver',
+          onChanged: _loadDetailData,
+          onNegotiationFinalized: (finalized) async {
+            if (finalized) await _loadDetailData();
+          },
+        ),
+      ),
+    );
   }
 
   /// Déclaration lancée manuellement depuis la carte de paiement en espèces.
@@ -1378,6 +1409,17 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 size: PcButtonSize.lg,
                 block: true,
                 loading: _isUpdating,
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_hasActiveBid && _parcel.bestBid != null) ...[
+              PcButton(
+                'Négocier le prix',
+                onPressed: () => _openBidNegotiation(_parcel.bestBid!),
+                icon: Icons.handshake_rounded,
+                variant: PcButtonVariant.amber,
+                size: PcButtonSize.lg,
+                block: true,
               ),
               const SizedBox(height: 12),
             ],

@@ -72,6 +72,7 @@ class StatusTimeline extends StatelessWidget {
     switch (status) {
       case ParcelStatus.pending: return 'En attente';
       case ParcelStatus.free: return 'Annonce publiée';
+      case ParcelStatus.negotiating: return 'En négociation';
       case ParcelStatus.confirmed: return 'Confirmé';
       case ParcelStatus.pickedUp: return 'Ramassé';
       case ParcelStatus.inTransit: return 'En transit';
@@ -86,6 +87,7 @@ class StatusTimeline extends StatelessWidget {
     switch (status) {
       case ParcelStatus.pending: return Icons.hourglass_empty;
       case ParcelStatus.free: return Icons.gavel;
+      case ParcelStatus.negotiating: return Icons.handshake;
       case ParcelStatus.confirmed: return Icons.check_circle;
       case ParcelStatus.pickedUp: return Icons.inventory_2;
       case ParcelStatus.inTransit: return Icons.local_shipping;

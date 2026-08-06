@@ -226,6 +226,7 @@ class _AdminStatsScreenState extends ConsumerState<AdminStatsScreen> {
   List<_StatusStat> get _statusStats {
     const config = <MapEntry<ParcelStatus, String>>[
       MapEntry(ParcelStatus.pending, 'Att'),
+      MapEntry(ParcelStatus.negotiating, 'Nég'),
       MapEntry(ParcelStatus.confirmed, 'Cnf'),
       MapEntry(ParcelStatus.pickedUp, 'Ram'),
       MapEntry(ParcelStatus.inTransit, 'Trn'),

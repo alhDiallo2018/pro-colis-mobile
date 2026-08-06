@@ -860,7 +860,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           _description.text.trim().isEmpty ? null : _description.text.trim(),
       'weight': double.tryParse(_weight.text.trim()) ?? 0,
       'type': _type.value,
-      'status': isDriverMode ? 'confirmed' : 'free',
+      'status': isDriverMode ? 'negotiating' : 'free',
       'departureZoneId': dep.id,
       'departureZoneName': dep.name,
       'arrivalZoneId': arr.id,

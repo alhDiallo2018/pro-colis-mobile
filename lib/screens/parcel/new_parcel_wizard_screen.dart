@@ -315,7 +315,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         'description': description,
         'weight': weight,
         'type': _parcelType.value,
-        'status': _isFreeMode ? 'free' : 'pending',
+        'status': _isFreeMode ? 'free' : 'negotiating',
         'departureZoneId': _departureZoneId,
         'arrivalZoneId': _arrivalZoneId,
         'proposedPrice': proposedPrice,
@@ -352,7 +352,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         await ref.read(parcelProvider.notifier).loadSentParcels();
         _showSnack(_isFreeMode
             ? 'Colis publié en libre service'
-            : 'Colis créé et chauffeur assigné');
+            : 'Offre envoyée au chauffeur — en attente de réponse');
         if (mounted) Navigator.pop(context, result);
       } else if (mounted) {
         _showSnack('Erreur lors de la création du colis');

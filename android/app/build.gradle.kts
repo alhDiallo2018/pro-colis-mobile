@@ -25,7 +25,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.pro_colis_clean"
+    namespace = "com.sendprocolis.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -42,7 +42,7 @@ android {
 }
 
     defaultConfig {
-        applicationId = "com.example.pro_colis_clean"
+        applicationId ="com.sendprocolis.app"
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion

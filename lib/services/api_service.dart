@@ -171,10 +171,14 @@ class ApiService {
   }
 
   Map<String, dynamic> _handleResponse(Response response) {
-    if (response.data is String) {
-      return jsonDecode(response.data as String);
+    final data = response.data;
+    if (data is String) {
+      return jsonDecode(data) as Map<String, dynamic>;
     }
-    return response.data as Map<String, dynamic>;
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    return {};
   }
 
   Future<void> logout() async => await clearToken();
@@ -553,6 +557,90 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getBidNegotiations(String bidId) async {
+    try {
+      final response = await _dio.get('/bids/$bidId/negotiations');
+      final responseData = _handleResponse(response);
+      final List<dynamic> data = responseData['negotiations'] ?? [];
+      return data.map((j) => j as Map<String, dynamic>).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ============================================================
+  // ✅ PROPOSITIONS DIRECTES (NOUVEAU FLUX B)
+  // ============================================================
+
+  /// Récupère les propositions reçues par le chauffeur
+  /// GET /driver/proposals
+  Future<List<Parcel>> getDriverProposals() async {
+    try {
+      if (isMockMode) {
+        return MockData.parcels
+            .where((p) => p.proposedDriverId != null)
+            .toList();
+      }
+      final response = await _dio.get('/driver/proposals');
+      final responseData = _handleResponse(response);
+      final List<dynamic> parcelsData = responseData['parcels'] ?? [];
+      return parcelsData
+          .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint("❌ [API] getDriverProposals failed: $e");
+      return [];
+    }
+  }
+
+  /// Chauffeur répond à une proposition directe
+  /// POST /driver/proposals/:parcelId/respond
+  Future<Map<String, dynamic>> respondToProposal(
+    String parcelId,
+    String action, {
+    double? price,
+    String? message,
+  }) async {
+    try {
+      final data = <String, dynamic>{
+        'action': action,
+        if (price != null) 'price': price,
+        if (message != null) 'message': message,
+      };
+      final response =
+          await _dio.post('/driver/proposals/$parcelId/respond', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Client répond à une contre-offre
+  /// POST /client/proposals/:parcelId/respond-counter
+  Future<Map<String, dynamic>> respondToCounterProposal(
+    String parcelId,
+    String action, {
+    double? price,
+    String? message,
+  }) async {
+    try {
+      final data = <String, dynamic>{
+        'action': action,
+        if (price != null) 'price': price,
+        if (message != null) 'message': message,
+      };
+      final response = await _dio
+          .post('/client/proposals/$parcelId/respond-counter', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ============================================================
+  // FIN PROPOSITIONS DIRECTES
+  // ============================================================
+
   // ==================== ADVERTISEMENTS ====================
 
   Future<Map<String, dynamic>> createAdvertisement(
@@ -775,17 +863,46 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> clientAcceptAdvertisementOffer(
+      String advertisementId, String offerId) async {
+    try {
+      final response = await _dio.post(
+          '/advertisements/$advertisementId/offers/$offerId/client-accept');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getOfferNegotiations(
+      String advertisementId, String offerId) async {
+    try {
+      final response = await _dio
+          .get('/advertisements/$advertisementId/offers/$offerId/negotiations');
+      final responseData = _handleResponse(response);
+      final List<dynamic> data = responseData['negotiations'] ?? [];
+      return data.map((j) => j as Map<String, dynamic>).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
   // ==================== DRIVER ====================
 
+  /// ✅ MODIFIÉ : Utilise assignedDriverId pour filtrer les missions assignées
   Future<List<Parcel>> getDriverParcels() async {
     try {
       if (isMockMode) {
         final user = await getCurrentUser();
         return MockData.parcelsForUser(user)
-            .where((p) => p.driverId == user.id)
+            .where(
+                (p) => p.assignedDriverId == user.id || p.driverId == user.id)
             .toList();
       }
-      final response = await _dio.get('/driver/parcels');
+      final response = await _dio.get(
+        '/driver/parcels',
+        queryParameters: {}, // Vide explicitement
+      );
       final responseData = _handleResponse(response);
       final List<dynamic> parcelsData = responseData['parcels'] ?? [];
       return parcelsData
@@ -916,8 +1033,10 @@ class ApiService {
     try {
       final response = await _dio.get('/super-admin/zones');
       final responseData = _handleResponse(response);
-      final List<dynamic> zonesData =
-          responseData['zones'] ?? responseData['garages'] ?? responseData['data'] ?? [];
+      final List<dynamic> zonesData = responseData['zones'] ??
+          responseData['garages'] ??
+          responseData['data'] ??
+          [];
       return zonesData
           .map((json) => Garage.fromJson(json as Map<String, dynamic>))
           .toList();
@@ -1320,9 +1439,6 @@ class ApiService {
             .toList();
       }
       if (rawPreferences is Map) {
-        // Le backend accepte aussi l'ancien format objet
-        // `{ eventType: [channels] }`; le normaliser évite de perdre les
-        // préférences des comptes créés avant le format liste.
         return rawPreferences.entries.map((entry) {
           final value = entry.value;
           if (value is Map) {
@@ -1689,9 +1805,6 @@ class ApiService {
     String? zoneId,
   }) async {
     try {
-      // L'API sépare volontairement le profil, le rôle et le statut afin que
-      // chaque mutation sensible soit auditée. Les envoyer seulement au PUT
-      // profil donnait auparavant un faux succès sans modifier ces deux champs.
       final profileResponse =
           await _dio.put('/super-admin/users/$userId', data: {
         'fullName': fullName,
@@ -1805,8 +1918,7 @@ class ApiService {
         if (longitude != null) 'longitude': longitude,
         if (isActive != null) 'isActive': isActive,
       };
-      final response =
-          await _dio.put('/super-admin/zones/$zoneId', data: data);
+      final response = await _dio.put('/super-admin/zones/$zoneId', data: data);
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -2225,8 +2337,6 @@ class ApiService {
   Future<Map<String, dynamic>> adminRechargeWallet(
       String userId, Map<String, dynamic> data) async {
     try {
-      // Le contrôleur financier garde l'identifiant dans le corps pour ses
-      // transactions/audits, même s'il figure aussi dans la route.
       final response = await _dio.post(
         '/super-admin/wallets/$userId/recharge',
         data: {...data, 'userId': userId},

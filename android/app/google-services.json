@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:808016472071:android:0dc38e6dc1ebeaf37462a2",
         "android_client_info": {
-          "package_name": "com.example.pro_colis_clean"
+          "package_name":"com.sendprocolis.app"
         }
       },
       "oauth_client": [],

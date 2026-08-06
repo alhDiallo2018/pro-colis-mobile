@@ -54,6 +54,8 @@ class StatusBadge extends StatelessWidget {
         return 'En attente';
       case ParcelStatus.free:
         return 'Libre';
+      case ParcelStatus.negotiating:
+        return 'Négociation';
       case ParcelStatus.confirmed:
         return 'Confirmé';
       case ParcelStatus.pickedUp:

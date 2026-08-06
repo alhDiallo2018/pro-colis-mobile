@@ -44,7 +44,9 @@ enum _ParcelFilter {
       case _ParcelFilter.all:
         return true;
       case _ParcelFilter.pending:
-        return s == ParcelStatus.pending || s == ParcelStatus.confirmed;
+        return s == ParcelStatus.pending ||
+            s == ParcelStatus.negotiating ||
+            s == ParcelStatus.confirmed;
       case _ParcelFilter.annonces:
         // Colis en libre service (annonce ouverte au marchandage).
         return s == ParcelStatus.free || p.isFreeForBidding;

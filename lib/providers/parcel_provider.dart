@@ -187,6 +187,31 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     }
   }
 
+  /// Driver responds to a bid: accept, counter, or reject
+  Future<bool> driverRespondToBid(String bidId,
+      {required String action, double? price, String? message}) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final data = <String, dynamic>{'action': action};
+      if (price != null) data['price'] = price;
+      if (message != null) data['message'] = message;
+      final result = await _apiService.driverRespondToBid(bidId, data);
+      if (result['success'] == true) {
+        await loadDriverParcels();
+        state = state.copyWith(isLoading: false, error: null);
+        return true;
+      }
+      state = state.copyWith(
+        error: result['message'] ?? 'Erreur lors de la réponse',
+        isLoading: false,
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+      return false;
+    }
+  }
+
   Future<bool> rejectBid(String parcelId, String bidId,
       {String? responseMessage}) async {
     state = state.copyWith(isLoading: true);
@@ -461,6 +486,7 @@ class ParcelState {
   List<Parcel> get pendingParcels => parcels
       .where((p) =>
           p.status == ParcelStatus.pending ||
+          p.status == ParcelStatus.negotiating ||
           p.status == ParcelStatus.free ||
           p.status == ParcelStatus.confirmed)
       .toList();

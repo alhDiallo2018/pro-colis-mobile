@@ -91,8 +91,9 @@ class _GarageAdminParcelDetailScreenState
   Widget build(BuildContext context) {
     final parcel = widget.parcel;
     final isPending = parcel.status == ParcelStatus.pending;
+    final isNegotiating = parcel.status == ParcelStatus.negotiating;
     final isConfirmed = parcel.status == ParcelStatus.confirmed;
-    final canCancel = isPending || isConfirmed;
+    final canCancel = isPending || isNegotiating || isConfirmed;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,

@@ -211,7 +211,7 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
           await ref.read(parcelProvider.notifier).acceptBid(parcel.id, bid.id);
       if (!mounted) return;
       if (success) {
-        _showSnack('Offre acceptée');
+        _showSnack('Négociation démarrée. Le chauffeur va confirmer.');
         await _load();
       } else {
         final error = ref.read(parcelProvider).error;
@@ -238,6 +238,7 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
           peerName: driverName,
           parcelId: parcelId,
           bidId: bid.id,
+          role: 'client',
           isOwner: true,
           onChanged: _load,
         ),
@@ -353,6 +354,9 @@ class _ReceivedOfferCard extends StatelessWidget {
               if (bid.isAccepted)
                 const PcBadge('Acceptée',
                     tone: PcTone.green, icon: Icons.check_rounded)
+              else if (bid.isNegotiating)
+                const PcBadge('En négociation',
+                    tone: PcTone.amber, icon: Icons.handshake_rounded)
               else if (bid.isRejected)
                 const PcBadge('Refusée',
                     tone: PcTone.red, icon: Icons.close_rounded)
@@ -444,7 +448,7 @@ class _ReceivedOfferCard extends StatelessWidget {
                     color: AppTheme.slate400,
                   ),
                 )
-              else ...[
+              else if (bid.isPending) ...[
                 PcButton(
                   'Négocier',
                   variant: PcButtonVariant.secondary,
@@ -457,6 +461,13 @@ class _ReceivedOfferCard extends StatelessWidget {
                   icon: Icons.check_rounded,
                   size: PcButtonSize.sm,
                   onPressed: isSubmitting ? null : onAccept,
+                ),
+              ] else ...[
+                PcButton(
+                  'Négocier',
+                  variant: PcButtonVariant.secondary,
+                  size: PcButtonSize.sm,
+                  onPressed: isSubmitting ? null : onNegotiate,
                 ),
               ],
             ],

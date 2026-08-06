@@ -39,7 +39,9 @@ extension _ColisFilterX on _ColisFilter {
       case _ColisFilter.tous:
         return true;
       case _ColisFilter.enAttente:
-        return status == ParcelStatus.pending || status == ParcelStatus.free;
+        return status == ParcelStatus.pending ||
+            status == ParcelStatus.negotiating ||
+            status == ParcelStatus.free;
       case _ColisFilter.confirmes:
         return status == ParcelStatus.confirmed;
       case _ColisFilter.enTransit:

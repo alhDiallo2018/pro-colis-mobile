@@ -1,4 +1,4 @@
-package com.example.pro_colis_clean
+package com.example.sendprocolis
 
 import io.flutter.embedding.android.FlutterActivity
 
