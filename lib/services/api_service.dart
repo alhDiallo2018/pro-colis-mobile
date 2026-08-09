@@ -559,9 +559,14 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getBidNegotiations(String bidId) async {
     try {
-      final response = await _dio.get('/bids/$bidId/negotiations');
+      // La route de l'API est au singulier et renvoie le fil dans
+      // `bid.negotiationHistory` : l'ancien chemin retournait toujours [],
+      // ce qui vidait l'historique et bloquait le bouton « Accepter ».
+      final response = await _dio.get('/bids/$bidId/negotiation');
       final responseData = _handleResponse(response);
-      final List<dynamic> data = responseData['negotiations'] ?? [];
+      final bid = responseData['bid'] as Map<String, dynamic>?;
+      final List<dynamic> data =
+          bid?['negotiationHistory'] ?? responseData['negotiations'] ?? [];
       return data.map((j) => j as Map<String, dynamic>).toList();
     } catch (e) {
       return [];

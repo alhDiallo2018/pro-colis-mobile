@@ -20,6 +20,7 @@ double _toDouble(dynamic v) {
 enum ParcelStatus {
   pending('pending', 'En attente', Colors.orange),
   free('free', 'Libre service', Colors.purple),
+  proposalSent('proposal_sent', 'Proposition envoyée', Colors.deepPurple),
   negotiating('negotiating', 'En négociation', Colors.deepOrange),
   confirmed('confirmed', 'Confirmé', Colors.blue),
   pickedUp('picked_up', 'Ramassé', Colors.indigo),
@@ -125,8 +126,16 @@ class BidNegotiation {
     return BidNegotiation(
       id: json['id']?.toString() ?? '',
       bidId: json['bidId']?.toString() ?? json['bid_id']?.toString() ?? '',
-      authorId: json['authorId']?.toString() ?? json['author_id']?.toString() ?? '',
-      authorRole: json['authorRole']?.toString() ?? json['author_role']?.toString() ?? '',
+      authorId: json['authorId']?.toString() ??
+          json['author_id']?.toString() ??
+          json['fromUserId']?.toString() ??
+          json['from_user_id']?.toString() ??
+          '',
+      authorRole: json['authorRole']?.toString() ??
+          json['author_role']?.toString() ??
+          json['fromUserRole']?.toString() ??
+          json['from_user_role']?.toString() ??
+          '',
       authorName: json['authorName']?.toString(),
       price: _toDouble(json['price']),
       message: json['message']?.toString(),
@@ -184,7 +193,16 @@ class Bid {
   final DateTime createdAt;
   final DateTime? respondedAt;
   final String? responseMessage;
+  /// Camp qui a posé le dernier prix (`client` / `driver`). Seul l'autre camp
+  /// peut accepter : l'API renvoie 409 sinon.
   final String? lastProposedBy;
+
+  /// Dernier prix échangé et le commentaire qui l'accompagne : c'est ce couple
+  /// qu'on affiche dans les listes, pas l'offre initiale.
+  final double? lastPrice;
+  final String? lastMessage;
+  final bool? canClientAccept;
+  final bool? canDriverAccept;
   final String? audioUrl;
 
   Bid({
@@ -200,6 +218,10 @@ class Bid {
     this.respondedAt,
     this.responseMessage,
     this.lastProposedBy,
+    this.lastPrice,
+    this.lastMessage,
+    this.canClientAccept,
+    this.canDriverAccept,
     this.audioUrl,
   });
 
@@ -234,8 +256,17 @@ class Bid {
               : null),
       responseMessage: json['responseMessage']?.toString() ??
           json['response_message']?.toString(),
-      lastProposedBy: json['lastProposedBy']?.toString() ??
+      lastProposedBy: json['lastOfferBy']?.toString() ??
+          json['last_offer_by']?.toString() ??
+          json['lastProposedBy']?.toString() ??
           json['last_proposed_by']?.toString(),
+      lastPrice: json['lastPrice'] != null || json['last_price'] != null
+          ? _toDouble(json['lastPrice'] ?? json['last_price'])
+          : null,
+      lastMessage: json['lastMessage']?.toString() ??
+          json['last_message']?.toString(),
+      canClientAccept: json['canClientAccept'] as bool?,
+      canDriverAccept: json['canDriverAccept'] as bool?,
       audioUrl: json['audioUrl']?.toString() ?? json['audio_url']?.toString(),
     );
   }
@@ -253,6 +284,10 @@ class Bid {
         'respondedAt': respondedAt?.toIso8601String(),
         'responseMessage': responseMessage,
         'lastProposedBy': lastProposedBy,
+        'lastPrice': lastPrice,
+        'lastMessage': lastMessage,
+        'canClientAccept': canClientAccept,
+        'canDriverAccept': canDriverAccept,
         'audioUrl': audioUrl,
       };
 
@@ -267,6 +302,20 @@ class Bid {
   bool get isActive => status == BidStatus.pending || status == BidStatus.negotiating;
   bool get isLastProposedByDriver => lastProposedBy == 'driver';
   bool get isLastProposedByClient => lastProposedBy == 'client';
+
+  /// Prix courant de la négociation : la dernière contre-offre si elle existe.
+  double get currentPrice => lastPrice ?? price;
+
+  /// Dernier commentaire attaché au prix courant.
+  String? get currentMessage => lastMessage ?? responseMessage ?? message;
+
+  /// Le chauffeur ne valide jamais son propre prix.
+  bool get driverCanAccept =>
+      canDriverAccept ?? (isActive && lastProposedBy == 'client');
+
+  /// Idem côté client.
+  bool get clientCanAccept =>
+      canClientAccept ?? (isActive && lastProposedBy != 'client');
   bool get hasAudio => audioUrl != null && audioUrl!.isNotEmpty;
 
   Bid copyWith({
@@ -282,6 +331,10 @@ class Bid {
     DateTime? respondedAt,
     String? responseMessage,
     String? lastProposedBy,
+    double? lastPrice,
+    String? lastMessage,
+    bool? canClientAccept,
+    bool? canDriverAccept,
     String? audioUrl,
   }) {
     return Bid(
@@ -297,6 +350,10 @@ class Bid {
       respondedAt: respondedAt ?? this.respondedAt,
       responseMessage: responseMessage ?? this.responseMessage,
       lastProposedBy: lastProposedBy ?? this.lastProposedBy,
+      lastPrice: lastPrice ?? this.lastPrice,
+      lastMessage: lastMessage ?? this.lastMessage,
+      canClientAccept: canClientAccept ?? this.canClientAccept,
+      canDriverAccept: canDriverAccept ?? this.canDriverAccept,
       audioUrl: audioUrl ?? this.audioUrl,
     );
   }
@@ -385,6 +442,16 @@ class Parcel {
   final String? proposedDriverId;
   final String? proposalStatus;
 
+  /// Proposition directe : prix courant, dernier commentaire et tour de parole.
+  /// Tant que `proposalStatus` vaut `pending` ou `countered`, le colis n'est
+  /// assigné à personne — c'est une offre en attente de réponse.
+  final double? proposalPrice;
+  final String? proposalLastMessage;
+  final String? proposalLastOfferBy;
+  final int proposalNegotiationCount;
+  final bool? proposalCanClientAccept;
+  final bool? proposalCanDriverAccept;
+
   // Médias
   final List<String> photoUrls;
   final List<String> videoUrls;
@@ -462,6 +529,12 @@ class Parcel {
     this.assignedDriverId,
     this.proposedDriverId,
     this.proposalStatus,
+    this.proposalPrice,
+    this.proposalLastMessage,
+    this.proposalLastOfferBy,
+    this.proposalNegotiationCount = 0,
+    this.proposalCanClientAccept,
+    this.proposalCanDriverAccept,
     this.photoUrls = const [],
     this.videoUrls = const [],
     this.audioUrls = const [], // ✅
@@ -529,6 +602,11 @@ class Parcel {
       }
       return [];
     }
+
+    // Bloc `proposal` du serializer API : état de la proposition directe.
+    final proposal = json['proposal'] is Map<String, dynamic>
+        ? json['proposal'] as Map<String, dynamic>
+        : null;
 
     // Récupérer les offres (bids)
     List<Bid> bids = [];
@@ -614,8 +692,19 @@ class Parcel {
           parseString(json['assignedDriverId'] ?? json['assigned_driver_id']),
       proposedDriverId:
           parseString(json['proposedDriverId'] ?? json['proposed_driver_id']),
-      proposalStatus:
-          parseString(json['proposalStatus'] ?? json['proposal_status']),
+      proposalStatus: parseString(
+          proposal?['status'] ?? json['proposalStatus'] ?? json['proposal_status']),
+      proposalPrice: parseDouble(
+          proposal?['price'] ?? json['proposalPrice'] ?? json['proposal_price']),
+      proposalLastMessage: parseString(proposal?['lastMessage']),
+      proposalLastOfferBy: parseString(
+          proposal?['lastOfferBy'] ?? json['lastOfferBy'] ?? json['last_offer_by']),
+      proposalNegotiationCount: (proposal?['negotiationCount'] ??
+              json['negotiationCount'] ??
+              json['negotiation_count'] ??
+              0) as int,
+      proposalCanClientAccept: proposal?['canClientAccept'] as bool?,
+      proposalCanDriverAccept: proposal?['canDriverAccept'] as bool?,
       photoUrls: parseList(json['photoUrls']),
       videoUrls: parseList(json['videoUrls']),
       audioUrls: parseList(json['audioUrls']), // ✅
@@ -684,6 +773,7 @@ class Parcel {
         'assignedDriverId': assignedDriverId,
         'proposedDriverId': proposedDriverId,
         'proposalStatus': proposalStatus,
+        'proposalPrice': proposalPrice,
         'photoUrls': photoUrls,
         'videoUrls': videoUrls,
         'audioUrls': audioUrls, // ✅
@@ -713,6 +803,26 @@ class Parcel {
   bool get isOutForDelivery => status == ParcelStatus.outForDelivery;
   bool get isDelivered => status == ParcelStatus.delivered;
   bool get isCancelled => status == ParcelStatus.cancelled;
+
+  // ---- Proposition directe ----
+
+  /// Une proposition est ouverte tant que le chauffeur choisi n'a ni accepté
+  /// ni refusé. Le colis n'est alors assigné à personne.
+  bool get hasOpenProposal =>
+      proposalStatus == 'pending' || proposalStatus == 'countered';
+
+  /// Prix courant de la proposition : la dernière contre-offre s'il y en a une.
+  double? get currentProposalPrice => proposalPrice ?? totalAmount ?? price;
+
+  /// Le chauffeur ne peut accepter que si le dernier prix vient du client.
+  bool get driverCanAcceptProposal =>
+      proposalCanDriverAccept ??
+      (hasOpenProposal && proposalLastOfferBy != 'driver');
+
+  /// Et réciproquement côté client.
+  bool get clientCanAcceptProposal =>
+      proposalCanClientAccept ??
+      (hasOpenProposal && proposalLastOfferBy == 'driver');
 
   bool get isInProgress =>
       status == ParcelStatus.confirmed ||
@@ -880,6 +990,8 @@ class Parcel {
         return '⏳';
       case ParcelStatus.free:
         return '🔓';
+      case ParcelStatus.proposalSent:
+        return '📨';
       case ParcelStatus.negotiating:
         return '🤝';
       case ParcelStatus.confirmed:
@@ -966,6 +1078,12 @@ class Parcel {
     String? assignedDriverId,
     String? proposedDriverId,
     String? proposalStatus,
+    double? proposalPrice,
+    String? proposalLastMessage,
+    String? proposalLastOfferBy,
+    int? proposalNegotiationCount,
+    bool? proposalCanClientAccept,
+    bool? proposalCanDriverAccept,
     List<String>? photoUrls,
     List<String>? videoUrls,
     List<String>? audioUrls,
@@ -1033,6 +1151,15 @@ class Parcel {
       assignedDriverId: assignedDriverId ?? this.assignedDriverId,
       proposedDriverId: proposedDriverId ?? this.proposedDriverId,
       proposalStatus: proposalStatus ?? this.proposalStatus,
+      proposalPrice: proposalPrice ?? this.proposalPrice,
+      proposalLastMessage: proposalLastMessage ?? this.proposalLastMessage,
+      proposalLastOfferBy: proposalLastOfferBy ?? this.proposalLastOfferBy,
+      proposalNegotiationCount:
+          proposalNegotiationCount ?? this.proposalNegotiationCount,
+      proposalCanClientAccept:
+          proposalCanClientAccept ?? this.proposalCanClientAccept,
+      proposalCanDriverAccept:
+          proposalCanDriverAccept ?? this.proposalCanDriverAccept,
       photoUrls: photoUrls ?? this.photoUrls,
       videoUrls: videoUrls ?? this.videoUrls,
       audioUrls: audioUrls ?? this.audioUrls,

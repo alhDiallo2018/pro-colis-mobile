@@ -1916,14 +1916,12 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   // ✅ NOUVEAU : Charger les propositions
   Future<void> _loadProposals() async {
     try {
-      final allParcels = widget.parcelState.parcels;
-      final userId = widget.user?.id;
-      
+      // `/driver/parcels` ne renvoie que les colis déjà pris en charge : une
+      // proposition en attente n'y figure pas, elle a sa propre route.
+      final proposals = await _api.getDriverProposals();
+      if (!mounted) return;
       setState(() {
-        _proposals = allParcels.where((p) => 
-          p.proposedDriverId == userId && 
-          p.proposalStatus == 'pending'
-        ).toList();
+        _proposals = proposals.where((p) => p.hasOpenProposal).toList();
       });
     } catch (e) {
       debugPrint('❌ Erreur chargement propositions: $e');
@@ -1975,7 +1973,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Prix proposé: ${(parcel.proposedPrice ?? parcel.price ?? 0).toStringAsFixed(0)} FCFA',
+              'Prix en discussion : '
+              '${(parcel.currentProposalPrice ?? parcel.proposedPrice ?? parcel.price ?? 0).toStringAsFixed(0)} FCFA',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -2037,7 +2036,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     final activeMission =
         _activeMissions.isNotEmpty ? _activeMissions.first : null;
     final zoneParcels = widget.parcelState.freeParcels
-        .where((parcel) => parcelStartsInUserZone(parcel, user))
+        .where((parcel) => parcelMatchesUserZone(parcel, user))
         .toList();
     final availableParcel = zoneParcels.isNotEmpty ? zoneParcels.first : null;
     final availableParcelBidId = availableParcel == null
@@ -2274,10 +2273,33 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                 ),
               ),
               ProcolisStatusBadge(
-                status: ParcelStatus.pending,
+                status: proposal.proposalStatus == 'countered'
+                    ? ParcelStatus.negotiating
+                    : ParcelStatus.proposalSent,
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          // Le prix affiché est celui de la dernière proposition, accompagné du
+          // commentaire qui la justifie : de quoi trancher sans rouvrir le fil.
+          Text(
+            '${proposal.proposalNegotiationCount > 0 ? 'Dernier prix' : 'Prix proposé'} : '
+            '${_fcfa(proposal.currentProposalPrice ?? 0)} FCFA',
+            style: TextStyle(
+              color: AppTheme.primary,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+          if (proposal.proposalLastMessage != null &&
+              proposal.proposalLastMessage!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${proposal.proposalLastOfferBy == 'driver' ? 'Vous' : proposal.senderName} : '
+              '${proposal.proposalLastMessage}',
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          ],
           const SizedBox(height: 12),
           _DriverRouteCard(
             parcel: proposal,
@@ -2289,15 +2311,30 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: PcButton(
-                        '✅ Accepter',
-                        icon: Icons.check_rounded,
-                        variant: PcButtonVariant.primary,
-                        block: true,
-                        onPressed: () => _respondToProposal(proposal.id, 'accept'),
+                    // Le chauffeur ne valide jamais son propre prix : après sa
+                    // contre-offre, la main est au client (l'API renvoie 409).
+                    if (proposal.driverCanAcceptProposal)
+                      Expanded(
+                        child: PcButton(
+                          '✅ Accepter',
+                          icon: Icons.check_rounded,
+                          variant: PcButtonVariant.primary,
+                          block: true,
+                          onPressed: () =>
+                              _respondToProposal(proposal.id, 'accept'),
+                        ),
+                      )
+                    else
+                      const Expanded(
+                        child: Text(
+                          'En attente de la réponse du client',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.black54,
+                          ),
+                        ),
                       ),
-                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: PcButton(
@@ -3171,7 +3208,7 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
     switch (_selectedFilter) {
       case _zoneFilter:
         return parcels
-            .where((parcel) => parcelStartsInUserZone(parcel, widget.user))
+            .where((parcel) => parcelMatchesUserZone(parcel, widget.user))
             .toList();
       case _expressFilter:
         return parcels.where((parcel) => parcel.isUrgent).toList();
@@ -3369,6 +3406,31 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     }
   }
 
+  /// Réponse à une proposition directe : il n'y a pas d'enchère derrière, donc
+  /// pas de `bidId` — l'action porte sur le colis lui-même.
+  Future<void> _respondToProposal(Parcel mission, String action,
+      {double? price, String? message}) async {
+    setState(() => _respondingBidId = mission.id);
+    try {
+      final res = await _api.respondToProposal(mission.id, action,
+          price: price, message: message);
+      if (res['success'] == false) {
+        _snack(res['message']?.toString() ?? 'Action impossible');
+      } else {
+        _snack(action == 'accept'
+            ? 'Proposition acceptée — vous êtes maintenant assigné'
+            : action == 'reject'
+                ? 'Proposition refusée'
+                : 'Contre-offre envoyée');
+        widget.onRefresh();
+      }
+    } catch (_) {
+      _snack('Action impossible');
+    } finally {
+      if (mounted) setState(() => _respondingBidId = null);
+    }
+  }
+
   Future<void> _rejectOffer(Parcel mission, String bidId) async {
     setState(() => _respondingBidId = bidId);
     try {
@@ -3427,6 +3489,71 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     widget.onRefresh();
   }
 
+  /// Contre-offre du chauffeur sur une proposition directe : un prix, un
+  /// commentaire. Une fois envoyée, la main passe au client.
+  void _openProposalCounter(Parcel mission) {
+    final priceController = TextEditingController();
+    final messageController = TextEditingController();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Contre-proposition'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Prix en discussion : '
+              '${(mission.currentProposalPrice ?? 0).toStringAsFixed(0)} FCFA',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Votre prix (FCFA)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.payments_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: messageController,
+              maxLength: 200,
+              decoration: const InputDecoration(
+                labelText: 'Commentaire (optionnel)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final price = double.tryParse(priceController.text);
+              if (price == null || price <= 0) return;
+              Navigator.pop(dialogContext);
+              _respondToProposal(
+                mission,
+                'counter',
+                price: price,
+                message: messageController.text.trim().isEmpty
+                    ? null
+                    : messageController.text.trim(),
+              );
+            },
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _snack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -3478,46 +3605,40 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     final isAssigned = mission.assignedDriverId == userId || mission.driverId == userId;
     
     // ✅ Si c'est une proposition en attente (pas encore assignée)
-    if (!isAssigned && mission.proposalStatus == 'pending') {
-      final activeBid = mission.bids.firstWhere(
-        (b) => b.driverId == userId && b.isActive,
-        orElse: () => Bid(
-          id: '', parcelId: '', driverId: '', driverName: '', driverPhone: '',
-          price: 0, createdAt: DateTime.now(), status: BidStatus.rejected,
-        ),
-      );
-      
-      if (activeBid.id.isNotEmpty) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: PcButton(
-                    '❌ Refuser',
-                    icon: Icons.close_rounded,
-                    block: true,
-                    variant: PcButtonVariant.danger,
-                    size: PcButtonSize.sm,
-                    loading: _respondingBidId == activeBid.id,
-                    onPressed: _respondingBidId == activeBid.id
-                        ? null
-                        : () => _rejectOffer(mission, activeBid.id),
-                  ),
+    if (!isAssigned && mission.hasOpenProposal) {
+      final busy = _respondingBidId == mission.id;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: PcButton(
+                  '❌ Refuser',
+                  icon: Icons.close_rounded,
+                  block: true,
+                  variant: PcButtonVariant.danger,
+                  size: PcButtonSize.sm,
+                  loading: busy,
+                  onPressed:
+                      busy ? null : () => _respondToProposal(mission, 'reject'),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: PcButton(
-                    '💬 Négocier',
-                    icon: Icons.forum_rounded,
-                    block: true,
-                    variant: PcButtonVariant.amber,
-                    size: PcButtonSize.sm,
-                    onPressed: () => _openNegotiation(mission, activeBid),
-                  ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: PcButton(
+                  '💬 Négocier',
+                  icon: Icons.forum_rounded,
+                  block: true,
+                  variant: PcButtonVariant.amber,
+                  size: PcButtonSize.sm,
+                  onPressed: () => _openProposalCounter(mission),
                 ),
-                const SizedBox(width: 6),
+              ),
+              const SizedBox(width: 6),
+              // Après sa propre contre-offre, le chauffeur attend le client :
+              // accepter son propre prix n'a pas de sens (409 côté API).
+              if (mission.driverCanAcceptProposal)
                 Expanded(
                   child: PcButton(
                     '✅ Accepter',
@@ -3525,14 +3646,87 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
                     block: true,
                     variant: PcButtonVariant.primary,
                     size: PcButtonSize.sm,
-                    loading: _respondingBidId == activeBid.id,
-                    onPressed: _respondingBidId == activeBid.id
+                    loading: busy,
+                    onPressed: busy
                         ? null
-                        : () => _acceptOffer(mission, activeBid.id),
+                        : () => _respondToProposal(mission, 'accept'),
+                  ),
+                )
+              else
+                const Expanded(
+                  child: Text(
+                    'En attente du client',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.black54,
+                    ),
                   ),
                 ),
-              ],
+            ],
+          ),
+        ],
+      );
+    }
+
+    // ✅ Colis libre sur lequel ce chauffeur a une enchère en cours : même
+    // grammaire que la proposition directe, mais l'action porte sur l'enchère.
+    if (!isAssigned) {
+      final ownBids =
+          mission.bids.where((b) => b.driverId == userId && b.isActive).toList();
+      if (ownBids.isNotEmpty) {
+        final activeBid = ownBids.first;
+        final busy = _respondingBidId == activeBid.id;
+        return Row(
+          children: [
+            Expanded(
+              child: PcButton(
+                '❌ Refuser',
+                icon: Icons.close_rounded,
+                block: true,
+                variant: PcButtonVariant.danger,
+                size: PcButtonSize.sm,
+                loading: busy,
+                onPressed: busy ? null : () => _rejectOffer(mission, activeBid.id),
+              ),
             ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: PcButton(
+                '💬 Négocier',
+                icon: Icons.forum_rounded,
+                block: true,
+                variant: PcButtonVariant.amber,
+                size: PcButtonSize.sm,
+                onPressed: () => _openNegotiation(mission, activeBid),
+              ),
+            ),
+            const SizedBox(width: 6),
+            if (activeBid.driverCanAccept)
+              Expanded(
+                child: PcButton(
+                  '✅ Accepter',
+                  icon: Icons.check_rounded,
+                  block: true,
+                  variant: PcButtonVariant.primary,
+                  size: PcButtonSize.sm,
+                  loading: busy,
+                  onPressed: busy ? null : () => _acceptOffer(mission, activeBid.id),
+                ),
+              )
+            else
+              const Expanded(
+                child: Text(
+                  'En attente du client',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.black54,
+                  ),
+                ),
+              ),
           ],
         );
       }
@@ -3567,18 +3761,7 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
           icon: Icons.forum_rounded,
           block: true,
           variant: PcButtonVariant.amber,
-          onPressed: () {
-            final activeBid = mission.bids.firstWhere(
-              (b) => b.driverId == userId && b.isActive,
-              orElse: () => Bid(
-                id: '', parcelId: '', driverId: '', driverName: '', driverPhone: '',
-                price: 0, createdAt: DateTime.now(), status: BidStatus.rejected,
-              ),
-            );
-            if (activeBid.id.isNotEmpty) {
-              _openNegotiation(mission, activeBid);
-            }
-          },
+          onPressed: () => _openProposalCounter(mission),
         ),
       );
     }
@@ -6024,6 +6207,8 @@ class _ParcelCardState extends State<_ParcelCard> {
         return Colors.orange;
       case ParcelStatus.free:
         return Colors.purple;
+      case ParcelStatus.proposalSent:
+        return Colors.deepPurple;
       case ParcelStatus.negotiating:
         return Colors.deepOrange;
       case ParcelStatus.confirmed:
@@ -6049,6 +6234,8 @@ class _ParcelCardState extends State<_ParcelCard> {
         return '⏳';
       case ParcelStatus.free:
         return '🔓';
+      case ParcelStatus.proposalSent:
+        return '📨';
       case ParcelStatus.negotiating:
         return '🤝';
       case ParcelStatus.confirmed:

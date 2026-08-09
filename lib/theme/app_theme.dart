@@ -413,6 +413,12 @@ class AppTheme {
           _tone(const Color(0xFFE7EEFC), const Color(0xFF131E36)),
           const Color(0xFF2563EB),
         );
+      case ParcelStatus.proposalSent:
+        return ProcolisStatusColors(
+          _tone(const Color(0xFF6D28D9), const Color(0xFFC4B5FD)),
+          _tone(const Color(0xFFF1EBFD), const Color(0xFF221436)),
+          const Color(0xFF8B5CF6),
+        );
       case ParcelStatus.negotiating:
         return ProcolisStatusColors(
           _tone(const Color(0xFFC24A00), const Color(0xFFFFB27A)),

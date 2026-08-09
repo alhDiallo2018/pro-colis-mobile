@@ -1,3 +1,4 @@
+import '../models/advertisement.dart';
 import '../models/parcel.dart';
 import '../models/user.dart';
 
@@ -21,11 +22,42 @@ String normalizeZoneName(String? value) {
   return value?.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ') ?? '';
 }
 
-bool parcelStartsInUserZone(Parcel parcel, User? user) {
+/// Un trajet correspond a la zone de l'utilisateur quand son depart OU son
+/// arrivee y correspond exactement : un chauffeur de Dakar veut voir partir de
+/// chez lui, mais aussi les retours vers chez lui. Meme regle que le web
+/// (`lib/homeZone.ts`), pour que les deux plateformes filtrent pareil.
+bool _routeMatchesUserZone(
+  User? user, {
+  String? departureZoneName,
+  String? departureCity,
+  String? arrivalZoneName,
+  String? arrivalCity,
+}) {
   final userZone = normalizeZoneName(resolveUserResidenceZone(user));
   if (userZone.isEmpty) return false;
 
-  return normalizeZoneName(parcel.departureZoneName) == userZone;
+  return [departureZoneName, departureCity, arrivalZoneName, arrivalCity]
+      .any((value) => normalizeZoneName(value) == userZone);
+}
+
+/// Colis libre rattache a la zone de l'utilisateur (depart ou arrivee).
+bool parcelMatchesUserZone(Parcel parcel, User? user) {
+  // Le modele colis ne porte que des noms de zone, pas de villes separees.
+  return _routeMatchesUserZone(
+    user,
+    departureZoneName: parcel.departureZoneName,
+    arrivalZoneName: parcel.arrivalZoneName,
+  );
+}
+
+/// Annonce de trajet rattachee a la zone de l'utilisateur. Les annonces ne
+/// portent que des villes, pas de nom de zone.
+bool advertisementMatchesUserZone(Advertisement advertisement, User? user) {
+  return _routeMatchesUserZone(
+    user,
+    departureCity: advertisement.departureCity,
+    arrivalCity: advertisement.arrivalCity,
+  );
 }
 
 /// Recherche l'offre déjà envoyée par l'utilisateur sur un colis afin

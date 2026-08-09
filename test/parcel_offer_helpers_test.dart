@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:procolis/models/advertisement.dart';
 import 'package:procolis/models/parcel.dart';
 import 'package:procolis/models/user.dart';
 import 'package:procolis/utils/parcel_offer_helpers.dart';
@@ -19,6 +20,7 @@ void main() {
 
   Parcel buildParcel({
     required String departure,
+    String? arrival,
     List<Bid> bids = const [],
   }) {
     return Parcel(
@@ -35,6 +37,7 @@ void main() {
       status: ParcelStatus.free,
       departureZoneId: 'zone-1',
       departureZoneName: departure,
+      arrivalZoneName: arrival,
       bids: bids,
       createdAt: DateTime(2026),
     );
@@ -45,7 +48,7 @@ void main() {
       final user = buildUser(city: '  Dakar Plateau ');
 
       expect(
-        parcelStartsInUserZone(
+        parcelMatchesUserZone(
           buildParcel(departure: 'dAkAr   pLaTeAu'),
           user,
         ),
@@ -57,7 +60,7 @@ void main() {
       final user = buildUser(city: 'Dakar');
 
       expect(
-        parcelStartsInUserZone(
+        parcelMatchesUserZone(
           buildParcel(departure: 'Garage Dakar'),
           user,
         ),
@@ -69,11 +72,50 @@ void main() {
       final user = buildUser(zoneName: 'Zone Nord');
 
       expect(
-        parcelStartsInUserZone(
+        parcelMatchesUserZone(
           buildParcel(departure: 'zone nord'),
           user,
         ),
         isTrue,
+      );
+    });
+
+    test('retient aussi un colis qui arrive dans la zone', () {
+      // Un chauffeur de Dakar voit les retours vers Dakar, partis d'ailleurs.
+      final user = buildUser(city: 'Dakar');
+
+      expect(
+        parcelMatchesUserZone(
+          buildParcel(departure: 'Thiès', arrival: 'dakar'),
+          user,
+        ),
+        isTrue,
+      );
+    });
+
+    test('ne retient rien pour un profil sans zone', () {
+      expect(
+        parcelMatchesUserZone(buildParcel(departure: 'Dakar'), buildUser()),
+        isFalse,
+      );
+    });
+
+    test('applique la même règle aux annonces de trajet', () {
+      final user = buildUser(city: 'Dakar');
+      Advertisement trip(String departure, String arrival) => Advertisement(
+            id: 'ad-1',
+            driverId: 'driver-1',
+            driverName: 'Chauffeur',
+            departureCity: departure,
+            arrivalCity: arrival,
+            createdAt: DateTime(2026),
+          );
+
+      expect(advertisementMatchesUserZone(trip('Dakar', 'Thiès'), user), isTrue);
+      expect(advertisementMatchesUserZone(trip('Thiès', 'DAKAR'), user), isTrue);
+      expect(
+        advertisementMatchesUserZone(trip('Thiès', 'Saint-Louis'), user),
+        isFalse,
       );
     });
   });

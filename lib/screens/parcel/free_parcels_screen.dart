@@ -65,7 +65,7 @@ class _FreeParcelsScreenState extends ConsumerState<FreeParcelsScreen> {
     switch (_selectedFilter) {
       case _zoneFilter:
         return parcels
-            .where((parcel) => parcelStartsInUserZone(parcel, user))
+            .where((parcel) => parcelMatchesUserZone(parcel, user))
             .toList();
       case _expressFilter:
         return parcels.where((parcel) => parcel.isUrgent).toList();

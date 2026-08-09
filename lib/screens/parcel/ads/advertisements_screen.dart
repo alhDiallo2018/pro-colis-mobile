@@ -13,6 +13,7 @@ import 'package:procolis/screens/parcel/create_colis_sheet.dart';
 import 'package:procolis/services/api_service.dart';
 import 'package:procolis/theme/app_theme.dart';
 import 'package:procolis/utils/parcel_access_policy.dart';
+import 'package:procolis/utils/parcel_offer_helpers.dart';
 import 'package:procolis/widgets/app_bottom_nav.dart';
 import 'package:procolis/widgets/negotiation_chat_widget.dart';
 import 'package:procolis/widgets/pc_components.dart';
@@ -43,6 +44,10 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
   List<Advertisement> _trips = const [];
   final _tripSearchController = TextEditingController();
   String _tripQuery = '';
+
+  /// Voyages limites a la zone de l'utilisateur, ou tous. Par defaut on ouvre
+  /// large : la liste des trajets a peu d'interet amputee d'entree.
+  bool _tripZoneOnly = false;
 
   @override
   void initState() {
@@ -132,9 +137,16 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
   }
 
   List<Advertisement> _filteredTrips() {
+    final user = ref.read(authProvider).user;
+    final scoped = _tripZoneOnly
+        ? _trips
+            .where((trip) => advertisementMatchesUserZone(trip, user))
+            .toList()
+        : _trips;
+
     final query = _tripQuery.trim().toLowerCase();
-    if (query.isEmpty) return _trips;
-    return _trips.where((trip) {
+    if (query.isEmpty) return scoped;
+    return scoped.where((trip) {
       final haystack = [
         trip.departureCity ?? '',
         trip.arrivalCity ?? '',
@@ -180,9 +192,12 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
               title: _tripQuery.trim().isEmpty
                   ? 'Aucun voyage disponible'
                   : 'Aucun résultat',
-              message: _tripQuery.trim().isEmpty
-                  ? 'Les voyages des chauffeurs apparaîtront ici.'
-                  : 'Aucun voyage ne correspond à votre recherche.',
+              message: _tripQuery.trim().isNotEmpty
+                  ? 'Aucun voyage ne correspond à votre recherche.'
+                  : _tripZoneOnly
+                      ? 'Aucun voyage au départ ou à l’arrivée de votre zone. '
+                          'Touchez « Toutes » pour élargir.'
+                      : 'Les voyages des chauffeurs apparaîtront ici.',
             ),
           ],
         ),
@@ -208,8 +223,35 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
     return Column(
       children: [
         _buildTripSearchField(),
+        _buildTripZoneFilter(),
         Expanded(child: listArea),
       ],
+    );
+  }
+
+  /// Bascule « Toutes / Ma zone ». Masquee tant que le profil ne porte aucune
+  /// zone : le filtre ne ramenerait rien.
+  Widget _buildTripZoneFilter() {
+    final zone = resolveUserResidenceZone(ref.watch(authProvider).user);
+    if (zone == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Row(
+        children: [
+          _TripZoneChip(
+            label: 'Toutes',
+            selected: !_tripZoneOnly,
+            onTap: () => setState(() => _tripZoneOnly = false),
+          ),
+          const SizedBox(width: 8),
+          _TripZoneChip(
+            label: zone,
+            selected: _tripZoneOnly,
+            onTap: () => setState(() => _tripZoneOnly = true),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1203,6 +1245,58 @@ class _TripCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: AppTheme.slate700)),
         ],
+      ),
+    );
+  }
+}
+
+
+/// Puce de filtre de zone pour l'onglet Voyages, alignee sur les puces du pool
+/// chauffeur.
+class _TripZoneChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TripZoneChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.primary : AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? AppTheme.primary : AppTheme.slate200,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) ...[
+              const Icon(Icons.check_rounded, color: Colors.white, size: 16),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: AppFonts.plusJakartaSans(
+                color: selected ? Colors.white : AppTheme.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
