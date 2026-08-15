@@ -3877,7 +3877,7 @@ try { (() => {
       placeholder: '8',
       mono: true
     })), e(Input, {
-      label: 'Description (optionnel)',
+      label: 'Description',
       icon: 'description',
       placeholder: 'Contenu du colis'
     })), e(FormSection, {

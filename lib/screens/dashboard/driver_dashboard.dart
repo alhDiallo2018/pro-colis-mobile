@@ -1552,6 +1552,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     _loadMessagesUnread();
     _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (!mounted) return;
+      _loadData();
       _loadNotificationsCount();
       _loadMessagesUnread();
     });
@@ -1878,15 +1879,16 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   }
 
   Future<void> _loadDashboardData() async {
-    final results = await Future.wait([
-      _api.getWalletBalance(widget.user?.id ?? ''),
-      _api.getDriverBidsSent(),
-      _api.getMyAdvertisements(),
-      _api.getPaymentHistory(),
-      _api.getDriverStats(),
-    ]);
-    if (!mounted) return;
-    final payments = results[3] as List<Map<String, dynamic>>;
+    try {
+      final results = await Future.wait(<Future<dynamic>>[
+        _api.getWalletBalance(widget.user?.id ?? ''),
+        _api.getDriverBidsSent(),
+        _api.getMyAdvertisements(),
+        _api.getPaymentHistory(),
+        _api.getDriverStats(),
+      ]);
+      if (!mounted) return;
+      final payments = results[3] as List<Map<String, dynamic>>;
     final now = DateTime.now();
     final weekStart = DateTime(now.year, now.month, now.day)
         .subtract(Duration(days: now.weekday - 1));
@@ -1911,6 +1913,9 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
       _weekRevenue = weekTotal;
       _stats = results[4] as Map<String, dynamic>;
     });
+    } catch (e, stackTrace) {
+      debugPrint('❌ [Dashboard] _loadDashboardData failed: $e\n$stackTrace');
+    }
   }
 
   // ✅ NOUVEAU : Charger les propositions
@@ -3935,7 +3940,7 @@ class _DriverProfileTabScreenState
 
   Future<void> _loadProfileData() async {
     final zoneId = user?.zoneId;
-    final results = await Future.wait([
+    final results = await Future.wait(<Future<dynamic>>[
       _api.getDriverStats(),
       _api.getDriverVehicle(),
       _api.getIdentityStatus(),
@@ -5806,6 +5811,8 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
     return widget.parcelState.parcels
         .where((p) =>
             p.status == ParcelStatus.pending ||
+            p.status == ParcelStatus.proposalSent ||
+            p.status == ParcelStatus.negotiating ||
             p.status == ParcelStatus.confirmed)
         .toList();
   }

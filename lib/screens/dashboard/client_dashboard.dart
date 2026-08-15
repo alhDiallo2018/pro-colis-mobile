@@ -366,7 +366,7 @@ class _MesColisTabState extends State<_MesColisTab> {
     ('Tous', <ParcelStatus>[]),
     (
       'Attente',
-      [ParcelStatus.pending, ParcelStatus.free, ParcelStatus.confirmed]
+      [ParcelStatus.pending, ParcelStatus.free, ParcelStatus.proposalSent, ParcelStatus.negotiating, ParcelStatus.confirmed]
     ),
     (
       'Transit',
@@ -417,7 +417,9 @@ class _MesColisTabState extends State<_MesColisTab> {
     if (query.isNotEmpty) {
       filtered = filtered.where((p) {
         return p.trackingNumber.toLowerCase().contains(query) ||
+            (p.arrivalCity?.toLowerCase().contains(query) ?? false) ||
             (p.arrivalZoneName?.toLowerCase().contains(query) ?? false) ||
+            (p.departureCity?.toLowerCase().contains(query) ?? false) ||
             p.departureZoneName.toLowerCase().contains(query) ||
             p.receiverName.toLowerCase().contains(query);
       }).toList();
@@ -879,9 +881,12 @@ class _ClientRecentParcelCard extends StatelessWidget {
     required this.onTap,
   });
 
-  String get _arrival => parcel.arrivalZoneName?.isNotEmpty == true
-      ? parcel.arrivalZoneName!
-      : '—';
+  String get _arrival => (parcel.arrivalCity?.isNotEmpty == true
+      ? parcel.arrivalCity
+      : parcel.arrivalZoneName?.isNotEmpty == true
+          ? parcel.arrivalZoneName
+          : null) ??
+      '—';
 
   String get _price {
     final amount = parcel.agreedPrice;
@@ -956,9 +961,11 @@ class _ClientRecentParcelCard extends StatelessWidget {
               Expanded(
                 child: _ClientRouteEnd(
                   label: 'Départ',
-                  value: parcel.departureZoneName.isEmpty
-                      ? '—'
-                      : parcel.departureZoneName,
+                  value: (parcel.departureCity?.isNotEmpty == true
+                      ? parcel.departureCity!
+                      : parcel.departureZoneName.isEmpty
+                          ? '—'
+                          : parcel.departureZoneName),
                   alignEnd: false,
                 ),
               ),
@@ -1180,14 +1187,24 @@ class HomeScreen extends StatelessWidget {
         parcels.where((parcel) => parcel.isInProgress).length;
     final deliveredCount = parcels.where((parcel) => parcel.isDelivered).length;
     final libreCount = parcels.where((parcel) => parcel.isFree).length;
-    // Agrège toutes les offres (bids) en attente reçues sur les colis du client.
+    // Agrège toutes les offres en attente reçues sur les colis du client :
+    // Flux A (bids) + Flux B (propositions directes ouvertes).
     final pendingOffers = <_OfferPreview>[];
     for (final parcel in parcels) {
       for (final bid in parcel.pendingBids) {
         pendingOffers.add(_OfferPreview(parcel: parcel, bid: bid));
       }
+      // Proposition directe ouverte (Flux B) sans bid actif
+      if (parcel.hasOpenProposal &&
+          !parcel.bids.any((b) => b.isActive)) {
+        pendingOffers.add(_OfferPreview(parcel: parcel));
+      }
     }
-    pendingOffers.sort((a, b) => b.bid.createdAt.compareTo(a.bid.createdAt));
+    pendingOffers.sort((a, b) {
+      final aTime = a.bid?.createdAt ?? a.parcel.createdAt;
+      final bTime = b.bid?.createdAt ?? b.parcel.createdAt;
+      return bTime.compareTo(aTime);
+    });
 
     return RefreshIndicator(
       color: AppTheme.primary,
@@ -1625,13 +1642,15 @@ class _ClientEmptyRecent extends StatelessWidget {
   }
 }
 
-/// Prévisualisation d'une offre (bid) rattachée à son colis, pour le tableau
-/// de bord.
+/// Prévisualisation d'une offre (bid ou proposition directe) rattachée à
+/// son colis, pour le tableau de bord.
 class _OfferPreview {
   final Parcel parcel;
-  final Bid bid;
+  final Bid? bid;
 
-  const _OfferPreview({required this.parcel, required this.bid});
+  const _OfferPreview({required this.parcel, this.bid});
+
+  bool get isProposal => bid == null;
 }
 
 /// Panneau "Offres reçues" du tableau de bord client : les 3 offres en attente
@@ -1701,9 +1720,78 @@ class _OfferPreviewRow extends StatelessWidget {
 
   const _OfferPreviewRow({required this.offer});
 
+  String _fmt(double v) {
+    final s = v.toInt().toString();
+    final b = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
+      b.write(s[i]);
+    }
+    return b.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final bid = offer.bid;
+    // Si c'est une proposition directe (Flux B), on affiche les infos
+    // depuis le champ proposal du colis.
+    if (bid == null) {
+      final p = offer.parcel;
+      final driverName =
+          p.proposedDriverName?.isNotEmpty == true
+              ? p.proposedDriverName!
+              : 'Chauffeur';
+      final price = p.currentProposalPrice ?? 0;
+      final msg = p.proposalLastMessage ?? p.trackingNumber;
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            PcAvatar(driverName, size: 38, status: PcAvatarStatus.online),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    driverName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  if (msg.isNotEmpty)
+                    Text(
+                      msg,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.manrope(
+                        fontSize: 11.5,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${_fmt(price)} FCFA',
+              style: AppTheme.mono(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.teal600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final driverName = bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName;
     final subtitle = bid.responseMessage?.trim().isNotEmpty == true
         ? bid.responseMessage!.trim()

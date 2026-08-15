@@ -8,6 +8,7 @@ import '../providers/broadcast_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import 'web_safe_image.dart';
 
 class BroadcastBanner extends ConsumerStatefulWidget {
   const BroadcastBanner({super.key});
@@ -195,12 +196,11 @@ class _BroadcastBannerState extends ConsumerState<BroadcastBanner> {
               if (hasImage)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: Image.network(
-                    ApiService.resolveMediaUrl(broadcast.imageUrl!),
+                  child: WebSafeNetworkImage(
+                    url: ApiService.resolveMediaUrl(broadcast.imageUrl!),
                     width: 32,
                     height: 32,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                   ),
                 ),
               if (hasImage) const SizedBox(width: 6),

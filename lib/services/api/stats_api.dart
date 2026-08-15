@@ -27,8 +27,6 @@ class StatsApi {
       );
     }
 
-    // Les versions de l'API ont utilisé `stats` à la racine et sous `data`.
-    // Cette normalisation garde le modèle typé indépendant de l'enveloppe.
     final raw = body['stats'] ??
         (body['data'] is Map ? (body['data'] as Map)['stats'] : null);
     return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};

@@ -42,11 +42,12 @@ bool _routeMatchesUserZone(
 
 /// Colis libre rattache a la zone de l'utilisateur (depart ou arrivee).
 bool parcelMatchesUserZone(Parcel parcel, User? user) {
-  // Le modele colis ne porte que des noms de zone, pas de villes separees.
   return _routeMatchesUserZone(
     user,
     departureZoneName: parcel.departureZoneName,
+    departureCity: parcel.departureCity,
     arrivalZoneName: parcel.arrivalZoneName,
+    arrivalCity: parcel.arrivalCity,
   );
 }
 

@@ -405,8 +405,8 @@ class ApiService {
           .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      debugPrint("❌ [API] getFreeParcels failed: $e");
-      return [];
+      debugPrint('❌ [API] getDriverParcels failed: $e');
+      rethrow;
     }
   }
 

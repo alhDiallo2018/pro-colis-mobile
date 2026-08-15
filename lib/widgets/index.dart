@@ -16,3 +16,4 @@ export 'segmented_control.dart';
 export 'status_badge.dart';
 export 'status_timeline.dart';
 export 'video_player_widget.dart';
+export 'web_safe_image.dart';

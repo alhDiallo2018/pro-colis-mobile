@@ -108,12 +108,16 @@ class _HistoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = AppTheme.statusColors(parcel.status);
-    final from = parcel.departureZoneName.isNotEmpty
-        ? parcel.departureZoneName
-        : '—';
-    final to = (parcel.arrivalZoneName?.isNotEmpty ?? false)
-        ? parcel.arrivalZoneName!
-        : '—';
+    final from = parcel.departureCity?.isNotEmpty == true
+        ? parcel.departureCity!
+        : parcel.departureZoneName.isNotEmpty
+            ? parcel.departureZoneName
+            : '—';
+    final to = parcel.arrivalCity?.isNotEmpty == true
+        ? parcel.arrivalCity!
+        : (parcel.arrivalZoneName?.isNotEmpty ?? false)
+            ? parcel.arrivalZoneName!
+            : '—';
     final date = parcel.deliveryDate ?? parcel.updatedAt ?? parcel.createdAt;
 
     return PcCard(

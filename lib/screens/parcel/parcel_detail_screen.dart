@@ -828,10 +828,62 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 
   void _openChat() {
-    // Détermine l'interlocuteur selon le rôle : le client parle au chauffeur,
-    // le chauffeur (ou garage) parle au client. On ouvre la vraie messagerie
-    // synchronisée avec le backend (envoi persisté + polling), pas la maquette.
     final myId = ref.read(authProvider).user?.id;
+
+    // S'il y a une négociation active (offre) sur ce colis, on ouvre
+    // l'écran de négociation qui contient à la fois l'historique des
+    // propositions et le chat textuel, pour que l'utilisateur retrouve
+    // toute la discussion au même endroit.
+    final activeBids = _parcel.bids.where((b) => b.isActive).toList();
+    if (activeBids.isNotEmpty) {
+      final bid = _parcel.bestBid ?? activeBids.first;
+      final isDriver = ref.read(authProvider).isDriver;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => NegotiationChatScreen(
+            parcel: _parcel,
+            peerId: isDriver ? _parcel.senderId : bid.driverId,
+            peerName: isDriver ? _parcel.senderName : bid.driverName,
+            parcelId: _parcel.id,
+            bidId: bid.id,
+            role: isDriver ? 'driver' : 'client',
+            isOwner: !isDriver,
+            onChanged: _loadDetailData,
+            onNegotiationFinalized: (finalized) async {
+              if (finalized) await _loadDetailData();
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Proposition directe (Flux B) : on ouvre la messagerie avec le
+    // chauffeur proposé (côté client) ou l'expéditeur (côté chauffeur).
+    if (_parcel.hasOpenProposal) {
+      final isDriver = ref.read(authProvider).isDriver;
+      final peerId = isDriver
+          ? _parcel.senderId
+          : _parcel.proposedDriverId ?? _parcel.senderId;
+      final peerName = isDriver
+          ? _parcel.senderName
+          : (_parcel.proposedDriverName?.isNotEmpty == true
+              ? _parcel.proposedDriverName!
+              : 'Chauffeur');
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MessagesScreen(
+            initialPeerId: peerId,
+            initialPeerName: peerName,
+            initialParcelId: _parcel.id,
+          ),
+        ),
+      );
+      return;
+    }
 
     String? peerId;
     String peerName;
@@ -940,15 +992,18 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 
   void _openBidNegotiation(Bid bid) {
+    final isDriver = ref.read(authProvider).isDriver;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => NegotiationChatScreen(
-          peerId: _parcel.senderId,
-          peerName: _parcel.senderName,
+          peerId: isDriver ? _parcel.senderId : bid.driverId,
+          peerName: isDriver ? _parcel.senderName : bid.driverName,
           parcelId: _parcel.id,
+          parcel: _parcel,
           bidId: bid.id,
-          role: 'driver',
+          role: isDriver ? 'driver' : 'client',
+          isOwner: !isDriver,
           onChanged: _loadDetailData,
           onNegotiationFinalized: (finalized) async {
             if (finalized) await _loadDetailData();
@@ -956,6 +1011,305 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         ),
       ),
     );
+  }
+
+  /// Le client propriétaire a-t-il des offres actives sur ce colis ?
+  bool get _isClientWithActiveBids {
+    if (!_isClientOwner) return false;
+    return _parcel.bids.any((b) => b.isActive);
+  }
+
+  Future<void> _clientAcceptBid(Bid bid) async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      final ok = await ref
+          .read(parcelProvider.notifier)
+          .acceptBid(_parcel.id, bid.id);
+      if (!mounted) return;
+      if (ok) {
+        _showSnack('Offre acceptée. Le chauffeur va confirmer.');
+        await _loadDetailData();
+      } else {
+        final error = ref.read(parcelProvider).error;
+        _showSnack(error ?? 'Impossible d\'accepter cette offre');
+      }
+    } catch (_) {
+      _showSnack('Erreur lors de l\'acceptation');
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _clientRejectBid(Bid bid) async {
+    if (_isUpdating) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Refuser l\'offre ?'),
+        content: Text(
+            'Refuser l\'offre de ${bid.driverName} à ${bid.formattedPrice} ?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red500),
+            child: const Text('Refuser'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _isUpdating = true);
+    try {
+      final ok = await ref
+          .read(parcelProvider.notifier)
+          .rejectBid(_parcel.id, bid.id);
+      if (!mounted) return;
+      if (ok) {
+        _showSnack('Offre refusée');
+        await _loadDetailData();
+      } else {
+        _showSnack('Impossible de refuser cette offre');
+      }
+    } catch (_) {
+      _showSnack('Erreur lors du refus');
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Proposition directe (Flux B) : le client a envoyé une
+  // proposition à un chauffeur spécifique. L'API renvoie
+  // `proposal` avec l'état `pending` / `countered` / `accepted`.
+  // ═══════════════════════════════════════════════════════════
+
+  /// Le client propriétaire a-t-il une proposition directe ouverte
+  /// (pending ou countered) sur ce colis ?
+  bool get _isClientWithOpenProposal =>
+      _isClientOwner && _parcel.hasOpenProposal;
+
+  /// Le chauffeur a-t-il une proposition directe à traiter ?
+  bool get _isDriverWithOpenProposal =>
+      _isAssignedDriver && _parcel.hasOpenProposal;
+
+  String get _proposalDriverName =>
+      _parcel.proposedDriverName?.isNotEmpty == true
+          ? _parcel.proposedDriverName!
+          : 'Chauffeur';
+
+  Future<void> _clientAcceptProposal() async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      final result = await _apiService.respondToCounterProposal(
+        _parcel.id,
+        'accept',
+      );
+      if (!mounted) return;
+      if (result['success'] == false) {
+        _showSnack(result['message']?.toString() ?? 'Échec de l\'acceptation');
+      } else {
+        _showSnack('Proposition acceptée. Le chauffeur va confirmer.');
+        await _loadDetailData();
+      }
+    } catch (_) {
+      _showSnack('Erreur lors de l\'acceptation');
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _clientRejectProposal() async {
+    if (_isUpdating) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Refuser la proposition ?'),
+        content: Text(
+            'Refuser la proposition de $_proposalDriverName à '
+            '${_fcfaDisplay(_parcel.currentProposalPrice ?? 0)} FCFA ?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red500),
+            child: const Text('Refuser'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _isUpdating = true);
+    try {
+      final result = await _apiService.respondToCounterProposal(
+        _parcel.id,
+        'reject',
+      );
+      if (!mounted) return;
+      if (result['success'] == false) {
+        _showSnack(
+            result['message']?.toString() ?? 'Impossible de refuser');
+      } else {
+        _showSnack('Proposition refusée');
+        await _loadDetailData();
+      }
+    } catch (_) {
+      _showSnack('Erreur lors du refus');
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _showCounterProposalDialog() async {
+    final priceCtrl = TextEditingController(
+        text: (_parcel.currentProposalPrice ?? 0).toInt().toString());
+    final msgCtrl = TextEditingController();
+
+    final result = await showModalBottomSheet<_CounterResult?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.slate300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Contre-proposition',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Proposer un nouveau prix à $_proposalDriverName',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: priceCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Montant (FCFA)',
+                  suffixText: 'FCFA',
+                  filled: true,
+                  fillColor: AppTheme.amber50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.amber400),
+                  ),
+                ),
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.amber600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: msgCtrl,
+                minLines: 2,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Message (facultatif)',
+                  filled: true,
+                  fillColor: AppTheme.slate100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              PcButton(
+                'Envoyer la contre-proposition',
+                onPressed: () {
+                  final price = double.tryParse(priceCtrl.text.trim());
+                  if (price == null || price <= 0) return;
+                  Navigator.pop(ctx, _CounterResult(
+                    price: price.toInt(),
+                    message: msgCtrl.text.trim(),
+                  ));
+                },
+                icon: Icons.send_rounded,
+                size: PcButtonSize.lg,
+                block: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    priceCtrl.dispose();
+    msgCtrl.dispose();
+
+    if (result == null || !mounted) return;
+
+    setState(() => _isUpdating = true);
+    try {
+      final apiResult = await _apiService.respondToCounterProposal(
+        _parcel.id,
+        'counter',
+        price: result.price.toDouble(),
+        message: result.message.isNotEmpty ? result.message : null,
+      );
+      if (!mounted) return;
+      if (apiResult['success'] == false) {
+        _showSnack(
+            apiResult['message']?.toString() ?? 'Contre-proposition échouée');
+      } else {
+        _showSnack('Contre-proposition envoyée');
+        await _loadDetailData();
+      }
+    } catch (_) {
+      _showSnack('Erreur lors de l\'envoi');
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  String _fcfaDisplay(double v) {
+    final s = v.toInt().toString();
+    final b = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
+      b.write(s[i]);
+    }
+    return b.toString();
   }
 
   /// Déclaration lancée manuellement depuis la carte de paiement en espèces.
@@ -1296,13 +1650,19 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 ],
               ),
             ),
-            if (_parcel.canBePaidOnline)
+            if (_parcel.canBePaidOnline && _parcel.hasDriver)
               _PaydunyaPayCard(
                 parcelId: _parcel.id,
                 amount: _parcel.payableAmount,
                 trackingNumber: _parcel.trackingNumber,
                 apiService: _apiService,
                 onDone: _loadDetailData,
+              )
+            else if (_parcel.canBePaidOnline && !_parcel.hasDriver)
+              const _NoPaymentNotice(
+                message:
+                    'Paiement en attente de confirmation par le chauffeur. '
+                    'Le montant sera mis à jour dès l\'acceptation de l\'offre.',
               )
             else if (_parcel.isCancelled && !_parcel.isPaid)
               const _NoPaymentNotice(
@@ -1423,6 +1783,36 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               ),
               const SizedBox(height: 12),
             ],
+            if (_isClientWithActiveBids) ...[
+              const SizedBox(height: 4),
+              const PcSectionHeader('Offres reçues'),
+              const SizedBox(height: 8),
+              ..._parcel.bids
+                  .where((b) => b.isActive)
+                  .map((bid) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _ClientBidCard(
+                          bid: bid,
+                          isUpdating: _isUpdating,
+                          onAccept: () => _clientAcceptBid(bid),
+                          onReject: () => _clientRejectBid(bid),
+                          onNegotiate: () => _openBidNegotiation(bid),
+                        ),
+                      )),
+              const SizedBox(height: 6),
+            ],
+            if (_isClientWithOpenProposal) ...[
+              const SizedBox(height: 4),
+              _ClientProposalSection(
+                parcel: _parcel,
+                driverName: _proposalDriverName,
+                isUpdating: _isUpdating,
+                onAccept: _clientAcceptProposal,
+                onReject: _clientRejectProposal,
+                onCounter: _showCounterProposalDialog,
+              ),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Expanded(
@@ -1459,6 +1849,150 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Carte d'une offre (bid) pour le client propriétaire du colis
+// ============================================================
+
+class _ClientBidCard extends StatelessWidget {
+  final Bid bid;
+  final bool isUpdating;
+  final VoidCallback onAccept;
+  final VoidCallback onReject;
+  final VoidCallback onNegotiate;
+
+  const _ClientBidCard({
+    required this.bid,
+    required this.isUpdating,
+    required this.onAccept,
+    required this.onReject,
+    required this.onNegotiate,
+  });
+
+  String _formatMoney(double value) {
+    final str = value.toStringAsFixed(0);
+    final buffer = StringBuffer();
+    for (int i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) buffer.write(' ');
+      buffer.write(str[i]);
+    }
+    return buffer.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final driverName =
+        bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName;
+    final price = bid.lastPrice ?? bid.price;
+    final message = bid.lastMessage ?? bid.message;
+    final hasMessage = message?.trim().isNotEmpty == true;
+
+    return PcCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PcAvatar(driverName, size: 42, status: PcAvatarStatus.online),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      driverName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_formatMoney(price)} FCFA',
+                      style: TextStyle(
+                        color: AppTheme.teal600,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (bid.isNegotiating)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.amber50,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    'En négociation',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.amber700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (hasMessage) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.slate100,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: Text(
+                message!,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppTheme.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              PcButton(
+                'Refuser',
+                variant: PcButtonVariant.danger,
+                size: PcButtonSize.sm,
+                onPressed: isUpdating ? null : onReject,
+              ),
+              const SizedBox(width: 8),
+              PcButton(
+                'Négocier',
+                variant: PcButtonVariant.secondary,
+                size: PcButtonSize.sm,
+                onPressed: isUpdating ? null : onNegotiate,
+              ),
+              const SizedBox(width: 8),
+              PcButton(
+                'Accepter',
+                icon: Icons.check_rounded,
+                size: PcButtonSize.sm,
+                onPressed: isUpdating ? null : onAccept,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -2072,6 +2606,205 @@ class _StepInfo {
   final String label;
   final DateTime? date;
   const _StepInfo(this.status, this.label, this.date);
+}
+
+class _CounterResult {
+  final int price;
+  final String message;
+  const _CounterResult({required this.price, this.message = ''});
+}
+
+// ============================================================
+// Section proposition directe côté client (Flux B)
+// ============================================================
+
+class _ClientProposalSection extends StatelessWidget {
+  final Parcel parcel;
+  final String driverName;
+  final bool isUpdating;
+  final VoidCallback onAccept;
+  final VoidCallback onReject;
+  final VoidCallback onCounter;
+
+  const _ClientProposalSection({
+    required this.parcel,
+    required this.driverName,
+    required this.isUpdating,
+    required this.onAccept,
+    required this.onReject,
+    required this.onCounter,
+  });
+
+  String _fmt(double v) {
+    final s = v.toInt().toString();
+    final b = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
+      b.write(s[i]);
+    }
+    return b.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final price = parcel.currentProposalPrice ?? 0;
+    final lastMsg = parcel.proposalLastMessage;
+    final lastOfferBy = parcel.proposalLastOfferBy ?? '';
+    final count = parcel.proposalNegotiationCount;
+    final canAccept = parcel.clientCanAcceptProposal;
+    final status = parcel.proposalStatus ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PcSectionHeader('Proposition en cours'),
+        const SizedBox(height: 8),
+        PcCard(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  PcAvatar(driverName, size: 42, status: PcAvatarStatus.online),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          driverName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_fmt(price)} FCFA',
+                          style: TextStyle(
+                            color: AppTheme.teal600,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: status == 'countered'
+                          ? AppTheme.amber50
+                          : AppTheme.teal50,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.handshake_rounded,
+                            size: 12,
+                            color: status == 'countered'
+                                ? AppTheme.amber700
+                                : AppTheme.teal600),
+                        const SizedBox(width: 4),
+                        Text(
+                          status == 'countered'
+                              ? 'Contre-offre'
+                              : 'En attente',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: status == 'countered'
+                                ? AppTheme.amber700
+                                : AppTheme.teal600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (count > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '$count échange${count > 1 ? 's' : ''}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.slate400,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              if (lastOfferBy.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Dernière offre par : ${lastOfferBy == 'driver' ? 'Chauffeur' : 'Vous'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.slate500,
+                  ),
+                ),
+              ],
+              if (lastMsg != null && lastMsg.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.slate100,
+                    borderRadius:
+                        BorderRadius.circular(AppTheme.radiusSm),
+                  ),
+                  child: Text(
+                    lastMsg,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppTheme.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  PcButton(
+                    'Refuser',
+                    variant: PcButtonVariant.danger,
+                    size: PcButtonSize.sm,
+                    onPressed: isUpdating ? null : onReject,
+                  ),
+                  const SizedBox(width: 8),
+                  PcButton(
+                    'Contre-proposer',
+                    variant: PcButtonVariant.secondary,
+                    size: PcButtonSize.sm,
+                    onPressed: isUpdating ? null : onCounter,
+                  ),
+                  if (canAccept) ...[
+                    const SizedBox(width: 8),
+                    PcButton(
+                      'Accepter',
+                      icon: Icons.check_rounded,
+                      size: PcButtonSize.sm,
+                      onPressed: isUpdating ? null : onAccept,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _MediaLabel extends StatelessWidget {

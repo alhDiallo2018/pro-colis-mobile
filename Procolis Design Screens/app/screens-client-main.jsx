@@ -148,7 +148,7 @@
           e('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 } },
             e(Select, { label: 'Type', icon: 'category', options: M.parcelTypes, placeholder: 'Type' }),
             e(Input, { label: 'Poids', suffix: 'kg', placeholder: '8', mono: true })),
-          e(Input, { label: 'Description (optionnel)', icon: 'description', placeholder: 'Contenu du colis' })),
+          e(Input, { label: 'Description ', icon: 'description', placeholder: 'Contenu du colis' })),
         e(FormSection, { title: 'Options', icon: 'tune' },
           e(Switch, { checked: insurance, onChange: setInsurance, label: 'Assurance', description: 'Couvre jusqu’à 200 000 FCFA' }),
           e(Switch, { checked: urgent, onChange: setUrgent, label: 'Livraison urgente (express)', description: 'Priorité haute, supplément 2 000 FCFA' })),

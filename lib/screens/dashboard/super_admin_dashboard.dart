@@ -274,7 +274,10 @@ class _SuperAdminHomeScreen extends StatelessWidget {
 
   int get _totalParcels => parcelState.parcels.length;
   int get _pendingParcels =>
-      parcelState.parcels.where((p) => p.status == ParcelStatus.pending).length;
+      parcelState.parcels.where((p) =>
+        p.status == ParcelStatus.pending ||
+        p.status == ParcelStatus.proposalSent ||
+        p.status == ParcelStatus.negotiating).length;
   int get _inTransitParcels =>
       parcelState.parcels.where((p) => p.isInProgress).length;
   int get _deliveredParcels =>

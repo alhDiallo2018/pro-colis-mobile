@@ -36,7 +36,7 @@ abstract final class AppConfig {
       return apiUri.origin;
     }
 
-    return 'https://sendprocolis.com';
+    return 'http://localhost:18081';
   }
 
   static String get mediaBaseUrl {

@@ -392,6 +392,8 @@ class Parcel {
   final String departureZoneName;
   final String? arrivalZoneId;
   final String? arrivalZoneName;
+  final String? departureCity;
+  final String? arrivalCity;
 
   // Chauffeur
   final String? driverId;
@@ -440,6 +442,8 @@ class Parcel {
 
   final String? assignedDriverId;
   final String? proposedDriverId;
+  final String? proposedDriverName;
+  final String? proposedDriverPhone;
   final String? proposalStatus;
 
   /// Proposition directe : prix courant, dernier commentaire et tour de parole.
@@ -502,6 +506,8 @@ class Parcel {
     required this.departureZoneName,
     this.arrivalZoneId,
     this.arrivalZoneName,
+    this.departureCity,
+    this.arrivalCity,
     this.driverId,
     this.driverName,
     this.driverPhone,
@@ -528,6 +534,8 @@ class Parcel {
     this.cashCollectedAt,
     this.assignedDriverId,
     this.proposedDriverId,
+    this.proposedDriverName,
+    this.proposedDriverPhone,
     this.proposalStatus,
     this.proposalPrice,
     this.proposalLastMessage,
@@ -573,7 +581,13 @@ class Parcel {
           ? ParcelStatus.fromString(json['status'].toString())
           : ParcelStatus.pending,
       departureZoneId: json['departureZoneId']?.toString() ?? '',
-      departureZoneName: json['departureZoneName']?.toString() ?? '',
+      departureZoneName:
+          (json['departureCity'] ?? json['departureGarageName'] ?? json['departureZoneName'])?.toString() ?? '',
+      arrivalZoneId: json['arrivalZoneId']?.toString(),
+      arrivalZoneName:
+          (json['arrivalCity'] ?? json['arrivalGarageName'] ?? json['arrivalZoneName'])?.toString(),
+      departureCity: json['departureCity']?.toString(),
+      arrivalCity: json['arrivalCity']?.toString(),
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())
           : DateTime.now(),
@@ -649,9 +663,18 @@ class Parcel {
           ? ParcelStatus.fromString(parseString(json['status'])!)
           : ParcelStatus.pending,
       departureZoneId: parseString(json['departureZoneId']) ?? '',
-      departureZoneName: parseString(json['departureZoneName']) ?? '',
+      departureZoneName: parseString(
+            json['departureCity'] ??
+            json['departureGarageName'] ??
+            json['departureZoneName']) ??
+          '',
       arrivalZoneId: parseString(json['arrivalZoneId']),
-      arrivalZoneName: parseString(json['arrivalZoneName']),
+      arrivalZoneName: parseString(
+            json['arrivalCity'] ??
+            json['arrivalGarageName'] ??
+            json['arrivalZoneName']),
+      departureCity: parseString(json['departureCity']),
+      arrivalCity: parseString(json['arrivalCity']),
       driverId: parseString(json['driverId']),
       driverName: parseString(json['driverName']),
       driverPhone: parseString(json['driverPhone']),
@@ -692,6 +715,12 @@ class Parcel {
           parseString(json['assignedDriverId'] ?? json['assigned_driver_id']),
       proposedDriverId:
           parseString(json['proposedDriverId'] ?? json['proposed_driver_id']),
+      proposedDriverName: parseString(
+          json['proposedDriverName'] ?? json['proposed_driver_name'] ??
+          json['proposedDriver']?['fullName']),
+      proposedDriverPhone: parseString(
+          json['proposedDriverPhone'] ?? json['proposed_driver_phone'] ??
+          json['proposedDriver']?['phone']),
       proposalStatus: parseString(
           proposal?['status'] ?? json['proposalStatus'] ?? json['proposal_status']),
       proposalPrice: parseDouble(
@@ -746,6 +775,8 @@ class Parcel {
         'departureZoneName': departureZoneName,
         'arrivalZoneId': arrivalZoneId,
         'arrivalZoneName': arrivalZoneName,
+        'departureCity': departureCity,
+        'arrivalCity': arrivalCity,
         'driverId': driverId,
         'driverName': driverName,
         'driverPhone': driverPhone,
@@ -772,6 +803,8 @@ class Parcel {
         'cashCollectedAt': cashCollectedAt?.toIso8601String(),
         'assignedDriverId': assignedDriverId,
         'proposedDriverId': proposedDriverId,
+        'proposedDriverName': proposedDriverName,
+        'proposedDriverPhone': proposedDriverPhone,
         'proposalStatus': proposalStatus,
         'proposalPrice': proposalPrice,
         'photoUrls': photoUrls,
@@ -1051,6 +1084,8 @@ class Parcel {
     String? departureZoneName,
     String? arrivalZoneId,
     String? arrivalZoneName,
+    String? departureCity,
+    String? arrivalCity,
     String? driverId,
     String? driverName,
     String? driverPhone,
@@ -1077,6 +1112,8 @@ class Parcel {
     DateTime? cashCollectedAt,
     String? assignedDriverId,
     String? proposedDriverId,
+    String? proposedDriverName,
+    String? proposedDriverPhone,
     String? proposalStatus,
     double? proposalPrice,
     String? proposalLastMessage,
@@ -1123,6 +1160,8 @@ class Parcel {
       departureZoneName: departureZoneName ?? this.departureZoneName,
       arrivalZoneId: arrivalZoneId ?? this.arrivalZoneId,
       arrivalZoneName: arrivalZoneName ?? this.arrivalZoneName,
+      departureCity: departureCity ?? this.departureCity,
+      arrivalCity: arrivalCity ?? this.arrivalCity,
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
       driverPhone: driverPhone ?? this.driverPhone,
@@ -1150,6 +1189,8 @@ class Parcel {
       cashCollectedAt: cashCollectedAt ?? this.cashCollectedAt,
       assignedDriverId: assignedDriverId ?? this.assignedDriverId,
       proposedDriverId: proposedDriverId ?? this.proposedDriverId,
+      proposedDriverName: proposedDriverName ?? this.proposedDriverName,
+      proposedDriverPhone: proposedDriverPhone ?? this.proposedDriverPhone,
       proposalStatus: proposalStatus ?? this.proposalStatus,
       proposalPrice: proposalPrice ?? this.proposalPrice,
       proposalLastMessage: proposalLastMessage ?? this.proposalLastMessage,

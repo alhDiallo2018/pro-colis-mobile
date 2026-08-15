@@ -652,7 +652,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
           ],
         ),
         const SizedBox(height: 18),
-        _fieldLabel('Description (optionnel)'),
+        _fieldLabel('Description'),
         TextField(
           controller: _descriptionController,
           maxLines: 3,

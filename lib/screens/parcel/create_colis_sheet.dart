@@ -10,9 +10,9 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:procolis/theme/fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:procolis/theme/fonts.dart';
 import 'package:record/record.dart';
 
 import '../../models/garage.dart';
@@ -30,11 +30,11 @@ import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/form_draft_ui.dart';
+import '../../widgets/location_autocomplete.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/phone_contact_picker.dart';
 import '../../widgets/route_picker.dart';
-import '../../widgets/location_autocomplete.dart';
 
 /// Ouvre le modal de création de colis. Renvoie `true` si le colis a été publié.
 Future<bool?> showCreateColisSheet(BuildContext context) {
@@ -86,7 +86,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   ParcelType _type = ParcelType.package;
   final _weight = TextEditingController();
   final _description = TextEditingController();
-  bool _insurance = true;
+  bool _insurance = false;
   bool _urgent = false;
 
   // Prix proposé (éditable).
@@ -863,8 +863,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       'status': isDriverMode ? 'negotiating' : 'free',
       'departureZoneId': dep.id,
       'departureZoneName': dep.name,
+      'departureCity': dep.city,
       'arrivalZoneId': arr.id,
       'arrivalZoneName': arr.name,
+      'arrivalCity': arr.city,
       'price': price,
       'proposedPrice': price,
       'isUrgent': _urgent,
@@ -1393,7 +1395,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           ],
         ),
         const SizedBox(height: 14),
-        _label('Description (optionnel)'),
+        _label('Description'),
         TextField(
           controller: _description,
           maxLines: 2,

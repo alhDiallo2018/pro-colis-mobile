@@ -24,6 +24,15 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use {
+        keystoreProperties.load(it)
+    }
+}
+
 android {
     namespace = "com.sendprocolis.app"
     compileSdk = flutter.compileSdkVersion
@@ -36,13 +45,13 @@ android {
     }
 
     kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
-}
 
     defaultConfig {
-        applicationId ="com.sendprocolis.app"
+        applicationId = "com.sendprocolis.app"
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
@@ -60,12 +69,40 @@ android {
         manifestPlaceholders["googleMapsApiKey"] = resolveGoogleMapsKey()
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
 
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // ✅ ACTIVER ProGuard pour réduire la taille et optimiser
+            isMinifyEnabled = true
+            isShrinkResources = true
+            
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+    
+    // ✅ DÉSACTIVER LE SPLIT APK - SOLUTION POUR LE CRASH
+    bundle {
+        language {
+            enableSplit = false
+        }
+        density {
+            enableSplit = false
+        }
+        abi {
+            enableSplit = false
         }
     }
 }
@@ -76,4 +113,5 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    implementation("androidx.multidex:multidex:2.0.1")
 }

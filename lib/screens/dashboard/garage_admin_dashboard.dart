@@ -100,7 +100,10 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
 
   void _updateStats(List<Parcel> parcels, List<User> drivers) {
     _pendingCount = parcels.where((p) =>
-      p.status == ParcelStatus.pending || p.status == ParcelStatus.confirmed
+      p.status == ParcelStatus.pending ||
+      p.status == ParcelStatus.proposalSent ||
+      p.status == ParcelStatus.negotiating ||
+      p.status == ParcelStatus.confirmed
     ).length;
     _inProgressCount = parcels.where((p) =>
       p.status == ParcelStatus.pickedUp ||
@@ -610,7 +613,10 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
   String? _processingParcelId;
 
   List<Parcel> get _pendingParcels => widget.parcels.where((p) =>
-    p.status == ParcelStatus.pending || p.status == ParcelStatus.confirmed
+    p.status == ParcelStatus.pending ||
+    p.status == ParcelStatus.proposalSent ||
+    p.status == ParcelStatus.negotiating ||
+    p.status == ParcelStatus.confirmed
   ).toList();
 
   String? _getDriverName(String? driverId) {

@@ -66,6 +66,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   List<Map<String, dynamic>> _messages = [];
   List<BidNegotiation> _negotiations = [];
   bool _loading = true;
+  bool _loadingNegotiations = false;
   bool _loadingMessages = false;
   bool _sending = false;
   bool _accepting = false;
@@ -133,7 +134,8 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   }
 
   Future<void> _loadNegotiations() async {
-    if (_loading) return;
+    if (_loadingNegotiations) return;
+    _loadingNegotiations = true;
     try {
       List<BidNegotiation> negotiations = [];
       if (widget.bidId != null) {
@@ -145,7 +147,8 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         negotiations = raw.map((j) => BidNegotiation.fromJson(j)).toList();
       }
 
-      if (mounted && negotiations.isNotEmpty) {
+      if (!mounted) return;
+      if (negotiations.isNotEmpty) {
         final last = negotiations.last;
         setState(() {
           _negotiations = negotiations;
@@ -153,7 +156,7 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
           _lastProposedBy = last.authorRole;
           _loading = false;
         });
-      } else if (mounted) {
+      } else {
         setState(() => _loading = false);
       }
     } catch (error, stackTrace) {
@@ -162,6 +165,8 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         '($error)\n$stackTrace',
       );
       if (mounted) setState(() => _loading = false);
+    } finally {
+      _loadingNegotiations = false;
     }
   }
 
