@@ -7,6 +7,8 @@
 // rafraîchir la liste, et donne un seul endroit où lire le message de refus
 // renvoyé par l'API (annonce déjà engagée, offre déjà acceptée...).
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,11 +24,33 @@ class AdvertisementNotifier extends StateNotifier<AdvertisementState> {
 
   final ApiService _apiService = ApiService();
 
-  Future<void> loadMyAdvertisements() async {
-    state = state.copyWith(isLoading: true);
+  /// Chargement en cours, partagé par tous les appelants simultanés. Sans lui,
+  /// l'ouverture de l'écran pendant qu'une mutation recharge déjà la liste
+  /// lançait deux requêtes concurrentes dont la plus lente écrasait le résultat
+  /// de l'autre.
+  Future<void>? _inFlightLoad;
+
+  Future<void> loadMyAdvertisements() {
+    return _inFlightLoad ??=
+        _loadMyAdvertisements().whenComplete(() => _inFlightLoad = null);
+  }
+
+  Future<void> _loadMyAdvertisements() async {
+    state = state.copyWith(isLoading: true, error: null);
     try {
-      final ads = await _apiService.getMyAdvertisements();
+      // Le délai maximal double celui de Dio : si la requête n'est jamais
+      // envoyée (jeton illisible, adaptateur bloqué), le spinner doit quand
+      // même rendre la main plutôt que tourner indéfiniment.
+      final ads = await _apiService
+          .getMyAdvertisements()
+          .timeout(const Duration(seconds: 45));
       state = state.copyWith(myAds: ads, isLoading: false, error: null);
+    } on TimeoutException {
+      debugPrint('❌ Chargement des annonces : délai dépassé');
+      state = state.copyWith(
+        error: 'Le chargement de vos voyages a expiré. Réessayez.',
+        isLoading: false,
+      );
     } catch (e) {
       debugPrint('❌ Chargement des annonces: $e');
       state = state.copyWith(error: e.toString(), isLoading: false);

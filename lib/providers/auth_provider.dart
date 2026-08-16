@@ -9,6 +9,7 @@ import 'dart:async';
 
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../services/biometric_service.dart';
 import '../services/form_draft_store.dart';
 import '../services/push_notification_service.dart';
 
@@ -18,7 +19,16 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(AuthState.initial()) {
+    // Un 401 définitif (jeton expiré, rafraîchissement refusé) doit ramener à
+    // l'écran de connexion : sinon l'application reste sur un écran authentifié
+    // dont chaque requête échoue, qui tourne sans jamais rien afficher.
+    ApiService.onSessionExpired = _handleSessionExpired;
     _loadUser();
+  }
+
+  void _handleSessionExpired() {
+    if (!mounted || !state.isAuthenticated) return;
+    state = AuthState.unauthenticated();
   }
 
   final ApiService _apiService = ApiService();
@@ -78,6 +88,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         debugPrint(
           '[AuthNotifier] Connexion réussie, rôle résolu : ${user.role.value}',
         );
+        // Le déverrouillage biométrique rejoue une connexion PIN : si
+        // l'utilisateur a changé de code, le secret mémorisé doit suivre, sinon
+        // l'empreinte se met à échouer sans explication.
+        if (await BiometricService.isEnabled()) {
+          await BiometricService.enable(pin);
+        }
         state = AuthState.authenticated(user);
         _registerPushToken();
         return {'success': true};
@@ -166,7 +182,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> logout() async {
+  /// Déverrouille une session endormie à partir de l'empreinte.
+  ///
+  /// L'API ayant fermé la session pour inactivité, il ne s'agit pas de rouvrir
+  /// un écran mais de refaire une vraie connexion : l'empreinte ne fait
+  /// qu'autoriser la lecture du PIN mémorisé.
+  Future<bool> unlockWithBiometrics() async {
+    if (!await BiometricService.isEnabled()) return false;
+
+    final approved = await BiometricService.authenticate(
+      'Déverrouillez votre session SENDPROCOLIS',
+    );
+    if (!approved) return false;
+
+    final pin = await BiometricService.readPin();
+    if (pin == null || pin.isEmpty) return false;
+
+    final result = await loginWithSavedPin(pin);
+    return result['success'] == true;
+  }
+
+  /// [forgetBiometrics] distingue les deux sorties possibles.
+  ///
+  /// Une déconnexion explicite retire le secret : garder le PIN d'un compte que
+  /// l'utilisateur vient de quitter n'apporterait aucun confort. Mais le repli
+  /// « utiliser mon code PIN » de l'écran de verrouillage passe aussi par ici,
+  /// et un doigt mouillé ne doit pas désactiver le réglage.
+  Future<void> logout({bool forgetBiometrics = true}) async {
+    if (forgetBiometrics) await BiometricService.disable();
     await _apiService.logout();
     // Les brouillons de formulaires contiennent des coordonnées de
     // destinataires et des pièces jointes : ils ne doivent rien laisser sur

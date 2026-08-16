@@ -1,6 +1,7 @@
 // mobile/lib/services/api_service.dart
 // Aligné sur l'API Web ProColis (React/TypeScript)
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -29,6 +30,19 @@ class ApiService {
   final _storage = const FlutterSecureStorage();
 
   static const bool isMockMode = MockData.enabled;
+
+  /// Signal émis quand un 401 n'a pas pu être rattrapé par un rafraîchissement :
+  /// la session est morte et l'application doit revenir à l'écran de connexion.
+  /// Sans ce signal l'utilisateur restait sur un écran authentifié dont toutes
+  /// les requêtes échouaient en silence, donc vide et sans issue.
+  static VoidCallback? onSessionExpired;
+
+  static void _notifySessionExpired() {
+    final callback = onSessionExpired;
+    if (callback == null) return;
+    debugPrint('🔒 [API] Session expirée : retour à la connexion');
+    callback();
+  }
 
   // Modular API delegates (shared ApiClient)
   ApiClient? _apiClient;
@@ -61,7 +75,18 @@ class ApiService {
           debugPrint('PUBLIC ${options.method} ${options.path}');
           return handler.next(options);
         }
-        final token = await _storage.read(key: 'token');
+        // Le stockage sécurisé passe par un canal de plateforme : quand il ne
+        // répond pas (Keystore occupé, plugin absent sur le web), la requête
+        // resterait en file d'attente indéfiniment et l'écran tournerait sans
+        // fin. On préfère partir sans jeton : l'API répond 401 et l'écran
+        // affiche une erreur exploitable.
+        final token = await _storage.read(key: 'token').timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('⚠️ [API] lecture du jeton expirée pour ${options.path}');
+            return null;
+          },
+        );
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
@@ -81,6 +106,7 @@ class ApiService {
             return handler.resolve(retryResponse);
           }
           await clearToken();
+          _notifySessionExpired();
         }
         return handler.next(response);
       },
@@ -89,6 +115,7 @@ class ApiService {
         final path = error.requestOptions.path;
         if (statusCode == 401 && !_isPublicRoute(path)) {
           await clearToken();
+          _notifySessionExpired();
         }
         return handler.next(error);
       },
@@ -99,6 +126,7 @@ class ApiService {
     '/auth/register',
     '/auth/login-with-pin',
     '/auth/refresh',
+    '/auth/logout',
     '/public/',
     '/health',
   };
@@ -181,7 +209,26 @@ class ApiService {
     return {};
   }
 
-  Future<void> logout() async => await clearToken();
+  /// Ferme la session côté serveur avant d'effacer les jetons locaux.
+  ///
+  /// Sans cet appel, le refresh token restait valable jusqu'à son expiration :
+  /// se déconnecter n'invalidait rien, cela ne faisait qu'oublier le jeton sur
+  /// l'appareil. L'échec réseau ne bloque pas la déconnexion locale, qui doit
+  /// aboutir même hors ligne.
+  Future<void> logout() async {
+    try {
+      final refreshToken = await _storage.read(key: 'refresh_token');
+      if (refreshToken != null && refreshToken.isNotEmpty && !isMockMode) {
+        await _dio.post(
+          '/auth/logout',
+          data: {'refreshToken': refreshToken},
+        );
+      }
+    } catch (error) {
+      debugPrint('[API] Déconnexion serveur impossible : $error');
+    }
+    await clearToken();
+  }
 
   // ==================== AUTH ====================
 
@@ -801,19 +848,70 @@ class ApiService {
     return null;
   }
 
+  /// Annonces de trajet du chauffeur connecté.
+  ///
+  /// Les échecs sont propagés au lieu de renvoyer une liste vide : un 401, une
+  /// API injoignable ou une réponse illisible s'affichaient sinon comme « aucune
+  /// annonce », impossible à distinguer d'un compte réellement vide.
   Future<List<Map<String, dynamic>>> getMyAdvertisements() async {
     try {
       final response = await _dio.get('/advertisements/my');
+      final status = response.statusCode ?? 0;
       final responseData = _handleResponse(response);
+      if (status >= 400) {
+        debugPrint('❌ [API] /advertisements/my -> $status');
+        throw ApiException(
+          responseData['message']?.toString() ??
+              (status == 401
+                  ? 'Session expirée, reconnectez-vous.'
+                  : 'Le serveur a refusé la requête (erreur $status).'),
+          status,
+        );
+      }
       // L'API peut renvoyer la liste sous différentes clés selon la version
       // (`advertisements`, `data` ou `parcels`) : on les accepte toutes.
-      final List<dynamic>? adsData = responseData['advertisements'] ??
+      final adsData = responseData['advertisements'] ??
           responseData['data'] ??
           responseData['parcels'];
-      if (adsData is! List) return [];
-      return adsData.map((json) => json as Map<String, dynamic>).toList();
+      if (adsData is! List) {
+        debugPrint(
+            '❌ [API] /advertisements/my : liste absente, clés=${responseData.keys.toList()}');
+        throw const ApiException(
+          'Réponse inattendue du serveur pour vos annonces.',
+          200,
+        );
+      }
+      return adsData.whereType<Map<String, dynamic>>().toList();
+    } on ApiException {
+      rethrow;
+    } on DioException catch (e) {
+      debugPrint('❌ [API] getMyAdvertisements: ${e.type} ${e.message}');
+      throw ApiException(_describeDioError(e), e.response?.statusCode ?? 0);
     } catch (e) {
-      return [];
+      debugPrint('❌ [API] getMyAdvertisements: $e');
+      throw ApiException('Impossible de lire vos annonces : $e', 0);
+    }
+  }
+
+  /// Message lisible pour l'utilisateur à partir d'un échec réseau Dio. Le
+  /// `toString()` de DioException expose l'URL et la pile, illisibles dans une
+  /// carte d'erreur.
+  static String _describeDioError(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'Le serveur ne répond pas ($baseUrl). Vérifiez votre connexion.';
+      case DioExceptionType.connectionError:
+      case DioExceptionType.unknown:
+        return 'Serveur injoignable ($baseUrl). Vérifiez votre connexion.';
+      case DioExceptionType.badCertificate:
+        return 'Certificat du serveur refusé ($baseUrl).';
+      case DioExceptionType.cancel:
+        return 'Requête annulée.';
+      case DioExceptionType.badResponse:
+        final status = error.response?.statusCode;
+        return 'Le serveur a répondu une erreur${status == null ? '' : ' $status'}.';
     }
   }
 
@@ -1422,10 +1520,31 @@ class ApiService {
       if (isMockMode) return 3;
       final response = await _dio.get('/notifications/unread-count');
       final responseData = _handleResponse(response);
-      return responseData['unreadCount'] as int? ?? 0;
+      return _asInt(responseData['unreadCount']);
     } catch (e) {
       return 0;
     }
+  }
+
+  /// Nombre porte par le badge de l'icone : notifications **et** messages non
+  /// lus. L'API renvoie `total` ; les anciennes versions ne connaissent que
+  /// `unreadCount`, qui sert alors de repli.
+  Future<int> getUnreadBadgeCount() async {
+    try {
+      if (isMockMode) return 3;
+      final response = await _dio.get('/notifications/unread-count');
+      final responseData = _handleResponse(response);
+      return _asInt(responseData['total'] ?? responseData['unreadCount']);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 
   Future<bool> markNotificationAsRead(String notificationId) async {

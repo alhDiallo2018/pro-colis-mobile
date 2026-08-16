@@ -36,6 +36,12 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     return;
   }
 
+  // Le serveur joint le nombre de non-lus à chaque push : le badge est posé
+  // avant tout affichage, y compris pour les messages que le système affiche
+  // lui-même. Sur Android c'est le seul moment où le badge peut être mis à jour
+  // application fermée (iOS le fait via `aps.badge`).
+  await NotificationBadgeService.applyFromPushData(message.data);
+
   // Les messages contenant un bloc `notification` sont affichés
   // automatiquement par le système en background. On n'affiche manuellement
   // que les messages "data-only".
@@ -161,6 +167,10 @@ class PushNotificationService {
   }
 
   static void _onForegroundMessage(RemoteMessage message) {
+    // Le badge se met à jour quelle que soit la plateforme : la sortie
+    // anticipée iOS ci-dessous ne concerne que l'affichage de la bannière.
+    unawaited(_syncBadge(message.data));
+
     // Sur iOS le système affiche déjà la notification en foreground
     // (setForegroundNotificationPresentationOptions ci-dessus).
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) return;
@@ -171,16 +181,20 @@ class PushNotificationService {
         message.notification?.body ?? message.data['body']?.toString();
     if (title == null && body == null) return;
 
-    // L'arrivée d'une notification au premier plan incrémente le compteur de
-    // non-lus côté backend : on resynchronise le badge immédiatement.
-    unawaited(NotificationBadgeService.refresh());
-
     unawaited(NotificationService.showNotification(
       id: DateTime.now().millisecondsSinceEpoch.hashCode,
       title: title ?? 'SENDPROCOLIS',
       body: body ?? '',
       data: message.data,
     ));
+  }
+
+  /// Applique le compte porté par la push ; à défaut, interroge le backend.
+  /// L'aller-retour réseau n'a lieu que face à un serveur qui n'envoie pas
+  /// encore `badge`, pour qu'une ancienne API reste correctement badgée.
+  static Future<void> _syncBadge(Map<String, dynamic> data) async {
+    final applied = await NotificationBadgeService.applyFromPushData(data);
+    if (!applied) await NotificationBadgeService.refresh();
   }
 
   static void _onMessageOpenedApp(RemoteMessage message) {

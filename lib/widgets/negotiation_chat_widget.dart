@@ -58,7 +58,7 @@ class NegotiationChatScreen extends StatefulWidget {
 
 class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   final ApiService _api = ApiService();
-  final _audioRecorder = Record();
+  final _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final _msgCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
@@ -353,7 +353,8 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         final dir = Directory.systemTemp;
         final path = '${dir.path}/nego_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _audioRecorder.start(
-          path: path, encoder: AudioEncoder.aacLc, samplingRate: 44100,
+          const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
+          path: path,
         );
         setState(() { _recording = true; _paused = false; _recordSecs = 0; });
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {

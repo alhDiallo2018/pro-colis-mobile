@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'providers/auth_provider.dart';
+import 'providers/session_lock_provider.dart';
 import 'providers/theme_provider.dart';
 import 'routes/app_router.dart';
+import 'screens/auth/lock_screen.dart';
 import 'services/auth_notifier.dart';
 import 'services/notification_badge_service.dart';
 import 'services/notification_navigation.dart';
@@ -78,12 +80,20 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
   }
 
   /// Au retour au premier plan, resynchronise le badge de l'icône avec le
-  /// nombre réel de notifications non lues côté backend.
+  /// nombre réel de notifications non lues côté backend, et verrouille l'écran
+  /// si l'absence a dépassé le délai d'inactivité toléré par l'API.
+  ///
+  /// Tout état autre que `resumed` compte comme un départ : sur iOS une simple
+  /// interruption passe par `inactive` avant `paused`, et démarrer le compteur
+  /// au plus tôt fait pencher l'erreur du côté prudent.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       NotificationBadgeService.refresh();
+      ref.read(sessionLockProvider.notifier).evaluateOnResume();
+      return;
     }
+    ref.read(sessionLockProvider.notifier).markBackgrounded();
   }
 
   @override
@@ -100,6 +110,10 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
         NotificationBadgeService.remove();
       }
     });
+
+    // Lu ici, dans le `build` du Consumer : `ref.watch` depuis la closure
+    // `builder` s'exécuterait pendant la construction d'un descendant.
+    final locked = ref.watch(sessionLockProvider);
 
     final themeMode = ref.watch(themeModeProvider);
     final platformBrightness = MediaQuery.platformBrightnessOf(context);
@@ -124,9 +138,17 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
       // de `Theme.of` : changer la clé force la reconstruction complète de
       // l'arbre au changement de mode (les écrans sont reconstruits depuis
       // l'état du routeur, la page courante est conservée).
+      // L'écran de verrouillage se superpose au lieu de remplacer la page :
+      // l'arbre courant reste monté, donc la saisie en cours survit au
+      // déverrouillage.
       builder: (context, child) => KeyedSubtree(
         key: ValueKey(brightness),
-        child: child ?? const SizedBox.shrink(),
+        child: Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            if (locked) const Positioned.fill(child: LockScreen()),
+          ],
+        ),
       ),
     );
   }

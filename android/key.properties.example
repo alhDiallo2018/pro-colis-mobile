@@ -1,0 +1,17 @@
+# Modele du fichier de signature release : copier en `android/key.properties`
+# et renseigner les valeurs reelles. Le fichier final est gitignore et ne doit
+# JAMAIS etre commite, pas plus que le keystore qu'il designe.
+#
+# Generer un nouveau keystore (uniquement pour une application pas encore
+# publiee, ou dont la cle de televersement peut etre reinitialisee via Play App
+# Signing) :
+#
+#   keytool -genkeypair -v \
+#     -keystore android/app/procolis-release.jks \
+#     -alias procolis -keyalg RSA -keysize 4096 -validity 10000
+#
+# `storeFile` est resolu depuis `android/app/`.
+storePassword=
+keyPassword=
+keyAlias=procolis
+storeFile=procolis-release.jks

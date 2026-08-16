@@ -33,6 +33,28 @@ if (keystorePropertiesFile.exists()) {
     }
 }
 
+/**
+ * Le keystore de release est un secret local, absent du depot (gitignore) et de
+ * toute machine fraichement clonee.
+ *
+ * Le bloc `signingConfigs` le lisait sans condition : sur un poste sans
+ * `key.properties`, la phase de configuration echouait sur
+ * « null cannot be cast to non-null type kotlin.String » et plus rien ne
+ * compilait, pas meme un build debug. La presence du keystore est donc evaluee
+ * ici, une fois, et conditionne la suite.
+ */
+val releaseKeystoreFields = listOf("keyAlias", "keyPassword", "storeFile", "storePassword")
+val hasReleaseKeystore = keystorePropertiesFile.exists() &&
+    releaseKeystoreFields.all { !keystoreProperties.getProperty(it).isNullOrBlank() }
+
+if (!hasReleaseKeystore) {
+    logger.warn(
+        "ATTENTION : android/key.properties absent ou incomplet. Les builds release " +
+        "seront signes avec la cle de debug et ne sont PAS publiables. " +
+        "Voir android/key.properties.example."
+    )
+}
+
 android {
     namespace = "com.sendprocolis.app"
     compileSdk = flutter.compileSdkVersion
@@ -53,7 +75,8 @@ android {
     defaultConfig {
         applicationId = "com.sendprocolis.app"
 
-        minSdk = flutter.minSdkVersion
+        // BiometricPrompt (local_auth) demande l'API 23.
+        minSdk = maxOf(23, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
 
         versionCode = flutter.versionCode
@@ -70,17 +93,27 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+        if (hasReleaseKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Repli sur la cle de debug plutot qu'un echec : `flutter run
+            // --release` et les tests de performance restent possibles sans le
+            // keystore. L'avertissement ci-dessus signale que le binaire produit
+            // n'est pas publiable.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
 
             // ✅ ACTIVER ProGuard pour réduire la taille et optimiser
             isMinifyEnabled = true

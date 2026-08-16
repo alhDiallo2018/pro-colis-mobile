@@ -58,7 +58,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
 
   // Pièces jointes (photo / vidéo / note vocale).
   final ImagePicker _picker = ImagePicker();
-  final Record _audioRecorder = Record();
+  final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final List<XFile> _photos = [];
   final List<XFile> _videos = [];
@@ -627,9 +627,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       });
 
       await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
         path: path,
-        encoder: AudioEncoder.aacLc,
-        samplingRate: 44100,
       );
     } catch (error) {
       debugPrint('Erreur enregistrement audio colis: $error');

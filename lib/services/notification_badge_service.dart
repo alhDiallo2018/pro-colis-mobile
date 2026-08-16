@@ -3,15 +3,18 @@ import 'package:flutter/services.dart';
 
 import 'api_service.dart';
 
-/// Synchronise le badge numérique sur l'icône de l'application (Android).
+/// Synchronise le badge numérique sur l'icône de l'application (Android + iOS).
 ///
 /// Le badge reflète le **nombre réel d'éléments non lus** côté SendProColis
-/// (source de vérité : le backend), jamais le nombre de push FCM reçues.
+/// (notifications + messages, source de vérité : le backend), jamais le nombre
+/// de push FCM reçues.
 ///
-/// Côté natif, chaque launcher est adressé via son broadcast dédié
+/// Côté Android, chaque launcher est adressé via son broadcast dédié
 /// (Samsung, Sony, HTC, LG, Huawei, ZTE, OPPO/Vivo). Lorsque le launcher ne
 /// supporte pas les badges numériques (ex. Pixel/stock), l'appel est un no-op :
-/// aucun crash, aucun effet de bord.
+/// aucun crash, aucun effet de bord. Côté iOS, `AppDelegate` applique le compte
+/// via `UNUserNotificationCenter`, ce qui couvre aussi la remise à zéro après
+/// lecture — la charge APNs ne sait que l'incrémenter.
 class NotificationBadgeService {
   NotificationBadgeService._();
 
@@ -34,16 +37,32 @@ class NotificationBadgeService {
   /// Supprime le badge.
   static Future<void> remove() => setCount(0);
 
-  /// Interroge le backend pour le nombre de notifications non lues puis
-  /// applique le badge. À appeler au démarrage, à la reprise d'activité et
-  /// après toute lecture.
+  /// Interroge le backend pour le nombre d'éléments non lus puis applique le
+  /// badge. À appeler au démarrage, à la reprise d'activité et après toute
+  /// lecture.
   static Future<void> refresh() async {
     if (kIsWeb) return;
     try {
-      final count = await ApiService().getUnreadNotificationsCount();
+      final count = await ApiService().getUnreadBadgeCount();
       await setCount(count);
     } catch (_) {
       // Le badge sera resynchronisé au prochain cycle.
     }
+  }
+
+  /// Applique le compte transporté par une push (`data['badge']`).
+  ///
+  /// Le serveur joint le nombre de non-lus à chaque message : le badge est donc
+  /// juste dès la réception, sans aller-retour réseau — indispensable quand la
+  /// push arrive alors que l'application est en arrière-plan ou fermée.
+  /// Retourne `false` si la charge ne portait pas de compte exploitable, à
+  /// charge de l'appelant de retomber sur [refresh].
+  static Future<bool> applyFromPushData(Map<String, dynamic> data) async {
+    if (kIsWeb) return false;
+    final raw = data['badge'];
+    final count = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+    if (count == null) return false;
+    await setCount(count);
+    return true;
   }
 }

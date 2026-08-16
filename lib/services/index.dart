@@ -1,5 +1,6 @@
 export 'api_service.dart';
 export 'auth_notifier.dart';
+export 'biometric_service.dart';
 export 'brevo_service.dart';
 export 'broadcast_service.dart';
 export 'commission_service.dart';

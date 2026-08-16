@@ -7,10 +7,13 @@
 // propositions de prix figées). [canEditMessage] les reproduit ici uniquement
 // pour décider d'afficher ou non l'action : c'est l'API qui tranche.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/api_service.dart';
+import '../services/notification_badge_service.dart';
 
 /// Doit rester aligné sur `MESSAGE_EDIT_WINDOW_MS` de l'API.
 const Duration kMessageEditWindow = Duration(minutes: 15);
@@ -94,6 +97,10 @@ class MessageNotifier extends StateNotifier<MessageState> {
         isLoadingThread: false,
         error: null,
       );
+      // Ouvrir un fil marque ses messages comme lus côté serveur : le badge de
+      // l'icône doit descendre tout de suite, sans attendre le prochain
+      // démarrage de l'application.
+      unawaited(NotificationBadgeService.refresh());
     } catch (e) {
       debugPrint('❌ Chargement du fil: $e');
       state = state.copyWith(error: e.toString(), isLoadingThread: false);

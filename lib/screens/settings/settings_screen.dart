@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
+import '../../services/biometric_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../screens/help/help_screen.dart';
 import '../../screens/profile/profile_screen.dart';
@@ -25,12 +27,121 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushEnabled = true;
   bool _emailEnabled = false;
-  bool _biometricEnabled = true;
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
+  bool _biometricBusy = false;
 
   @override
   void initState() {
     super.initState();
     _loadNotificationPreferences();
+    _loadBiometricState();
+  }
+
+  /// Le réglage reflète l'appareil : afficher un interrupteur actif sur un
+  /// téléphone sans capteur promettait un déverrouillage qui n'arrivait jamais.
+  Future<void> _loadBiometricState() async {
+    final available = await BiometricService.isAvailable();
+    final enabled = await BiometricService.isEnabled();
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = available;
+      _biometricEnabled = enabled;
+    });
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (_biometricBusy) return;
+    setState(() => _biometricBusy = true);
+
+    try {
+      if (!value) {
+        await BiometricService.disable();
+        if (!mounted) return;
+        setState(() => _biometricEnabled = false);
+        _notify('Déverrouillage biométrique désactivé');
+        return;
+      }
+
+      // L'empreinte d'abord : inutile de réclamer le PIN si le capteur refuse.
+      final approved = await BiometricService.authenticate(
+        'Confirmez votre empreinte pour activer le déverrouillage',
+      );
+      if (!approved) {
+        _notify('Empreinte non reconnue');
+        return;
+      }
+
+      final pin = await _askPin();
+      if (pin == null) return;
+
+      final identifier =
+          await ref.read(authProvider.notifier).getSavedIdentifier();
+      if (identifier == null || identifier.isEmpty) {
+        _notify('Reconnectez-vous une fois pour activer cette option');
+        return;
+      }
+
+      // Le PIN est vérifié par l'API avant d'être mémorisé : sans ce contrôle,
+      // une faute de frappe serait enregistrée et l'empreinte échouerait
+      // ensuite sans que la cause soit compréhensible. La vérification passe
+      // par ApiService et non par le provider : un PIN erroné y basculerait
+      // l'état d'authentification en erreur et déconnecterait l'utilisateur.
+      final result = await ApiService().loginWithPin(pin, identifier);
+      if (result['accessToken'] == null && result['success'] != true) {
+        _notify(result['message']?.toString() ?? 'Code PIN incorrect');
+        return;
+      }
+
+      await BiometricService.enable(pin);
+      if (!mounted) return;
+      setState(() => _biometricEnabled = true);
+      _notify('Déverrouillage biométrique activé');
+    } finally {
+      if (mounted) setState(() => _biometricBusy = false);
+    }
+  }
+
+  void _notify(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<String?> _askPin() async {
+    // Appelé après l'attente du capteur : l'écran a pu être quitté entre-temps.
+    if (!mounted) return null;
+    final controller = TextEditingController();
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmez votre code PIN'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(
+            hintText: '6 chiffres',
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (pin == null || pin.length != 6) return null;
+    return pin;
   }
 
   Future<void> _loadNotificationPreferences() async {
@@ -330,10 +441,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   icon: Icons.fingerprint_rounded,
                   tone: PcTone.primary,
                   title: 'Déverrouillage biométrique',
-                  subtitle: 'Empreinte ou reconnaissance faciale',
+                  subtitle: _biometricAvailable
+                      ? 'Empreinte ou reconnaissance faciale'
+                      : 'Aucun capteur configuré sur cet appareil',
                   value: _biometricEnabled,
-                  onChanged: (value) =>
-                      setState(() => _biometricEnabled = value),
+                  onChanged: _biometricAvailable && !_biometricBusy
+                      ? _toggleBiometric
+                      : null,
                 ),
                 const PcDivider(),
                 PcListRow(
@@ -468,7 +582,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    // Nul = interrupteur desactive : sur un appareil sans capteur biometrique,
+    // l'option reste visible mais inactionnable plutot que d'etre escamotee.
+    required ValueChanged<bool>? onChanged,
   }) {
     return PcListRow(
       icon: icon,

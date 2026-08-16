@@ -77,7 +77,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   List<XFile> _videos = [];
   List<VoiceMessageData> _voiceMessages = [];
 
-  final Record _recorder = Record();
+  final AudioRecorder _recorder = AudioRecorder();
   final AudioPlayer _player = AudioPlayer();
   bool _isRecording = false;
   int _recordDuration = 0;
@@ -258,9 +258,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         final filePath =
             '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _recorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
           path: filePath,
-          encoder: AudioEncoder.aacLc,
-          samplingRate: 44100,
         );
         setState(() {
           _isRecording = true;

@@ -27,7 +27,7 @@ class AdminSupportScreen extends StatefulWidget {
 
 class _AdminSupportScreenState extends State<AdminSupportScreen> {
   final ApiService _api = ApiService();
-  final _audioRecorder = Record();
+  final _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final ImagePicker _imagePicker = ImagePicker();
   final _messageController = TextEditingController();
@@ -306,9 +306,8 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
         final filePath =
             '${tempDir.path}/sendprocolis_support_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
           path: filePath,
-          encoder: AudioEncoder.aacLc,
-          samplingRate: 44100,
         );
         setState(() {
           _isRecording = true;

@@ -3,6 +3,8 @@
     <!-- ==================== PERMISSIONS RÉSEAU ==================== -->
     <!-- Permissions Internet (obligatoire pour les API) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Deverrouillage par empreinte / visage (local_auth). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />

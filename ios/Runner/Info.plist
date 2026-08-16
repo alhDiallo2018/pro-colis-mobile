@@ -83,5 +83,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>SENDPROCOLIS utilise Face ID pour deverrouiller votre session sans ressaisir votre code PIN.</string>
 </dict>
 </plist>

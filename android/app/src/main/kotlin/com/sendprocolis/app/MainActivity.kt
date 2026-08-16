@@ -1,10 +1,12 @@
 package com.sendprocolis.app
 
-import io.flutter.embedding.android.FlutterActivity
+// `local_auth` s'appuie sur BiometricPrompt, qui exige une FragmentActivity :
+// avec FlutterActivity la demande d'empreinte echoue sans message.
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val badgeChannelName = "sendprocolis/badge"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

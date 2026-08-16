@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/country_data.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/biometric_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/custom_text_field.dart';
@@ -28,6 +29,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePin = true;
   bool _rememberMe = true;
+  bool _biometricReady = false;
 
   CountryInfo? _selectedCountry;
   String _countrySearchQuery = '';
@@ -41,6 +43,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       orElse: () => allCountries.first,
     );
     _loadSavedData();
+    _loadBiometricState();
+  }
+
+  /// Le raccourci n'apparaît que si un secret est réellement mémorisé : un
+  /// bouton qui échouerait à chaque appui vaut moins que pas de bouton.
+  Future<void> _loadBiometricState() async {
+    final ready = await BiometricService.isEnabled();
+    if (mounted) setState(() => _biometricReady = ready);
+  }
+
+  /// Reconnexion par empreinte après une session fermée pour inactivité.
+  Future<void> _loginWithBiometrics() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    final unlocked = await ref.read(authProvider.notifier).unlockWithBiometrics();
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (unlocked) {
+      GoRouter.of(context).go('/dashboard');
+      return;
+    }
+    _showSnack(
+      'Déverrouillage impossible. Saisissez votre code PIN.',
+      AppTheme.warningColor,
+    );
   }
 
   @override
@@ -416,6 +446,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     iconTrailing: Icons.arrow_forward_rounded,
                     onPressed: _loginWithPin,
                   ),
+                  if (_biometricReady) ...[
+                    const SizedBox(height: 12),
+                    PcButton(
+                      'Déverrouiller avec l’empreinte',
+                      size: PcButtonSize.lg,
+                      block: true,
+                      variant: PcButtonVariant.secondary,
+                      icon: Icons.fingerprint_rounded,
+                      onPressed: _isLoading ? null : _loginWithBiometrics,
+                    ),
+                  ],
                   const SizedBox(height: 26),
 
                   Center(

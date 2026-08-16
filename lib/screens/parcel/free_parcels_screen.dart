@@ -202,7 +202,7 @@ class _FreeParcelDetailsScreenState
     extends ConsumerState<FreeParcelDetailsScreen> {
   final _priceController = TextEditingController();
   final _messageController = TextEditingController();
-  final _audioRecorder = Record();
+  final _audioRecorder = AudioRecorder();
   final _audioPlayer = AudioPlayer();
 
   Timer? _recordingTimer;
@@ -265,9 +265,8 @@ class _FreeParcelDetailsScreenState
       });
 
       await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
         path: path,
-        encoder: AudioEncoder.aacLc,
-        samplingRate: 44100,
       );
     } catch (error) {
       debugPrint('Erreur enregistrement offre: $error');

@@ -41,6 +41,7 @@ class _DriverMesAnnoncesScreenState
   /// lisent l'état courant.
   List<Map<String, dynamic>> get _ads => ref.read(advertisementProvider).myAds;
   bool get _isLoading => ref.read(advertisementProvider).isLoading;
+  String? get _error => ref.read(advertisementProvider).error;
 
   String? _busyOfferId;
   late final TabController _tabController;
@@ -52,7 +53,11 @@ class _DriverMesAnnoncesScreenState
       ..addListener(() {
         if (mounted) setState(() {});
       });
-    _loadAds();
+    // Les deux chargements sont différés hors de `initState` : écrire dans un
+    // provider pendant la construction de l'arbre fait lever Riverpod, et
+    // l'exception coupait la requête après avoir laissé `isLoading` à vrai —
+    // l'onglet « Voyages » tournait alors indéfiniment sans rien charger.
+    Future.microtask(_loadAds);
     // Colis des clients (libre service) sur lesquels le chauffeur peut faire une offre
     Future.microtask(() => ref.read(parcelProvider.notifier).loadFreeParcels());
   }
@@ -389,13 +394,43 @@ class _DriverMesAnnoncesScreenState
 
   // Onglet 1 : ses annonces de voyage
   Widget _buildAdsTab() {
-    if (_isLoading) {
+    // Le spinner ne remplace la liste qu'au tout premier chargement : pendant
+    // un rechargement (retour de détail, pull-to-refresh, mutation) les voyages
+    // déjà connus restent affichés.
+    if (_isLoading && _ads.isEmpty) {
       return const Center(child: CircularProgressIndicator());
+    }
+    // Une liste vide après un échec n'est pas un compte sans annonce : on
+    // affiche la cause et un bouton de reprise plutôt que « Aucune annonce ».
+    final error = _error;
+    if (_ads.isEmpty && error != null) {
+      return RefreshIndicator(
+        onRefresh: _loadAds,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            const SizedBox(height: 80),
+            PcEmptyState(
+              icon: Icons.wifi_off_rounded,
+              tone: PcTone.amber,
+              title: 'Impossible de charger vos voyages',
+              message: error,
+              action: PcButton(
+                'Réessayer',
+                icon: Icons.refresh_rounded,
+                size: PcButtonSize.sm,
+                onPressed: _loadAds,
+              ),
+            ),
+          ],
+        ),
+      );
     }
     return RefreshIndicator(
       onRefresh: _loadAds,
       child: _ads.isEmpty
           ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 const SizedBox(height: 80),
                 PcEmptyState(

@@ -90,7 +90,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   TimeOfDay? _selectedTime;
 
   // Messages vocaux
-  final _audioRecorder = Record();
+  final _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final List<VoiceMessage> _voiceMessages = [];
   bool _isRecording = false;
@@ -286,9 +286,8 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
       });
 
       await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
         path: path,
-        encoder: AudioEncoder.aacLc,
-        samplingRate: 44100,
       );
     } catch (e) {
       debugPrint('❌ Erreur lors de l\'enregistrement: $e');

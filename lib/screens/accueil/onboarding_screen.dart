@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../providers/auth_provider.dart';  // À adapter selon votre structure
+import '../../models/user.dart';
+import '../../providers/auth_provider.dart'; // À adapter selon votre structure
 import '../../theme/app_theme.dart';
 import '../../theme/fonts.dart';
 import '../../widgets/app_logo.dart';
@@ -234,10 +235,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ],
         );
       default:
+        final authState = ref.watch(authProvider);
         final recommendation = _buildRecommendation(
           goal: _goal!,
           experience: _experience!,
           priority: _priority!,
+          primaryCta: _primaryCta(
+            _goal!,
+            authState.isAuthenticated ? authState.user : null,
+          ),
         );
         return _RecommendationView(
           recommendation: recommendation,
@@ -310,6 +316,37 @@ class _Recommendation {
   });
 }
 
+class _CallToAction {
+  final String label;
+  final String route;
+
+  const _CallToAction(this.label, this.route);
+}
+
+/// Une fois connecté, « Créer un compte » n'a plus de sens : le routeur
+/// renverrait de toute façon `/register` vers `/dashboard`. On oriente donc
+/// vers l'action utile du rôle, et vers l'espace personnel quand le rôle ne
+/// correspond pas à l'objectif choisi (un client qui explore le parcours
+/// chauffeur, par exemple).
+_CallToAction _primaryCta(_OnboardingGoal goal, User? user) {
+  if (user == null) {
+    return switch (goal) {
+      _OnboardingGoal.send => const _CallToAction(
+          'Créer un compte expéditeur', '/register?role=client'),
+      _OnboardingGoal.drive => const _CallToAction(
+          'Créer un compte chauffeur', '/register?role=driver'),
+    };
+  }
+
+  if (goal == _OnboardingGoal.send && user.isClient) {
+    return const _CallToAction('Créer mon envoi', '/parcel/new');
+  }
+  if (goal == _OnboardingGoal.drive && user.isDriver) {
+    return const _CallToAction('Accéder à mon espace chauffeur', '/dashboard');
+  }
+  return const _CallToAction('Accéder à mon espace', '/dashboard');
+}
+
 /// Matrice de recommandation centralisée : les textes communs restent liés au
 /// métier choisi, puis le titre et le conseil final sont adaptés à la priorité.
 /// Cette séparation évite de disperser la logique de personnalisation dans l'UI.
@@ -317,6 +354,7 @@ _Recommendation _buildRecommendation({
   required _OnboardingGoal goal,
   required _OnboardingExperience experience,
   required _OnboardingPriority priority,
+  required _CallToAction primaryCta,
 }) {
   final isFirstTime = experience == _OnboardingExperience.firstTime;
 
@@ -343,8 +381,8 @@ _Recommendation _buildRecommendation({
           _OnboardingPriority.control =>
             'Vérifiez le profil, le score et le prix du chauffeur avant d’accepter une offre.',
         },
-        primaryLabel: 'Créer un compte expéditeur',
-        primaryRoute: '/register?role=client',
+        primaryLabel: primaryCta.label,
+        primaryRoute: primaryCta.route,
         steps: const [
           _GuidanceStep(
             icon: Icons.edit_note_rounded,
@@ -389,8 +427,8 @@ _Recommendation _buildRecommendation({
           _OnboardingPriority.control =>
             'Vérifiez le colis, le trajet et la rémunération avant de faire une offre.',
         },
-        primaryLabel: 'Créer un compte chauffeur',
-        primaryRoute: '/register?role=driver',
+        primaryLabel: primaryCta.label,
+        primaryRoute: primaryCta.route,
         steps: const [
           _GuidanceStep(
             icon: Icons.badge_rounded,
@@ -441,28 +479,34 @@ class _OnboardingTopBar extends StatelessWidget {
               children: [
                 const AppLogo(size: 38),
                 const SizedBox(width: 10),
-                RichText(
-                  text: TextSpan(
-                    style: AppFonts.plusJakartaSans(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
-                      color: AppTheme.slate900,
-                    ),
-                    children: [
-                      TextSpan(text: 'Send '),
-                      TextSpan(
-                        text: 'ProColis',
-                        style: TextStyle(color: AppTheme.amber500),
+                // La marque absorbe l'espace libre plutôt qu'un `Spacer` :
+                // sur un téléphone, un `Spacer` se partage la place restante
+                // avec le bouton de droite et le réduit à « Drive… ».
+                Expanded(
+                  child: RichText(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: AppTheme.slate900,
                       ),
-                    ],
+                      children: [
+                        TextSpan(text: 'Send '),
+                        TextSpan(
+                          text: 'ProColis',
+                          style: TextStyle(color: AppTheme.amber500),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const Spacer(),
-                // ✅ Modification ici : afficher le nom ou "Mon compte" si connecté
-                if (isLoggedIn && userName.isNotEmpty)
-                  _buildUserButton(context)
-                else if (isLoggedIn)
+                const SizedBox(width: 8),
+                // Connecté : « Se connecter » laisse la place au nom de
+                // l'utilisateur, ou à « Mon compte » si le nom est inconnu.
+                if (isLoggedIn)
                   _buildAccountButton(context)
                 else
                   _buildLoginButton(context),
@@ -481,24 +525,38 @@ class _OnboardingTopBar extends StatelessWidget {
     );
   }
 
+  /// Sur un écran de téléphone la barre est étroite : on ne garde que le
+  /// prénom quand le nom complet est long, et le libellé s'ellipse au lieu
+  /// de faire déborder la Row.
   Widget _buildAccountButton(BuildContext context) {
-    return TextButton.icon(
-      onPressed: () => context.go('/profile'),
-      icon: Icon(Icons.account_circle_rounded, color: AppTheme.primary),
-      label: const Text('Mon compte'),
-    );
-  }
+    final trimmed = userName.trim();
+    final label = trimmed.isEmpty
+        ? 'Mon compte'
+        : (trimmed.length > 16 ? trimmed.split(' ').first : trimmed);
 
-  Widget _buildUserButton(BuildContext context) {
-    return TextButton.icon(
+    return TextButton(
       onPressed: () => context.go('/profile'),
-      icon: Icon(Icons.account_circle_rounded, color: AppTheme.primary),
-      label: Text(
-        userName.length > 20 ? '${userName.substring(0, 20)}...' : userName,
-        style: AppFonts.plusJakartaSans(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.account_circle_rounded,
+            color: AppTheme.primary,
+            size: 20,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -44,7 +44,7 @@ class MessagesScreen extends ConsumerStatefulWidget {
 class _MessagesScreenState extends ConsumerState<MessagesScreen>
     with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
-  final _audioRecorder = Record();
+  final _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   List<Map<String, dynamic>> _conversations = [];
@@ -364,9 +364,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         final tempDir = Directory.systemTemp;
         final filePath = '${tempDir.path}/sendprocolis_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
           path: filePath,
-          encoder: AudioEncoder.aacLc,
-          samplingRate: 44100,
         );
         setState(() {
           _isRecording = true;

@@ -58,7 +58,10 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         isLoading: false,
         unreadCount: unreadCount,
       );
-      await NotificationBadgeService.setCount(unreadCount);
+      // Le badge compte aussi les messages non lus : il se resynchronise
+      // depuis le backend plutôt que de recopier le compteur des notifications,
+      // qui l'amputerait des conversations en attente.
+      await NotificationBadgeService.refresh();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -76,7 +79,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         notifications: notifications,
         unreadCount: unreadCount,
       );
-      await NotificationBadgeService.setCount(unreadCount);
+      await NotificationBadgeService.refresh();
     }
   }
 
@@ -89,7 +92,8 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         notifications: notifications,
         unreadCount: 0,
       );
-      await NotificationBadgeService.setCount(0);
+      // Pas de `setCount(0)` : des messages peuvent rester non lus.
+      await NotificationBadgeService.refresh();
     }
   }
 
