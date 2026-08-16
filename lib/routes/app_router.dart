@@ -135,6 +135,11 @@ class AppRouter {
         if (authState.isAuthenticated && (isLogin || isRegister))
           return '/dashboard';
 
+        // Une fois connecté, l'onboarding n'a plus d'utilité : il est
+        // désactivé et renvoie directement vers l'espace personnel pour ne
+        // pas rejouer le questionnaire à chaque visite de la landing.
+        if (authState.isAuthenticated && isLanding) return '/dashboard';
+
         // Garde par rôle (aligné sur RequireRole du web) :
         // chaque espace est réservé à son rôle, sinon retour au dashboard.
         if (authState.isAuthenticated) {
