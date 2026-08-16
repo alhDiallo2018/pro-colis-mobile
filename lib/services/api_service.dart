@@ -405,7 +405,7 @@ class ApiService {
           .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      debugPrint('❌ [API] getDriverParcels failed: $e');
+      debugPrint('❌ [API] getFreeParcels failed: $e');
       rethrow;
     }
   }
@@ -652,7 +652,12 @@ class ApiService {
       Map<String, dynamic> data) async {
     try {
       final response = await _dio.post('/advertisements', data: data);
-      return _handleResponse(response);
+      final responseData = _handleResponse(response);
+      // L'API répond soit `{success:true, advertisement}`, soit une erreur
+      // `{success:false, message}`. En l'absence de drapeau explicite on
+      // considère la requête réussie (le client ne lève qu'en cas de 5xx).
+      if (responseData['success'] == false) return responseData;
+      return {'success': true, ...responseData};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -685,7 +690,9 @@ class ApiService {
     try {
       final response =
           await _dio.put('/advertisements/$advertisementId', data: data);
-      return _handleResponse(response);
+      final responseData = _handleResponse(response);
+      if (responseData['success'] == false) return responseData;
+      return {'success': true, ...responseData};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -798,7 +805,12 @@ class ApiService {
     try {
       final response = await _dio.get('/advertisements/my');
       final responseData = _handleResponse(response);
-      final List<dynamic> adsData = responseData['advertisements'] ?? [];
+      // L'API peut renvoyer la liste sous différentes clés selon la version
+      // (`advertisements`, `data` ou `parcels`) : on les accepte toutes.
+      final List<dynamic>? adsData = responseData['advertisements'] ??
+          responseData['data'] ??
+          responseData['parcels'];
+      if (adsData is! List) return [];
       return adsData.map((json) => json as Map<String, dynamic>).toList();
     } catch (e) {
       return [];
@@ -862,7 +874,9 @@ class ApiService {
       final response = await _dio.post(
           '/advertisements/$advertisementId/offers/$offerId/negotiate',
           data: data);
-      return _handleResponse(response);
+      final responseData = _handleResponse(response);
+      if (responseData['success'] == false) return responseData;
+      return {'success': true, ...responseData};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }

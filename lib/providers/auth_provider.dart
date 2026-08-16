@@ -259,7 +259,11 @@ class AuthState {
     this.isAuthenticated = false,
   });
 
-  factory AuthState.initial() => AuthState(isLoading: false);
+  /// État de démarrage : `isLoading` est vrai pour que l'écran de splash (et le
+  /// redirect GoRouter) attendent la fin de la restauration de session
+  /// (`_loadUser`). Sans cela, le splash redirige vers `/landing` avant que la
+  /// session ne soit résolue, ce qui fait rebondir l'utilisateur connecté.
+  factory AuthState.initial() => AuthState(isLoading: true);
   factory AuthState.loading() => AuthState(isLoading: true);
   factory AuthState.authenticated(User? user) =>
       AuthState(isLoading: false, user: user, isAuthenticated: true);

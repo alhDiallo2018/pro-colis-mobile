@@ -428,6 +428,29 @@ class _DriverMesAnnoncesScreenState
     if (parcelState.isLoadingFreeParcels && colis.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
+    if (colis.isEmpty && parcelState.error != null) {
+      return RefreshIndicator(
+        onRefresh: _loadColis,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            const SizedBox(height: 80),
+            PcEmptyState(
+              icon: Icons.wifi_off_rounded,
+              tone: PcTone.amber,
+              title: 'Impossible de charger les colis',
+              message: 'Vérifiez votre connexion puis réessayez.',
+              action: PcButton(
+                'Réessayer',
+                icon: Icons.refresh_rounded,
+                size: PcButtonSize.sm,
+                onPressed: _loadColis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return RefreshIndicator(
       onRefresh: _loadColis,
       child: colis.isEmpty

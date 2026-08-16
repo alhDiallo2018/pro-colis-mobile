@@ -87,12 +87,12 @@ Reponse :
 {
   "success": true,
   "message": "Fichier envoye",
-  "url": "http://localhost:18081/uploads/photo/uuid.jpg",
+  "url": "https://sendprocolis.com/uploads/photo/uuid.jpg",
   "media": {
     "id": "uuid",
     "parcelId": "uuid",
     "mediaType": "photo",
-    "url": "http://localhost:18081/uploads/photo/uuid.jpg"
+    "url": "https://sendprocolis.com/uploads/photo/uuid.jpg"
   }
 }
 ```
@@ -134,7 +134,7 @@ Reponse :
 {
   "success": true,
   "message": "Fichier envoye",
-  "url": "http://localhost:18081/uploads/uuid.jpg"
+  "url": "https://sendprocolis.com/uploads/uuid.jpg"
 }
 ```
 

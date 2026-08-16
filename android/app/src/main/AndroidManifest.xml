@@ -94,6 +94,16 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="sendprocolis_channel" />
 
+        <!-- Icône et couleur des notifications système (barre de statut).
+             L'icône est le logo SendProColis (avant-plan transparent) : Android
+             la rend en silhouette blanche, comme le requiert la plateforme. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_launcher_foreground" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
+
         <!-- ==================== GOOGLE MAPS (SDK NATIF) ==================== -->
         <!-- Requis par google_maps_flutter pour le rendu de la carte (choix
              d'une zone, itinéraire). Sans clé valide, la carte reste grise.

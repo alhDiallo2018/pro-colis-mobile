@@ -32,6 +32,7 @@ import '../profile/profile_screen.dart';
 import '../shared/messages_screen.dart';
 
 import '../../services/notification_service.dart';
+import '../../services/notification_badge_service.dart';
 
 class ClientDashboard extends ConsumerStatefulWidget {
   const ClientDashboard({super.key});
@@ -115,6 +116,8 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
           _unreadNotificationsCount = unreadCount;
         });
       }
+      // Le badge de l'icône suit le même compteur que l'application.
+      await NotificationBadgeService.setCount(unreadCount);
     } catch (e) {
       debugPrint('❌ Erreur chargement compteur notifications: $e');
       if (mounted) {

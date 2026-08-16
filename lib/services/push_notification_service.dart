@@ -21,6 +21,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api/client.dart';
 import 'api/notifications_api.dart';
+import 'notification_badge_service.dart';
 import 'notification_service.dart';
 
 /// Handler des messages reçus quand l'app est en background / terminée.
@@ -45,7 +46,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         id: DateTime.now().millisecondsSinceEpoch.hashCode,
         title: message.data['title']?.toString() ?? 'SENDPROCOLIS',
         body: message.data['body']?.toString() ?? '',
-        payload: message.data['trackingNumber']?.toString(),
+        data: message.data,
       );
     } catch (_) {
       // Jamais bloquant.
@@ -68,7 +69,24 @@ class PushNotificationService {
   /// Le payload contient les données FCM (trackingNumber, parcelId, type…).
   /// À brancher depuis la couche routing (GoRouter) pour naviguer vers la
   /// page appropriée (détail colis, messages, etc.).
-  static void Function(Map<String, String> data)? onNotificationTap;
+  ///
+  /// Si une notification a été ouverte avant que le handler ne soit branché
+  /// (démarrage à froid), elle est mise en attente puis rejouée dès
+  /// l'affectation du handler.
+  static void Function(Map<String, String> data)? _onNotificationTap;
+  static Map<String, String>? _pendingTapData;
+
+  static void Function(Map<String, String> data)? get onNotificationTap =>
+      _onNotificationTap;
+
+  static set onNotificationTap(void Function(Map<String, String> data)? handler) {
+    _onNotificationTap = handler;
+    final pending = _pendingTapData;
+    if (handler != null && pending != null) {
+      _pendingTapData = null;
+      handler(pending);
+    }
+  }
 
   /// `true` si Firebase a pu être initialisé (fichiers de config présents).
   static bool get isAvailable => _firebaseReady;
@@ -153,11 +171,15 @@ class PushNotificationService {
         message.notification?.body ?? message.data['body']?.toString();
     if (title == null && body == null) return;
 
+    // L'arrivée d'une notification au premier plan incrémente le compteur de
+    // non-lus côté backend : on resynchronise le badge immédiatement.
+    unawaited(NotificationBadgeService.refresh());
+
     unawaited(NotificationService.showNotification(
       id: DateTime.now().millisecondsSinceEpoch.hashCode,
       title: title ?? 'SENDPROCOLIS',
       body: body ?? '',
-      payload: message.data['trackingNumber']?.toString(),
+      data: message.data,
     ));
   }
 
@@ -168,8 +190,12 @@ class PushNotificationService {
     debugPrint(
       'PushNotificationService: notification ouverte, data=$data',
     );
-    if (onNotificationTap != null) {
-      onNotificationTap!(data);
+    if (_onNotificationTap != null) {
+      _onNotificationTap!(data);
+    } else {
+      // Handler pas encore branché (app en cours de démarrage) : rejoué à
+      // l'affectation de `onNotificationTap`.
+      _pendingTapData = data;
     }
   }
 

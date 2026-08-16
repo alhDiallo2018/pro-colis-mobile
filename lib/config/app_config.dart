@@ -5,7 +5,7 @@
 abstract final class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:18081/api/v1',
+    defaultValue: 'https://sendprocolis.com/api/v1',
   );
 
   static const String _configuredPublicAppUrl = String.fromEnvironment(
@@ -36,7 +36,7 @@ abstract final class AppConfig {
       return apiUri.origin;
     }
 
-    return 'http://localhost:18081';
+    return 'https://sendprocolis.com';
   }
 
   static String get mediaBaseUrl {

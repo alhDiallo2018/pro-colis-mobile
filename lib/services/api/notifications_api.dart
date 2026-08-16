@@ -19,7 +19,7 @@ class NotificationsApi {
   }
 
   /// Enregistre le token FCM de l'appareil côté backend.
-  /// Appelle `POST /notifications/device-token`.
+  /// Appelle `POST /notifications/device-token` (alias de `POST /users/fcm-token`).
   Future<bool> registerDeviceToken(String token, {String? deviceName}) async {
     try {
       final data = <String, dynamic>{
@@ -28,10 +28,6 @@ class NotificationsApi {
       };
       if (deviceName != null) data['deviceName'] = deviceName;
 
-      // `/users/fcm-token` n'a jamais existé côté serveur : la route est
-      // `POST /notifications/device-token` (`notification.routes.js`). L'échec
-      // était avalé par le `catch` ci-dessous, donc aucun jeton n'arrivait en
-      // base et aucune notification push n'était livrée.
       final res = await client.dio.post('/notifications/device-token', data: data);
       return client.handle(res)['success'] == true;
     } catch (e) {

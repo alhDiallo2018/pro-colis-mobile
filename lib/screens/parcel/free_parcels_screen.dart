@@ -26,6 +26,7 @@ import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/pc_components.dart';
 import '../driver/itinerary_map_screen.dart';
+import 'parcel_detail_screen.dart';
 
 class FreeParcelsScreen extends ConsumerStatefulWidget {
   const FreeParcelsScreen({super.key});
@@ -396,6 +397,15 @@ class _FreeParcelDetailsScreenState
     );
   }
 
+  void _openDetail() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ParcelDetailScreen(parcel: widget.parcel),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_sent) {
@@ -432,14 +442,28 @@ class _FreeParcelDetailsScreenState
           padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           children: [
-            ParcelCard(parcel: widget.parcel, onTap: () {}),
+            ParcelCard(parcel: widget.parcel, onTap: _openDetail),
             const SizedBox(height: 12),
-            PcButton(
-              'Itinéraire',
-              icon: Icons.map_rounded,
-              variant: PcButtonVariant.secondary,
-              block: true,
-              onPressed: _openItinerary,
+            Row(
+              children: [
+                Expanded(
+                  child: PcButton(
+                    'Itinéraire',
+                    icon: Icons.map_rounded,
+                    variant: PcButtonVariant.secondary,
+                    onPressed: _openItinerary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: PcButton(
+                    'Détail du colis',
+                    icon: Icons.info_outline_rounded,
+                    variant: PcButtonVariant.secondary,
+                    onPressed: _openDetail,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 26),
             _OfferPriceField(

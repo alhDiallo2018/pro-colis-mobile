@@ -14,6 +14,7 @@ import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../models/parcel.dart';
+import '../screens/parcel/parcel_detail_screen.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'pc_components.dart';
@@ -412,100 +413,14 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     }
   }
 
+  /// Ouvre l'écran de détail complet du colis (ParcelDetailScreen) plutôt que
+  /// de dupliquer les infos dans un simple dialog.
   void _showParcelDetail() {
-    if (_parcel == null) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_parcel!.trackingNumber,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 16)),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_parcel!.description.isNotEmpty)
-                _detailRow('Description', _parcel!.description),
-              _detailRow('Poids', _parcel!.formattedWeight),
-              _detailRow('Type', _parcel!.type.label),
-              _detailRow('Statut', _parcel!.status.label),
-              if (_parcel!.receiverName.isNotEmpty)
-                _detailRow('Destinataire', _parcel!.receiverName),
-              if (_parcel!.receiverPhone.isNotEmpty)
-                _detailRow('Tél', _parcel!.receiverPhone),
-              if (_parcel!.receiverAddress != null &&
-                  _parcel!.receiverAddress!.isNotEmpty)
-                _detailRow('Adresse', _parcel!.receiverAddress!),
-              if (_parcel!.photoUrls.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                const Text('Photos',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                Wrap(
-                  spacing: 8,
-                  children: _parcel!.photoUrls
-                      .map((u) => Image.network(u, width: 72, height: 72,
-                          fit: BoxFit.cover))
-                      .toList(),
-                ),
-              ],
-              if (_parcel!.audioUrls.isNotEmpty)
-                ..._parcel!.audioUrls.map((u) => _audioBubble(u)),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(label,
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _audioBubble(String url) {
-    final playing = _playingAudio == url;
-    return GestureDetector(
-      onTap: () => _toggleAudio(url),
-      child: Container(
-        margin: const EdgeInsets.only(top: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppTheme.slate100,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                color: AppTheme.teal600, size: 22),
-            const SizedBox(width: 6),
-            Text(playing ? 'Lecture…' : 'Message vocal',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-          ],
-        ),
-      ),
+    final parcel = _parcel;
+    if (parcel == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ParcelDetailScreen(parcel: parcel)),
     );
   }
 

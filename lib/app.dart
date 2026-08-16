@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,10 @@ import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'routes/app_router.dart';
 import 'services/auth_notifier.dart';
+import 'services/notification_badge_service.dart';
+import 'services/notification_navigation.dart';
+import 'services/notification_service.dart';
+import 'services/push_notification_service.dart';
 import 'theme/app_theme.dart';
 
 class ProColisApp extends ConsumerStatefulWidget {
@@ -23,12 +29,43 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
     super.initState();
     _router = AppRouter.router();
     WidgetsBinding.instance.addObserver(this);
+
+    // Branche la navigation depuis une notification : le handler est affecté
+    // après la création du routeur, ce qui rejoue aussi une éventuelle
+    // notification ouverte pendant le démarrage à froid.
+    PushNotificationService.onNotificationTap = _handleNotificationTap;
+    NotificationService.onNotificationTap = _handleLocalNotificationTap;
   }
 
   @override
   void dispose() {
+    PushNotificationService.onNotificationTap = null;
+    NotificationService.onNotificationTap = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _handleNotificationTap(Map<String, String> data) {
+    NotificationNavigation.handle(data, _router);
+  }
+
+  /// Une notification locale transporte son `payload` sous forme de chaîne :
+  /// JSON pour les notifications produites par FCM, ou un simple numéro de
+  /// suivi pour les anciennes notifications locales.
+  void _handleLocalNotificationTap(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+    final data = <String, String>{};
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        decoded.forEach((k, v) => data[k.toString()] = v.toString());
+      } else {
+        data['trackingNumber'] = payload;
+      }
+    } catch (_) {
+      data['trackingNumber'] = payload;
+    }
+    NotificationNavigation.handle(data, _router);
   }
 
   /// En mode « Système », le thème doit suivre le réglage de l'appareil même
@@ -40,10 +77,28 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
     }
   }
 
+  /// Au retour au premier plan, resynchronise le badge de l'icône avec le
+  /// nombre réel de notifications non lues côté backend.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      NotificationBadgeService.refresh();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(authProvider, (prev, next) {
       authRefreshNotifier.notify();
+      // Connexion / restauration de session : enregistre le token FCM et
+      // resynchronise le badge des non-lus.
+      final wasAuthenticated = prev?.isAuthenticated ?? false;
+      if (next.isAuthenticated && !wasAuthenticated) {
+        PushNotificationService.registerTokenWithBackend();
+        NotificationBadgeService.refresh();
+      } else if (!next.isAuthenticated && wasAuthenticated) {
+        NotificationBadgeService.remove();
+      }
     });
 
     final themeMode = ref.watch(themeModeProvider);

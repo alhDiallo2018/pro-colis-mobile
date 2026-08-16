@@ -4,4 +4,6 @@
     <!-- Fond de l'écran de lancement : aligné sur AppTheme.backgroundColor
          (slate50) pour que la main au moteur Flutter se fasse sans flash. -->
     <color name="launch_background">#F6F8F8</color>
+    <!-- Teal de marque : utilisé pour l'accent des notifications système. -->
+    <color name="notification_accent">#018982</color>
 </resources>

@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/models/notification.dart';
 import 'package:procolis/services/api_service.dart';
+import 'package:procolis/services/notification_badge_service.dart';
 
 final notificationProvider =
     StateNotifierProvider<NotificationNotifier, NotificationState>((ref) {
@@ -57,6 +58,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         isLoading: false,
         unreadCount: unreadCount,
       );
+      await NotificationBadgeService.setCount(unreadCount);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -69,10 +71,12 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         if (n.id == notificationId) return n.markAsRead();
         return n;
       }).toList();
+      final unreadCount = (state.unreadCount - 1).clamp(0, 99999);
       state = state.copyWith(
         notifications: notifications,
-        unreadCount: (state.unreadCount - 1).clamp(0, 99999),
+        unreadCount: unreadCount,
       );
+      await NotificationBadgeService.setCount(unreadCount);
     }
   }
 
@@ -85,6 +89,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         notifications: notifications,
         unreadCount: 0,
       );
+      await NotificationBadgeService.setCount(0);
     }
   }
 

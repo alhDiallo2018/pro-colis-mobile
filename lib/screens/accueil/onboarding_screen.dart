@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/auth_provider.dart';  // À adapter selon votre structure
 import '../../theme/app_theme.dart';
 import '../../theme/fonts.dart';
 import '../../widgets/app_logo.dart';
@@ -8,14 +10,14 @@ import '../../widgets/pc_components.dart';
 
 /// Remplace l'ancienne page marketing par un diagnostic court qui oriente
 /// immédiatement l'utilisateur vers le parcours Send ProColis correspondant.
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   static const int _questionCount = 3;
 
   int _currentStep = 0;
@@ -55,12 +57,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Récupérer l'état d'authentification
+    final authState = ref.watch(authProvider);
+    final isLoggedIn = authState.isAuthenticated;
+    final userName = authState.user?.fullName ?? '';
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            const _OnboardingTopBar(),
+            _OnboardingTopBar(
+              isLoggedIn: isLoggedIn,
+              userName: userName,
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -406,7 +416,13 @@ _Recommendation _buildRecommendation({
 }
 
 class _OnboardingTopBar extends StatelessWidget {
-  const _OnboardingTopBar();
+  final bool isLoggedIn;
+  final String userName;
+
+  const _OnboardingTopBar({
+    this.isLoggedIn = false,
+    this.userName = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -443,13 +459,45 @@ class _OnboardingTopBar extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                TextButton(
-                  onPressed: () => context.go('/login'),
-                  child: const Text('Se connecter'),
-                ),
+                // ✅ Modification ici : afficher le nom ou "Mon compte" si connecté
+                if (isLoggedIn && userName.isNotEmpty)
+                  _buildUserButton(context)
+                else if (isLoggedIn)
+                  _buildAccountButton(context)
+                else
+                  _buildLoginButton(context),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginButton(BuildContext context) {
+    return TextButton(
+      onPressed: () => context.go('/login'),
+      child: const Text('Se connecter'),
+    );
+  }
+
+  Widget _buildAccountButton(BuildContext context) {
+    return TextButton.icon(
+      onPressed: () => context.go('/profile'),
+      icon: Icon(Icons.account_circle_rounded, color: AppTheme.primary),
+      label: const Text('Mon compte'),
+    );
+  }
+
+  Widget _buildUserButton(BuildContext context) {
+    return TextButton.icon(
+      onPressed: () => context.go('/profile'),
+      icon: Icon(Icons.account_circle_rounded, color: AppTheme.primary),
+      label: Text(
+        userName.length > 20 ? '${userName.substring(0, 20)}...' : userName,
+        style: AppFonts.plusJakartaSans(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
         ),
       ),
     );

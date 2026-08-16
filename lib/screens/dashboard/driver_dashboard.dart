@@ -21,6 +21,7 @@ import 'package:procolis/screens/dashboard/notifications/notifications_screen.da
 import 'package:procolis/services/api_service.dart';
 import 'package:procolis/services/commission_service.dart';
 import 'package:procolis/services/notification_service.dart';
+import 'package:procolis/services/notification_badge_service.dart';
 import 'package:procolis/theme/app_theme.dart';
 import 'package:procolis/theme/fonts.dart';
 import 'package:record/record.dart';
@@ -1550,9 +1551,14 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     _loadData();
     _loadNotificationsCount();
     _loadMessagesUnread();
+    // Seuls les compteurs (badges + notification de nouveau message) sont
+    // rafraîchis périodiquement : recharger les colis toutes les 15 s remettait
+    // `isLoading`/`isLoadingFreeParcels` à vrai et faisait tourner le spinner
+    // des onglets « À prendre », « Missions » et « Colis à livrer » en
+    // permanence. Les colis se rechargent à l'ouverture, au changement d'onglet,
+    // au pull-to-refresh et à la restauration de session.
     _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (!mounted) return;
-      _loadData();
       _loadNotificationsCount();
       _loadMessagesUnread();
     });
@@ -1584,6 +1590,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     try {
       final c = await _dashApi.getUnreadNotificationsCount();
       if (mounted) setState(() => _unreadNotificationsCount = c);
+      await NotificationBadgeService.setCount(c);
     } catch (_) {}
   }
 
@@ -3268,6 +3275,17 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
     );
   }
 
+  void _openPoolDetail(Parcel parcel) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ParcelDetailScreen(parcel: parcel),
+      ),
+    ).then((_) {
+      if (mounted) widget.onRefresh();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final parcels = _filteredParcels;
@@ -3334,6 +3352,7 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
                           return _DriverRouteCard(
                             parcel: parcel,
                             footerText: _poolFooter(parcel),
+                            onTap: () => _openPoolDetail(parcel),
                             primaryActionLabel: existingBid != null
                                 ? 'Suivi offre'
                                 : 'Faire une offre',

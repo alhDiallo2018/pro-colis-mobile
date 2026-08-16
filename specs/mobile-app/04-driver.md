@@ -192,7 +192,7 @@ Payload :
   "location": "Garage Dakar Test",
   "locationLat": 14.7167,
   "locationLng": -17.4677,
-  "photoUrl": "http://localhost:18081/uploads/photo/pickup.jpg",
+  "photoUrl": "https://sendprocolis.com/uploads/photo/pickup.jpg",
   "notes": "Colis recupere"
 }
 ```
@@ -310,8 +310,8 @@ Payload :
 {
   "location": "Thies centre",
   "receiverName": "Mamadou Fall",
-  "signatureUrl": "http://localhost:18081/uploads/signature/signature.jpg",
-  "photoUrl": "http://localhost:18081/uploads/proof/proof.jpg",
+  "signatureUrl": "https://sendprocolis.com/uploads/signature/signature.jpg",
+  "photoUrl": "https://sendprocolis.com/uploads/proof/proof.jpg",
   "notes": "Livre au destinataire"
 }
 ```
@@ -378,7 +378,7 @@ Payload :
   "parcelId": "uuid",
   "price": 4200,
   "message": "Je peux prendre ce colis aujourd hui.",
-  "audioUrl": "http://localhost:18081/uploads/audio/bid.webm"
+  "audioUrl": "https://sendprocolis.com/uploads/audio/bid.webm"
 }
 ```
 

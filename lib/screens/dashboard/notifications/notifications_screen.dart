@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../../services/api_service.dart';
+import '../../../services/notification_badge_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/pc_components.dart';
 
@@ -79,6 +80,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ];
       });
       widget.onNotificationsRead?.call();
+      NotificationBadgeService.refresh();
     } catch (error, stackTrace) {
       debugPrint(
         'Erreur markAllNotificationsAsRead: $error\n$stackTrace',
@@ -111,6 +113,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         debugPrint(
           'Notification ${notification.id}: lecture non confirmée par l’API',
         );
+      } else {
+        NotificationBadgeService.refresh();
       }
     } catch (error, stackTrace) {
       debugPrint(
