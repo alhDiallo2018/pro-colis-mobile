@@ -1,5 +1,6 @@
 // ignore_for_file: unused_import, unused_element, prefer_const_constructors
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -24,12 +25,15 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_config.dart';
+import '../../models/driver_location.dart';
 import '../../models/parcel.dart';
 import '../../providers/parcel_provider.dart';
+import '../../providers/public_config_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/live_tracking_map.dart';
 
 class TrackParcelScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -51,6 +55,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Parcel? _trackedParcel;
   List<String> _recentSearches = [];
   String? _currentlyPlayingAudioUrl;
+  Timer? _trackingRefreshTimer;
 
   // Thème Bleu/Blanc
   static const Color primaryBlue = Color(0xFF2563EB);
@@ -73,6 +78,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
 
   @override
   void dispose() {
+    _trackingRefreshTimer?.cancel();
     _trackingController.dispose();
     _focusNode.dispose();
     _audioPlayer.dispose();
@@ -150,6 +156,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         _trackedParcel = parcel;
         _notFound = parcel == null;
       });
+      _syncTrackingRefreshTimer();
 
       if (parcel != null) {
         _saveToRecentSearches(trackingNumberToUse);
@@ -192,6 +199,41 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         _recentSearches.removeLast();
       }
       setState(() {});
+    }
+  }
+
+  /// Rafraîchit silencieusement la position du chauffeur pendant le transport.
+  ///
+  /// On réutilise l'endpoint de suivi public : aucune nouvelle architecture
+  /// temps réel (WebSocket/SSE) n'est introduite, le backend n'en expose pas.
+  /// Tant qu'il ne fournit pas de position, l'écran reste sur « indisponible ».
+  Future<void> _quietRefresh() async {
+    final tracked = _trackedParcel;
+    if (tracked == null || !mounted) return;
+    try {
+      final parcel = await ref
+          .read(parcelProvider.notifier)
+          .trackParcel(tracked.trackingNumber);
+      if (mounted && parcel != null) {
+        setState(() => _trackedParcel = parcel);
+        _syncTrackingRefreshTimer();
+      }
+    } catch (_) {
+      // Une erreur réseau ponctuelle ne doit pas vider l'écran de suivi.
+    }
+  }
+
+  /// Active le polling de la position uniquement pendant le transport effectif
+  /// du colis, et le coupe dès qu'il est livré, annulé ou non encore parti.
+  void _syncTrackingRefreshTimer() {
+    final parcel = _trackedParcel;
+    final shouldPoll = parcel != null && parcel.isBeingTransported;
+    if (shouldPoll) {
+      _trackingRefreshTimer ??=
+          Timer.periodic(const Duration(seconds: 30), (_) => _quietRefresh());
+    } else {
+      _trackingRefreshTimer?.cancel();
+      _trackingRefreshTimer = null;
     }
   }
 
@@ -505,12 +547,12 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '📞 +221 33 123 45 67 | 📧 support-commercial@sendprocolis.com',
+                  '📞 ${_supportPhone} | 📧 ${_supportEmail}',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '📱 www.sendprocolis.com',
+                  '📱 ${AppConfig.publicHost}',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                 ),
               ],
@@ -981,6 +1023,11 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     return '${date.day}/${date.month}/${date.year} à ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
+  String get _supportPhone =>
+      ref.read(publicConfigProvider)?.displaySupportPhone ?? '';
+  String get _supportEmail =>
+      ref.read(publicConfigProvider)?.displaySupportEmail ?? '';
+
   Future<void> _playAudio(String audioUrl) async {
     try {
       if (_currentlyPlayingAudioUrl == audioUrl) {
@@ -1049,6 +1096,8 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                     _buildDesignResultCard(_trackedParcel!),
                     const SizedBox(height: 16),
                     _buildDesignDriverCard(_trackedParcel!),
+                    const SizedBox(height: 16),
+                    _buildDesignLiveTracking(_trackedParcel!),
                     const SizedBox(height: 16),
                     _buildDesignInfoCard(_trackedParcel!),
                     const SizedBox(height: 16),
@@ -1408,6 +1457,122 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
     );
   }
 
+  /// Carte + position GPS du chauffeur, ajoutées au suivi sans remplacer les
+  /// statuts existants. Départ et destination viennent des coordonnées réelles
+  /// des zones ; la position du chauffeur n'apparaît que si le backend l'expose.
+  Widget _buildDesignLiveTracking(Parcel parcel) {
+    final location = parcel.driverLocation;
+    final hasPosition = location != null && location.hasCoordinates;
+
+    return PcCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _DesignSoftIcon(icon: Icons.near_me_rounded),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Position du chauffeur',
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasPosition
+                          ? _formatPositionAge(location.recordedAt)
+                          : 'Position du chauffeur indisponible pour le moment',
+                      style: TextStyle(
+                        color: hasPosition
+                            ? AppTheme.textSecondary
+                            : AppTheme.amber700,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasPosition)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.green50,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: AppTheme.green500,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'En direct',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.green700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 200,
+            child: LiveTrackingMap(
+              departureLatitude: parcel.departureLatitude,
+              departureLongitude: parcel.departureLongitude,
+              arrivalLatitude: parcel.arrivalLatitude,
+              arrivalLongitude: parcel.arrivalLongitude,
+              driverLatitude: hasPosition ? location.latitude : null,
+              driverLongitude: hasPosition ? location.longitude : null,
+              departureLabel: parcel.departureZoneName,
+              arrivalLabel: parcel.arrivalZoneName ?? parcel.arrivalCity,
+            ),
+          ),
+          if (hasPosition) ...[
+            const SizedBox(height: 14),
+            _DesignInfoRow(
+              icon: Icons.my_location_rounded,
+              label: 'Position',
+              value:
+                  '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}',
+              mono: true,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatPositionAge(DateTime? recordedAt) {
+    if (recordedAt == null) return 'Dernière position connue';
+    final diff = DateTime.now().difference(recordedAt);
+    if (diff.inSeconds < 60) return 'Position mise à jour à l\'instant';
+    if (diff.inMinutes < 60) {
+      return 'Dernière position connue il y a ${diff.inMinutes} min';
+    }
+    return 'Dernière position connue il y a ${diff.inHours} h';
+  }
+
   Widget _buildDesignInfoCard(Parcel parcel) {
     return PcCard(
       padding: EdgeInsets.zero,
@@ -1601,16 +1766,12 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   }
 
   String _estimateDistance(Parcel parcel) {
-    if (parcel.departureZoneName.isEmpty ||
-        (parcel.arrivalZoneName ?? '').isEmpty) {
-      return '-- km';
-    }
-    return '240 km';
+    return parcel.distanceLabel;
   }
 
   String _estimateRemaining(Parcel parcel) {
     final eta = parcel.estimatedDeliveryDate;
-    if (eta == null) return '~2 h';
+    if (eta == null) return '--';
     final hours = eta.difference(DateTime.now()).inHours.abs();
     return '~${hours.clamp(1, 96)} h';
   }

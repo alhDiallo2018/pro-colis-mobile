@@ -22,39 +22,22 @@ class _GarageAdminParcelDetailScreenState
   final ApiService _apiService = ApiService();
   bool _isUpdating = false;
 
-  String _statusToStep(String status) {
-    switch (status) {
-      case 'picked_up':
-        return 'pickup';
-      case 'in_transit':
-        return 'transit';
-      case 'arrived':
-        return 'arrived';
-      case 'out_for_delivery':
-        return 'out-for-delivery';
-      case 'confirmed':
-        return 'confirm';
-      case 'delivered':
-        return 'deliver';
-      case 'cancelled':
-        return 'cancelled';
-      default:
-        return status;
-    }
-  }
-
   Future<void> _updateStatus(String newStatus) async {
     setState(() => _isUpdating = true);
     try {
-      final step = _statusToStep(newStatus);
-      if (step == 'cancelled') {
-        await _apiService.cancelParcel(widget.parcel.id,
+      final Map<String, dynamic> result;
+      if (newStatus == 'cancelled') {
+        result = await _apiService.updateGarageAdminParcelStatus(
+            widget.parcel.id, 'cancelled',
             reason: 'Annulé par l\'admin');
       } else {
-        await _apiService.advanceParcel(widget.parcel.id, step);
+        result = await _apiService.updateGarageAdminParcelStatus(
+            widget.parcel.id, newStatus);
       }
 
-      if (mounted) {
+      if (!mounted) return;
+
+      if (result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Statut mis à jour avec succès'),
@@ -63,6 +46,15 @@ class _GarageAdminParcelDetailScreenState
           ),
         );
         Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']?.toString() ??
+                'Impossible de mettre à jour le statut'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

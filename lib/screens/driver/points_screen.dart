@@ -10,10 +10,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/wallet.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/public_config_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/commission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/pay_debt_sheet.dart';
 import '../../widgets/pc_components.dart';
 
 class DriverPointsScreen extends ConsumerStatefulWidget {
@@ -25,7 +27,11 @@ class DriverPointsScreen extends ConsumerStatefulWidget {
 
 class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
   final ApiService _apiService = ApiService();
-  double _balance = 0;
+
+  /// `null` signifie « inconnu » (non chargé ou erreur) : ne jamais afficher 0.
+  double? _balance;
+  double? _commissionDebt;
+  String? _error;
   List<WalletTransaction> _transactions = [];
   bool _isLoading = true;
 
@@ -36,21 +42,31 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final authState = ref.read(authProvider);
       final userId = authState.user?.id ?? '';
-      final balance = await _apiService.getWalletBalance(userId);
       final wallet = await _apiService.getWallet(userId);
       if (mounted) {
         setState(() {
-          _balance = balance;
+          _balance = wallet.balance;
+          _commissionDebt = wallet.commissionDebt;
           _transactions = wallet.transactions;
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e is ApiException
+              ? e.message
+              : 'Impossible de récupérer votre solde. Réessayez dans quelques instants.';
+        });
+      }
     }
   }
 
@@ -79,12 +95,21 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                children: [
-                  _buildBalanceCard(),
+          : _error != null
+              ? _buildError()
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    children: [
+                      _buildBalanceCard(),
+                      if ((_commissionDebt ?? 0) > 0) ...[
+                        const SizedBox(height: 14),
+                        _DebtNotice(
+                          debt: _commissionDebt ?? 0,
+                          onPay: _showPayDebtSheet,
+                        ),
+                      ],
                   const SizedBox(height: 20),
                   const PcSectionHeader('Comment gérer mon portefeuille'),
                   _buildHowItWorks(),
@@ -192,7 +217,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                   child: _GhostButton(
                     label: 'Utiliser',
                     icon: Icons.redeem_rounded,
-                    onPressed: () {},
+                    onPressed: (_commissionDebt ?? 0) > 0 ? _showPayDebtSheet : null,
                   ),
                 ),
               ],
@@ -313,6 +338,44 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
       if (mounted) _loadData();
     });
   }
+
+  void _showPayDebtSheet() {
+    showPayDebtSheet(
+      context,
+      balance: _balance ?? 0,
+      debt: _commissionDebt ?? 0,
+      onPaid: _loadData,
+    ).then((_) {
+      if (mounted) _loadData();
+    });
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 44, color: AppTheme.slate400),
+            const SizedBox(height: 12),
+            Text(
+              _error ?? 'Impossible de récupérer votre solde.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            PcButton(
+              'Réessayer',
+              icon: Icons.refresh_rounded,
+              variant: PcButtonVariant.secondary,
+              onPressed: _loadData,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // Bouton translucide posé sur le dégradé ambre (action secondaire du solde).
@@ -329,31 +392,35 @@ class _GhostButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.18),
-      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      child: InkWell(
-        onTap: onPressed,
+    final enabled = onPressed != null;
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        child: Container(
-          height: 46,
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 20, color: AppTheme.amberOnFg),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: AppFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.amberOnFg,
-                  letterSpacing: 0.1,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          child: Container(
+            height: 46,
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20, color: AppTheme.amberOnFg),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: AppFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.amberOnFg,
+                    letterSpacing: 0.1,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -361,16 +428,91 @@ class _GhostButton extends StatelessWidget {
   }
 }
 
+// ==================== DETTE DE COMMISSION ====================
+
+class _DebtNotice extends StatelessWidget {
+  final double debt;
+  final VoidCallback onPay;
+
+  const _DebtNotice({required this.debt, required this.onPay});
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat('#,##0', 'fr');
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.red50,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.red100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.error_outline_rounded,
+                  color: AppTheme.red500, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Commission à régulariser',
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.red500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Dette de ${fmt.format(debt.toInt())} FCFA. '
+                      'Réglez-la avec votre solde pour accepter de nouveaux colis.',
+                      style: AppFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.red500,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: PcButton(
+              'Régler la dette',
+              icon: Icons.payments_rounded,
+              variant: PcButtonVariant.primary,
+              size: PcButtonSize.sm,
+              block: true,
+              onPressed: onPay,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ==================== RECHARGE BOTTOM SHEET ====================
 
-class _RechargeSheetContent extends StatefulWidget {
+class _RechargeSheetContent extends ConsumerStatefulWidget {
+
   const _RechargeSheetContent();
 
   @override
-  State<_RechargeSheetContent> createState() => _RechargeSheetContentState();
+  ConsumerState<_RechargeSheetContent> createState() =>
+      _RechargeSheetContentState();
 }
 
-class _RechargeSheetContentState extends State<_RechargeSheetContent> {
+class _RechargeSheetContentState extends ConsumerState<_RechargeSheetContent> {
   final ApiService _apiService = ApiService();
   final _customAmountController = TextEditingController();
 
@@ -378,20 +520,17 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
   bool _isCustomAmount = false;
   bool _isSubmitting = false;
 
-  static const List<Map<String, dynamic>> _packs = [
-    {'points': 500, 'price': 500},
-    {'points': 1000, 'price': 1000},
-    {'points': 3000, 'price': 3000},
-    {'points': 5000, 'price': 5000},
-    {'points': 10000, 'price': 10000},
-  ];
+  /// Montants de recharge disponibles, fournis par la configuration
+  /// (`score.packs`). Aucune valeur n'est codée en dur côté mobile.
+  List<int> get _packs =>
+      ref.read(publicConfigProvider)?.scorePacks ?? const <int>[];
 
   int get _amount {
     if (_isCustomAmount) {
       return int.tryParse(_customAmountController.text.trim()) ?? 0;
     }
     if (_selectedPack != null && _selectedPack! < _packs.length) {
-      return _packs[_selectedPack!]['points'] as int;
+      return _packs[_selectedPack!];
     }
     return 0;
   }
@@ -559,7 +698,7 @@ class _RechargeSheetContentState extends State<_RechargeSheetContent> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                '${pack['points']}',
+                                '$pack',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,

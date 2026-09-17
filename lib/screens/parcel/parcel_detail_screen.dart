@@ -15,14 +15,21 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_config.dart';
+import '../../models/cancellation.dart';
 import '../../models/parcel.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
+import '../../providers/public_config_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/commission_service.dart';
+import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../utils/parcel_access_policy.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/cancellation_result_sheet.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
+import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
 import '../../widgets/negotiation_chat_widget.dart';
@@ -80,12 +87,17 @@ class ParcelDetailScreen extends ConsumerStatefulWidget {
 
 class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   final ApiService _apiService = ApiService();
+  final LocationService _locationService = LocationService();
   late Parcel _parcel;
   List<ParcelEvent> _events = [];
   bool _isLoading = true;
   bool _isUpdating = false;
   String? _otpCode;
   bool _isLoadingOtp = false;
+
+  // Commission du chauffeur sur ce colis (calculée côté API).
+  double? _driverCommission;
+  double _driverCommissionPercentage = 0;
 
   // Lecture des notes vocales attachées au colis.
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -112,6 +124,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 
   @override
   void dispose() {
+    _locationService.stopLocationTracking();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -132,6 +145,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
           _isLoading = false;
         });
       }
+      _syncLocationTracking();
       _loadDriverRating();
     } catch (e) {
       if (mounted) {
@@ -156,7 +170,9 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
         _events = results[1] as List<ParcelEvent>;
       });
       _fetchOtp();
+      _syncLocationTracking();
       _loadDriverRating();
+      _loadDriverCommission();
     } catch (error) {
       debugPrint('Erreur chargement détail colis: $error');
       if (mounted) {
@@ -187,6 +203,40 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     }
   }
 
+  /// Charge la commission du chauffeur sur ce colis (depuis l'API). Le
+  /// chauffeur ne voit jamais le statut de paiement du client, mais il a
+  /// besoin du montant de sa commission.
+  Future<void> _loadDriverCommission() async {
+    if (!_viewerIsDriver) return;
+    try {
+      final result = await _apiService.estimateParcelCommission(_parcel.id);
+      if (!mounted) return;
+      setState(() {
+        _driverCommission =
+            (result['commission'] as num?)?.toDouble() ?? 0;
+        _driverCommissionPercentage =
+            (result['percentage'] as num?)?.toDouble() ?? 0;
+      });
+    } catch (_) {
+      // La commission reste indéfinie si l'API ne répond pas.
+    }
+  }
+
+  /// Active ou coupe l'envoi de la position GPS du chauffeur selon l'état du
+  /// colis. Le suivi n'est démarré que lorsque le chauffeur assigné transporte
+  /// réellement le colis, et coupé dès la livraison ou l'annulation.
+  void _syncLocationTracking() {
+    if (!_isAssignedDriver) {
+      _locationService.stopLocationTracking();
+      return;
+    }
+    if (_parcel.isBeingTransported) {
+      _locationService.startLocationTracking(parcelId: _parcel.id);
+    } else {
+      _locationService.stopLocationTracking();
+    }
+  }
+
   Future<void> _cancelParcel() async {
     if (!_canCancelParcel) {
       if (mounted) {
@@ -195,49 +245,154 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       return;
     }
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler le colis ?'),
-        content: const Text(
-          'Cette action marquera le colis comme annulé.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Retour'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red500),
-            child: const Text('Annuler'),
-          ),
-        ],
-      ),
-    );
+    // Récupère le devis d'annulation (motifs sélectionnables + aperçu de la
+    // pénalité) depuis l'API. Aucun montant n'est recalculé côté mobile.
+    final quote = await _apiService.getCancellationQuote(_parcel.id);
+    final reasons = _parseCancellationReasons(quote['reasons']);
+    final preview = CancellationResult.fromResponse(quote);
 
-    if (confirm != true) return;
+    if (!mounted) return;
+
+    // Confirmation explicite : l'utilisateur choisit le motif fourni par l'API.
+    final reason = await showCancellationConfirmDialog(
+      context,
+      parcel: _parcel,
+      viewerIsDriver: _viewerIsDriver,
+      reasons: reasons,
+      preview: preview,
+    );
+    if (reason == null || !mounted) return;
 
     setState(() => _isUpdating = true);
     try {
-      final ok = await ref
+      final outcome = await ref
           .read(parcelProvider.notifier)
-          .cancelParcel(_parcel.id, reason: 'Annulation depuis le détail');
-      if (ok && mounted) {
-        setState(
-            () => _parcel = _parcel.copyWith(status: ParcelStatus.cancelled));
-        _showSnack('Colis annulé');
+          .cancelParcel(_parcel.id, reason: reason.isEmpty ? null : reason);
+      if (!mounted) return;
+
+      if (outcome.isSuccess) {
+        setState(() {
+          _parcel = _parcel.copyWith(
+            status: ParcelStatus.cancelled,
+            cancellation: outcome.result,
+          );
+          _isUpdating = false;
+        });
+        // Affiche le résultat réel calculé par le backend (pénalité,
+        // remboursement, wallet, points, dette), selon le rôle du viewer.
+        await showCancellationResultSheet(
+          context,
+          result: outcome.result!,
+          viewerIsDriver: _viewerIsDriver,
+          onPayDebt: _payClientDebt,
+        );
+      } else {
+        setState(() => _isUpdating = false);
+        _showSnack(outcome.errorMessage ?? 'Annulation impossible');
       }
     } catch (error) {
       debugPrint('Erreur annulation colis: $error');
       if (mounted) {
+        setState(() => _isUpdating = false);
         _showSnack('Annulation impossible');
       }
-    } finally {
+    }
+  }
+
+  /// Annulation d'une mission assignée par le chauffeur. Endpoint dédié
+  /// (`/driver/parcels/:id/cancel`) : le chauffeur n'utilise jamais l'endpoint
+  /// ou l'identité d'un autre acteur, et le backend calcule seul la pénalité,
+  /// le wallet, les points, la dette et le remboursement.
+  Future<void> _cancelDriverParcel() async {
+    if (!_canDriverCancelParcel) {
+      if (mounted) {
+        _showSnack('Vous n’êtes pas assigné à ce colis');
+      }
+      return;
+    }
+
+    // Le chauffeur n'a pas de devis dédié : les motifs proviennent de la
+    // configuration publique (`cancellation.reasons`). Le backend reste la
+    // seule autorité : un motif exonérant sera de toute façon refusé.
+    final reasons = ref.read(publicConfigProvider)?.cancellationReasons ?? const <CancellationReason>[];
+
+    final reason = await showCancellationConfirmDialog(
+      context,
+      parcel: _parcel,
+      viewerIsDriver: _viewerIsDriver,
+      reasons: reasons,
+    );
+    if (reason == null || !mounted) return;
+
+    setState(() => _isUpdating = true);
+    try {
+      final outcome = await ref
+          .read(parcelProvider.notifier)
+          .cancelDriverParcel(_parcel.id, reason: reason.isEmpty ? null : reason);
+      if (!mounted) return;
+
+      if (outcome.isSuccess) {
+        setState(() {
+          _parcel = _parcel.copyWith(
+            status: ParcelStatus.cancelled,
+            cancellation: outcome.result,
+          );
+          _isUpdating = false;
+        });
+        await showCancellationResultSheet(
+          context,
+          result: outcome.result!,
+          viewerIsDriver: _viewerIsDriver,
+        );
+      } else {
+        setState(() => _isUpdating = false);
+        _showSnack(outcome.errorMessage ?? 'Annulation impossible');
+      }
+    } catch (error) {
+      debugPrint('Erreur annulation mission chauffeur: $error');
       if (mounted) {
         setState(() => _isUpdating = false);
+        _showSnack('Annulation impossible');
       }
     }
+  }
+
+  /// Règlement de la dette de pénalité client via PayDunya.
+  ///
+  /// [debt] est le bloc `clientDebt` renvoyé par l'API (UUID réel). Après un
+  /// paiement réussi, un retour PayDunya ou une erreur 422/409, le colis est
+  /// rechargé depuis l'API afin de refléter l'état confirmé par le backend.
+  Future<void> _payClientDebt(CancellationClientDebt debt) async {
+    if (!debt.hasId) {
+      _showSnack('Cette dette ne peut pas être réglée.');
+      return;
+    }
+    await showPayClientDebtSheet(
+      context,
+      debt: debt,
+      onRefresh: _refreshParcelAfterPayment,
+    );
+  }
+
+  /// Recharge le colis (et donc sa dette) depuis l'API. Utilisé après un
+  /// paiement : aucune valeur financière n'est recalculée localement.
+  Future<void> _refreshParcelAfterPayment() async {
+    try {
+      await ref.read(parcelProvider.notifier).loadSentParcels();
+      await _loadDetailData();
+    } catch (e) {
+      debugPrint('Erreur rafraîchissement colis après paiement: $e');
+    }
+  }
+
+  /// Lit la liste des motifs d'annulation renvoyée par l'API (devis client).
+  /// Chaque entrée est `{ value, label }` ; on ne garde que les motifs valides.
+  List<CancellationReason> _parseCancellationReasons(dynamic raw) {
+    if (raw is! List) return const <CancellationReason>[];
+    return raw
+        .map((r) => CancellationReason.fromJson(r))
+        .where((r) => r.isValid)
+        .toList();
   }
 
   Future<void> _callDriver() async {
@@ -292,6 +447,11 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   String _formatReceiptDate(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/'
       '${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  String get _supportPhone =>
+      ref.read(publicConfigProvider)?.displaySupportPhone ?? '';
+  String get _supportEmail =>
+      ref.read(publicConfigProvider)?.displaySupportEmail ?? '';
 
   void _showReceipt() {
     final GlobalKey receiptKey = GlobalKey();
@@ -596,7 +756,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '📞 +221 33 123 45 67 | 📧 support-commercial@sendprocolis.com',
+                  '📞 ${_supportPhone} | 📧 ${_supportEmail}',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                 ),
               ],
@@ -713,6 +873,149 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       if (mounted) setState(() => _playingAudioIndex = null);
       _showSnack('Lecture audio impossible');
     }
+  }
+
+  /// Section de paiement réservée au client. Le chauffeur ne voit jamais les
+  /// informations de paiement (statut « Payé », paiement en ligne, etc.) : il
+  /// reçoit à la place la carte mission ([_buildDriverMissionCard]).
+  List<Widget> _buildPaymentSection() {
+    if (_parcel.canBePaidOnline && _parcel.hasDriver) {
+      return [
+        _PaydunyaPayCard(
+          parcelId: _parcel.id,
+          amount: _parcel.payableAmount,
+          trackingNumber: _parcel.trackingNumber,
+          apiService: _apiService,
+          onDone: _loadDetailData,
+        ),
+      ];
+    }
+    if (_parcel.canBePaidOnline && !_parcel.hasDriver) {
+      return const [
+        _NoPaymentNotice(
+          message:
+              'Paiement en attente de confirmation par le chauffeur. '
+              'Le montant sera mis à jour dès l\'acceptation de l\'offre.',
+        ),
+      ];
+    }
+    if (_parcel.isCancelled && !_parcel.isPaid) {
+      return const [
+        _NoPaymentNotice(
+          message: 'Ce colis a été annulé : aucun paiement n\'est requis.',
+        ),
+      ];
+    }
+    if (_parcel.isPaid) {
+      return [
+        _NoPaymentNotice(
+          message:
+              'Paiement de ${_formatNumber(_parcel.payableAmount)} FCFA déjà effectué.',
+          paid: true,
+        ),
+      ];
+    }
+    if (_parcel.isCashPayment && _parcel.payableAmount > 0) {
+      return [
+        _CashPaymentCard(
+          parcel: _parcel,
+          isAssignedDriver: _isAssignedDriver,
+          onDeclare: _openCashDeclaration,
+          amountLabel: '${_formatNumber(_parcel.payableAmount)} FCFA',
+        ),
+      ];
+    }
+    return const [];
+  }
+
+  /// Carte mission pour le chauffeur : remplace les informations de paiement
+  /// du client. Contient la description, les informations de retrait et de
+  /// livraison, le statut et la commission.
+  Widget _buildDriverMissionCard() {
+    return PcCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PcSectionHeader('Mission'),
+          const SizedBox(height: 12),
+          if (_parcel.description.trim().isNotEmpty) ...[
+            PcListRow(
+              icon: Icons.inventory_2_rounded,
+              iconTone: PcTone.primary,
+              title: 'Description',
+              trailing: _InfoValue(value: _parcel.description.trim()),
+            ),
+            const PcDivider(),
+          ],
+          PcListRow(
+            icon: Icons.departure_board_rounded,
+            iconTone: PcTone.green,
+            title: 'Départ',
+            trailing: _InfoValue(
+              value: _parcel.departureZoneName?.isNotEmpty == true
+                  ? _parcel.departureZoneName!
+                  : 'Non renseigné',
+            ),
+          ),
+          const PcDivider(),
+          PcListRow(
+            icon: Icons.flag_rounded,
+            iconTone: PcTone.red,
+            title: 'Destination',
+            trailing: _InfoValue(
+              value: _arrival.isNotEmpty ? _arrival : 'Non renseigné',
+            ),
+          ),
+          const PcDivider(),
+          PcListRow(
+            icon: Icons.handshake_rounded,
+            iconTone: PcTone.primary,
+            title: 'Retrait',
+            trailing: _InfoValue(
+              value: _parcel.pickupDate != null
+                  ? _formatReceiptDate(_parcel.pickupDate!)
+                  : 'Au départ',
+            ),
+          ),
+          const PcDivider(),
+          PcListRow(
+            icon: Icons.home_work_rounded,
+            iconTone: PcTone.primary,
+            title: 'Livraison',
+            trailing: _InfoValue(
+              value: _parcel.receiverAddress?.isNotEmpty == true
+                  ? _parcel.receiverAddress!
+                  : (_parcel.receiverName.isNotEmpty
+                      ? _parcel.receiverName
+                      : 'Au destinataire'),
+            ),
+          ),
+          if (_parcel.notes?.trim().isNotEmpty == true) ...[
+            const PcDivider(),
+            PcListRow(
+              icon: Icons.notes_rounded,
+              iconTone: PcTone.amber,
+              title: 'Remarques',
+              trailing: _InfoValue(value: _parcel.notes!.trim()),
+            ),
+          ],
+          const PcDivider(),
+          PcListRow(
+            icon: Icons.percent_rounded,
+            iconTone: PcTone.amber,
+            title: 'Commission',
+            trailing: _InfoValue(
+              value: _driverCommission == null
+                  ? 'Calcul en cours…'
+                  : '${_formatNumber(_driverCommission!)} FCFA'
+                      '${_driverCommissionPercentage > 0 ? ' (${_driverCommissionPercentage.toInt()} %)' : ''}',
+              mono: true,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   List<Widget> _buildMediaSection() {
@@ -939,7 +1242,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 
   String get _eta {
     final target = _parcel.estimatedDeliveryDate ?? _parcel.deliveryDate;
-    if (target == null) return '~4 h';
+    if (target == null) return '--';
     final diff = target.difference(DateTime.now());
     if (diff.isNegative) return 'Arrivé';
     if (diff.inDays > 0) return '${diff.inDays} j';
@@ -955,6 +1258,10 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     return _parcel.driverId == me.id ||
         (_parcel.driverId == null && _parcel.bestBid?.driverId == me.id);
   }
+
+  /// L'utilisateur courant est-il un chauffeur ? Les informations de paiement
+  /// du client ne sont jamais affichées à un chauffeur.
+  bool get _viewerIsDriver => ref.read(authProvider).user?.isDriver == true;
 
   /// Le chauffeur a une offre active (négociation en cours) sur ce colis,
   /// sans avoir encore été assigné définitivement.
@@ -1092,10 +1399,6 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   /// (pending ou countered) sur ce colis ?
   bool get _isClientWithOpenProposal =>
       _isClientOwner && _parcel.hasOpenProposal;
-
-  /// Le chauffeur a-t-il une proposition directe à traiter ?
-  bool get _isDriverWithOpenProposal =>
-      _isAssignedDriver && _parcel.hasOpenProposal;
 
   String get _proposalDriverName =>
       _parcel.proposedDriverName?.isNotEmpty == true
@@ -1349,6 +1652,12 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 
   bool get _canCancelParcel =>
       _isClientOwner && !_parcel.isFinished && !_isUpdating;
+
+  /// Le chauffeur assigné peut annuler sa mission tant qu'elle n'est pas
+  /// terminée (livrée ou annulée). Même fenêtre structurelle que le backend
+  /// (`cancellation.allowedStatuses`), sans règle financière côté mobile.
+  bool get _canDriverCancelParcel =>
+      _isAssignedDriver && !_parcel.isFinished && !_isUpdating;
 
   /// La modification s'ajoute à l'annulation, mais se referme plus tôt : dès
   /// qu'un chauffeur s'engage, le contenu du colis est figé.
@@ -1650,44 +1959,25 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 ],
               ),
             ),
-            if (_parcel.canBePaidOnline && _parcel.hasDriver)
-              _PaydunyaPayCard(
-                parcelId: _parcel.id,
-                amount: _parcel.payableAmount,
-                trackingNumber: _parcel.trackingNumber,
-                apiService: _apiService,
-                onDone: _loadDetailData,
-              )
-            else if (_parcel.canBePaidOnline && !_parcel.hasDriver)
-              const _NoPaymentNotice(
-                message:
-                    'Paiement en attente de confirmation par le chauffeur. '
-                    'Le montant sera mis à jour dès l\'acceptation de l\'offre.',
-              )
-            else if (_parcel.isCancelled && !_parcel.isPaid)
-              const _NoPaymentNotice(
-                message:
-                    'Ce colis a été annulé : aucun paiement n\'est requis.',
-              )
-            else if (_parcel.isPaid)
-              _NoPaymentNotice(
-                message:
-                    'Paiement de ${_formatNumber(_parcel.payableAmount)} FCFA déjà effectué.',
-                paid: true,
-              )
-            else if (_parcel.isCashPayment && _parcel.payableAmount > 0)
-              _CashPaymentCard(
-                parcel: _parcel,
-                isAssignedDriver: _isAssignedDriver,
-                onDeclare: _openCashDeclaration,
-                amountLabel: '${_formatNumber(_parcel.payableAmount)} FCFA',
-              ),
+            if (_viewerIsDriver) ...[
+              _buildDriverMissionCard(),
+              const SizedBox(height: 16),
+            ] else
+              ..._buildPaymentSection(),
             ..._buildMediaSection(),
             if (_parcel.status.isInProgress && _otpCode != null) ...[
               const SizedBox(height: 18),
               _DeliveryCodeCard(otp: _otpCode!, isLoading: _isLoadingOtp),
             ],
             const SizedBox(height: 18),
+            if (_parcel.isCancelled) ...[
+              _CancellationHistoryCard(
+                parcel: _parcel,
+                viewerIsDriver: _viewerIsDriver,
+                onPayDebt: _payClientDebt,
+              ),
+              const SizedBox(height: 16),
+            ],
             const PcSectionHeader('Suivi'),
             PcCard(
               padding: const EdgeInsets.all(16),
@@ -1766,6 +2056,18 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                         ? _openConfirmDelivery()
                         : _advanceStep(_driverStep!.step),
                 icon: _driverStep!.icon,
+                size: PcButtonSize.lg,
+                block: true,
+                loading: _isUpdating,
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_canDriverCancelParcel) ...[
+              PcButton(
+                'Annuler la mission',
+                onPressed: _isUpdating ? null : _cancelDriverParcel,
+                icon: Icons.cancel_rounded,
+                variant: PcButtonVariant.danger,
                 size: PcButtonSize.lg,
                 block: true,
                 loading: _isUpdating,
@@ -2068,7 +2370,7 @@ class _TrackingHero extends StatelessWidget {
           const SizedBox(height: 18),
           Row(
             children: [
-              _HeroMeta(label: 'Distance', value: '240 km'),
+              _HeroMeta(label: 'Distance', value: parcel.distanceLabel),
               const SizedBox(width: 18),
               _HeroMeta(label: 'Reste', value: eta),
               const SizedBox(width: 18),
@@ -2323,6 +2625,149 @@ class _InfoValue extends StatelessWidget {
               ),
       ),
     );
+  }
+}
+
+class _CancellationHistoryCard extends StatelessWidget {
+  final Parcel parcel;
+  final bool viewerIsDriver;
+  final Future<void> Function(CancellationClientDebt debt)? onPayDebt;
+
+  const _CancellationHistoryCard({
+    required this.parcel,
+    required this.viewerIsDriver,
+    this.onPayDebt,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cancellation = parcel.cancellation;
+    final reason = parcel.cancellationReason;
+    final cancelledAt = parcel.cancelledAt;
+
+    return PcCard(
+      accent: AppTheme.red500,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.cancel_rounded,
+                  color: AppTheme.red500, size: 22),
+              const SizedBox(width: 8),
+              const Text(
+                'Annulation',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              const Spacer(),
+              if (cancellation?.penalized == true)
+                const PcBadge('Pénalité appliquée', tone: PcTone.red),
+            ],
+          ),
+          if (reason != null && reason.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Motif : $reason',
+              style: TextStyle(color: AppTheme.slate600, fontSize: 13.5),
+            ),
+          ],
+          if (cancelledAt != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Le ${_formatCancellationDate(cancelledAt)}',
+              style: TextStyle(color: AppTheme.slate500, fontSize: 12.5),
+            ),
+          ],
+          if (cancellation != null &&
+              (cancellation.hasClientImpact || cancellation.hasDriverImpact)) ...[
+            const SizedBox(height: 10),
+            _buildConsequences(cancellation),
+          ],
+          if (!viewerIsDriver &&
+              cancellation != null &&
+              cancellation.clientDebt.hasId &&
+              cancellation.clientDebt.hasDebt) ...[
+            const SizedBox(height: 12),
+            PcButton(
+              'Payer la pénalité avec PayDunya',
+              icon: Icons.payments_rounded,
+              block: true,
+              onPressed: () => onPayDebt?.call(cancellation.clientDebt),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConsequences(CancellationResult cancellation) {
+    final rows = <Widget>[];
+
+    if (!viewerIsDriver) {
+      final penalty = cancellation.penaltyForClient;
+      if (penalty != null && penalty > 0) {
+        rows.add(_consequenceRow('Pénalité client', formatFcfa(penalty)));
+      }
+      if (cancellation.refund.refundedAmount != null &&
+          cancellation.refund.refundedAmount! > 0) {
+        rows.add(_consequenceRow(
+            'Remboursé', formatFcfa(cancellation.refund.refundedAmount)));
+      }
+      if (cancellation.clientDebt.amount != null &&
+          cancellation.clientDebt.amount! > 0) {
+        rows.add(_consequenceRow(
+            'Pénalité à régler', formatFcfa(cancellation.clientDebt.amount)));
+      }
+    } else {
+      final penalty = cancellation.penaltyForDriver;
+      if (penalty != null && penalty > 0) {
+        rows.add(_consequenceRow('Pénalité chauffeur', formatFcfa(penalty)));
+      }
+      if (cancellation.wallet.deduction != null) {
+        rows.add(_consequenceRow(
+            'Prélèvement wallet', formatFcfa(cancellation.wallet.deduction)));
+      }
+      if (cancellation.points.deduction != null) {
+        rows.add(_consequenceRow(
+            'Prélèvement points', formatPoints(cancellation.points.deduction)));
+      }
+      if (cancellation.debt.created != null &&
+          (cancellation.debt.created ?? 0) > 0) {
+        rows.add(_consequenceRow(
+            'Dette créée', formatFcfa(cancellation.debt.created)));
+      }
+    }
+
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.slate100,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      ),
+      child: Column(children: rows),
+    );
+  }
+
+  Widget _consequenceRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(color: AppTheme.slate600, fontSize: 13)),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+
+  static String _formatCancellationDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} '
+        'à ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
 
@@ -3087,7 +3532,7 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
   String? _paymentInfo;
   double _commission = 0;
   double _netAmount = 0;
-  double _percentage = 5;
+  double _percentage = 0;
 
   @override
   void initState() {
@@ -3103,17 +3548,19 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
       if (mounted) {
         setState(() {
           _commission = (estimate['commission'] as num?)?.toDouble() ??
-              (widget.amount * 0.05).clamp(100.0, 500.0);
+              CommissionService.calculate(widget.amount);
           _netAmount = (estimate['netAmount'] as num?)?.toDouble() ??
               widget.amount - _commission;
-          _percentage = (estimate['percentage'] as num?)?.toDouble() ?? 5;
+          _percentage = (estimate['percentage'] as num?)?.toDouble() ??
+              CommissionService.percentage;
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
-          _commission = (widget.amount * 0.05).clamp(100.0, 500.0);
+          _commission = CommissionService.calculate(widget.amount);
           _netAmount = widget.amount - _commission;
+          _percentage = CommissionService.percentage;
         });
       }
     }

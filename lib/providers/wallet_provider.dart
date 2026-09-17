@@ -6,14 +6,17 @@ class WalletState {
   final bool isLoading;
   final String? error;
   final Wallet? wallet;
-  final double balance; // Solde en FCFA
+
+  /// Solde en FCFA. `null` signifie « inconnu » (non chargé ou erreur) : il ne
+  /// doit jamais être interprété comme un solde nul.
+  final double? balance;
   final List<WalletTransaction> transactions;
 
   const WalletState({
     this.isLoading = false,
     this.error,
     this.wallet,
-    this.balance = 0,
+    this.balance,
     this.transactions = const [],
   });
 
@@ -23,17 +26,18 @@ class WalletState {
     Wallet? wallet,
     double? balance,
     List<WalletTransaction>? transactions,
+    bool clearError = false,
   }) {
     return WalletState(
       isLoading: isLoading ?? this.isLoading,
-      error: error,
+      error: clearError ? null : error,
       wallet: wallet ?? this.wallet,
       balance: balance ?? this.balance,
       transactions: transactions ?? this.transactions,
     );
   }
 
-  bool get hasBalance => balance > 0;
+  bool get hasBalance => (balance ?? 0) > 0;
 }
 
 final walletProvider =
@@ -47,7 +51,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
   final ApiService _apiService = ApiService();
 
   Future<void> loadWallet(String userId) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       final wallet = await _apiService.getWallet(userId);
       state = state.copyWith(
@@ -60,7 +64,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: e is ApiException ? e.message : 'Impossible de récupérer votre solde.',
       );
     }
   }
@@ -70,7 +74,9 @@ class WalletNotifier extends StateNotifier<WalletState> {
       final balance = await _apiService.getWalletBalance(userId);
       state = state.copyWith(balance: balance, error: null);
     } catch (e) {
-      // Erreur silencieuse pour les refresh
+      state = state.copyWith(
+        error: e is ApiException ? e.message : 'Impossible de récupérer votre solde.',
+      );
     }
   }
 }

@@ -469,20 +469,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                const PcListRow(
+                PcListRow(
                   icon: Icons.description_rounded,
                   iconTone: PcTone.neutral,
                   title: 'Conditions d’utilisation',
                   chevron: true,
-                  onTap: _noopSettingsAction,
+                  onTap: () => context.go('/cgu'),
                 ),
                 const PcDivider(),
-                const PcListRow(
+                PcListRow(
                   icon: Icons.shield_rounded,
                   iconTone: PcTone.neutral,
                   title: 'Confidentialité',
                   chevron: true,
-                  onTap: _noopSettingsAction,
+                  onTap: () => context.go('/confidentialite'),
                 ),
                 const PcDivider(),
                 PcListRow(

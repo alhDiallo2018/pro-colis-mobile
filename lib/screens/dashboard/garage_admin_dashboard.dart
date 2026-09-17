@@ -16,7 +16,6 @@ import '../../widgets/broadcast_banner.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/procolis_design_system.dart';
-import '../garage_admin/garage_assignations_screen.dart';
 import '../garage_admin/garage_colis_screen.dart';
 
 class GarageAdminDashboard extends ConsumerStatefulWidget {
@@ -128,11 +127,6 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
       backgroundColor: AppTheme.backgroundColor,
       body: _buildBody(),
       bottomNavigationBar: _buildBottomNavBar(),
-      floatingActionButton: PcFab(
-        icon: Icons.assignment_turned_in_rounded,
-        onPressed: () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const GarageAssignationsScreen())),
-      ),
     );
   }
 
@@ -350,21 +344,6 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.assignment_rounded,
-                  label: 'Assignations',
-                  tone: PcTone.primary,
-                  badge: _pendingCount > 0 ? _pendingCount.toString() : null,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const GarageAssignationsScreen(),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: _QuickActionCard(
                   icon: Icons.bar_chart_rounded,
@@ -638,27 +617,15 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
   Future<void> _confirmParcel(Parcel parcel) async {
     setState(() => _processingParcelId = parcel.id);
     try {
-      await _apiService.advanceParcel(parcel.id, 'confirm');
-      if (mounted) {
+      final result =
+          await _apiService.updateGarageAdminParcelStatus(parcel.id, 'confirmed');
+      if (mounted && result['success'] == true) {
         _showSnackBar('Colis confirmé', AppTheme.green600);
         await widget.onRefresh();
-      }
-    } catch (e) {
-      if (mounted) _showSnackBar('Erreur: $e', AppTheme.red400);
-    } finally {
-      if (mounted) setState(() => _processingParcelId = null);
-    }
-  }
-
-  Future<void> _assignDriver(Parcel parcel, String driverId) async {
-    setState(() => _processingParcelId = parcel.id);
-    try {
-      final result = await _apiService.assignDriverToParcel(parcel.id, driverId);
-      if (mounted && result['success'] == true) {
-        _showSnackBar('Chauffeur assigné', AppTheme.green600);
-        await widget.onRefresh();
       } else if (mounted) {
-        _showSnackBar(result['message'] ?? 'Erreur', AppTheme.red400);
+        _showSnackBar(
+            result['message']?.toString() ?? 'Impossible de confirmer le colis',
+            AppTheme.red400);
       }
     } catch (e) {
       if (mounted) _showSnackBar('Erreur: $e', AppTheme.red400);
@@ -689,10 +656,16 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
     if (confirm == true) {
       setState(() => _processingParcelId = parcel.id);
       try {
-        await _apiService.cancelParcel(parcel.id, reason: "Annulé par l'admin zone");
-        if (mounted) {
+        final result = await _apiService.updateGarageAdminParcelStatus(
+            parcel.id, 'cancelled',
+            reason: "Annulé par l'admin zone");
+        if (mounted && result['success'] == true) {
           _showSnackBar('Colis annulé', AppTheme.green600);
           await widget.onRefresh();
+        } else if (mounted) {
+          _showSnackBar(
+              result['message']?.toString() ?? 'Impossible d’annuler le colis',
+              AppTheme.red400);
         }
       } catch (e) {
         if (mounted) _showSnackBar('Erreur: $e', AppTheme.red400);
@@ -874,47 +847,6 @@ class _PendingParcelsTabState extends State<_PendingParcelsTab> {
                           block: true,
                           loading: isProcessing,
                           onPressed: isProcessing ? null : () => _confirmParcel(parcel),
-                        ),
-                      ),
-
-                    if (!hasDriver && isConfirmed)
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          hint: Text('Assigner', style: AppFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                          decoration: InputDecoration(
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            prefixIcon: const Icon(Icons.delivery_dining_rounded, size: 18),
-                            prefixIconConstraints: const BoxConstraints(minWidth: 34),
-                          ),
-                          items: widget.drivers
-                              .where((d) => d.driverStatus == DriverStatus.available)
-                              .map((d) => DropdownMenuItem(
-                                value: d.id,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.green500,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        d.fullName,
-                                        style: AppFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w600),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )).toList(),
-                          onChanged: isProcessing ? null : (value) => _assignDriver(parcel, value!),
                         ),
                       ),
                   ],
@@ -1228,10 +1160,8 @@ class _HistoryTab extends StatelessWidget {
         final currentUser = await apiService.getCurrentUser();
         if (currentUser.role == UserRole.superAdmin) {
           await apiService.deleteParcelSuperAdmin(parcel.id);
-        } else if (currentUser.role == UserRole.admin) {
-          await apiService.deleteParcelAdmin(parcel.id);
         } else {
-          throw Exception('Droits insuffisants');
+          throw Exception('Seul le super admin peut supprimer un colis');
         }
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

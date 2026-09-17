@@ -37,6 +37,8 @@ class NotificationService {
     channelDescription: 'Notifications des colis',
     importance: Importance.high,
     priority: Priority.high,
+    // Logo SendProColis monochrome : silhouette blanche sur fond transparent.
+    icon: 'ic_stat_sendprocolis',
   );
 
   static const DarwinNotificationDetails _iosDetails =

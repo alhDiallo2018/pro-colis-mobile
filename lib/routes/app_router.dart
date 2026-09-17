@@ -26,7 +26,6 @@ import '../screens/driver/revenus_screen.dart';
 import '../screens/driver/vehicle_documents_screen.dart';
 import '../screens/garage_admin/garage_admin_drivers_screen.dart';
 import '../screens/garage_admin/garage_admin_parcel_detail.dart';
-import '../screens/garage_admin/garage_assignations_screen.dart';
 import '../screens/garage_admin/garage_colis_screen.dart';
 import '../screens/garage_admin/garage_rapports_screen.dart';
 import '../screens/help/help_screen.dart';
@@ -43,6 +42,7 @@ import '../screens/legal/remboursement_page.dart';
 import '../screens/parcel/ads/advertisement_detail_screen.dart';
 import '../screens/parcel/ads/advertisements_screen.dart';
 import '../screens/parcel/confirm_delivery_screen.dart';
+import '../screens/parcel/driver_profile_screen.dart';
 import '../screens/parcel/free_parcels_screen.dart';
 import '../screens/parcel/new_parcel_wizard_screen.dart';
 import '../screens/parcel/offres_recues_screen.dart';
@@ -159,6 +159,12 @@ class AppRouter {
             if (location.startsWith('/client') && !user.isClient) {
               return '/dashboard';
             }
+            // Le wallet mobile (`/wallet`) est l'écran chauffeur. Garde UX
+            // uniquement : l'autorisation réelle reste côté backend, qui
+            // rejette tout appel à `/driver/wallet` pour un autre rôle.
+            if (location.startsWith('/wallet') && !user.canAccessWallet) {
+              return '/dashboard';
+            }
             // Espaces support : chaque métier ne voit que le sien, le super
             // admin conserve un accès transverse.
             if (location.startsWith('/support-tech') &&
@@ -243,7 +249,9 @@ class AppRouter {
         GoRoute(
           path: '/parcel/new',
           name: 'new-parcel',
-          builder: (context, state) => const NewParcelWizardScreen(),
+          builder: (context, state) => NewParcelWizardScreen(
+            preselectedDriverId: state.uri.queryParameters['driver'],
+          ),
         ),
 
         GoRoute(
@@ -272,6 +280,15 @@ class AppRouter {
           path: '/client/offres',
           name: 'client-offres',
           builder: (context, state) => const OffresRecuesScreen(),
+        ),
+
+        // Fiche publique d'un chauffeur, réservée au client (garde `/client`).
+        GoRoute(
+          path: '/client/driver/:driverId',
+          name: 'client-driver-profile',
+          builder: (context, state) => DriverProfileScreen(
+            driverId: state.pathParameters['driverId'] ?? '',
+          ),
         ),
 
         GoRoute(
@@ -655,11 +672,6 @@ class AppRouter {
           builder: (context, state) => const NotificationsScreen(),
         ),
 
-        GoRoute(
-          path: '/garage/assignments',
-          name: 'garage-assignments',
-          builder: (context, state) => const GarageAssignationsScreen(),
-        ),
         GoRoute(
           path: '/garage/colis',
           name: 'garage-colis',

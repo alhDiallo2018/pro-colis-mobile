@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/address.dart';
 import '../../models/garage.dart';
 import '../../providers/addresses_provider.dart';
-import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/fonts.dart';
 import '../../widgets/garage_picker.dart';
@@ -152,7 +151,6 @@ class _AddressBookCardState extends ConsumerState<AddressBookCard> {
               controller: _addressController,
               label: 'Adresse',
               placeholder: 'Rechercher une adresse…',
-              googleApiKey: PlacesService.googleApiKey,
               onCoordinates: (lat, lng) {
                 _latitude = lat;
                 _longitude = lng;

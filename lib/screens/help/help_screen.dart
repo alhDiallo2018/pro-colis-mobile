@@ -1,50 +1,103 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../models/public_config.dart';
+import '../../providers/public_config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/pc_components.dart';
 
-class HelpScreen extends StatefulWidget {
+/// Contenu d'aide affiché en secours lorsque la configuration publique
+/// (`/public/config`) n'est pas encore disponible ou ne renvoie pas de
+/// catégories/questions : l'écran ne doit jamais apparaître vide.
+const _defaultTopics = <HelpTopic>[
+  HelpTopic(icon: 'inventory', title: 'Créer et envoyer un colis'),
+  HelpTopic(icon: 'sell', title: 'Libre service et offres'),
+  HelpTopic(icon: 'qr_code', title: 'Suivi et livraison'),
+  HelpTopic(icon: 'wallet', title: 'Points et paiements'),
+  HelpTopic(icon: 'shield', title: 'Sécurité et litiges'),
+  HelpTopic(icon: 'person', title: 'Mon compte'),
+];
+
+const _defaultFaqs = <HelpFaq>[
+  HelpFaq(
+    question: 'Comment fonctionne le libre service ?',
+    answer:
+        'Vous publiez votre colis, des chauffeurs vérifiés font des offres, vous acceptez celle qui vous convient.',
+  ),
+  HelpFaq(
+    question: 'Que se passe-t-il à la livraison ?',
+    answer:
+        'Le destinataire communique un code PIN au chauffeur pour confirmer la remise du colis.',
+  ),
+  HelpFaq(
+    question: 'Comment sont calculés les points ?',
+    answer:
+        'Chaque colis livré crédite des points utilisables en réductions sur vos prochains envois.',
+  ),
+  HelpFaq(
+    question: 'Comment payer mes envois ?',
+    answer:
+        'Vous pouvez payer par carte, Orange Money, Wave, Free Money ou en espèces. Le paiement est débité une fois le colis livré.',
+  ),
+  HelpFaq(
+    question: 'Comment suivre mon colis ?',
+    answer:
+        'Connectez-vous à votre compte et allez dans « Suivi ». Entrez votre numéro de suivi pour voir les statuts en temps réel.',
+  ),
+  HelpFaq(
+    question: 'Puis-je annuler un colis ?',
+    answer:
+        'Oui, vous pouvez annuler un colis tant qu\'il n\'a pas encore été confirmé par un chauffeur. Au-delà, contactez notre support.',
+  ),
+  HelpFaq(
+    question: 'Comment devenir chauffeur ?',
+    answer:
+        'Créez un compte en sélectionnant le rôle « Conduire », remplissez votre profil, ajoutez vos documents et votre véhicule. Notre équipe vérifiera vos informations.',
+  ),
+  HelpFaq(
+    question: 'Comment sont protégés mes paiements ?',
+    answer:
+        'Tous les paiements sont sécurisés via PayDunya. Les fonds sont conservés sur un compte séquestre jusqu\'à la confirmation de livraison.',
+  ),
+  HelpFaq(
+    question: 'Que faire en cas de colis endommagé ?',
+    answer:
+        'Contactez notre support dans les 48 heures avec des photos du colis et votre numéro de suivi. Nous traiterons votre réclamation rapidement.',
+  ),
+];
+
+class HelpScreen extends ConsumerStatefulWidget {
   const HelpScreen({super.key});
 
   @override
-  State<HelpScreen> createState() => _HelpScreenState();
+  ConsumerState<HelpScreen> createState() => _HelpScreenState();
 }
 
-class _HelpScreenState extends State<HelpScreen> {
+class _HelpScreenState extends ConsumerState<HelpScreen> {
   final _searchController = TextEditingController();
   String _query = '';
-
-  static const _topics = [
-    _HelpTopic(Icons.inventory_2_rounded, 'Créer et envoyer un colis'),
-    _HelpTopic(Icons.sell_rounded, 'Libre service et offres'),
-    _HelpTopic(Icons.qr_code_2_rounded, 'Suivi et livraison'),
-    _HelpTopic(Icons.account_balance_wallet_rounded, 'Points et paiements'),
-    _HelpTopic(Icons.shield_rounded, 'Sécurité et litiges'),
-    _HelpTopic(Icons.person_rounded, 'Mon compte'),
-  ];
-
-  static const _faqs = [
-    _FaqItem(
-      'Comment fonctionne le libre service ?',
-      'Vous publiez votre colis, des chauffeurs vérifiés font des offres, vous acceptez celle qui vous convient.',
-    ),
-    _FaqItem(
-      'Que se passe-t-il à la livraison ?',
-      'Le destinataire communique un code PIN au chauffeur pour confirmer la remise du colis.',
-    ),
-    _FaqItem(
-      'Comment sont calculés les points ?',
-      'Chaque colis livré crédite des points utilisables en réductions sur vos prochains envois.',
-    ),
-  ];
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Les catégories et questions proviennent de la configuration publique
+  /// (administration API). Si celle-ci est indisponible ou vide, un contenu de
+  /// secours est affiché afin que l'écran ne reste jamais vide.
+  List<HelpTopic> get _topics {
+    final topics = ref.watch(publicConfigProvider)?.helpTopics;
+    return (topics == null || topics.isEmpty) ? _defaultTopics : topics;
+  }
+
+  List<HelpFaq> get _faqs {
+    final faqs = ref.watch(publicConfigProvider)?.helpFaqs;
+    return (faqs == null || faqs.isEmpty) ? _defaultFaqs : faqs;
   }
 
   @override
@@ -163,7 +216,7 @@ class _HelpScreenState extends State<HelpScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Notre équipe répond 7j/7',
+                        _availabilityLabel,
                         style: AppFonts.manrope(
                           color: AppTheme.slate600,
                           fontSize: 13,
@@ -189,6 +242,11 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showContactSheet(BuildContext context) {
+    final config = ref.read(publicConfigProvider);
+    final phone = config?.displayTechnicalPhone ?? '';
+    final email = config?.displayTechnicalEmail ?? '';
+    final responseTime = config?.displaySupportResponseTime ?? '';
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppTheme.cardColor,
@@ -216,29 +274,33 @@ class _HelpScreenState extends State<HelpScreen> {
                     Navigator.pop(ctx);
                     context.go('/support');
                   },
-                  child: const PcListRow(
+                  child: PcListRow(
                     icon: Icons.chat_bubble_rounded,
                     iconTone: PcTone.primary,
                     title: 'Chat support',
-                    subtitle: 'Réponse moyenne : 24h',
+                    subtitle: responseTime.isNotEmpty
+                        ? 'Réponse moyenne : $responseTime'
+                        : null,
                     chevron: true,
                   ),
                 ),
                 const PcDivider(),
-                const PcListRow(
+                PcListRow(
                   icon: Icons.call_rounded,
                   iconTone: PcTone.green,
                   title: 'Appeler le support',
-                  subtitle: '+221 76 516 27 96',
+                  subtitle: phone.isEmpty ? 'Numéro indisponible' : phone,
                   chevron: true,
+                  onTap: phone.isEmpty ? null : () => _launchPhone(phone),
                 ),
                 const PcDivider(),
-                const PcListRow(
+                PcListRow(
                   icon: Icons.mail_rounded,
                   iconTone: PcTone.amber,
                   title: 'Envoyer un e-mail',
-                  subtitle: 'support-technic@sendprocolis.com',
+                  subtitle: email.isEmpty ? 'E-mail indisponible' : email,
                   chevron: true,
+                  onTap: email.isEmpty ? null : () => _launchEmail(email),
                 ),
               ],
             ),
@@ -247,17 +309,73 @@ class _HelpScreenState extends State<HelpScreen> {
       },
     );
   }
+
+  String get _availabilityLabel {
+    final availability = ref.watch(publicConfigProvider)?.displaySupportAvailability;
+    if (availability == null || availability.isEmpty) {
+      return 'Notre équipe est disponible pour vous assister';
+    }
+    return 'Notre équipe répond $availability';
+  }
+
+  Future<void> _launchPhone(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^0-9+]'), ''));
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
+        _showSnack('Appel impossible depuis cet appareil');
+      }
+    } catch (_) {
+      if (mounted) _showSnack('Appel impossible');
+    }
+  }
+
+  Future<void> _launchEmail(String email) async {
+    final uri = Uri(scheme: 'mailto', path: email);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
+        _showSnack('Messagerie indisponible sur cet appareil');
+      }
+    } catch (_) {
+      if (mounted) _showSnack('Impossible d\'ouvrir la messagerie');
+    }
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
 }
 
-class _HelpTopic {
-  final IconData icon;
-  final String title;
-
-  const _HelpTopic(this.icon, this.title);
+IconData _helpIcon(String key) {
+  switch (key.trim().toLowerCase()) {
+    case 'inventory':
+      return Icons.inventory_2_rounded;
+    case 'sell':
+      return Icons.sell_rounded;
+    case 'qr_code':
+    case 'tracking':
+      return Icons.qr_code_2_rounded;
+    case 'wallet':
+    case 'payment':
+      return Icons.account_balance_wallet_rounded;
+    case 'shield':
+    case 'security':
+      return Icons.shield_rounded;
+    case 'person':
+    case 'account':
+      return Icons.person_rounded;
+    default:
+      return Icons.help_outline_rounded;
+  }
 }
 
 class _HelpTopicCard extends StatelessWidget {
-  final _HelpTopic topic;
+  final HelpTopic topic;
 
   const _HelpTopicCard({required this.topic});
 
@@ -275,7 +393,7 @@ class _HelpTopicCard extends StatelessWidget {
               color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: Icon(topic.icon, color: AppTheme.primary, size: 22),
+            child: Icon(_helpIcon(topic.icon), color: AppTheme.primary, size: 22),
           ),
           const Spacer(),
           Text(
@@ -295,15 +413,8 @@ class _HelpTopicCard extends StatelessWidget {
   }
 }
 
-class _FaqItem {
-  final String question;
-  final String answer;
-
-  const _FaqItem(this.question, this.answer);
-}
-
 class _FaqTile extends StatefulWidget {
-  final _FaqItem item;
+  final HelpFaq item;
 
   const _FaqTile({required this.item});
 

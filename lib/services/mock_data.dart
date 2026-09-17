@@ -1,11 +1,16 @@
+import 'package:flutter/foundation.dart';
+
 import '../models/parcel.dart';
 import '../models/user.dart';
 
+/// Donnees de demonstration utilisees uniquement en developpement/test.
+///
+/// `--dart-define=MOCK_API=true` active le mode mock, mais uniquement sur un
+/// build de debug/profile : `kReleaseMode` force `enabled` a `false` pour
+/// qu'aucun compte ou colis factice ne soit embarquable dans une release.
 class MockData {
-  static const bool enabled = bool.fromEnvironment(
-    'MOCK_API',
-    defaultValue: false,
-  );
+  static const bool enabled =
+      !kReleaseMode && bool.fromEnvironment('MOCK_API', defaultValue: false);
 
   static const String pin = '123456';
 

@@ -902,7 +902,7 @@ class _ClientRecentParcelCard extends StatelessWidget {
 
   String get _eta {
     final target = parcel.estimatedDeliveryDate ?? parcel.deliveryDate;
-    if (target == null) return '~4 h';
+    if (target == null) return '--';
     final diff = target.difference(DateTime.now());
     if (diff.isNegative) return 'Arrivé';
     if (diff.inDays > 0) return '${diff.inDays} j';

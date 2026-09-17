@@ -3,9 +3,12 @@
 // ignore_for_file: unused_import
 
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'cancellation.dart';
+import 'driver_location.dart';
 import 'payment.dart';
 import 'voice_message.dart';
 
@@ -187,6 +190,9 @@ class Bid {
   final String driverId;
   final String driverName;
   final String driverPhone;
+  final double? driverRating;
+  final String? driverCity;
+  final String? driverZoneName;
   final double price;
   final String? message;
   final BidStatus status;
@@ -211,6 +217,9 @@ class Bid {
     required this.driverId,
     required this.driverName,
     required this.driverPhone,
+    this.driverRating,
+    this.driverCity,
+    this.driverZoneName,
     required this.price,
     this.message,
     this.status = BidStatus.pending,
@@ -239,6 +248,15 @@ class Bid {
       driverPhone: json['driverPhone']?.toString() ??
           driver?['phone']?.toString() ??
           '',
+      driverRating: json['driverRating'] != null
+          ? _toDouble(json['driverRating'])
+          : driver?['rating'] != null
+              ? _toDouble(driver?['rating'])
+              : null,
+      driverCity: json['driverCity']?.toString() ??
+          driver?['city']?.toString(),
+      driverZoneName: json['driverZoneName']?.toString() ??
+          driver?['zoneName']?.toString(),
       price: _toDouble(json['price']),
       message: json['message']?.toString(),
       status: json['status'] != null
@@ -277,6 +295,9 @@ class Bid {
         'driverId': driverId,
         'driverName': driverName,
         'driverPhone': driverPhone,
+        'driverRating': driverRating,
+        'driverCity': driverCity,
+        'driverZoneName': driverZoneName,
         'price': price,
         'message': message,
         'status': status.value,
@@ -324,6 +345,9 @@ class Bid {
     String? driverId,
     String? driverName,
     String? driverPhone,
+    double? driverRating,
+    String? driverCity,
+    String? driverZoneName,
     double? price,
     String? message,
     BidStatus? status,
@@ -343,6 +367,9 @@ class Bid {
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
       driverPhone: driverPhone ?? this.driverPhone,
+      driverRating: driverRating ?? this.driverRating,
+      driverCity: driverCity ?? this.driverCity,
+      driverZoneName: driverZoneName ?? this.driverZoneName,
       price: price ?? this.price,
       message: message ?? this.message,
       status: status ?? this.status,
@@ -394,6 +421,12 @@ class Parcel {
   final String? arrivalZoneName;
   final String? departureCity;
   final String? arrivalCity;
+
+  // Coordonnées des zones (pour calculer une distance réelle).
+  final double? departureLatitude;
+  final double? departureLongitude;
+  final double? arrivalLatitude;
+  final double? arrivalLongitude;
 
   // Chauffeur
   final String? driverId;
@@ -481,8 +514,18 @@ class Parcel {
   final String? cancellationReason;
   final DateTime? cancelledAt;
 
+  /// Résultat financier de l'annulation (pénalité, remboursement, wallet,
+  /// points, dette), uniquement lorsque le backend le fournit. `null` sinon —
+  /// le mobile n'affiche alors aucune conséquence.
+  final CancellationResult? cancellation;
+
   // Événements
   final List<ParcelEvent> events;
+
+  /// Dernière position GPS connue du chauffeur assigné, telle qu'exposée par
+  /// le backend dans le suivi du colis. `null` tant qu'aucune position n'a été
+  /// transmise (ou que l'API ne la fournit pas).
+  final DriverLocation? driverLocation;
 
   Parcel({
     required this.id,
@@ -508,6 +551,10 @@ class Parcel {
     this.arrivalZoneName,
     this.departureCity,
     this.arrivalCity,
+    this.departureLatitude,
+    this.departureLongitude,
+    this.arrivalLatitude,
+    this.arrivalLongitude,
     this.driverId,
     this.driverName,
     this.driverPhone,
@@ -558,7 +605,9 @@ class Parcel {
     this.cancelledBy,
     this.cancellationReason,
     this.cancelledAt,
+    this.cancellation,
     this.events = const [],
+    this.driverLocation,
   });
 
   // ==================== FACTORY CONSTRUCTORS ====================
@@ -675,6 +724,10 @@ class Parcel {
             json['arrivalZoneName']),
       departureCity: parseString(json['departureCity']),
       arrivalCity: parseString(json['arrivalCity']),
+      departureLatitude: parseDouble(json['departureLatitude']),
+      departureLongitude: parseDouble(json['departureLongitude']),
+      arrivalLatitude: parseDouble(json['arrivalLatitude']),
+      arrivalLongitude: parseDouble(json['arrivalLongitude']),
       driverId: parseString(json['driverId']),
       driverName: parseString(json['driverName']),
       driverPhone: parseString(json['driverPhone']),
@@ -749,7 +802,16 @@ class Parcel {
       cancelledBy: parseString(json['cancelledBy']),
       cancellationReason: parseString(json['cancellationReason']),
       cancelledAt: parseDateTime(json['cancelledAt']),
+      cancellation: json['cancellation'] is Map
+          ? CancellationResult.fromResponse(Map<String, dynamic>.from(
+              json['cancellation'] as Map))
+          : null,
       events: events,
+      driverLocation: json['driverLocation'] is Map ||
+              json['driver_location'] is Map
+          ? DriverLocation.fromJson(Map<String, dynamic>.from(
+              json['driverLocation'] ?? json['driver_location']))
+          : null,
     );
   }
 
@@ -777,6 +839,10 @@ class Parcel {
         'arrivalZoneName': arrivalZoneName,
         'departureCity': departureCity,
         'arrivalCity': arrivalCity,
+        'departureLatitude': departureLatitude,
+        'departureLongitude': departureLongitude,
+        'arrivalLatitude': arrivalLatitude,
+        'arrivalLongitude': arrivalLongitude,
         'driverId': driverId,
         'driverName': driverName,
         'driverPhone': driverPhone,
@@ -864,6 +930,15 @@ class Parcel {
       status == ParcelStatus.arrived ||
       status == ParcelStatus.outForDelivery;
 
+  /// Le colis est réellement entre les mains du chauffeur (ramassé et pas
+  /// encore livré) : c'est la fenêtre pendant laquelle le suivi GPS doit être
+  /// actif côté chauffeur.
+  bool get isBeingTransported =>
+      status == ParcelStatus.pickedUp ||
+      status == ParcelStatus.inTransit ||
+      status == ParcelStatus.arrived ||
+      status == ParcelStatus.outForDelivery;
+
   bool get isFinished =>
       status == ParcelStatus.delivered || status == ParcelStatus.cancelled;
 
@@ -895,6 +970,57 @@ class Parcel {
   List<Bid> get rejectedBids => bids.where((b) => b.isRejected).toList();
 
   bool get isPaid => paymentStatus == 'completed' || paymentStatus == 'paid';
+
+  /// Distance à vol d'oiseau entre la zone de départ et la zone d'arrivée,
+  /// calculée à partir des coordonnées réelles fournies par l'API. `null`
+  /// quand l'une des coordonnées manque (colis antérieur à la migration).
+  double? get distanceKm {
+    final dLat = departureLatitude;
+    final dLng = departureLongitude;
+    final aLat = arrivalLatitude;
+    final aLng = arrivalLongitude;
+    if (dLat == null || dLng == null || aLat == null || aLng == null) {
+      return null;
+    }
+    if ((dLat == 0 && dLng == 0) || (aLat == 0 && aLng == 0)) {
+      return null;
+    }
+    return _haversineKm(dLat, dLng, aLat, aLng);
+  }
+
+  /// Distance affichable, ou `-- km` quand elle est inconnue.
+  String get distanceLabel {
+    final km = distanceKm;
+    if (km == null) return '-- km';
+    if (km < 10) return '${km.toStringAsFixed(1)} km';
+    return '${km.round()} km';
+  }
+
+  /// Temps restant estimé avant la livraison, ou `--` quand aucune date
+  /// d'arrivée n'a été fournie par l'API.
+  String get remainingLabel {
+    final eta = estimatedDeliveryDate;
+    if (eta == null) return '--';
+    final diff = eta.difference(DateTime.now());
+    if (diff.isNegative) return 'Arrivé';
+    if (diff.inDays > 0) return '${diff.inDays} j';
+    if (diff.inHours > 0) return '~${diff.inHours} h';
+    return '${diff.inMinutes.clamp(1, 59)} min';
+  }
+
+  static double _haversineKm(
+      double lat1, double lng1, double lat2, double lng2) {
+    const earthRadiusKm = 6371.0;
+    const degToRad = math.pi / 180.0;
+    final dLat = (lat2 - lat1) * degToRad;
+    final dLng = (lng2 - lng1) * degToRad;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * degToRad) *
+            math.cos(lat2 * degToRad) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return earthRadiusKm * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
 
   /// Montant réellement convenu entre le client et le chauffeur.
   ///
@@ -1086,6 +1212,10 @@ class Parcel {
     String? arrivalZoneName,
     String? departureCity,
     String? arrivalCity,
+    double? departureLatitude,
+    double? departureLongitude,
+    double? arrivalLatitude,
+    double? arrivalLongitude,
     String? driverId,
     String? driverName,
     String? driverPhone,
@@ -1136,7 +1266,9 @@ class Parcel {
     String? cancelledBy,
     String? cancellationReason,
     DateTime? cancelledAt,
+    CancellationResult? cancellation,
     List<ParcelEvent>? events,
+    DriverLocation? driverLocation,
   }) {
     return Parcel(
       id: id ?? this.id,
@@ -1162,6 +1294,10 @@ class Parcel {
       arrivalZoneName: arrivalZoneName ?? this.arrivalZoneName,
       departureCity: departureCity ?? this.departureCity,
       arrivalCity: arrivalCity ?? this.arrivalCity,
+      departureLatitude: departureLatitude ?? this.departureLatitude,
+      departureLongitude: departureLongitude ?? this.departureLongitude,
+      arrivalLatitude: arrivalLatitude ?? this.arrivalLatitude,
+      arrivalLongitude: arrivalLongitude ?? this.arrivalLongitude,
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
       driverPhone: driverPhone ?? this.driverPhone,
@@ -1217,7 +1353,9 @@ class Parcel {
       cancelledBy: cancelledBy ?? this.cancelledBy,
       cancellationReason: cancellationReason ?? this.cancellationReason,
       cancelledAt: cancelledAt ?? this.cancelledAt,
+      cancellation: cancellation ?? this.cancellation,
       events: events ?? this.events,
+      driverLocation: driverLocation ?? this.driverLocation,
     );
   }
 

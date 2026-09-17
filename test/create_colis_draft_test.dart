@@ -4,12 +4,16 @@
 // limitent donc à ce qui n'a pas besoin de ces plugins — bandeau de reprise,
 // restauration des champs, confirmation de sortie.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:procolis/screens/parcel/create_colis_sheet.dart';
 import 'package:procolis/services/form_draft_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'helpers/mock_http.dart';
 
 Future<void> _openSheet(WidgetTester tester) async {
   await tester.pumpWidget(
@@ -49,6 +53,8 @@ Map<String, dynamic> _draftData({String receiverName = 'Awa Ndiaye'}) => {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() => HttpOverrides.global = MockHttpOverrides());
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

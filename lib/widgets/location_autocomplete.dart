@@ -1,92 +1,42 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 
+import '../models/place.dart';
 import '../services/location_fix.dart';
+import '../services/places_service.dart';
 import '../theme/app_theme.dart';
 
-class PlaceResult {
-  final String description;
-  final String placeId;
-  final String mainText;
-  final String secondaryText;
+export '../models/place.dart';
 
-  PlaceResult({
-    required this.description,
-    required this.placeId,
-    required this.mainText,
-    required this.secondaryText,
-  });
-
-  factory PlaceResult.fromJson(Map<String, dynamic> json) {
-    final structured = json['structured_formatting'] as Map<String, dynamic>?;
-    return PlaceResult(
-      description: json['description'] as String? ?? '',
-      placeId: json['place_id'] as String? ?? '',
-      mainText: structured?['main_text'] as String? ?? '',
-      secondaryText: structured?['secondary_text'] as String? ?? '',
-    );
-  }
-}
-
-/// Découpage administratif d'un lieu, extrait des `address_components` Google.
-class PlaceDetails {
-  final String? placeId;
-  final String? formattedAddress;
-  final String? city;
-  final String? region;
-  final String? country;
-
-  const PlaceDetails({
-    this.placeId,
-    this.formattedAddress,
-    this.city,
-    this.region,
-    this.country,
-  });
-
-  /// Les types sont classés du plus précis au plus large : on garde le premier
-  /// qui matche pour éviter qu'un département n'écrase une ville.
-  static String? _pick(List components, List<String> types) {
-    for (final type in types) {
-      for (final c in components) {
-        final ts = (c['types'] as List?)?.cast<String>() ?? const [];
-        if (ts.contains(type)) return c['long_name'] as String?;
-      }
-    }
-    return null;
-  }
-
-  factory PlaceDetails.fromComponents(
-    List? components, {
-    String? placeId,
-    String? formattedAddress,
-  }) {
-    final list = components ?? const [];
-    return PlaceDetails(
-      placeId: placeId,
-      formattedAddress: formattedAddress,
-      city: _pick(list, ['locality', 'postal_town', 'administrative_area_level_2']),
-      region: _pick(list, ['administrative_area_level_1']),
-      country: _pick(list, ['country']),
-    );
-  }
-}
-
+/// Champ de recherche d'un lieu (Google Places Autocomplete) avec, en option,
+/// un bouton « utiliser ma position actuelle ».
+///
+/// Une sélection ou une géolocalisation produit toujours un [PlaceDetails]
+/// complet (nom, adresse, coordonnées, `placeId`) exposé via [onPlace] ; les
+/// rappels [onPlaceSelected], [onCoordinates] et [onPlaceDetails] sont
+/// conservés pour la rétro-compatibilité des écrans existants.
 class LocationAutocomplete extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final String? hint;
   final String? placeholder;
   final IconData? prefixIcon;
-  final String googleApiKey;
+
+  /// Prédiction brute choisie dans les suggestions.
   final void Function(PlaceResult place)? onPlaceSelected;
+
+  /// Coordonnées du lieu résolu (rétro-compatibilité).
   final void Function(double lat, double lng)? onCoordinates;
-  /// Découpage administratif du lieu résolu (ville / région / pays). Sans lui,
-  /// les zones créées à la volée arrivent sans ville et deviennent illisibles
-  /// dans les sélecteurs de trajet.
-  final void Function(double lat, double lng, PlaceDetails details)? onPlaceDetails;
+
+  /// Coordonnées + détails administratifs (rétro-compatibilité).
+  final void Function(double lat, double lng, PlaceDetails details)?
+      onPlaceDetails;
+
+  /// Lieu complet résolu — le rappel à privilégier : il ne perd ni le nom, ni
+  /// l'adresse, ni le `placeId`, ni les coordonnées.
+  final void Function(PlaceDetails place)? onPlace;
+
   final bool showGeolocate;
   final String? Function(String?)? validator;
   final bool autofocus;
@@ -99,10 +49,10 @@ class LocationAutocomplete extends StatefulWidget {
     this.hint,
     this.placeholder,
     this.prefixIcon = Icons.location_on_outlined,
-    required this.googleApiKey,
     this.onPlaceSelected,
     this.onCoordinates,
     this.onPlaceDetails,
+    this.onPlace,
     this.showGeolocate = true,
     this.validator,
     this.autofocus = false,
@@ -121,37 +71,8 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   bool _isLoading = false;
   bool _showSuggestions = false;
   Timer? _debounce;
-  final Dio _dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
   bool _billingWarningShown = false;
-  bool _isGeolocating = false;
   bool _suppressListener = false;
-
-  String _buildAddressFromComponents(List components) {
-    final parts = <String>[];
-    for (final c in components) {
-      final types = (c['types'] as List?)?.cast<String>() ?? [];
-      if (types.contains('plus_code')) continue;
-      if (types.any((t) => ['route', 'street_number', 'neighborhood', 'sublocality'].contains(t))) {
-        if (parts.isEmpty) parts.add(c['long_name'] as String);
-      }
-    }
-    for (final c in components) {
-      final types = (c['types'] as List?)?.cast<String>() ?? [];
-      if (types.contains('plus_code')) continue;
-      if (types.any((t) => ['locality', 'postal_town'].contains(t))) {
-        parts.add(c['long_name'] as String);
-        break;
-      }
-    }
-    for (final c in components) {
-      final types = (c['types'] as List?)?.cast<String>() ?? [];
-      if (types.contains('country')) {
-        parts.add(c['long_name'] as String);
-        break;
-      }
-    }
-    return parts.isNotEmpty ? parts.join(', ') : 'Position actuelle';
-  }
 
   @override
   void initState() {
@@ -184,15 +105,13 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   void _onTextChange() {
     if (_suppressListener) return;
     _debounce?.cancel();
-    final text = widget.controller.text;
-    if (text == 'Position actuelle' || _isGeolocating) return;
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      _fetchSuggestions(text);
+      _fetchSuggestions(widget.controller.text);
     });
   }
 
   Future<void> _fetchSuggestions(String query) async {
-    if (query.trim().length < 2 || widget.googleApiKey.isEmpty) {
+    if (query.trim().length < 2) {
       setState(() {
         _suggestions = [];
         _showSuggestions = false;
@@ -204,53 +123,46 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await _dio.get(
-        'https://maps.googleapis.com/maps/api/place/autocomplete/json',
-        queryParameters: {
-          'input': query,
-          'key': widget.googleApiKey,
-          'language': 'fr',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['status'] == 'OK') {
-          final predictions = (data['predictions'] as List)
-              .map((p) => PlaceResult.fromJson(p as Map<String, dynamic>))
-              .take(6)
-              .toList();
-          setState(() {
-            _suggestions = predictions;
-            _showSuggestions = predictions.isNotEmpty;
-          });
-          if (_showSuggestions) _showOverlay();
-        } else {
-          if (data['status'] == 'REQUEST_DENIED' && mounted && !_billingWarningShown) {
-            _billingWarningShown = true;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('API Google Maps : billing non activé sur le projet Google Cloud.'),
-                duration: Duration(seconds: 6),
-              ),
-            );
-          }
-          setState(() {
-            _suggestions = [];
-            _showSuggestions = false;
-          });
-          _removeOverlay();
-        }
+      final predictions = await PlacesService.autocomplete(query);
+      if (!mounted) return;
+      setState(() {
+        _suggestions = predictions;
+        _showSuggestions = predictions.isNotEmpty;
+      });
+      if (_showSuggestions) {
+        _showOverlay();
+      } else {
+        _removeOverlay();
       }
+    } on PlacesApiException catch (error) {
+      if (!mounted) return;
+      _warnBillingIfNeeded(error);
+      setState(() {
+        _suggestions = [];
+        _showSuggestions = false;
+      });
+      _removeOverlay();
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _suggestions = [];
         _showSuggestions = false;
       });
       _removeOverlay();
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _warnBillingIfNeeded(PlacesApiException error) {
+    if (_billingWarningShown) return;
+    _billingWarningShown = true;
+    final message = error.isConfigError
+        ? 'API Google Maps : clé invalide ou non configurée.'
+        : 'API Google Maps : service temporairement indisponible.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+    );
   }
 
   void _selectPlace(PlaceResult place) {
@@ -264,100 +176,58 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
     _hideOverlay();
     widget.onPlaceSelected?.call(place);
 
-    _fetchPlaceCoordinates(place.placeId);
+    _resolvePlace(place);
   }
 
-  Future<void> _fetchPlaceCoordinates(String placeId) async {
-    if (widget.onCoordinates == null && widget.onPlaceDetails == null) return;
-    try {
-      final response = await _dio.get(
-        'https://maps.googleapis.com/maps/api/place/details/json',
-        queryParameters: {
-          'place_id': placeId,
-          'fields': 'geometry,address_components,formatted_address',
-          'key': widget.googleApiKey,
-        },
-      );
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['status'] == 'OK') {
-          final result = data['result'];
-          final location = result['geometry']?['location'];
-          if (location != null) {
-            final lat = (location['lat'] as num).toDouble();
-            final lng = (location['lng'] as num).toDouble();
-            widget.onCoordinates?.call(lat, lng);
-            widget.onPlaceDetails?.call(
-              lat,
-              lng,
-              PlaceDetails.fromComponents(
-                result['address_components'] as List?,
-                placeId: placeId,
-                formattedAddress: result['formatted_address'] as String?,
-              ),
-            );
-          }
-        }
-      }
-    } catch (_) {}
+  Future<void> _resolvePlace(PlaceResult place) async {
+    if (widget.onCoordinates == null &&
+        widget.onPlaceDetails == null &&
+        widget.onPlace == null) {
+      return;
+    }
+    final details = await PlacesService.placeDetails(place.placeId);
+    if (details == null || !mounted) return;
+
+    // Le champ `name` des détails peut être vide : on retombe alors sur le
+    // libellé principal de la prédiction, qui est le nom réel du lieu.
+    final resolved = (details.name?.trim().isNotEmpty ?? false)
+        ? details
+        : details.copyWith(name: place.mainText);
+
+    if (resolved.hasCoordinates) {
+      widget.onCoordinates?.call(resolved.latitude!, resolved.longitude!);
+      widget.onPlaceDetails?.call(
+          resolved.latitude!, resolved.longitude!, resolved);
+    }
+    widget.onPlace?.call(resolved);
   }
 
+  /// Utilise la position GPS courante et tente d'en déduire un libellé lisible
+  /// par géocodage inverse. Les coordonnées restent la source technique ; le
+  /// texte affiché n'est qu'une représentation, jamais un remplacement.
   Future<void> _geolocate() async {
     try {
       final position = await resolveCurrentPosition();
-
       final lat = position.latitude;
       final lng = position.longitude;
-      widget.onCoordinates?.call(lat, lng);
 
+      PlaceDetails? details;
       try {
-        _isGeolocating = true;
-        final response = await _dio.get(
-          'https://maps.googleapis.com/maps/api/geocode/json',
-          queryParameters: {
-            'latlng': '$lat,$lng',
-            'key': widget.googleApiKey,
-            'language': 'fr',
-          },
-        );
-        if (response.statusCode == 200) {
-          final data = response.data;
-          if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
-            final first = data['results'][0];
-            final components = first['address_components'] as List?;
-            final addr = components != null
-                ? _buildAddressFromComponents(components)
-                : first['formatted_address'] as String?;
-            if (addr != null) {
-              widget.controller.text = addr;
-            }
-            widget.onPlaceDetails?.call(
-              lat,
-              lng,
-              PlaceDetails.fromComponents(
-                components,
-                placeId: first['place_id'] as String?,
-                formattedAddress: first['formatted_address'] as String?,
-              ),
-            );
-          } else {
-            if (data['status'] == 'REQUEST_DENIED' && mounted && !_billingWarningShown) {
-              _billingWarningShown = true;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('API Google Maps : billing non activé sur le projet Google Cloud.'),
-                  duration: Duration(seconds: 6),
-                ),
-              );
-            }
-            widget.controller.text = 'Position actuelle';
-          }
-        }
-        _isGeolocating = false;
+        details = await PlacesService.reverseGeocode(lat, lng);
       } catch (_) {
-        widget.controller.text = 'Position actuelle';
-        _isGeolocating = false;
+        details = null;
       }
+
+      // Repli explicite quand le géocodage inverse n'a rien produit.
+      final label = details?.label ?? 'Position actuelle';
+      _suppressListener = true;
+      widget.controller.text = label;
+      _suppressListener = false;
+
+      widget.onCoordinates?.call(lat, lng);
+      final place = details ?? PlaceDetails(latitude: lat, longitude: lng);
+      widget.onPlaceDetails?.call(lat, lng, place);
+      widget.onPlace?.call(place);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -466,7 +336,8 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
         autofocus: widget.autofocus,
         decoration: InputDecoration(
           labelText: widget.label,
-          hintText: widget.hint ?? widget.placeholder ?? 'Rechercher une adresse ou une ville...',
+          hintText:
+              widget.hint ?? widget.placeholder ?? 'Rechercher une adresse ou une ville...',
           helperText: widget.helperText,
           labelStyle: const TextStyle(
             color: Colors.grey,

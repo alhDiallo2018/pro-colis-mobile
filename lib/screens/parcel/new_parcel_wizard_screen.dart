@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -17,7 +18,6 @@ import '../../providers/parcel_provider.dart';
 import '../../services/api/client.dart';
 import '../../services/api/zones_api.dart';
 import '../../services/api_service.dart';
-import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/phone_contact_picker.dart';
@@ -28,7 +28,10 @@ import '../../widgets/location_autocomplete.dart';
 final _apiService = ApiService();
 
 class NewParcelWizardScreen extends ConsumerStatefulWidget {
-  const NewParcelWizardScreen({super.key});
+  /// Chauffeur pré-sélectionné depuis une fiche (accès direct `/parcel/new?driver=`).
+  final String? preselectedDriverId;
+
+  const NewParcelWizardScreen({super.key, this.preselectedDriverId});
 
   @override
   ConsumerState<NewParcelWizardScreen> createState() =>
@@ -87,6 +90,18 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     super.initState();
     _loadZones();
     _loadDriversForZone();
+    _applyPreselectedDriver();
+  }
+
+  Future<void> _applyPreselectedDriver() async {
+    final id = widget.preselectedDriverId;
+    if (id == null || id.isEmpty) return;
+    // Avant le premier build : affectation directe, pas de setState.
+    _isFreeMode = false;
+    final driver = await _apiService.getPublicDriver(id);
+    if (mounted && driver != null) {
+      setState(() => _selectedDriver = driver);
+    }
   }
 
   @override
@@ -130,10 +145,22 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     if (gid == null) return;
     setState(() => _loadingDrivers = true);
     try {
-      final drivers = await _apiService.getGarageColleagues(gid);
+      final drivers = await _apiService.getZoneDrivers(gid);
       if (mounted) setState(() => _drivers = drivers);
     } catch (_) {}
     if (mounted) setState(() => _loadingDrivers = false);
+  }
+
+  /// Ouvre la fiche chauffeur ; si le client y choisit ce chauffeur, le
+  /// formulaire récupère la sélection et poursuit le flux de proposition directe.
+  Future<void> _openDriverProfile(User driver) async {
+    final chosen = await context.push<User>('/client/driver/${driver.id}');
+    if (mounted && chosen != null) {
+      setState(() {
+        _selectedDriver = chosen;
+        _isFreeMode = false;
+      });
+    }
   }
 
   Future<void> _detectZoneFromCoordinates(double lat, double lng) async {
@@ -527,7 +554,6 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           label: 'Adresse (optionnel)',
           prefixIcon: Icons.location_on_rounded,
           hint: 'Rechercher une adresse...',
-          googleApiKey: PlacesService.googleApiKey,
           onCoordinates: _detectZoneFromCoordinates,
         ),
         if (_detectingZone || _detectedZone != null) ...[
@@ -646,67 +672,129 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             )
           else
             SizedBox(
-              height: 100,
+              height: 150,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: _drivers.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, i) {
                   final d = _drivers[i];
-                  final selected = _selectedDriver?.id == d.id;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedDriver = d),
-                    child: Container(
-                      width: 90,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppTheme.primaryLight
-                            : AppTheme.cardColor,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        border: Border.all(
-                          color:
-                              selected ? AppTheme.primary : AppTheme.slate200,
-                          width: selected ? 2 : 1,
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor: AppTheme.primaryLight,
-                            child: Text(
-                              d.fullName.isNotEmpty
-                                  ? d.fullName[0].toUpperCase()
-                                  : '?',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.primary),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            d.fullName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            '${d.completedDeliveries} liv.',
-                            style: TextStyle(
-                                fontSize: 10, color: AppTheme.slate500),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+                  return _driverCard(d);
                 },
               ),
             ),
         ],
       ],
+    );
+  }
+
+  /// Carte d'un chauffeur de la zone : statut réel, note, livraisons, et accès
+  /// à sa fiche. Un chauffeur « hors ligne » n'est pas sélectionnable.
+  Widget _driverCard(User d) {
+    final selected = _selectedDriver?.id == d.id;
+    final status = d.driverStatus ?? DriverStatus.offline;
+    final offline = status == DriverStatus.offline;
+    final rating = d.rating ?? 0;
+    final statusColor = switch (status) {
+      DriverStatus.available => AppTheme.green600,
+      DriverStatus.busy => AppTheme.amber500,
+      DriverStatus.offline => AppTheme.slate400,
+    };
+
+    return GestureDetector(
+      onTap: offline ? null : () => setState(() => _selectedDriver = d),
+      child: Opacity(
+        opacity: offline ? 0.55 : 1,
+        child: Container(
+          width: 120,
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.primaryLight : AppTheme.cardColor,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: selected ? AppTheme.primary : AppTheme.slate200,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppTheme.primaryLight,
+                    child: Text(
+                      d.fullName.isNotEmpty
+                          ? d.fullName[0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.primary,
+                          fontSize: 13),
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                        color: statusColor, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _openDriverProfile(d),
+                    child: Icon(Icons.info_outline_rounded,
+                        size: 18, color: AppTheme.slate400),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                d.fullName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                [d.city, d.region]
+                    .where((e) => e != null && e.isNotEmpty)
+                    .join(', '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    TextStyle(fontSize: 9.5, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.star_rounded,
+                      size: 12, color: AppTheme.amber500),
+                  const SizedBox(width: 2),
+                  Text(
+                    rating > 0 ? rating.toStringAsFixed(1) : '—',
+                    style: const TextStyle(
+                        fontSize: 10.5, fontWeight: FontWeight.w700),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${d.completedDeliveries ?? 0} liv.',
+                    style: TextStyle(
+                        fontSize: 9.5, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                status.label,
+                style: TextStyle(
+                    fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

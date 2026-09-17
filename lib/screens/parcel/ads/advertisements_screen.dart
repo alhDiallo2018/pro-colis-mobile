@@ -672,6 +672,20 @@ class _OfferCard extends StatelessWidget {
     return selected ? AppTheme.primary : AppTheme.slate200;
   }
 
+  /// Localité + note réelle du chauffeur, issues de l'API (plus de valeur
+  /// codée en dur).
+  String get _driverMeta {
+    final city = bid.driverCity?.isNotEmpty == true
+        ? bid.driverCity!
+        : (bid.driverZoneName?.isNotEmpty == true
+            ? bid.driverZoneName!
+            : 'Zone partenaire');
+    final rating = bid.driverRating;
+    if (rating == null || rating <= 0) return city;
+    final ratingText = rating.toStringAsFixed(1).replaceAll('.', ',');
+    return '$city · $ratingText ★';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPlaying = bid.audioUrl != null && playingAudioUrl == bid.audioUrl;
@@ -727,7 +741,7 @@ class _OfferCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Zone partenaire · 4,8 ★',
+                  _driverMeta,
                   style: AppFonts.manrope(
                     fontSize: 12.5,
                     color: AppTheme.textSecondary,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'providers/auth_provider.dart';
+import 'providers/public_config_provider.dart';
 import 'providers/session_lock_provider.dart';
 import 'providers/theme_provider.dart';
 import 'routes/app_router.dart';
@@ -37,6 +38,10 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
     // notification ouverte pendant le démarrage à froid.
     PushNotificationService.onNotificationTap = _handleNotificationTap;
     NotificationService.onNotificationTap = _handleLocalNotificationTap;
+
+    // Charge la configuration publique (commission, points, contact support…)
+    // dès le démarrage : les écrans la lisent ensuite sans valeur codée en dur.
+    ref.read(publicConfigProvider);
   }
 
   @override

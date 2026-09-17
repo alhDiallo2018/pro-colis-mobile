@@ -220,6 +220,13 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   bool get _canAccept {
     if (_lastProposedBy == null || _negotiations.isEmpty) return false;
     if (!_isNegotiationActive) return false;
+    // Le backend n'autorise l'acceptation d'une offre d'annonce que par le
+    // chauffeur propriétaire : côté client, seule la contre-proposition existe.
+    if (widget.advertisementId != null &&
+        widget.offerId != null &&
+        widget.role != 'driver') {
+      return false;
+    }
     if (widget.role != null) return _lastProposedBy != widget.role;
     return widget.isOwner;
   }
@@ -295,11 +302,10 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     Map<String, dynamic>? result;
 
     if (widget.offerId != null && widget.advertisementId != null) {
+      // Seul le chauffeur propriétaire de l'annonce peut accepter une offre
+      // (le backend n'expose pas d'acceptation côté client).
       if (widget.role == 'driver') {
         result = await _api.acceptAdvertisementOffer(
-            widget.advertisementId!, widget.offerId!);
-      } else {
-        result = await _api.clientAcceptAdvertisementOffer(
             widget.advertisementId!, widget.offerId!);
       }
     } else if (widget.bidId != null) {

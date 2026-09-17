@@ -1,12 +1,16 @@
 // Parcours brouillon du formulaire « Créer une annonce » : ce qui doit rester
 // vrai, c'est qu'une saisie non publiée ne disparaît pas quand on ferme.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:procolis/screens/driver/create_annonce_sheet.dart';
 import 'package:procolis/services/form_draft_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'helpers/mock_http.dart';
 
 /// Ouvre la feuille de création d'annonce dans un décor minimal.
 Future<void> _openSheet(WidgetTester tester) async {
@@ -49,6 +53,8 @@ Future<void> _openSheetWithContent(WidgetTester tester,
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() => HttpOverrides.global = MockHttpOverrides());
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

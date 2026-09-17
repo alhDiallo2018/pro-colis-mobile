@@ -29,8 +29,6 @@ import 'package:record/record.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
-import '../../providers/wallet_provider.dart';
-import '../../utils/parcel_access_policy.dart';
 import '../../utils/parcel_offer_helpers.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/bar_chart.dart';
@@ -46,6 +44,7 @@ import '../driver/mes_annonces_screen.dart';
 import '../driver/parametres_screen.dart';
 import '../driver/points_screen.dart';
 import '../driver/revenus_screen.dart';
+import '../wallet/wallet_screen.dart';
 import '../driver/vehicle_documents_screen.dart';
 import '../help/help_screen.dart';
 import '../parcel/confirm_delivery_screen.dart';
@@ -2222,7 +2221,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                 if (availableParcel != null)
                   _DriverRouteCard(
                     parcel: availableParcel,
-                    footerText: '240 km',
+                    footerText: availableParcel.distanceLabel,
                     primaryActionLabel: availableParcelBidId != null
                         ? 'Suivi offre'
                         : 'Faire une offre',
@@ -2312,6 +2311,24 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
             ),
           ],
           const SizedBox(height: 12),
+          // Qui est le client, où livrer : le chauffeur doit pouvoir trancher
+          // sans ouvrir le détail complet.
+          _ProposalContactRow(
+            icon: Icons.person_outline_rounded,
+            label: 'Client',
+            value: proposal.senderName.isNotEmpty
+                ? '${proposal.senderName}${proposal.senderPhone.isNotEmpty ? ' · ${proposal.senderPhone}' : ''}'
+                : '—',
+          ),
+          _ProposalContactRow(
+            icon: Icons.location_on_outlined,
+            label: 'Livrer à',
+            value: proposal.receiverName +
+                (proposal.receiverAddress != null &&
+                        proposal.receiverAddress!.isNotEmpty
+                    ? ' · ${proposal.receiverAddress}'
+                    : ''),
+          ),
           _DriverRouteCard(
             parcel: proposal,
             showPrimaryAction: false,
@@ -2931,6 +2948,44 @@ class _PublishTripShortcut extends StatelessWidget {
   }
 }
 
+class _ProposalContactRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _ProposalContactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: AppTheme.slate500),
+          const SizedBox(width: 6),
+          Text('$label : ',
+              style: TextStyle(
+                  fontSize: 12, color: AppTheme.textSecondary)),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ============================================================
 // ✅ DRIVER ROUTE CARD (CORRIGÉ)
 // ============================================================
@@ -3042,7 +3097,10 @@ class _DriverRouteCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              const _RouteMeta(icon: Icons.schedule_rounded, value: '~4 h'),
+              _RouteMeta(
+                icon: Icons.schedule_rounded,
+                value: parcel.remainingLabel,
+              ),
               const SizedBox(width: 18),
               Text(
                 '${_formatFcfa(price)}\nFCFA',
@@ -3242,7 +3300,7 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
 
   String _poolFooter(Parcel parcel) {
     final offers = parcel.bids.length;
-    return '240 km · $offers offre${offers > 1 ? 's' : ''}';
+    return '${parcel.distanceLabel} · $offers offre${offers > 1 ? 's' : ''}';
   }
 
   Future<void> _refresh() async => widget.onRefresh();
@@ -3958,36 +4016,56 @@ class _DriverProfileTabScreenState
 
   Future<void> _loadProfileData() async {
     final zoneId = user?.zoneId;
-    final results = await Future.wait(<Future<dynamic>>[
-      _api.getDriverStats(),
-      _api.getDriverVehicle(),
-      _api.getIdentityStatus(),
-      _api.getWalletBalance(user?.id ?? ''),
-      if (zoneId != null && zoneId.isNotEmpty)
-        _api.getAllZones()
-      else
-        Future.value(const <Garage>[]),
-    ]);
 
-    if (!mounted) return;
-
-    final zones = results[4] as List<Garage>;
-    String? zoneName;
-    for (final z in zones) {
-      if (z.id == zoneId) {
-        zoneName = z.name;
-        break;
-      }
+    // Le solde est chargé séparément : une erreur réseau sur le wallet ne doit
+    // pas vider les autres informations du profil ni afficher « 0 FCFA ».
+    double? walletBalance;
+    try {
+      walletBalance = await _api.getWalletBalance(user?.id ?? '');
+    } catch (e) {
+      debugPrint('[Profil] Solde indisponible: $e');
+      walletBalance = null;
     }
 
-    setState(() {
-      _stats = results[0] as Map<String, dynamic>;
-      _vehicle = results[1] as Map<String, dynamic>?;
-      _identity = results[2] as Map<String, dynamic>?;
-      _wallet = results[3] as double;
-      _zoneName = zoneName;
-      _loading = false;
-    });
+    try {
+      final results = await Future.wait(<Future<dynamic>>[
+        _api.getDriverStats(),
+        _api.getDriverVehicle(),
+        _api.getIdentityStatus(),
+        if (zoneId != null && zoneId.isNotEmpty)
+          _api.getAllZones()
+        else
+          Future.value(const <Garage>[]),
+      ]);
+
+      if (!mounted) return;
+
+      final zones = results[3] as List<Garage>;
+      String? zoneName;
+      for (final z in zones) {
+        if (z.id == zoneId) {
+          zoneName = z.name;
+          break;
+        }
+      }
+
+      setState(() {
+        _stats = results[0] as Map<String, dynamic>;
+        _vehicle = results[1] as Map<String, dynamic>?;
+        _identity = results[2] as Map<String, dynamic>?;
+        _wallet = walletBalance;
+        _zoneName = zoneName;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('❌ [Profil] _loadProfileData failed: $e');
+      if (mounted) {
+        setState(() {
+          _wallet = walletBalance;
+          _loading = false;
+        });
+      }
+    }
   }
 
   int get _deliveries {
@@ -3996,7 +4074,7 @@ class _DriverProfileTabScreenState
     return user?.completedDeliveries ?? user?.totalDeliveries ?? 0;
   }
 
-  double get _walletBalance => _wallet ?? user?.walletBalance ?? 0;
+  double? get _walletBalance => _wallet;
 
   double? get _ratingValue {
     final fromStats = _stats['rating'];
@@ -4195,7 +4273,9 @@ class _DriverProfileTabScreenState
                   Expanded(
                     child: _DriverProfileStat(
                       icon: Icons.account_balance_wallet_rounded,
-                      value: '${_walletBalance.toStringAsFixed(0)} FCFA',
+                      value: _walletBalance != null
+                          ? '${_walletBalance!.toStringAsFixed(0)} FCFA'
+                          : '—',
                       label: 'Solde',
                       tone: AppTheme.amber500,
                       background: AppTheme.amber50,
@@ -4270,6 +4350,16 @@ class _DriverProfileTabScreenState
                           context,
                           MaterialPageRoute(
                               builder: (_) => const DriverRevenusScreen())),
+                    ),
+                    const Divider(height: 1),
+                    _DriverProfileRow(
+                      icon: Icons.savings_rounded,
+                      title: 'Revenu / Retirer',
+                      subtitle: 'Solde disponible et retrait de fonds',
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const WalletScreen())),
                     ),
                     const Divider(height: 1),
                     _DriverProfileRow(
@@ -4652,1123 +4742,6 @@ class _DriverProfileRow extends StatelessWidget {
   }
 }
 
-// ==================== ÉCRAN ANNONCES POUR CHAUFFEUR ====================
-
-class DriverAdvertisementsScreen extends ConsumerStatefulWidget {
-  const DriverAdvertisementsScreen({super.key});
-
-  @override
-  ConsumerState<DriverAdvertisementsScreen> createState() =>
-      _DriverAdvertisementsScreenState();
-}
-
-class _DriverAdvertisementsScreenState
-    extends ConsumerState<DriverAdvertisementsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  String _selectedFilter = 'all';
-  bool _isLoading = false;
-
-  List<Parcel> _clientRequests = [];
-  List<Parcel> _myAds = [];
-
-  final ApiService _apiService = ApiService();
-
-  static const Color primaryBlue = Color(0xFF2563EB);
-  static Color get backgroundColor => AppTheme.backgroundColor;
-  static Color get textPrimary => AppTheme.textPrimary;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAdvertisements();
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadAdvertisements() async {
-    final authState = ref.read(authProvider);
-    final user = authState.user;
-    if (user == null) return;
-
-    setState(() => _isLoading = true);
-    try {
-      await Future.microtask(() async {
-        await ref.read(parcelProvider.notifier).loadFreeParcels();
-      });
-
-      final freeParcels = ref.read(parcelProvider).freeParcels;
-
-      _clientRequests = freeParcels
-          .where((p) => !isParcelSender(p, user) && !_isDriver(p))
-          .toList();
-
-      _myAds = freeParcels.where((p) => isParcelSender(p, user)).toList();
-
-      debugPrint(
-          '✅ Demandes clients: ${_clientRequests.length}, Mes annonces: ${_myAds.length}');
-    } catch (e) {
-      debugPrint('❌ Erreur chargement annonces: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  bool _isDriver(Parcel parcel) {
-    return parcel.driverId != null ||
-        parcel.driverName != null ||
-        parcel.senderName.contains('Chauffeur') ||
-        parcel.senderName.contains('Driver') ||
-        parcel.senderName.contains('Chauffeuse');
-  }
-
-  List<Parcel> get _filteredAdvertisements {
-    List<Parcel> ads = _tabController.index == 0 ? _clientRequests : _myAds;
-
-    switch (_selectedFilter) {
-      case 'active':
-        return ads
-            .where((p) =>
-                p.status == ParcelStatus.free ||
-                p.status == ParcelStatus.pending)
-            .toList();
-      case 'with_bids':
-        return ads.where((p) => p.hasBids).toList();
-      case 'confirmed':
-        return ads.where((p) => p.status == ParcelStatus.confirmed).toList();
-      case 'delivered':
-        return ads.where((p) => p.status == ParcelStatus.delivered).toList();
-      default:
-        return ads;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Annonces',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: textPrimary,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _loadAdvertisements,
-                  color: primaryBlue,
-                ),
-              ],
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: primaryBlue,
-              ),
-              dividerColor: Colors.transparent,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.grey.shade600,
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-              onTap: (index) => setState(() {}),
-              tabs: const [
-                Tab(text: '👥 Demandes clients'),
-                Tab(text: '📦 Mes annonces de voyage'),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                      ),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedFilter,
-                        isExpanded: true,
-                        icon: Icon(
-                          Icons.filter_list,
-                          size: 18,
-                          color: Colors.grey.shade600,
-                        ),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: textPrimary,
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'all', child: Text('📋 Toutes')),
-                          DropdownMenuItem(
-                              value: 'active', child: Text('🔄 Actives')),
-                          DropdownMenuItem(
-                              value: 'with_bids',
-                              child: Text('💰 Avec offres')),
-                          DropdownMenuItem(
-                              value: 'confirmed', child: Text('✅ Confirmées')),
-                          DropdownMenuItem(
-                              value: 'delivered', child: Text('🎉 Livrées')),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedFilter = value!;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _buildContent(),
-          ),
-        ],
-      ),
-      floatingActionButton: _tabController.index == 1
-          ? FloatingActionButton(
-              onPressed: _createNewAd,
-              backgroundColor: primaryBlue,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shape: const CircleBorder(),
-              tooltip: 'Nouvelle annonce de voyage',
-              child: const Icon(Icons.add, size: 28),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
-
-  Widget _buildContent() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
-        ),
-      );
-    }
-
-    final advertisements = _filteredAdvertisements;
-
-    if (advertisements.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadAdvertisements,
-      color: primaryBlue,
-      backgroundColor: AppTheme.cardColor,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        itemCount: advertisements.length,
-        itemBuilder: (context, index) {
-          final parcel = advertisements[index];
-          final isMine = _tabController.index == 1;
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildParcelCard(parcel, isMine),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildParcelCard(Parcel parcel, bool isMine) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildParcelContent(parcel),
-          if (isMine) ...[
-            const Divider(height: 1, thickness: 1),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: _buildActionButtons(parcel),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildParcelContent(Parcel parcel) {
-    final hasBids = parcel.bids.isNotEmpty;
-    final hasAudio = parcel.audioUrls.isNotEmpty;
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FreeParcelDetailsScreen(parcel: parcel),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.gavel, size: 12, color: Colors.purple[700]),
-                      const SizedBox(width: 4),
-                      Text(
-                        'À marchander',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.purple[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                if (hasBids)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${parcel.bids.length} offre(s)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                if (hasAudio)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.mic, size: 12, color: Colors.purple[700]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Audio',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.purple[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              parcel.trackingNumber,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-                color: textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.location_on, size: 14, color: Colors.green),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'De: ${parcel.departureZoneName}',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 5),
-              child: Column(
-                children: [
-                  Container(width: 2, height: 12, color: Colors.grey.shade300),
-                  Icon(Icons.arrow_downward,
-                      size: 10, color: Colors.grey.shade400),
-                  Container(width: 2, height: 12, color: Colors.grey.shade300),
-                ],
-              ),
-            ),
-            Row(
-              children: [
-                Icon(Icons.location_on, size: 14, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'À: ${parcel.arrivalZoneName ?? "Non spécifié"}',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.description, size: 14, color: Colors.grey.shade500),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    parcel.description,
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                if (parcel.notes != null &&
-                    parcel.notes!.contains('Capacité max:'))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.fitness_center,
-                            size: 12, color: Colors.green.shade700),
-                        const SizedBox(width: 4),
-                        Text(
-                          _extractFromNotes(parcel.notes!, 'Capacité max'),
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.green.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (parcel.notes != null && parcel.notes!.contains('Départ:'))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.shade200),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.calendar_today,
-                            size: 12, color: Colors.orange.shade700),
-                        const SizedBox(width: 4),
-                        Text(
-                          _extractFromNotes(parcel.notes!, 'Départ'),
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.orange.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (parcel.isUrgent)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.flash_on,
-                            size: 12, color: Colors.red.shade700),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Urgent',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.red.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (parcel.isInsured)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.shield,
-                            size: 12, color: Colors.blue.shade700),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Assuré',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.blue.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (parcel.audioUrls.isNotEmpty)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.purple.shade200),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.mic,
-                            size: 12, color: Colors.purple.shade700),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Message vocal',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.purple.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _extractFromNotes(String notes, String key) {
-    final lines = notes.split('\n');
-    for (final line in lines) {
-      if (line.contains(key)) {
-        final parts = line.split(':');
-        if (parts.length > 1) {
-          return parts[1].trim();
-        }
-      }
-    }
-    return '';
-  }
-
-  Widget _buildActionButtons(Parcel parcel) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: parcel.hasBids ? () => _showBidsDialog(parcel) : null,
-            icon: Icon(
-              Icons.visibility_outlined,
-              size: 18,
-              color: parcel.hasBids ? primaryBlue : Colors.grey.shade400,
-            ),
-            label: Text(
-              'Voir les offres',
-              style: TextStyle(
-                color: parcel.hasBids ? primaryBlue : Colors.grey.shade400,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(
-                color: parcel.hasBids ? primaryBlue : Colors.grey.shade300,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (parcel.isPending || parcel.isFree)
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _editAd(parcel),
-              icon: const Icon(
-                Icons.edit_outlined,
-                size: 18,
-                color: Colors.grey,
-              ),
-              label: Text(
-                'Modifier',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.grey.shade300),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        const SizedBox(width: 8),
-        if (parcel.isPending || parcel.isFree)
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _deleteAd(parcel),
-              icon: const Icon(
-                Icons.delete_outlined,
-                size: 18,
-                color: Colors.red,
-              ),
-              label: Text(
-                'Supprimer',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.red.shade300),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState() {
-    final isClientRequests = _tabController.index == 0;
-
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: primaryBlue.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isClientRequests ? Icons.people_rounded : Icons.local_shipping,
-                size: 64,
-                color: primaryBlue,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              isClientRequests
-                  ? 'Aucune demande de client'
-                  : 'Aucune annonce de voyage',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              isClientRequests
-                  ? 'Les clients n\'ont pas encore fait de demandes'
-                  : 'Créez votre première annonce de voyage',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (!isClientRequests) ...[
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _createNewAd,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 4,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.add, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      'Créer une annonce',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _createNewAd() {
-    showCreateAnnonceSheet(context).then((created) {
-      if (!mounted) return;
-      if (created == true) {
-        _loadAdvertisements();
-      }
-    });
-  }
-
-  void _editAd(Parcel parcel) {
-    context.push('/parcel/${parcel.id}', extra: parcel).then((result) {
-      if (!mounted) return;
-      if (result == true) {
-        _loadAdvertisements();
-      }
-    });
-  }
-
-  Future<void> _deleteAd(Parcel parcel) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text(
-          'Supprimer l\'annonce',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'Voulez-vous vraiment supprimer l\'annonce "${parcel.description}" ?\n\n'
-          '⚠️ Toutes les offres associées seront également supprimées.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() => _isLoading = true);
-      try {
-        final result = await _apiService.cancelParcel(parcel.id);
-
-        if (result['success'] == true) {
-          await _loadAdvertisements();
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Annonce supprimée avec succès'),
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            );
-          }
-        } else {
-          throw Exception(result['message'] ?? 'Erreur lors de la suppression');
-        }
-      } catch (e) {
-        debugPrint('❌ Erreur lors de la suppression: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur lors de la suppression: $e'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      }
-    }
-  }
-
-  void _showBidsDialog(Parcel parcel) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => _BidsBottomSheet(parcel: parcel),
-    );
-  }
-}
-
-// ==================== BOTTOM SHEET DES OFFRES ====================
-
-class _BidsBottomSheet extends StatefulWidget {
-  final Parcel parcel;
-
-  const _BidsBottomSheet({required this.parcel});
-
-  @override
-  State<_BidsBottomSheet> createState() => _BidsBottomSheetState();
-}
-
-class _BidsBottomSheetState extends State<_BidsBottomSheet> {
-  static const Color primaryBlue = Color(0xFF2563EB);
-  static const Color textPrimary = Color(0xFF1A2332);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(Icons.gavel_rounded, color: primaryBlue),
-              const SizedBox(width: 8),
-              const Text(
-                'Offres reçues',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${widget.parcel.bids.length} offre${widget.parcel.bids.length > 1 ? 's' : ''}',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: widget.parcel.bids.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final bid = widget.parcel.bids[index];
-                return _buildBidTile(bid);
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.grey.shade600,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                side: BorderSide(
-                  color: Colors.grey.shade300,
-                ),
-              ),
-              child: const Text('Fermer'),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBidTile(Bid bid) {
-    final isSelected = widget.parcel.selectedBidId == bid.id;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.green.withOpacity(0.08) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: isSelected
-            ? Border.all(color: Colors.green, width: 1.5)
-            : Border.all(color: Colors.transparent),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: primaryBlue.withOpacity(0.1),
-            child: Text(
-              bid.driverName.isNotEmpty ? bid.driverName[0].toUpperCase() : '?',
-              style: const TextStyle(
-                color: primaryBlue,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        bid.driverName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: textPrimary,
-                          fontSize: 14,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isSelected)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          '✅ Acceptée',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '💰 ${bid.price.toStringAsFixed(0)} FCFA',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: primaryBlue,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (bid.responseMessage != null &&
-                    bid.responseMessage!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      bid.responseMessage!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ] else if (bid.message != null && bid.message!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      bid.message!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.access_time,
-                        size: 12, color: Colors.grey.shade500),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${bid.formattedDate}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: bid.status.color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: bid.status.color.withOpacity(0.3),
-              ),
-            ),
-            child: Text(
-              bid.status.label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: bid.status.color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ==================== ÉCRAN MES COLIS (SANS APP BAR - SEULEMENT LE HEADER) ====================
 
 class _MyParcelsScreen extends StatefulWidget {
@@ -5795,6 +4768,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
   late TabController _tabController;
   final ApiService _apiService = ApiService();
   User? _freshUser;
+  double? _walletBalance;
 
   static const Color primaryBlue = Color(0xFF2563EB);
   static const Color textPrimary = Color(0xFF1A2332);
@@ -5804,6 +4778,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _loadFreshUser();
+    _loadWalletBalance(widget.user?.id);
   }
 
   @override
@@ -5820,9 +4795,35 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
           _freshUser = user;
         });
       }
+      await _loadWalletBalance(user.id);
     } catch (e) {
       debugPrint('Erreur chargement user: $e');
     }
+  }
+
+  Future<void> _loadWalletBalance(String? userId) async {
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+    double? balance;
+    try {
+      balance = await _apiService.getWalletBalance(userId);
+    } catch (e) {
+      debugPrint('Solde indisponible: $e');
+      balance = null;
+    }
+    if (mounted) {
+      setState(() {
+        _walletBalance = balance;
+      });
+    }
+  }
+
+  String _fcfa(num value) {
+    return value.toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+$)'),
+          (match) => '${match[1]} ',
+        );
   }
 
   List<Parcel> get _pendingParcels {
@@ -5979,53 +4980,49 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
                         ],
                       ),
                     ),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final walletState = ref.watch(walletProvider);
-                        final walletBalance = walletState.balance;
-                        return GestureDetector(
-                          onTap: () => context.push('/driver/points'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF0B6E3A), Color(0xFF0D8C46)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      const Color(0xFF0B6E3A).withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.account_balance_wallet_rounded,
-                                  color: Colors.amber,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${walletBalance.toStringAsFixed(0)} FCFA',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
+                    GestureDetector(
+                      onTap: () => context.push('/driver/points'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0B6E3A), Color(0xFF0D8C46)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                        );
-                      },
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0B6E3A).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: Colors.amber,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              // `null` = solde inconnu (jamais présenté comme 0).
+                              _walletBalance != null
+                                  ? '${_fcfa(_walletBalance!)} FCFA'
+                                  : '—',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                     SizedBox(width: 8),
                   ],

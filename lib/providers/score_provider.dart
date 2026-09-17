@@ -9,7 +9,10 @@ final scoreProvider = StateNotifierProvider<ScoreNotifier, ScoreState>((ref) {
 
 class ScoreState {
   final bool isLoading;
-  final double balance;
+
+  /// Solde de points. `null` signifie « inconnu » (non chargé ou erreur) : il
+  /// ne doit jamais être interprété comme un solde nul.
+  final double? balance;
   final List<Map<String, dynamic>> history;
   final String? error;
   final Score? score;
@@ -17,7 +20,7 @@ class ScoreState {
 
   ScoreState({
     required this.isLoading,
-    this.balance = 0,
+    this.balance,
     this.history = const [],
     this.error,
     this.score,
@@ -33,12 +36,13 @@ class ScoreState {
     String? error,
     Score? score,
     bool? hasAttemptedLoad,
+    bool clearError = false,
   }) {
     return ScoreState(
       isLoading: isLoading ?? this.isLoading,
       balance: balance ?? this.balance,
       history: history ?? this.history,
-      error: error ?? this.error,
+      error: clearError ? null : error,
       score: score ?? this.score,
       hasAttemptedLoad: hasAttemptedLoad ?? this.hasAttemptedLoad,
     );
@@ -51,7 +55,7 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
   final ApiService _apiService = ApiService();
 
   Future<void> loadScore(String userId) async {
-    state = state.copyWith(isLoading: true, hasAttemptedLoad: true);
+    state = state.copyWith(isLoading: true, hasAttemptedLoad: true, clearError: true);
     try {
       final balance = await _apiService.getScoreBalance();
       final history = await _apiService.getScoreHistory();
@@ -84,12 +88,17 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
         error: null,
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
+      state = state.copyWith(
+        error: e is ApiException
+            ? e.message
+            : 'Impossible de récupérer vos points.',
+        isLoading: false,
+      );
     }
   }
 
   Future<void> loadBalance() async {
-    state = state.copyWith(isLoading: true, hasAttemptedLoad: true);
+    state = state.copyWith(isLoading: true, hasAttemptedLoad: true, clearError: true);
     try {
       final balance = await _apiService.getScoreBalance();
       state = state.copyWith(
@@ -98,37 +107,27 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
         error: null,
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
+      state = state.copyWith(
+        error: e is ApiException
+            ? e.message
+            : 'Impossible de récupérer vos points.',
+        isLoading: false,
+      );
     }
   }
 
   Future<void> loadHistory() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       final history = await _apiService.getScoreHistory();
       state = state.copyWith(history: history, isLoading: false, error: null);
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-    }
-  }
-
-  Future<bool> purchasePoints(Map<String, dynamic> data) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final result = await _apiService.purchasePoints(data);
-      if (result['success'] == true || result['payment'] != null) {
-        await loadBalance();
-        state = state.copyWith(isLoading: false, error: null);
-        return true;
-      }
       state = state.copyWith(
-        error: result['message'] ?? 'Erreur achat',
+        error: e is ApiException
+            ? e.message
+            : 'Impossible de récupérer votre historique de points.',
         isLoading: false,
       );
-      return false;
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
     }
   }
 }

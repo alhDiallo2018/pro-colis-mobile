@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/models/user.dart';
 import 'package:procolis/providers/auth_provider.dart';
 
@@ -19,13 +18,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AuthState', () {
-    test('initial state is unauthenticated', () {
+    test('initial state starts loading before session restoration', () {
+      // `AuthState.initial()` est l'état de démarrage : `isLoading` est vrai
+      // pour que le splash/GoRouter attendent la fin de `_loadUser`. Il ne doit
+      // surtout pas être confondu avec un état « non authentifié » résolu.
       final state = AuthState.initial();
+
+      expect(state.isLoading, true);
+      expect(state.isAuthenticated, false);
+      expect(state.user, null);
+      expect(state.error, null);
+    });
+
+    test('unauthenticated state is resolved without a user', () {
+      final state = AuthState.unauthenticated();
 
       expect(state.isLoading, false);
       expect(state.isAuthenticated, false);
       expect(state.user, null);
-      expect(state.error, null);
     });
 
     test('loading state has isLoading true', () {
@@ -60,7 +70,7 @@ void main() {
 
       expect(modified.isLoading, true);
       expect(modified.isAuthenticated, false);
-      expect(original.isLoading, false);
+      expect(original.isLoading, true);
     });
 
     test('displayName returns first name', () {
@@ -74,19 +84,6 @@ void main() {
       final state = AuthState.initial();
 
       expect(state.displayName, 'Utilisateur');
-    });
-  });
-
-  group('AuthProvider', () {
-    test('creates provider with initial unauthenticated state', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
-      final state = container.read(authProvider);
-
-      expect(state.isLoading, false);
-      expect(state.isAuthenticated, false);
-      expect(state.user, null);
     });
   });
 }

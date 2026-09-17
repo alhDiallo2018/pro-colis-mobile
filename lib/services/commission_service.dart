@@ -1,30 +1,33 @@
 /// Configuration de la commission Pro-Colis
-/// Ces valeurs peuvent être modifiées dynamiquement via le backend
+/// Ces valeurs proviennent de la configuration administrée (`/public/config`)
+/// et sont appliquées via [CommissionService.configure]. Aucune valeur métier
+/// n'est codée en dur : tant que la configuration n'est pas chargée, les
+/// paramètres restent à 0 (aucune commission inventée).
 class CommissionConfig {
   final double percentage; // Pourcentage (ex: 5 pour 5%)
   final double minimum; // Commission minimum en FCFA
   final double maximum; // Commission maximum en FCFA
 
   const CommissionConfig({
-    this.percentage = 5,
-    this.minimum = 100,
-    this.maximum = 500,
+    this.percentage = 0,
+    this.minimum = 0,
+    this.maximum = 0,
   });
 
   /// Charge depuis la config admin (API)
   factory CommissionConfig.fromMap(Map<String, dynamic>? map) {
     if (map == null) return const CommissionConfig();
     return CommissionConfig(
-      percentage: double.tryParse(map['commissionPercentage']?.toString() ?? '') ?? 5,
-      minimum: double.tryParse(map['commissionMinimum']?.toString() ?? '') ?? 100,
-      maximum: double.tryParse(map['commissionMaximum']?.toString() ?? '') ?? 500,
+      percentage: double.tryParse(map['percentage']?.toString() ?? '') ?? 0,
+      minimum: double.tryParse(map['minAmount']?.toString() ?? '') ?? 0,
+      maximum: double.tryParse(map['maxAmount']?.toString() ?? '') ?? 0,
     );
   }
 
   Map<String, dynamic> toMap() => {
-        'commissionPercentage': percentage,
-        'commissionMinimum': minimum,
-        'commissionMaximum': maximum,
+        'percentage': percentage,
+        'minAmount': minimum,
+        'maxAmount': maximum,
       };
 }
 
@@ -35,8 +38,9 @@ class CommissionConfig {
 ///   Si commission > maximum → maximum
 class CommissionService {
   static CommissionConfig _config = const CommissionConfig();
-  // Valeur par défaut identique à SystemConfig ; l'écran admin remplace cette
-  // valeur dès que la configuration distante est chargée.
+  // Règle configurée (`commission.insufficient_rule`) : block | warn | debt.
+  // La valeur de référence vient de la configuration distante via
+  // [configure] / [setInsufficientPolicy].
   static String _insufficientPolicy = 'block'; // block | warn | debt
 
   /// Met à jour la configuration (appelé au démarrage ou depuis admin)
@@ -51,7 +55,14 @@ class CommissionService {
     }
   }
 
+  /// Règle configurée en cas de solde insuffisant (`commission.insufficient_rule`).
   static String get insufficientPolicy => _insufficientPolicy;
+
+  /// La commission est désormais toujours comptabilisée en dette (`commissionDebt`)
+  /// lorsqu'une livraison déjà acceptée est finalisée sans ressources suffisantes.
+  /// Le backend reste seul juge (plafond `commission.debtLimit`) ; le mobile ne
+  /// bloque donc plus le paiement sur la seule base de `insufficient_rule`.
+  static bool get allowsDebt => true;
 
   /// Calcule la commission pour un montant de livraison donné
   static double calculate(double deliveryAmount) {
@@ -77,74 +88,7 @@ class CommissionService {
     return commission;
   }
 
-  /// Vérifie si un chauffeur peut accepter une livraison (solde suffisant pour la commission)
-  static bool canAcceptDelivery({
-    required double walletBalance,
-    required double scoreBalance,
-    required double deliveryAmount,
-  }) {
-    final commission = calculate(deliveryAmount);
-    return (walletBalance + scoreBalance) >= commission;
-  }
-
-  /// Vérifie si wallet ET points sont nécessaires
-  static bool requiresBothSources({
-    required double walletBalance,
-    required double scoreBalance,
-    required double deliveryAmount,
-  }) {
-    final commission = calculate(deliveryAmount);
-    return walletBalance < commission && (walletBalance + scoreBalance) >= commission;
-  }
-
-  /// Calcule la répartition du paiement entre wallet et points
-  static Map<String, double> splitPayment({
-    required double walletBalance,
-    required double scoreBalance,
-    required double deliveryAmount,
-  }) {
-    final commission = calculate(deliveryAmount);
-    final fromWallet = walletBalance < commission ? walletBalance : commission;
-    final remainder = commission - fromWallet;
-    final fromPoints = remainder < scoreBalance ? remainder : scoreBalance;
-    return {'fromWallet': fromWallet, 'fromPoints': fromPoints};
-  }
-
-  /// Calcule le nouveau solde après commission
-  static double balanceAfterCommission({
-    required double currentBalance,
-    required double deliveryAmount,
-  }) {
-    final commission = calculate(deliveryAmount);
-    return currentBalance - commission;
-  }
-
-  /// Politique configurée en cas d'insuffisance
-  static String get insufficientFundsMessage {
-    switch (_insufficientPolicy) {
-      case 'block':
-        return 'Solde insuffisant. Rechargez votre portefeuille ou vos points pour continuer.';
-      case 'debt':
-        return 'Attention : votre solde est insuffisant. La commission sera due.';
-      default:
-        return 'Solde insuffisant. Pensez à recharger votre portefeuille.';
-    }
-  }
-
-  /// La livraison est-elle bloquée par la politique ?
-  static bool get isDeliveryBlocked =>
-      _insufficientPolicy == 'block';
-
-  /// Configuration actuelle (lecture seule)
-  static CommissionConfig get config => _config;
   static double get percentage => _config.percentage;
   static double get minimum => _config.minimum;
   static double get maximum => _config.maximum;
 }
-
-/// Exemples de calcul commentés directement dans le code
-///
-/// Livraison 1 000 FCFA → commission = 100 FCFA (minimum)
-/// Livraison 5 000 FCFA → commission = 250 FCFA
-/// Livraison 10 000 FCFA → commission = 500 FCFA (maximum)
-/// Livraison 50 000 FCFA → commission = 500 FCFA (maximum)

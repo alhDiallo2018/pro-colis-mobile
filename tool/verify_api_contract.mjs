@@ -92,6 +92,12 @@ const directCallPattern =
 for (const file of walk(path.join(mobileRoot, 'lib'), (item) =>
   item.endsWith('.dart'),
 )) {
+  // Le service Places appelle l'API externe Google Maps (autocomplétion,
+  // détails de lieu, géocodage) : ces routes ne relèvent pas du contrat avec
+  // le backend ProColis.
+  if (path.relative(mobileRoot, file).split(path.sep).includes('places_service.dart')) {
+    continue;
+  }
   const source = fs.readFileSync(file, 'utf8');
   let match;
   while ((match = directCallPattern.exec(source)) !== null) {

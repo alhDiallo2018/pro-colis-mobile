@@ -25,7 +25,7 @@ class NotificationNavigation {
     final parcelId = data['parcelId'] ?? data['parcel_id'];
     final advertisementId =
         data['advertisementId'] ?? data['advertisement_id'];
-    final route = _routeFor(type, parcelId, advertisementId);
+    final route = routeFor(type, parcelId, advertisementId);
 
     debugPrint(
       'NotificationNavigation: tap type=$type parcelId=$parcelId '
@@ -64,7 +64,12 @@ class NotificationNavigation {
   }
 
   /// Détermine la destination depuis le type et les identifiants.
-  static String? _routeFor(
+  ///
+  /// Un événement de remboursement (`refund`/`remboursement`) n'est jamais un
+  /// événement « portefeuille » : il doit ouvrir l'écran du colis concerné
+  /// (déjà couvert par le cas `parcelId`), sinon retomber sur l'écran des
+  /// notifications — et surtout pas sur `/wallet`, qui est l'écran chauffeur.
+  static String? routeFor(
     String type,
     String? parcelId,
     String? advertisementId,
@@ -81,12 +86,16 @@ class NotificationNavigation {
 
     if (normalized.contains('message')) return '/messages';
 
+    if (normalized.contains('refund') ||
+        normalized.contains('remboursement')) {
+      return '/notifications';
+    }
+
     if (normalized.contains('payment') ||
         normalized.contains('wallet') ||
         normalized.contains('commission') ||
         normalized.contains('withdrawal') ||
-        normalized.contains('deposit') ||
-        normalized.contains('refund')) {
+        normalized.contains('deposit')) {
       return '/wallet';
     }
 

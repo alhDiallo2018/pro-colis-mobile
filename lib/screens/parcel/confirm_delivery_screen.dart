@@ -30,6 +30,10 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
   /// Le chauffeur a déclaré avoir encaissé les espèces à la remise du colis.
   bool _cashDeclared = false;
 
+  /// Points réellement crédités par le backend (configuration) à la livraison.
+  /// `null` tant que la réponse de confirmation n'est pas revenue.
+  int? _creditedPoints;
+
   @override
   void initState() {
     super.initState();
@@ -73,7 +77,11 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
         return;
       }
 
-      setState(() => _done = true);
+      final points = result['points'];
+      setState(() {
+        _creditedPoints = points is num ? points.toInt() : 0;
+        _done = true;
+      });
       Future.microtask(_runPostDeliveryPaymentFlow);
     } catch (error) {
       debugPrint('Erreur confirmation livraison: $error');
@@ -332,7 +340,7 @@ class _ConfirmDeliveryScreenState extends ConsumerState<ConfirmDeliveryScreen> {
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
                 child: Text(
-                  '+150 pts crédités',
+                  '+${_creditedPoints ?? 0} pts crédités',
                   style: AppTheme.mono(
                     color: AppTheme.amber700,
                     fontWeight: FontWeight.w900,

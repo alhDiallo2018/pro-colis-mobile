@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../models/zone.dart';
+import '../../models/place.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/location_autocomplete.dart';
-import '../../services/places_service.dart';
 
 String _flagOfCountry(String? country) {
   if (country == null) return '🌍';
@@ -173,7 +173,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
     String type = zone?.type ?? 'CIRCLE';
     bool isActive = zone?.isActive ?? true;
     final placeCtrl = TextEditingController();
-    PlaceResult? picked;
+    PlaceDetails? picked;
 
     showDialog(
       context: context,
@@ -184,20 +184,33 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Autocomplétion Google Places : auto-remplit nom / ville / coordonnées.
+                // Autocomplétion Google Places : auto-remplit nom / ville / pays /
+                // coordonnées à partir du lieu complet résolu (nom, adresse, placeId).
                 LocationAutocomplete(
                   controller: placeCtrl,
                   label: 'Rechercher un lieu (Google Places)',
                   prefixIcon: Icons.search_rounded,
                   hint: 'Ville / adresse…',
-                  googleApiKey: PlacesService.googleApiKey,
-                  onPlaceSelected: (p) => picked = p,
-                  onCoordinates: (lat, lng) => setDlg(() {
-                    latCtrl.text = lat.toStringAsFixed(6);
-                    lngCtrl.text = lng.toStringAsFixed(6);
-                    final label = picked?.mainText ?? picked?.description ?? '';
-                    if (nameCtrl.text.trim().isEmpty) nameCtrl.text = label;
-                    if (cityCtrl.text.trim().isEmpty) cityCtrl.text = label;
+                  onPlace: (place) => setDlg(() {
+                    picked = place;
+                    if (place.latitude != null) {
+                      latCtrl.text = place.latitude!.toStringAsFixed(6);
+                    }
+                    if (place.longitude != null) {
+                      lngCtrl.text = place.longitude!.toStringAsFixed(6);
+                    }
+                    final name = place.name?.trim();
+                    if (name != null && name.isNotEmpty && nameCtrl.text.trim().isEmpty) {
+                      nameCtrl.text = name;
+                    }
+                    final city = place.city?.trim();
+                    if (city != null && city.isNotEmpty && cityCtrl.text.trim().isEmpty) {
+                      cityCtrl.text = city;
+                    }
+                    final country = place.country?.trim();
+                    if (country != null && country.isNotEmpty && countryCtrl.text.trim().isEmpty) {
+                      countryCtrl.text = country;
+                    }
                   }),
                 ),
                 const SizedBox(height: 10),
@@ -240,6 +253,9 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
                 final r = double.tryParse(radiusCtrl.text);
                 if (nameCtrl.text.isEmpty || lat == null || lng == null) return;
                 final placeId = picked?.placeId ?? zone?.placeId;
+                final displayName = (picked?.formattedAddress?.trim().isNotEmpty ?? false)
+                    ? picked!.formattedAddress!.trim()
+                    : nameCtrl.text.trim();
                 final payload = {
                   'name': nameCtrl.text.trim(),
                   'latitude': lat,
@@ -249,7 +265,7 @@ class _ZonesManagementScreenState extends ConsumerState<ZonesManagementScreen> {
                   'isActive': isActive,
                   'city': cityCtrl.text.trim().isNotEmpty ? cityCtrl.text.trim() : null,
                   'country': countryCtrl.text.trim().isNotEmpty ? countryCtrl.text.trim() : null,
-                  'displayName': nameCtrl.text.trim(),
+                  'displayName': displayName,
                   // `zones.place_id` est unique côté API : le transmettre rend la
                   // création idempotente pour un même lieu Google.
                   if (placeId != null && placeId.isNotEmpty) 'placeId': placeId,

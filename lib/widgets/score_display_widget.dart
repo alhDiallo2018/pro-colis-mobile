@@ -1,10 +1,17 @@
 // lib/widgets/score_display_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/public_config_provider.dart';
 import '../providers/score_provider.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+
+/// Garde anti double-tap au niveau du widget (l'idempotence réelle reste
+/// garantie par le backend / IPN PayDunya).
+bool _purchaseInFlight = false;
 
 class ScoreDisplayWidget extends ConsumerWidget {
   const ScoreDisplayWidget({super.key});
@@ -44,7 +51,11 @@ class ScoreDisplayWidget extends ConsumerWidget {
       );
     }
 
-    final points = scoreState.score?.points ?? 0;
+    // Un solde de points inconnu (erreur réseau / réponse invalide) n'est
+    // jamais présenté comme « 0 pts » : on affiche un tiret explicite.
+    final score = scoreState.score;
+    final pointsText =
+        score != null ? '${score.points} pts' : '— pts';
 
     return GestureDetector(
       onTap: () {
@@ -77,7 +88,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '$points pts',
+              pointsText,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -161,7 +172,9 @@ class ScoreDisplayWidget extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${score?.points ?? 0} points',
+                          score != null
+                              ? '${score.points} points'
+                              : 'Solde indisponible',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 32,
@@ -282,14 +295,19 @@ class ScoreDisplayWidget extends ConsumerWidget {
 
   void _showPurchasePointsDialog(BuildContext context, WidgetRef ref) {
     final TextEditingController amountController = TextEditingController();
-    const pricePerPoint = 1;
+    // Contexte racine (celui de l'écran) conservé pour la suite de l'achat :
+    // le contexte du dialog devient invalide dès que celui-ci est fermé.
+    final rootContext = context;
+    // Le prix unitaire du point provient de la configuration publique
+    // (`score.cfaPerPoint`), jamais d'une valeur codée en dur.
+    final cfaPerPoint = ref.read(publicConfigProvider)?.cfaPerPoint ?? 1.0;
 
     showDialog(
       context: context,
       builder: (context) {
-        // ✅ État local pour le montant et le prix total
+        // État local pour le montant et le prix total.
         int amount = 0;
-        int totalPrice = 0;
+        double totalPrice = 0;
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -311,7 +329,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
                         const Icon(Icons.info_outline, color: Colors.green, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          '1 point = $pricePerPoint FCFA',
+                          '1 point = ${cfaPerPoint.toStringAsFixed(cfaPerPoint == cfaPerPoint.roundToDouble() ? 0 : 2)} FCFA',
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.green,
@@ -342,10 +360,10 @@ class ScoreDisplayWidget extends ConsumerWidget {
                         borderSide: const BorderSide(color: Color(0xFF0B6E3A), width: 1.5),
                       ),
                     ),
-                    // ✅ Mise à jour automatique du prix total à chaque saisie
+                    // Mise à jour automatique du prix total à chaque saisie.
                     onChanged: (value) {
                       final parsedAmount = int.tryParse(value) ?? 0;
-                      final calculatedTotal = parsedAmount * pricePerPoint;
+                      final calculatedTotal = parsedAmount * cfaPerPoint;
                       setState(() {
                         amount = parsedAmount;
                         totalPrice = calculatedTotal;
@@ -353,7 +371,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // ✅ Affichage du prix total avec animation
+                  // Affichage du prix total.
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.all(12),
@@ -405,30 +423,6 @@ class ScoreDisplayWidget extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // ✅ Indicateur de points bonus (si achat > 50 points)
-                  if (amount >= 50)
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.amber.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.local_offer, color: Colors.amber, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            '🎁 Bonus: +${(amount * 0.1).round()} points offerts !',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.amber,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
               ),
               actions: [
@@ -442,9 +436,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
                       onPressed: amount > 0
                           ? () {
                               Navigator.pop(context);
-                              final bonusPoints = amount >= 50 ? (amount * 0.1).round() : 0;
-                              final totalPoints = amount + bonusPoints;
-                              _purchasePoints(context, ref, amount, totalPoints, totalPrice);
+                              _purchasePoints(rootContext, ref, amount);
                             }
                           : null,
                       style: ElevatedButton.styleFrom(
@@ -468,100 +460,113 @@ class ScoreDisplayWidget extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     int amount,
-    int totalPoints,
-    int totalPrice,
   ) async {
+    if (_purchaseInFlight) return;
+    _purchaseInFlight = true;
+
     final authState = ref.read(authProvider);
     final user = authState.user;
+    if (user == null) {
+      _purchaseInFlight = false;
+      return;
+    }
 
-    if (user == null) return;
+    final api = ApiService();
+    final messenger = ScaffoldMessenger.of(context);
 
-    // Afficher un indicateur de chargement
-    showDialog(
+    BuildContext? loadingContext;
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Traitement en cours...'),
-              ],
+      builder: (dialogContext) {
+        loadingContext = dialogContext;
+        return const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Création du paiement...'),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
 
     try {
-      // Simuler un délai de paiement (à remplacer par un vrai appel API)
-      await Future.delayed(const Duration(seconds: 1));
+      // 1. Création de la facture PayDunya (type "score") : le backend calcule
+      //    le montant à partir de `score.cfaPerPoint`. Aucun crédit local.
+      final payment = await api.createPaydunyaPayment('score', points: amount);
+      if (loadingContext != null && loadingContext!.mounted) {
+        Navigator.pop(loadingContext!);
+      }
+
+      final paymentUrl = payment['paymentUrl']?.toString() ?? '';
+      final token = payment['token']?.toString() ?? '';
+      if (paymentUrl.isEmpty || token.isEmpty) {
+        throw StateError(
+          payment['message']?.toString() ??
+              'Impossible de créer le paiement PayDunya',
+        );
+      }
+
+      // 2. Ouverture de la page de paiement.
+      final launched = await launchUrl(
+        Uri.parse(paymentUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        throw StateError('Impossible d’ouvrir la page de paiement PayDunya');
+      }
+
+      // 3. Confirmation : seuls le backend / l'IPN créditent les points. Le
+      //    mobile ne simule jamais une réussite et ne crédite jamais localement.
+      final confirm = await api.confirmPaydunyaPayment(token);
       if (!context.mounted) return;
 
-      // Créditer les points
-      final success = await ref.read(scoreProvider.notifier).purchasePoints(
-            {
-              'points': amount,
-              'method': 'cash',
-            },
-          );
-
-      // Fermer l'indicateur de chargement
-      if (context.mounted) Navigator.pop(context);
-
-      if (success && context.mounted) {
-        // Recharger le score pour mettre à jour l'affichage
-        await ref.read(scoreProvider.notifier).loadBalance();
-        if (!context.mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (confirm['status'] == 'completed') {
+        await ref
+            .read(scoreProvider.notifier)
+            .loadScore(user.id);
+        messenger.showSnackBar(
           SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('✅ $totalPoints points ajoutés avec succès !'),
-                if (totalPoints > amount)
-                  Text(
-                    '🎁 Bonus de ${totalPoints - amount} points offerts !',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                Text(
-                  '💰 Total: $totalPrice FCFA',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
+            content: Text('Paiement confirmé. Vos points ont été crédités.'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 4),
           ),
         );
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erreur lors de l\'achat de points.'),
-            backgroundColor: Colors.red,
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Paiement ouvert. Vos points seront crédités après confirmation.',
+            ),
+            backgroundColor: Colors.amber.shade700,
           ),
         );
       }
     } catch (error, stackTrace) {
+      if (loadingContext != null && loadingContext!.mounted) {
+        Navigator.pop(loadingContext!);
+      }
       debugPrint(
         'ScoreDisplayWidget: achat de points impossible '
         '($error)\n$stackTrace',
       );
-      if (context.mounted) Navigator.pop(context);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Impossible d’acheter les points. Veuillez réessayer.'),
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l’achat de points. Veuillez réessayer.'),
             backgroundColor: Colors.red,
           ),
         );
       }
+    } finally {
+      _purchaseInFlight = false;
     }
   }
 

@@ -14,7 +14,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../screens/help/help_screen.dart';
-import '../../services/places_service.dart';
 import '../../widgets/location_autocomplete.dart';
 import '../../services/api_service.dart';
 import '../../screens/settings/settings_screen.dart';
@@ -724,7 +723,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   label: 'Ville',
                   prefixIcon: Icons.location_on_rounded,
                   hint: 'Rechercher votre ville...',
-                  googleApiKey: PlacesService.googleApiKey,
                 ),
               ),
               const SizedBox(width: 12),
@@ -734,7 +732,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   label: 'Adresse',
                   prefixIcon: Icons.home_rounded,
                   hint: 'Rechercher votre adresse...',
-                  googleApiKey: PlacesService.googleApiKey,
                 ),
               ),
             ],

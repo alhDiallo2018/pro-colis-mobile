@@ -4,6 +4,7 @@ import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api_service.dart';
+import '../../services/commission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
 
@@ -49,12 +50,15 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
   bool _paying = false;
   String? _error;
 
+  /// Les soldes (wallet/points) sont `null` tant qu'ils n'ont pas été chargés
+  /// avec succès : un solde inconnu n'est jamais présenté comme 0.
+  bool _balanceError = false;
   String _source = 'wallet';
   double _commission = 0;
   double _netAmount = 0;
-  double _percentage = 5;
-  double _walletBalance = 0;
-  double _scoreBalance = 0;
+  double _percentage = 0;
+  double? _walletBalance;
+  double? _scoreBalance;
 
   @override
   void initState() {
@@ -63,49 +67,87 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _balanceError = false;
+    });
+
+    // 1. Estimation de commission : le repli local reste acceptable (c'est une
+    //    estimation d'affichage, la vérité financière reste le backend).
+    double commission;
+    double netAmount;
+    double percentage;
     try {
       final estimate = await _api.estimateCommission(widget.deliveryAmount);
-      final wallet = await _api.getWallet('');
-      final scoreBalanceData = await _api.getScoreBalance();
-
-      if (mounted) {
-        setState(() {
-          _commission = (estimate['commission'] as num?)?.toDouble() ?? (widget.deliveryAmount * 0.05).clamp(100.0, 500.0);
-          _netAmount = (estimate['netAmount'] as num?)?.toDouble() ?? widget.deliveryAmount - _commission;
-          _percentage = (estimate['percentage'] as num?)?.toDouble() ?? 5;
-          _walletBalance = wallet.balance;
-          _scoreBalance = scoreBalanceData;
-          _error = null;
-          _loading = false;
-        });
-      }
-    } catch (error, stackTrace) {
-      // L'estimation locale garde le détail cohérent même si les soldes ne
-      // peuvent pas être chargés ; l'échec reste visible dans les journaux.
-      debugPrint(
-        'PayCommissionDialog: chargement des données impossible '
-        '($error)\n$stackTrace',
-      );
-      if (mounted) {
-        setState(() {
-          _commission = (widget.deliveryAmount * 0.05).clamp(100.0, 500.0);
-          _netAmount = widget.deliveryAmount - _commission;
-          _loading = false;
-        });
-      }
+      commission = (estimate['commission'] as num?)?.toDouble() ??
+          CommissionService.calculate(widget.deliveryAmount);
+      netAmount = (estimate['netAmount'] as num?)?.toDouble() ??
+          widget.deliveryAmount - commission;
+      percentage = (estimate['percentage'] as num?)?.toDouble() ??
+          CommissionService.percentage;
+    } catch (_) {
+      commission = CommissionService.calculate(widget.deliveryAmount);
+      netAmount = widget.deliveryAmount - commission;
+      percentage = CommissionService.percentage;
     }
+
+    // 2. Soldes : une erreur ne doit JAMAIS être traduite en solde nul. On
+    //    charge les deux indépendamment pour ne pas masquer l'un par l'autre.
+    double? walletBalance;
+    double? scoreBalance;
+    var balanceError = false;
+    try {
+      final wallet = await _api.getWallet('');
+      walletBalance = wallet.balance;
+    } catch (_) {
+      balanceError = true;
+    }
+    try {
+      scoreBalance = await _api.getScoreBalance();
+    } catch (_) {
+      balanceError = true;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _commission = commission;
+      _netAmount = netAmount;
+      _percentage = percentage;
+      _walletBalance = walletBalance;
+      _scoreBalance = scoreBalance;
+      _balanceError = balanceError;
+      _loading = false;
+    });
   }
 
-  bool get _canPayWallet => _walletBalance >= _commission;
-  bool get _canPayScore => _scoreBalance >= _commission;
-  bool get _canPayCombined => (_walletBalance + _scoreBalance) >= _commission;
+  bool get _canPayWallet => _walletBalance != null && _walletBalance! >= _commission;
+  bool get _canPayScore => _scoreBalance != null && _scoreBalance! >= _commission;
+  bool get _canPayCombined =>
+      _walletBalance != null &&
+      _scoreBalance != null &&
+      (_walletBalance! + _scoreBalance!) >= _commission;
   bool get _needsCombined => !_canPayWallet && !_canPayScore && _canPayCombined;
-  
-  double get _walletPart => _walletBalance < _commission ? _walletBalance : _commission;
+
+  /// Les fonds disponibles (wallet + points) ne couvrent pas la commission.
+  bool get _insufficient => !_canPayCombined;
+
+  /// La configuration autorise-t-elle à enregistrer la commission en dette
+  /// (`debt`) ou avec simple alerte (`warn`) ? Le backend reste seul juge : le
+  /// bouton reste accessible pour déclencher l'appel, qui sera refusé si la
+  /// politique est `block` ou si la limite de dette est atteinte.
+  bool get _canGoIntoDebt => _insufficient && CommissionService.allowsDebt;
+
+  /// Le bouton de validation est-il actionnable ? Jamais si les soldes n'ont
+  /// pas pu être chargés : on ne peut pas déterminer la capacité de paiement.
+  bool get _canSubmitPayment =>
+      !_balanceError &&
+      (_canPayWallet || _canPayScore || _canPayCombined || _canGoIntoDebt);
+
+  double get _walletPart =>
+      (_walletBalance ?? 0) < _commission ? (_walletBalance ?? 0) : _commission;
   double get _scorePart {
     final remainder = _commission - _walletPart;
-    return remainder < _scoreBalance ? remainder : _scoreBalance;
+    return remainder < (_scoreBalance ?? 0) ? remainder : (_scoreBalance ?? 0);
   }
 
   String _fcfa(double v) {
@@ -122,13 +164,22 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
         if (result['success'] == true) {
           final walletUsed = (result['walletDebited'] as num?)?.toDouble() ?? (_source == 'wallet' ? _commission : _walletPart);
           final ptsUsed = (result['pointsDebited'] as num?)?.toDouble() ?? (_source == 'score' ? _commission : _scorePart);
+          final debt = (result['debt'] as num?)?.toDouble() ?? 0;
           final parts = <String>[];
           if (walletUsed > 0) parts.add('${_fcfa(walletUsed)} portefeuille');
           if (ptsUsed > 0) parts.add('${ptsUsed.toInt()} pts');
+          if (debt > 0) parts.add('${_fcfa(debt)} en dette');
+
+          final paidLabel = parts.isEmpty ? _fcfa(_commission) : parts.join(' + ');
+          final message = debt > 0
+              ? 'Commission de ${_fcfa(_commission)} comptabilisée. '
+                  'Reste dû : ${_fcfa(debt)} (à régulariser).'
+              : 'Commission de ${_fcfa(_commission)} payée via $paidLabel';
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Commission de ${_fcfa(_commission)} payée via ${parts.join(' + ')}'),
-              backgroundColor: AppTheme.green600,
+              content: Text(message),
+              backgroundColor: debt > 0 ? AppTheme.amber600 : AppTheme.green600,
             ),
           );
           widget.onPaid?.call();
@@ -237,7 +288,9 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                         child: _sourceOption(
                           icon: Icons.account_balance_wallet_rounded,
                           label: 'Portefeuille',
-                          balance: _fcfa(_walletBalance),
+                          balance: _walletBalance != null
+                              ? _fcfa(_walletBalance!)
+                              : 'Solde indisponible',
                           enough: _canPayWallet,
                           selected: _source == 'wallet',
                           onTap: _canPayWallet ? () => setState(() => _source = 'wallet') : null,
@@ -248,7 +301,9 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                         child: _sourceOption(
                           icon: Icons.stars_rounded,
                           label: 'Points Score',
-                          balance: '${_scoreBalance.toInt()} pts',
+                          balance: _scoreBalance != null
+                              ? '${_scoreBalance!.toInt()} pts'
+                              : 'Solde indisponible',
                           enough: _canPayScore,
                           selected: _source == 'score',
                           onTap: _canPayScore ? () => setState(() => _source = 'score') : null,
@@ -256,6 +311,41 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                       ),
                     ],
                   ),
+                  if (_balanceError) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.red50,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        border: Border.all(color: AppTheme.red100),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline_rounded,
+                              color: AppTheme.red500, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Impossible de charger vos soldes. Le paiement est '
+                              'désactivé pour éviter toute erreur.',
+                              style: AppFonts.manrope(
+                                fontSize: 12,
+                                color: AppTheme.red500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          PcButton(
+                            'Réessayer',
+                            variant: PcButtonVariant.secondary,
+                            size: PcButtonSize.sm,
+                            onPressed: _loadData,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (_needsCombined || (!_canPayWallet && !_canPayScore)) ...[
                     const SizedBox(height: 10),
                     Container(
@@ -295,10 +385,16 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                           Text(
                             _canPayCombined
                                 ? 'Le paiement combiné est possible'
-                                : 'Solde total insuffisant (${_fcfa(_walletBalance + _scoreBalance)})',
+                                : _canGoIntoDebt
+                                    ? 'Solde insuffisant : la commission sera comptabilisée en dette.'
+                                    : 'Solde insuffisant : rechargez votre portefeuille ou vos points.',
                             style: TextStyle(
                               fontSize: 11,
-                              color: _canPayCombined ? AppTheme.textSecondary : AppTheme.red500,
+                              color: _canPayCombined
+                                  ? AppTheme.textSecondary
+                                  : _canGoIntoDebt
+                                      ? AppTheme.amber700
+                                      : AppTheme.red500,
                             ),
                           ),
                         ],
@@ -330,7 +426,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                           variant: PcButtonVariant.primary,
                           block: true,
                           loading: _paying,
-                          onPressed: (_canPayWallet || _canPayScore || _canPayCombined) && !_paying ? _pay : null,
+                          onPressed: _canSubmitPayment && !_paying ? _pay : null,
                         ),
                       ),
                     ],

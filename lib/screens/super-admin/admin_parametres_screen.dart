@@ -3,8 +3,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
 
+import '../../providers/public_config_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/commission_service.dart';
 import '../../theme/app_theme.dart';
@@ -28,13 +30,13 @@ class _ConfigField {
   final bool secret;
 
   const _ConfigField(
-    this.key,
-    this.label,
-    this.type,
-    this.defaultValue, {
-    this.options = const [],
-    this.secret = false,
-  });
+      this.key,
+      this.label,
+      this.type,
+      this.defaultValue, {
+        this.options = const [],
+        this.secret = false,
+      });
 }
 
 enum _ConfigFieldType { string, number, boolean, select }
@@ -52,7 +54,7 @@ const _sections = <_ConfigSection>[
   ]),
   _ConfigSection('Score & Réputation', Icons.stars_rounded, PcTone.primary, [
     _ConfigField('score.deliveryCompleted', 'Points par livraison réussie',
-        _ConfigFieldType.number, '120'),
+        _ConfigFieldType.number, '0'),
     _ConfigField('score.signupBonus', 'Points bonus inscription',
         _ConfigFieldType.number, '0'),
     _ConfigField('score.cfaPerPoint', 'Équivalent CFA par point (FCFA)',
@@ -99,6 +101,44 @@ const _sections = <_ConfigSection>[
     _ConfigField('maintenance.enabled', 'Mode maintenance',
         _ConfigFieldType.boolean, 'false'),
   ]),
+  _ConfigSection('Support & Aide', Icons.support_agent_rounded, PcTone.green, [
+    _ConfigField('support.phone', 'Téléphone commercial',
+        _ConfigFieldType.string, ''),
+    _ConfigField('support.email', 'Email commercial',
+        _ConfigFieldType.string, ''),
+    _ConfigField('support.technicalPhone', 'Téléphone technique',
+        _ConfigFieldType.string, ''),
+    _ConfigField('support.technicalEmail', 'Email technique',
+        _ConfigFieldType.string, ''),
+    _ConfigField('support.responseTime', 'Délai de réponse (ex: 24h)',
+        _ConfigFieldType.string, '24h'),
+    _ConfigField('support.availability', 'Disponibilité (ex: 7j/7)',
+        _ConfigFieldType.string, '7j/7'),
+  ]),
+  _ConfigSection('Informations légales', Icons.gavel_rounded, PcTone.primary, [
+    _ConfigField('legal.companyName', 'Raison sociale',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.address', 'Adresse du siège',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.registrationNumber', 'Numéro d\'immatriculation',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.cdpAuthorization', 'Numéro d\'autorisation CDP',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.privacyEmail', 'Email contact protection des données',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.publisherName', 'Directeur de la publication',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.hostName', 'Hébergeur de la plateforme',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.directorName', 'Directeur Général (nom)',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.directorEmail', 'Directeur Général (email)',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.technicalDirectorName', 'Directeur Technique (nom)',
+        _ConfigFieldType.string, ''),
+    _ConfigField('legal.technicalDirectorEmail', 'Directeur Technique (email)',
+        _ConfigFieldType.string, ''),
+  ]),
   _ConfigSection(
       'PayDunya', Icons.account_balance_wallet_rounded, PcTone.primary, [
     _ConfigField('paydunya.masterKey', 'Clé principale (Master Key)',
@@ -132,14 +172,18 @@ const _sections = <_ConfigSection>[
   ]),
 ];
 
-class AdminParametresScreen extends StatefulWidget {
+// ✅ Correction : ConsumerStatefulWidget au lieu de StatefulWidget
+class AdminParametresScreen extends ConsumerStatefulWidget {
   const AdminParametresScreen({super.key});
 
   @override
-  State<AdminParametresScreen> createState() => _AdminParametresScreenState();
+  ConsumerState<AdminParametresScreen> createState() =>
+      _AdminParametresScreenState();
 }
 
-class _AdminParametresScreenState extends State<AdminParametresScreen> {
+// ✅ Correction : ConsumerState au lieu de State
+class _AdminParametresScreenState
+    extends ConsumerState<AdminParametresScreen> {
   final ApiService _apiService = ApiService();
   final Map<String, TextEditingController> _textControllers = {};
   final Map<String, bool> _boolValues = {};
@@ -173,15 +217,16 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
       final result = await _apiService.getAdminConfig();
       final Map<String, dynamic> apiConfig = {};
 
-      final List<dynamic> configList = [];
-      if (result['config'] is List) {
-        configList.addAll(result['config'] as List);
-      } else if (result['data'] is List) {
-        configList.addAll(result['data'] as List);
-      }
-      for (final item in configList) {
-        final m = Map<String, dynamic>.from(item as Map);
-        apiConfig[m['key']?.toString() ?? ''] = m['value'];
+      final raw = result['config'] ?? result['data'];
+      if (raw is List) {
+        for (final item in raw) {
+          final m = Map<String, dynamic>.from(item as Map);
+          apiConfig[m['key']?.toString() ?? ''] = m['value'];
+        }
+      } else if (raw is Map) {
+        (raw as Map).forEach((k, v) {
+          apiConfig[k.toString()] = v;
+        });
       }
 
       if (mounted) {
@@ -211,11 +256,12 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
         });
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = e.toString();
           _isLoading = false;
         });
+      }
     }
   }
 
@@ -255,6 +301,8 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
           CommissionService.setInsufficientPolicy(
             config['commission.insufficient_rule']?.toString() ?? 'block',
           );
+          // ✅ Correction : ref.read au lieu de context.read
+          ref.read(publicConfigProvider.notifier).load();
           setState(() => _saved = true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -270,7 +318,9 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
+            content: Text('Erreur: $e'),
+            backgroundColor: AppTheme.error,
+          ),
         );
       }
     } finally {
@@ -295,25 +345,25 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _buildErrorView()
-              : Column(
-                  children: [
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-                        children: [
-                          _buildIntro(),
-                          const SizedBox(height: 18),
-                          for (final section in _sections) ...[
-                            _buildSectionCard(section),
-                            const SizedBox(height: 16),
-                          ],
-                        ],
-                      ),
-                    ),
-                    _buildSaveBar(),
-                  ],
-                ),
+          ? _buildErrorView()
+          : Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+              children: [
+                _buildIntro(),
+                const SizedBox(height: 18),
+                for (final section in _sections) ...[
+                  _buildSectionCard(section),
+                  const SizedBox(height: 16),
+                ],
+              ],
+            ),
+          ),
+          _buildSaveBar(),
+        ],
+      ),
     );
   }
 
@@ -438,9 +488,9 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
             initialValue: current,
             items: field.options
                 .map((option) => DropdownMenuItem(
-                      value: option,
-                      child: Text(option),
-                    ))
+              value: option,
+              child: Text(option),
+            ))
                 .toList(),
             onChanged: (value) {
               if (value != null) controller.text = value;
@@ -472,29 +522,31 @@ class _AdminParametresScreenState extends State<AdminParametresScreen> {
           style: isNumber
               ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
               : AppFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textPrimary),
           decoration: InputDecoration(
             hintText:
-                isNumber ? 'Saisir une valeur numérique' : 'Saisir une valeur',
+            isNumber ? 'Saisir une valeur numérique' : 'Saisir une valeur',
             suffixIcon: field.secret
                 ? IconButton(
-                    tooltip: secretVisible ? 'Masquer' : 'Afficher',
-                    icon: Icon(secretVisible
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined),
-                    onPressed: () {
-                      setState(() {
-                        secretVisible
-                            ? _visibleSecrets.remove(field.key)
-                            : _visibleSecrets.add(field.key);
-                      });
-                    },
-                  )
+              tooltip: secretVisible ? 'Masquer' : 'Afficher',
+              icon: Icon(secretVisible
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined),
+              onPressed: () {
+                setState(() {
+                  if (secretVisible) {
+                    _visibleSecrets.remove(field.key);
+                  } else {
+                    _visibleSecrets.add(field.key);
+                  }
+                });
+              },
+            )
                 : null,
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
       ],

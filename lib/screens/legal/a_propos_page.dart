@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
+import '../../providers/public_config_provider.dart';
 import '../../theme/app_theme.dart';
 
-class AProposPage extends StatelessWidget {
+class AProposPage extends ConsumerWidget {
   const AProposPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(publicConfigProvider);
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -77,7 +80,7 @@ class AProposPage extends StatelessWidget {
             'en Afrique et à l\'international.',
           ),
           _bodyText(
-            'Fondée par Serigne Fallou, notre plateforme répond au besoin de '
+            'Notre plateforme répond au besoin de '
             'transport rapide et fiable de colis entre les villes sénégalaises, '
             'africaines et au-delà des frontières.',
           ),
@@ -134,9 +137,9 @@ class AProposPage extends StatelessWidget {
           const SizedBox(height: 24),
           _sectionTitle('Nous contacter'),
           const SizedBox(height: 12),
-          _bodyText('Email : support-commercial@sendprocolis.com'),
-          _bodyText('Téléphone : +221 76 516 27 96'),
-          _bodyText('Adresse : Sacré-Cœur 3, Dakar, Sénégal'),
+          _bodyText('Email : ${config?.displaySupportEmail ?? ''}'),
+          _bodyText('Téléphone : ${config?.displayTechnicalPhone ?? ''}'),
+          _bodyText('Adresse : ${(config?.displayLegalAddress ?? '').isNotEmpty ? config!.displayLegalAddress : '[À COMPLÉTER]'}'),
           _bodyText('Horaires : Lundi - Samedi, 8h - 20h'),
           const SizedBox(height: 32),
           Center(

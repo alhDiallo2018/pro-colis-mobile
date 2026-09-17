@@ -8,7 +8,6 @@ import 'package:procolis/theme/fonts.dart';
 
 import '../../data/country_data.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/custom_text_field.dart';
@@ -272,7 +271,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         label: 'Ville',
                         prefixIcon: Icons.location_on_outlined,
                         hint: 'Rechercher votre ville...',
-                        googleApiKey: PlacesService.googleApiKey,
                       ),
                       const SizedBox(height: 16),
 

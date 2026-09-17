@@ -8,9 +8,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     
     <!-- ==================== PERMISSIONS APPELS ==================== -->
@@ -20,17 +18,11 @@
     <!-- Pour lire l'état du téléphone -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     
-    <!-- ==================== PERMISSIONS CAMÉRA ET MÉDIAS ==================== -->
-    <!-- Pour la caméra (photos/vidéos) -->
+    <!-- ==================== PERMISSIONS CAMÉRA ==================== -->
+    <!-- Pour la caméra (photos/vidéos). Aucun accès galerie/stockage requis :
+         la sélection de médias passe par le sélecteur système Android
+         (Photo Picker / ACTION_GET_CONTENT) sans permission de stockage. -->
     <uses-permission android:name="android.permission.CAMERA" />
-    
-    <!-- Pour la galerie (Android 12 et inférieur) -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    
-    <!-- Pour Android 13+ (API 33+) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     
     <!-- ==================== PERMISSIONS LOCALISATION ==================== -->
     <!-- Pour la localisation précise -->
@@ -51,7 +43,6 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
-        android:requestLegacyExternalStorage="true"
         android:allowBackup="true">
         
         <activity
@@ -97,11 +88,12 @@
             android:value="sendprocolis_channel" />
 
         <!-- Icône et couleur des notifications système (barre de statut).
-             L'icône est le logo SendProColis (avant-plan transparent) : Android
-             la rend en silhouette blanche, comme le requiert la plateforme. -->
+             L'icône est le logo SendProColis monochrome (avant-plan blanc sur
+             fond transparent) : Android la rend en silhouette, comme le requiert
+             la plateforme. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_launcher_foreground" />
+            android:resource="@drawable/ic_stat_sendprocolis" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_accent" />

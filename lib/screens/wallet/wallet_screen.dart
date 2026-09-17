@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/pay_debt_sheet.dart';
 import '../../widgets/pc_components.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
@@ -19,7 +20,11 @@ class WalletScreen extends ConsumerStatefulWidget {
 
 class _WalletScreenState extends ConsumerState<WalletScreen> {
   final ApiService _api = ApiService();
-  double _balance = 0;
+
+  /// `null` signifie « inconnu » (non chargé ou erreur) : ne jamais afficher 0.
+  double? _balance;
+  double? _commissionDebt;
+  String? _error;
   bool _loading = true;
   List<Map<String, dynamic>> _transactions = [];
   List<Map<String, dynamic>> _withdrawals = [];
@@ -31,7 +36,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final auth = ref.read(authProvider);
       final userId = auth.user?.id ?? '';
@@ -42,6 +50,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       if (mounted) {
         setState(() {
           _balance = wallet.balance;
+          _commissionDebt = wallet.commissionDebt;
           _transactions = wallet.transactions
               .map((t) => {
                     'id': t.id,
@@ -55,8 +64,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           _loading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e is ApiException
+              ? e.message
+              : 'Impossible de récupérer votre solde. Réessayez dans quelques instants.';
+        });
+      }
     }
   }
 
@@ -84,9 +100,45 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _WithdrawSheetContent(
         userId: userId,
-        balance: _balance,
+        balance: _balance ?? 0,
         userPhone: userPhone,
         onWithdrawn: _load,
+      ),
+    );
+  }
+
+  void _showPayDebtSheet() {
+    showPayDebtSheet(
+      context,
+      balance: _balance ?? 0,
+      debt: _commissionDebt ?? 0,
+      onPaid: _load,
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 44, color: AppTheme.slate400),
+            const SizedBox(height: 12),
+            Text(
+              _error ?? 'Impossible de récupérer votre solde.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            PcButton(
+              'Réessayer',
+              icon: Icons.refresh_rounded,
+              variant: PcButtonVariant.secondary,
+              onPressed: _load,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -106,12 +158,19 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
-                children: [
-                  _BalanceHero(balance: _balance),
+          : _error != null
+              ? _buildError()
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
+                    children: [
+                      _BalanceHero(balance: _balance ?? 0),
+                      if ((_commissionDebt ?? 0) > 0) ...[
+                        const SizedBox(height: 14),
+                        _DebtBanner(
+                            debt: _commissionDebt ?? 0, onPay: _showPayDebtSheet),
+                      ],
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -126,16 +185,26 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                      ],
-                      Expanded(
-                        child: PcButton(
-                          'Retirer des fonds',
-                          icon: Icons.payments,
-                          variant: PcButtonVariant.primary,
-                          block: true,
-                          onPressed: _showWithdrawSheet,
+                        Expanded(
+                          child: PcButton(
+                            'Retirer des fonds',
+                            icon: Icons.payments,
+                            variant: PcButtonVariant.primary,
+                            block: true,
+                            onPressed: _showWithdrawSheet,
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        Expanded(
+                          child: PcButton(
+                            'Historique',
+                            icon: Icons.receipt_long_rounded,
+                            variant: PcButtonVariant.secondary,
+                            block: true,
+                            onPressed: () {},
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   if (isDriver && _withdrawals.isNotEmpty) ...[
@@ -341,6 +410,77 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     }
 
     return PcCard(padding: EdgeInsets.zero, child: Column(children: rows));
+  }
+}
+
+class _DebtBanner extends StatelessWidget {
+  final double debt;
+  final VoidCallback onPay;
+
+  const _DebtBanner({required this.debt, required this.onPay});
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat('#,##0', 'fr');
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.red50,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.red100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.error_outline_rounded, color: AppTheme.red500, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Commission à régulariser',
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.red500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Dette de ${fmt.format(debt.toInt())} FCFA. '
+                      'Vous pouvez terminer vos livraisons en cours, mais vous '
+                      'devez régler cette dette avant d\'accepter un nouveau colis.',
+                      style: AppFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.red500,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: PcButton(
+              'Régler la dette',
+              icon: Icons.payments_rounded,
+              variant: PcButtonVariant.primary,
+              size: PcButtonSize.sm,
+              block: true,
+              onPressed: onPay,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

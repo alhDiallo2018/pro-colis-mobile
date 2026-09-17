@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/garage.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/public_config_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
@@ -135,9 +136,11 @@ class _DriverGarageScreenState extends ConsumerState<DriverGarageScreen> {
         variant: PcButtonVariant.secondary,
         icon: Icons.mail_outline_rounded,
         onPressed: () {
+          final supportEmail =
+              ref.read(publicConfigProvider)?.displayTechnicalEmail ?? '';
           final uri = Uri(
             scheme: 'mailto',
-            path: 'support-technic@sendprocolis.com',
+            path: supportEmail,
             query: 'subject=Aide - Rattachement à une zone',
           );
           launchUrl(uri);

@@ -44,6 +44,13 @@ class AppTheme {
 
   static Color get green300 => _tone(const Color(0xFF4FC684), const Color(0xFF7BE0A8));
 
+
+  static const Color blue50 = Color(0xFFEFF6FF);
+  static const Color blue100 = Color(0xFFDBEAFE);
+  static const Color blue500 = Color(0xFF3B82F6);
+  static const Color blue600 = Color(0xFF2563EB);
+  static const Color blue700 = Color(0xFF1D4ED8);
+
   static Color get teal50 => _tone(const Color(0xFFE4F4F2), const Color(0xFF0C2A28));
   static Color get teal100 => _tone(const Color(0xFFBFE6E2), const Color(0xFF113A36));
   static Color get teal400 => _tone(const Color(0xFF199A92), const Color(0xFF33C3B8));

@@ -5,7 +5,7 @@
 abstract final class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://sendprocolis.com/api/v1',
+    defaultValue: 'http://localhost:18081/api/v1',
   );
 
   /// Inactivité tolérée avant verrouillage de l'écran.
@@ -75,6 +75,12 @@ abstract final class AppConfig {
   static String trackingUrl(String trackingNumber) {
     final encodedTrackingNumber = Uri.encodeComponent(trackingNumber);
     return '$publicAppUrl/track/$encodedTrackingNumber';
+  }
+
+  /// Hôte public affichable (sans schéma), dérivé de l'origine configurée.
+  static String get publicHost {
+    final uri = Uri.tryParse(publicAppUrl);
+    return uri?.host.isNotEmpty == true ? uri!.host : 'sendprocolis.com';
   }
 
   static String _withoutTrailingSlash(String value) {

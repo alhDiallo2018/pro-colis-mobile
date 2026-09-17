@@ -26,7 +26,6 @@ import '../../services/api/client.dart';
 import '../../services/api/parcels_api.dart';
 import '../../services/api_service.dart';
 import '../../services/form_draft_store.dart';
-import '../../services/places_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/form_draft_ui.dart';
@@ -104,6 +103,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   List<User> _drivers = [];
   bool _driversLoaded = false;
   bool _loadingDrivers = false;
+
+  // Recherche de chauffeur par nom, ville ou localité.
+  final _driverSearchController = TextEditingController();
+  String _driverQuery = '';
 
   /// Estimation renvoyée par l'API, arrondie à l'entier.
   ///
@@ -209,6 +212,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     _weight.dispose();
     _description.dispose();
     _priceController.dispose();
+    _driverSearchController.dispose();
     _recordingTimer?.cancel();
     _audioCompleteSubscription?.cancel();
     _audioRecorder.dispose();
@@ -241,7 +245,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       _priceEdited ||
       _type != ParcelType.package ||
       _urgent ||
-      !_insurance ||
+      _insurance ||
       _mode != 'free' ||
       _driverId != null ||
       _photos.isNotEmpty ||
@@ -779,6 +783,22 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     return null;
   }
 
+  /// Chauffeurs filtrés par la recherche (nom, ville, région, localité).
+  List<User> get _filteredDrivers {
+    final query = _driverQuery.trim().toLowerCase();
+    if (query.isEmpty) return _drivers;
+    return _drivers.where((d) {
+      final haystack = [
+        d.fullName,
+        d.city ?? '',
+        d.region ?? '',
+        d.zoneName ?? '',
+        d.address ?? '',
+      ].join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
   double get _enteredPrice {
     final raw = _priceController.text.trim().replaceAll(' ', '');
     return double.tryParse(raw) ?? _estimatedPrice.toDouble();
@@ -1098,7 +1118,6 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           label: 'Adresse de livraison (optionnel)',
           prefixIcon: Icons.home_rounded,
           hint: 'Quartier, repère…',
-          googleApiKey: PlacesService.googleApiKey,
         ),
         const SizedBox(height: 18),
         _label('Mode de livraison'),
@@ -1195,11 +1214,67 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       return Text('Aucun chauffeur disponible pour le moment.',
           style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary));
     }
+    final drivers = _filteredDrivers;
     return Column(
       children: [
-        for (var i = 0; i < _drivers.length; i++) ...[
-          if (i > 0) const SizedBox(height: 10),
-          _driverCard(_drivers[i]),
+        TextField(
+          controller: _driverSearchController,
+          onChanged: (value) => setState(() => _driverQuery = value),
+          textInputAction: TextInputAction.search,
+          style: AppFonts.manrope(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: AppTheme.cardColor,
+            hintText: 'Rechercher par nom, ville ou localité',
+            hintStyle: AppFonts.manrope(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.slate400,
+            ),
+            prefixIcon: Icon(Icons.search_rounded,
+                size: 20, color: AppTheme.slate400),
+            suffixIcon: _driverQuery.isEmpty
+                ? null
+                : IconButton(
+                    icon: Icon(Icons.close_rounded,
+                        size: 18, color: AppTheme.slate400),
+                    onPressed: () {
+                      _driverSearchController.clear();
+                      setState(() => _driverQuery = '');
+                    },
+                  ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(color: AppTheme.slate200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(color: AppTheme.slate200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
+            ),
+          ),
+        ),
+        if (drivers.isEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Aucun chauffeur ne correspond à votre recherche.',
+              style: AppFonts.manrope(
+                  fontSize: 13, color: AppTheme.textSecondary)),
+        ] else ...[
+          const SizedBox(height: 12),
+          for (var i = 0; i < drivers.length; i++) ...[
+            if (i > 0) const SizedBox(height: 10),
+            _driverCard(drivers[i]),
+          ],
         ],
       ],
     );

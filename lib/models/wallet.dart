@@ -140,6 +140,8 @@ class Wallet {
   final double totalRefunded; // Total remboursé
   final double totalWithdrawn; // Total retiré
   final double totalCommissionsPaid; // Total commissions payées
+  final double commissionDebt; // Commission impayée à régulariser (FCFA)
+  final bool canAcceptNewDeliveries; // Dette réglée → nouvelles missions autorisées
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -155,6 +157,8 @@ class Wallet {
     this.totalRefunded = 0,
     this.totalWithdrawn = 0,
     this.totalCommissionsPaid = 0,
+    this.commissionDebt = 0,
+    this.canAcceptNewDeliveries = true,
     this.isActive = true,
     required this.createdAt,
     required this.updatedAt,
@@ -163,6 +167,7 @@ class Wallet {
 
   factory Wallet.fromJson(Map<String, dynamic> json) {
     final txs = json['transactions'] as List<dynamic>?;
+    final debt = _toDouble(json['commissionDebt']);
     return Wallet(
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
@@ -173,6 +178,10 @@ class Wallet {
       totalRefunded: _toDouble(json['totalRefunded']),
       totalWithdrawn: _toDouble(json['totalWithdrawn']),
       totalCommissionsPaid: _toDouble(json['totalCommissionsPaid']),
+      commissionDebt: debt,
+      canAcceptNewDeliveries: json['canAcceptNewDeliveries'] is bool
+          ? json['canAcceptNewDeliveries'] as bool
+          : debt <= 0,
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())
@@ -199,6 +208,8 @@ class Wallet {
         'totalRefunded': totalRefunded,
         'totalWithdrawn': totalWithdrawn,
         'totalCommissionsPaid': totalCommissionsPaid,
+        'commissionDebt': commissionDebt,
+        'canAcceptNewDeliveries': canAcceptNewDeliveries,
         'isActive': isActive,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
@@ -215,6 +226,8 @@ class Wallet {
     double? totalRefunded,
     double? totalWithdrawn,
     double? totalCommissionsPaid,
+    double? commissionDebt,
+    bool? canAcceptNewDeliveries,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -230,6 +243,9 @@ class Wallet {
       totalRefunded: totalRefunded ?? this.totalRefunded,
       totalWithdrawn: totalWithdrawn ?? this.totalWithdrawn,
       totalCommissionsPaid: totalCommissionsPaid ?? this.totalCommissionsPaid,
+      commissionDebt: commissionDebt ?? this.commissionDebt,
+      canAcceptNewDeliveries:
+          canAcceptNewDeliveries ?? this.canAcceptNewDeliveries,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -239,27 +255,6 @@ class Wallet {
 
   // Helpers métier
   bool get hasBalance => balance > 0;
-
-  /// Vérifie si le chauffeur peut accepter une livraison au montant donné
-  bool canAcceptDelivery(double deliveryAmount, double commissionPercentage,
-      double minCommission, double maxCommission) {
-    if (!isActive) return false;
-    final commission =
-        _calcCommission(deliveryAmount, commissionPercentage, minCommission, maxCommission);
-    return balance >= commission;
-  }
-
-  double get requiredCommissionForDelivery {
-    // Pour ce helper on prend la commission max possible (conservateur)
-    return 500;
-  }
-
-  static double _calcCommission(double amount, double pct, double min, double max) {
-    double c = amount * (pct / 100);
-    if (c < min) c = min;
-    if (c > max) c = max;
-    return c;
-  }
 
   @override
   bool operator ==(Object other) =>

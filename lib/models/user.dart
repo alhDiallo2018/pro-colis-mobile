@@ -466,7 +466,12 @@ class User {
 
   // Wallet
   bool get hasEnoughCredit => walletBalance > 0;
-  bool get canReceiveDelivery => walletBalance >= 100; // Commission minimum
+
+  /// Le wallet mobile (`/wallet`) est l'écran portefeuille du chauffeur :
+  /// l'endpoint sous-jacent (`GET /driver/wallet`) dérive l'identité du jeton
+  /// et ne concerne que le chauffeur. Les autres rôles n'y ont pas accès (le
+  /// super admin et le support consultent les wallets via `/admin/wallets`).
+  bool get canAccessWallet => isDriver;
 
   // Affichage
   String get displayName => fullName;

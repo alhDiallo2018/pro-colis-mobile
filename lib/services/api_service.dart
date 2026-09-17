@@ -16,6 +16,7 @@ import '../models/parcel.dart';
 import '../models/user.dart';
 import '../models/wallet.dart';
 import 'api/api.dart';
+import 'commission_service.dart';
 import 'mock_data.dart';
 
 class ApiService {
@@ -428,16 +429,74 @@ class ApiService {
     }
   }
 
+  /// Chemins d'annulation par rôle — source unique pour les tests de routage.
+  /// Chaque acteur a son propre endpoint : le mobile ne doit jamais les
+  /// mélanger (un chauffeur n'annule pas comme un client, un admin zone ne
+  /// déclenche pas le moteur d'annulation financière).
+  static String clientCancelPath(String parcelId) =>
+      '/client/parcels/$parcelId/cancel';
+  static String clientCancelQuotePath(String parcelId) =>
+      '/client/parcels/$parcelId/cancel/quote';
+  static String driverCancelPath(String parcelId) =>
+      '/driver/parcels/$parcelId/cancel';
+  static String garageAdminParcelStatusPath(String parcelId) =>
+      '/garage-admin/parcels/$parcelId/status';
+  static String superAdminParcelPath(String parcelId) =>
+      '/super-admin/parcels/$parcelId';
+
+  /// Devis d'annulation d'un colis client (aucun prélèvement côté serveur).
+  ///
+  /// Retourne la réponse complète de `GET /client/parcels/:id/cancel/quote` :
+  /// le bloc `cancellation` (aperçu neutre de la pénalité/remboursement) et la
+  /// liste `reasons` des motifs sélectionnables (déjà filtrés par le backend).
+  /// Le mobile n'utilise que ces valeurs : aucun montant n'est recalculé ici.
+  Future<Map<String, dynamic>> getCancellationQuote(String parcelId,
+      {String? reason}) async {
+    try {
+      final response = await _dio.get(
+        clientCancelQuotePath(parcelId),
+        queryParameters: {
+          if (reason != null && reason.isNotEmpty) 'reason': reason,
+        },
+      );
+      return _handleResponse(response);
+    } on DioException catch (e) {
+      return {'success': false, 'message': _describeDioError(e)};
+    } catch (_) {
+      return {'success': false, 'message': 'Impossible de charger le devis'};
+    }
+  }
+
   Future<Map<String, dynamic>> cancelParcel(String parcelId,
       {String? reason}) async {
     try {
-      final response =
-          await _dio.post('/client/parcels/$parcelId/cancel', data: {
+      final response = await _dio.post(clientCancelPath(parcelId), data: {
         if (reason != null) 'reason': reason,
       });
       return _handleResponse(response);
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
+    } on DioException catch (e) {
+      return {'success': false, 'message': _describeDioError(e)};
+    } catch (_) {
+      return {'success': false, 'message': 'Impossible d’annuler le colis'};
+    }
+  }
+
+  /// Annulation d'une mission assignée par le chauffeur.
+  ///
+  /// Même moteur central que l'annulation client : responsabilité, pénalité,
+  /// wallet, points, dette et remboursement restent calculés par le backend.
+  /// Contrat distinct de [cancelParcel] : le chauffeur n'est pas le client.
+  Future<Map<String, dynamic>> cancelDriverParcel(String parcelId,
+      {String? reason}) async {
+    try {
+      final response = await _dio.post(driverCancelPath(parcelId), data: {
+        if (reason != null) 'reason': reason,
+      });
+      return _handleResponse(response);
+    } on DioException catch (e) {
+      return {'success': false, 'message': _describeDioError(e)};
+    } catch (_) {
+      return {'success': false, 'message': 'Impossible d’annuler le colis'};
     }
   }
 
@@ -460,9 +519,25 @@ class ApiService {
   Future<Parcel> trackParcel(String trackingNumber) async {
     final response = await _dio.get('/public/parcels/track/$trackingNumber');
     final responseData = _handleResponse(response);
-    final parcel = responseData['data'] ?? responseData['parcel'];
-    if (parcel != null) {
-      return Parcel.fromJson(parcel as Map<String, dynamic>);
+    final rawParcel = responseData['data'] is Map
+        ? (responseData['data'] as Map<String, dynamic>)['parcel'] ??
+            responseData['data']
+        : responseData['parcel'];
+    if (rawParcel != null) {
+      final parcelMap = Map<String, dynamic>.from(rawParcel as Map<String, dynamic>);
+      // Le backend renvoie la position du chauffeur comme champ « frère » du
+      // colis (`{ parcel, events, driverLocation }`), pas imbriqué. On la
+      // fusionne pour que `Parcel.driverLocation` puisse la lire sans inventer
+      // de coordonnées : absente si l'API ne la fournit pas.
+      final driverLocation = responseData['driverLocation'] is Map
+          ? responseData['driverLocation']
+          : (responseData['data'] is Map
+              ? (responseData['data'] as Map<String, dynamic>)['driverLocation']
+              : null);
+      if (driverLocation is Map && !parcelMap.containsKey('driverLocation')) {
+        parcelMap['driverLocation'] = driverLocation;
+      }
+      return Parcel.fromJson(parcelMap);
     }
     throw Exception(responseData['message'] ?? 'Colis non trouvé');
   }
@@ -980,17 +1055,6 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> clientAcceptAdvertisementOffer(
-      String advertisementId, String offerId) async {
-    try {
-      final response = await _dio.post(
-          '/advertisements/$advertisementId/offers/$offerId/client-accept');
-      return _handleResponse(response);
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
-
   Future<List<Map<String, dynamic>>> getOfferNegotiations(
       String advertisementId, String offerId) async {
     try {
@@ -1102,21 +1166,6 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> assignDriverToParcel(
-      String parcelId, String driverId) async {
-    try {
-      if (isMockMode) {
-        return {'success': true, 'message': 'Chauffeur assigné en mode mock'};
-      }
-      final response = await _dio.put(
-          '/garage-admin/parcels/$parcelId/assign-driver',
-          data: {'driverId': driverId});
-      return _handleResponse(response);
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
-
   Future<List<User>> getGarageColleagues(String zoneId) async {
     try {
       final response = await _dio.get('/public/drivers/garage/$zoneId');
@@ -1127,6 +1176,30 @@ class ApiService {
           .toList();
     } catch (e) {
       return [];
+    }
+  }
+
+  /// Modification administrative du statut d'un colis par l'admin zone.
+  ///
+  /// L'admin zone n'a pas d'endpoint d'annulation financière centralisée : ce
+  /// contrat se limite à un changement de statut (`status: "cancelled"`), sans
+  /// calcul de pénalité / remboursement / dette côté mobile ni côté admin.
+  Future<Map<String, dynamic>> updateGarageAdminParcelStatus(
+      String parcelId, String status,
+      {String? reason}) async {
+    try {
+      final response = await _dio.put(
+        garageAdminParcelStatusPath(parcelId),
+        data: {
+          'status': status,
+          if (reason != null) 'reason': reason,
+        },
+      );
+      return _handleResponse(response);
+    } on DioException catch (e) {
+      return {'success': false, 'message': _describeDioError(e)};
+    } catch (_) {
+      return {'success': false, 'message': 'Impossible de mettre à jour le colis'};
     }
   }
 
@@ -1202,6 +1275,21 @@ class ApiService {
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Configuration publique consommée par le mobile (client et chauffeur).
+  /// Endpoint `/public/config` : aucune donnée sensible n'y figure.
+  Future<Map<String, dynamic>> getPublicConfig() async {
+    try {
+      final response = await _dio.get('/public/config');
+      final data = _handleResponse(response);
+      final config = data['config'] ?? data['data'];
+      if (config is Map) return Map<String, dynamic>.from(config);
+      return {};
+    } catch (e) {
+      debugPrint('[ApiService] Échec chargement config publique: $e');
+      return {};
     }
   }
 
@@ -1547,6 +1635,15 @@ class ApiService {
     return 0;
   }
 
+  static double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value);
+      if (parsed != null) return parsed;
+    }
+    throw const ApiException('Valeur numérique invalide du serveur.', 200);
+  }
+
   Future<bool> markNotificationAsRead(String notificationId) async {
     try {
       final response = await _dio.patch('/notifications/$notificationId/read');
@@ -1638,14 +1735,30 @@ class ApiService {
   // ==================== SCORE / POINTS ====================
 
   Future<double> getScoreBalance() async {
-    try {
-      final response = await _dio.get('/score/balance');
-      final responseData = _handleResponse(response);
-      final double? balance = responseData['balance']?.toDouble();
-      return balance ?? 0;
-    } catch (e) {
-      return 0;
+    final response = await _dio.get('/score/balance');
+    final responseData = _handleResponse(response);
+    return parseScoreBalance(responseData, response.statusCode ?? 0);
+  }
+
+  /// Parse la réponse de `GET /score/balance` : distingue un solde réel (même
+  /// 0) d'une erreur serveur ou d'une réponse invalide, qui lève [ApiException].
+  /// Fonction pure exposée pour être testable sans réseau.
+  static double parseScoreBalance(Map<String, dynamic> body, int status) {
+    if (status >= 400 || body['success'] == false) {
+      throw ApiException(
+        body['message']?.toString() ??
+            'Impossible de récupérer votre solde de points.',
+        status,
+      );
     }
+    final raw = body['balance'];
+    if (raw == null) {
+      throw const ApiException(
+        'Réponse invalide du serveur (solde de points).',
+        200,
+      );
+    }
+    return _asDouble(raw);
   }
 
   Future<List<Map<String, dynamic>>> getScoreHistory() async {
@@ -1712,31 +1825,44 @@ class ApiService {
       }
       final response = await _dio.get('/driver/wallet');
       final fullData = _handleResponse(response);
-      final rawData = fullData['data'] as Map<String, dynamic>? ?? fullData;
-      final walletData = rawData['wallet'] as Map<String, dynamic>? ?? rawData;
-      final txData = rawData['transactions'] as List<dynamic>?;
-      final map = Map<String, dynamic>.from(walletData);
-      if (txData != null) map['transactions'] = txData;
-      return Wallet.fromJson(map);
+      return parseWallet(fullData, response.statusCode ?? 0);
     } catch (e) {
       debugPrint("❌ [API] getWallet failed: $e");
-      return Wallet(
-        id: 'wallet-$userId',
-        userId: userId,
-        balance: 0,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+      rethrow;
     }
   }
 
-  Future<double> getWalletBalance(String userId) async {
-    try {
-      final wallet = await getWallet(userId);
-      return wallet.balance;
-    } catch (e) {
-      return 0;
+  /// Parse la réponse de `GET /driver/wallet` : distingue un portefeuille réel
+  /// (solde éventuellement nul) d'une erreur serveur ou d'une réponse invalide,
+  /// qui lève [ApiException]. Le `userId` n'est jamais utilisé côté serveur :
+  /// l'identité provient du jeton d'authentification, il est impossible de lire
+  /// le wallet d'un autre utilisateur par manipulation d'ID.
+  /// Fonction pure exposée pour être testable sans réseau.
+  static Wallet parseWallet(Map<String, dynamic> body, int status) {
+    if (status >= 400 || body['success'] == false) {
+      throw ApiException(
+        body['message']?.toString() ??
+            'Impossible de récupérer votre portefeuille.',
+        status,
+      );
     }
+    final rawData = body['data'] as Map<String, dynamic>? ?? body;
+    final walletData = rawData['wallet'] as Map<String, dynamic>?;
+    if (walletData == null) {
+      throw const ApiException(
+        'Réponse invalide du serveur (portefeuille).',
+        200,
+      );
+    }
+    final txData = rawData['transactions'] as List<dynamic>?;
+    final map = Map<String, dynamic>.from(walletData);
+    if (txData != null) map['transactions'] = txData;
+    return Wallet.fromJson(map);
+  }
+
+  Future<double> getWalletBalance(String userId) async {
+    final wallet = await getWallet(userId);
+    return wallet.balance;
   }
 
   // ==================== UPLOADS ====================
@@ -1839,6 +1965,38 @@ class ApiService {
           .toList();
     } catch (e) {
       return [];
+    }
+  }
+
+  /// Chauffeurs actifs desservant une zone (`zone_drivers` + rattachement garage
+  /// hérité) — la brique « choisir un chauffeur par localité ». La liste est
+  /// déjà filtrée côté API par la zone de départ du colis.
+  Future<List<User>> getZoneDrivers(String zoneId) async {
+    try {
+      if (isMockMode) return MockData.drivers;
+      final response = await _dio.get('/public/drivers/zone/$zoneId');
+      final responseData = _handleResponse(response);
+      final List<dynamic> driversData = responseData['drivers'] ?? [];
+      return driversData
+          .map((json) => User.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Fiche publique d'un chauffeur — champs pertinents seulement.
+  Future<User?> getPublicDriver(String driverId) async {
+    try {
+      final response = await _dio.get('/public/drivers/$driverId');
+      final responseData = _handleResponse(response);
+      final driver = responseData['driver'] ?? responseData['data'];
+      if (driver is Map) {
+        return User.fromJson(Map<String, dynamic>.from(driver));
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -2320,7 +2478,10 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getZoneDrivers(String zoneId) async {
+  /// Liste brute (Map) des chauffeurs rattachés à une zone via le tableau de
+  /// bord super-admin. Différente de `getZoneDrivers` (endpoint public, modèle
+  /// `User`) utilisée par la sélection d'un chauffeur par localité côté client.
+  Future<List<Map<String, dynamic>>> getZoneDriversRaw(String zoneId) async {
     try {
       final response = await _dio.get('/super-admin/zones/$zoneId/drivers');
       final data = _handleResponse(response);
@@ -2384,16 +2545,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> deleteParcelSuperAdmin(String parcelId) async {
     try {
-      final response = await _dio.delete('/super-admin/parcels/$parcelId');
-      return _handleResponse(response);
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
-
-  Future<Map<String, dynamic>> deleteParcelAdmin(String parcelId) async {
-    try {
-      final response = await _dio.delete('/garage-admin/parcels/$parcelId');
+      final response = await _dio.delete(superAdminParcelPath(parcelId));
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -2697,7 +2849,7 @@ class ApiService {
   // ==================== PAYDUNYA ====================
 
   Future<Map<String, dynamic>> createPaydunyaPayment(String type,
-      {String? parcelId, int? points, double? amount}) async {
+      {String? parcelId, int? points, double? amount, String? debtId}) async {
     try {
       if (isMockMode) {
         return {
@@ -2706,9 +2858,36 @@ class ApiService {
         };
       }
       return _modularPaydunya.createPayment(type,
-          parcelId: parcelId, points: points, amount: amount);
+          parcelId: parcelId, points: points, amount: amount, debtId: debtId);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Règlement d'une dette de pénalité client via PayDunya (`type: penalty_debt`).
+  ///
+  /// `debtId` provient obligatoirement du modèle `CancellationClientDebt` fourni
+  /// par l'API — jamais d'une saisie utilisateur libre. `amount` est optionnel :
+  /// omis, le backend règle le reliquat complet ; fourni, il correspond au
+  /// montant choisi par l'utilisateur (validé côté serveur, pas ici).
+  Future<Map<String, dynamic>> createPenaltyDebtPayment({
+    required String debtId,
+    double? amount,
+  }) async {
+    try {
+      if (isMockMode) {
+        return {
+          'success': true,
+          'token': 'mock-paydunya-token',
+          'paymentUrl': 'https://paydunya.com/mock',
+        };
+      }
+      return _modularPaydunya.createPenaltyDebtPayment(
+        debtId: debtId,
+        amount: amount,
+      );
+    } catch (e) {
+      return {'success': false, 'statusCode': 0, 'message': e.toString()};
     }
   }
 
@@ -2727,14 +2906,14 @@ class ApiService {
 
   Future<Map<String, dynamic>> estimateCommission(double amount) async {
     if (isMockMode) {
-      final commission = (amount * 0.05).clamp(100.0, 500.0);
+      final commission = CommissionService.calculate(amount);
       return {
         'amount': amount,
         'commission': commission,
         'netAmount': amount - commission,
-        'percentage': 5,
-        'minAmount': 100,
-        'maxAmount': 500,
+        'percentage': CommissionService.percentage,
+        'minAmount': CommissionService.minimum,
+        'maxAmount': CommissionService.maximum,
         'profile': 'local'
       };
     }
@@ -2748,11 +2927,11 @@ class ApiService {
   Future<Map<String, dynamic>> payCashCommission(String parcelId, String source,
       {double? amount}) async {
     if (isMockMode) {
-      final commission = (amount ?? 5000) * 0.05;
+      final commission = CommissionService.calculate(amount ?? 0);
       return {
         'success': true,
         'commission': commission,
-        'newWalletBalance': 5000 - commission
+        'newWalletBalance': (amount ?? 0) - commission
       };
     }
     return _modularCommission.payCashCommission(parcelId, source,
@@ -2872,14 +3051,23 @@ class ApiService {
     }
   }
 
-  Future<double> getDriverWalletBalance() async {
+  Future<Map<String, dynamic>> payWalletDebt({double? amount}) async {
     try {
-      final wallet = await getWallet('');
-      return wallet.balance;
+      final response = await _dio.post(
+        '/driver/wallet/pay-debt',
+        data: {if (amount != null) 'amount': amount},
+      );
+      return _handleResponse(response);
     } catch (e) {
-      debugPrint("❌ [API] getDriverWalletBalance failed: $e");
-      return 0;
+      return {'success': false, 'message': e.toString()};
     }
+  }
+
+  Future<double> getDriverWalletBalance() async {
+    // `userId` est inopérant côté serveur : `/driver/wallet` dérive l'identité
+    // du jeton d'authentification. Aucun wallet tiers ne peut être lu par ID.
+    final wallet = await getWallet('');
+    return wallet.balance;
   }
 }
 

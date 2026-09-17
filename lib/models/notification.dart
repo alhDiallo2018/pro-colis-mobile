@@ -51,6 +51,20 @@ enum NotificationType {
       Icons.currency_exchange, Colors.green),
   purchase('purchase', 'Achat', Icons.shopping_bag, Colors.orange),
   refund('refund', 'Remboursement', Icons.currency_exchange, Colors.green),
+
+  // Annulation et pénalités (émises par le backend une fois le système de
+  // pénalités d'annulation en place ; `fromString` retombe sur `info` sinon).
+  penaltyApplied(
+      'penalty_applied', 'Pénalité appliquée', Icons.gavel, Colors.red),
+  refundInitiated('refund_initiated', 'Remboursement initié',
+      Icons.currency_exchange, Colors.amber),
+  refundCompleted('refund_completed', 'Remboursement effectué',
+      Icons.check_circle, Colors.green),
+  refundFailed(
+      'refund_failed', 'Remboursement échoué', Icons.error, Colors.red),
+  debtCreated(
+      'debt_created', 'Dette créée', Icons.warning_amber, Colors.orange),
+
   scoreCredited('score_credited', 'Points crédités', Icons.stars, Colors.amber),
   walletRecharged('wallet_recharged', 'Portefeuille rechargé', Icons.add_card,
       Colors.green),

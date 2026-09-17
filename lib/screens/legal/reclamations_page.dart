@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
+import '../../providers/public_config_provider.dart';
 import '../../theme/app_theme.dart';
 
-class ReclamationsPage extends StatelessWidget {
+class ReclamationsPage extends ConsumerWidget {
   const ReclamationsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final supportEmail = ref.watch(publicConfigProvider)?.displaySupportEmail ?? '';
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -27,7 +30,7 @@ class ReclamationsPage extends StatelessWidget {
           _bodyText(
             '• Directement depuis l\'application : Menu > Support > Réclamations.',
           ),
-          _bodyText('• Par email : support-commercial@sendprocolis.com.'),
+          _bodyText('• Par email : $supportEmail.'),
           _bodyText(
             '• Par téléphone : via le chat support dans l\'application.',
           ),

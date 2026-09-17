@@ -5,12 +5,12 @@
 // La zone créée part en "pending" côté API : utilisable tout de suite par son
 // auteur, visible des autres une fois validée.
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../models/garage.dart';
+import '../models/place.dart';
 import '../services/api_service.dart';
 import '../services/places_service.dart';
 import '../theme/app_theme.dart';
@@ -52,7 +52,6 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
   final _api = ApiService();
   final _searchCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
-  final _dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
 
   GoogleMapController? _mapCtrl;
   LatLng? _picked;
@@ -81,18 +80,36 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
     super.dispose();
   }
 
-  void _applyPlace(double lat, double lng, PlaceDetails? details) {
+  void _applyPlace(PlaceDetails place) {
+    final lat = place.latitude;
+    final lng = place.longitude;
+    if (lat == null || lng == null) return;
     final target = LatLng(lat, lng);
     setState(() {
       _picked = target;
-      _details = details;
+      _details = place;
       _error = null;
-      final suggested = details?.city ?? details?.formattedAddress?.split(',').first;
+      final suggested = _placeName(place);
       if (!_nameTouched && suggested != null && suggested.isNotEmpty) {
         _nameCtrl.text = suggested;
       }
     });
     _mapCtrl?.animateCamera(CameraUpdate.newLatLngZoom(target, _pickedZoom));
+  }
+
+  /// Nom proposé pour la zone : le nom réel du lieu d'abord, sinon la ville,
+  /// sinon le premier segment de l'adresse.
+  String? _placeName(PlaceDetails place) {
+    final name = place.name?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    final city = place.city?.trim();
+    if (city != null && city.isNotEmpty) return city;
+    final address = place.formattedAddress?.trim();
+    if (address != null && address.isNotEmpty) {
+      final first = address.split(',').first.trim();
+      if (first.isNotEmpty) return first;
+    }
+    return null;
   }
 
   /// Géocodage inverse d'un point pointé sur la carte : sans lui, la zone
@@ -105,31 +122,17 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
     });
     PlaceDetails? details;
     try {
-      final res = await _dio.get(
-        'https://maps.googleapis.com/maps/api/geocode/json',
-        queryParameters: {
-          'latlng': '${target.latitude},${target.longitude}',
-          'key': PlacesService.googleApiKey,
-          'language': 'fr',
-        },
-      );
-      final data = res.data;
-      if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
-        final first = data['results'][0];
-        details = PlaceDetails.fromComponents(
-          first['address_components'] as List?,
-          placeId: first['place_id'] as String?,
-          formattedAddress: first['formatted_address'] as String?,
-        );
-      }
+      details = await PlacesService.reverseGeocode(
+          target.latitude, target.longitude);
     } catch (_) {
       // Quota ou billing absent : on garde les coordonnées, sans libellé.
+      details = null;
     }
     if (!mounted) return;
     setState(() {
       _geocoding = false;
       _details = details;
-      final suggested = details?.city ?? details?.formattedAddress?.split(',').first;
+      final suggested = details == null ? null : _placeName(details);
       if (!_nameTouched && suggested != null && suggested.isNotEmpty) {
         _nameCtrl.text = suggested;
       }
@@ -243,9 +246,46 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
                       label: 'Rechercher un lieu',
                       prefixIcon: Icons.search_rounded,
                       hint: 'Ville, quartier, repère…',
-                      googleApiKey: PlacesService.googleApiKey,
-                      onPlaceDetails: (lat, lng, details) => _applyPlace(lat, lng, details),
+                      onPlace: _applyPlace,
                     ),
+                    if (_details != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.teal50,
+                          border: Border.all(color: AppTheme.teal100),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Localité sélectionnée',
+                                style: AppFonts.manrope(
+                                    fontSize: 11, color: AppTheme.slate500)),
+                            const SizedBox(height: 2),
+                            Text(
+                              _details!.name ??
+                                  _details!.formattedAddress ??
+                                  'Position actuelle',
+                              style: AppFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textPrimary),
+                            ),
+                            if (_details!.formattedAddress != null &&
+                                _details!.formattedAddress != _details!.name)
+                              Text(
+                                _details!.formattedAddress!,
+                                style: AppFonts.manrope(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondary),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppTheme.radiusMd),

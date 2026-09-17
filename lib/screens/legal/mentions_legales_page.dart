@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
+import '../../providers/public_config_provider.dart';
 import '../../theme/app_theme.dart';
 
-class MentionsLegalesPage extends StatelessWidget {
+class MentionsLegalesPage extends ConsumerWidget {
   const MentionsLegalesPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(publicConfigProvider);
+    final supportEmail = config?.displaySupportEmail ?? '';
+    final companyName = config?.displayLegalCompanyName ?? '';
+    final address = config?.displayLegalAddress ?? '';
+    final registrationNumber = config?.displayLegalRegistrationNumber ?? '';
+    final publisherName = config?.displayLegalPublisherName ?? '';
+    final hostName = config?.displayLegalHostName ?? '';
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -22,31 +31,34 @@ class MentionsLegalesPage extends StatelessWidget {
           _sectionTitle('1. Éditeur de la plateforme'),
           const SizedBox(height: 12),
           _bodyText(
-            'La plateforme ProColis est éditée par SendProColis, société de droit sénégalais.',
+            'La plateforme SendProColis est éditée par '
+            '${companyName.isNotEmpty ? companyName : '[À COMPLÉTER]'}.',
           ),
           _bodyText(
-            'Siège social : Sacré-Cœur 3, Dakar, Sénégal.',
+            'Siège social : ${address.isNotEmpty ? address : '[À COMPLÉTER]'}.',
           ),
           _bodyText(
-            'NINEA : SP170720267_fictif — RCCM : SP0123456789_fictif.',
+            'Numéro d\'immatriculation : '
+            '${registrationNumber.isNotEmpty ? registrationNumber : '[À COMPLÉTER]'}.',
           ),
           _bodyText(
-            'Email : support-commercial@sendprocolis.com.',
+            supportEmail.isNotEmpty
+                ? 'Email : $supportEmail.'
+                : 'Email : [À CONFIGURER].',
           ),
           const SizedBox(height: 20),
           _sectionTitle('2. Directeur de la publication'),
           const SizedBox(height: 12),
           _bodyText(
-            'M. Serigne Fallou, Directeur général de SendProColis.',
+            '${publisherName.isNotEmpty ? publisherName : '[À COMPLÉTER]'}, '
+            'directeur de la publication de la plateforme.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('3. Hébergement'),
           const SizedBox(height: 12),
           _bodyText(
-            'La plateforme est hébergée par OVH / OVHcloud.',
-          ),
-          _bodyText(
-            'Siège social : 2 rue Kellermann, 59100 Roubaix, France.',
+            'La plateforme est hébergée par '
+            '${hostName.isNotEmpty ? hostName : '[À COMPLÉTER]'}.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('4. Objet de la plateforme'),
@@ -145,7 +157,7 @@ class MentionsLegalesPage extends StatelessWidget {
             'd\'opposition et de suppression de vos données.',
           ),
           _bodyText(
-            'Pour exercer vos droits, contactez-nous à : support-commercial@sendprocolis.com.',
+            'Pour exercer vos droits, contactez-nous à : $supportEmail.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('10. Comptes utilisateurs'),
@@ -209,7 +221,7 @@ class MentionsLegalesPage extends StatelessWidget {
           _sectionTitle('15. Réclamations'),
           const SizedBox(height: 12),
           _bodyText(
-            'Toute réclamation doit être adressée à support-commercial@sendprocolis.com ou '
+            'Toute réclamation doit être adressée à $supportEmail ou '
             'via le formulaire de contact de l\'application.',
           ),
           _bodyText(

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
+import '../../providers/public_config_provider.dart';
 import '../../theme/app_theme.dart';
 
-class ConditionsTransportPage extends StatelessWidget {
+class ConditionsTransportPage extends ConsumerWidget {
   const ConditionsTransportPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final supportEmail = ref.watch(publicConfigProvider)?.displaySupportEmail ?? '';
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -155,7 +158,7 @@ class ConditionsTransportPage extends StatelessWidget {
           _bodyText(
             'Toute réclamation relative au transport doit être déposée via '
             'l\'application dans la section dédiée ou par email à '
-            'support-commercial@sendprocolis.com.',
+            '$supportEmail.',
           ),
           _bodyText(
             'La réclamation doit inclure : le numéro de suivi, la description '

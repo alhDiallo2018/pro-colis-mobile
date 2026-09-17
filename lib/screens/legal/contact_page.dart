@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
+import '../../providers/public_config_provider.dart';
 import '../../services/api/client.dart';
 import '../../services/api/support_api.dart';
 import '../../theme/app_theme.dart';
 
-class ContactPage extends StatefulWidget {
+class ContactPage extends ConsumerStatefulWidget {
   const ContactPage({super.key});
 
   @override
-  State<ContactPage> createState() => _ContactPageState();
+  ConsumerState<ContactPage> createState() => _ContactPageState();
 }
 
-class _ContactPageState extends State<ContactPage> {
+class _ContactPageState extends ConsumerState<ContactPage> {
   static final _emailRe = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   final _formKey = GlobalKey<FormState>();
@@ -106,7 +108,7 @@ class _ContactPageState extends State<ContactPage> {
             AppTheme.teal50,
             AppTheme.primary,
             'Email',
-            'support-commercial@sendprocolis.com',
+            ref.read(publicConfigProvider)?.displaySupportEmail ?? '',
             'Réponse sous 24h ouvrées',
           ),
           const SizedBox(height: 12),
@@ -115,7 +117,7 @@ class _ContactPageState extends State<ContactPage> {
             AppTheme.green50,
             AppTheme.green600,
             'Téléphone',
-            '+221 76 516 27 96',
+            ref.read(publicConfigProvider)?.displayTechnicalPhone ?? '',
             'Lun - Sam, 8h - 20h',
           ),
           const SizedBox(height: 12),
@@ -124,7 +126,9 @@ class _ContactPageState extends State<ContactPage> {
             AppTheme.amber50,
             AppTheme.amber500,
             'Adresse',
-            'Sacré-Cœur 3, Dakar, Sénégal',
+            (ref.read(publicConfigProvider)?.displayLegalAddress ?? '').isNotEmpty
+                ? ref.read(publicConfigProvider)!.displayLegalAddress
+                : '[À COMPLÉTER]',
             'Sur rendez-vous',
           ),
           const SizedBox(height: 28),

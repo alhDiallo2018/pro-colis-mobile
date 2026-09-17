@@ -1,11 +1,29 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:procolis/services/form_draft_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// `path_provider` n'a pas d'implémentation dans l'environnement de test : on
+/// fournit un dossier documents factice pour que `clear`/`clearAll` n'émettent
+/// pas de `MissingPluginException` et restent déterministes.
+class _FakePathProviderPlatform extends PathProviderPlatform {
+  final String _docs =
+      '${Directory.systemTemp.path}/procolis_form_draft_test_'
+      '${DateTime.now().microsecondsSinceEpoch}';
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => _docs;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    PathProviderPlatform.instance = _FakePathProviderPlatform();
+  });
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

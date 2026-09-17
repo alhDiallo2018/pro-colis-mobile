@@ -716,13 +716,6 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
           tone: PcTone.primary,
         ),
         RoleQuickLink(
-          icon: Icons.assignment_turned_in_rounded,
-          title: 'Assignations',
-          subtitle: 'Attribuer les colis en attente',
-          route: '/garage/assignments',
-          tone: PcTone.amber,
-        ),
-        RoleQuickLink(
           icon: Icons.bar_chart_rounded,
           title: 'Rapports de zone',
           subtitle: 'Volumes et performances',

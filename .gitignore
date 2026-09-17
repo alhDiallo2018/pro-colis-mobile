@@ -51,3 +51,14 @@ build/
 .fvm/
 .flutter-sdk/
 android/key.properties
+
+# ==================== SECRETS & CONFIG LOCALE ====================
+# Variables d'environnement locales : jamais commitées. Seul le modèle
+# .env.example (sans valeur réelle) reste versionné.
+.env
+.env.*
+!.env.example
+
+# Configuration locale de SDK (chemins machine, clés API locales).
+local.properties
+**/local.properties

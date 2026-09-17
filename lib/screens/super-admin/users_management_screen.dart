@@ -328,11 +328,15 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
                     const SizedBox(height: 12),
                     CustomTextField(
                       controller: _pinController,
-                      label: 'Code PIN (6 chiffres)',
+                      label: 'Code PIN',
                       prefixIcon: Icons.pin,
                       keyboardType: TextInputType.number,
                       obscureText: true,
-                      helperText: 'Laisser vide pour utiliser le PIN par défaut (123456)',
+                      helperText: 'Obligatoire — 4 à 6 chiffres (aucun PIN par défaut)',
+                      validator: (v) =>
+                          v == null || !RegExp(r'^\d{4,6}$').hasMatch(v)
+                              ? 'PIN requis (4 à 6 chiffres)'
+                              : null,
                     ),
                   ],
                 ],
@@ -434,7 +438,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
   }
 
   Future<void> _createUser() async {
-    final pin = _pinController.text.isEmpty ? '123456' : _pinController.text;
+    final pin = _pinController.text.trim();
     final result = await _apiService.createUserSuperAdmin(
       fullName: _fullNameController.text.trim(),
       email: _emailController.text.trim(),
@@ -606,10 +610,14 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
   Future<void> _resetUserPin(User user) async {
     final result = await _apiService.resetUserPinAdmin(user.id);
     if (result['success'] == true && mounted) {
+      final newPin = result['pin'] ?? result['newPin'];
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('PIN réinitialisé à 123456', style: TextStyle(color: Colors.white)),
+            content: Text(
+              newPin != null ? 'PIN réinitialisé : $newPin' : 'PIN réinitialisé',
+              style: const TextStyle(color: Colors.white),
+            ),
             backgroundColor: AppTheme.successColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

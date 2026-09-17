@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
+import '../../providers/public_config_provider.dart';
 import '../../theme/app_theme.dart';
 
-class PaiementPage extends StatelessWidget {
+class PaiementPage extends ConsumerWidget {
   const PaiementPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final supportEmail = ref.watch(publicConfigProvider)?.displaySupportEmail ?? '';
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -119,7 +122,7 @@ class PaiementPage extends StatelessWidget {
             'En cas de contestation d\'un paiement ou d\'un débit non reconnu, '
             'veuillez contacter immédiatement notre service client :',
           ),
-          _bodyText('• Email : support-commercial@sendprocolis.com'),
+          _bodyText('• Email : $supportEmail'),
           _bodyText('• Via l\'application : section Réclamations'),
           _bodyText(
             'Le litige sera examiné sous 5 jours ouvrés. En cas de débit '

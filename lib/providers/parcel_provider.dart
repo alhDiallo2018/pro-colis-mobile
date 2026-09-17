@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/parcel.dart';
 import '../models/user.dart';
+import '../models/cancellation.dart';
 import '../services/api_service.dart';
 import '../utils/parcel_access_policy.dart';
 
@@ -311,7 +312,9 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
       if (result['success'] == true || result['parcel'] != null) {
         await loadDriverParcels();
         state = state.copyWith(isLoading: false, error: null);
-        return {'success': true};
+        final score = result['score'];
+        final credited = score is Map ? score['credited'] : null;
+        return {'success': true, if (credited is num) 'points': credited};
       }
       state = state.copyWith(
         error: result['message'] ?? 'Erreur lors de la mise à jour',
@@ -355,43 +358,61 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     }
   }
 
-  Future<bool> assignDriverToParcel(String parcelId, String driverId) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final result = await _apiService.assignDriverToParcel(parcelId, driverId);
-      if (result['success'] == true) {
-        await loadGarageParcels();
-        state = state.copyWith(isLoading: false, error: null);
-        return true;
-      }
-      state = state.copyWith(
-        error: result['message'] ?? 'Erreur assignation',
-        isLoading: false,
-      );
-      return false;
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
-    }
+  /// Annule un colis et retourne le résultat parsé de la réponse de l'API.
+  ///
+  /// En cas de succès, [CancellationOutcome.result] contient les conséquences
+  /// réelles (pénalité, remboursement, wallet, points, dette) telles que le
+  /// backend les a calculées. En cas d'échec, `errorMessage` / `errorCode`
+  /// portent un libellé exploitable par l'utilisateur.
+  Future<CancellationOutcome> cancelParcel(String parcelId,
+      {String? reason}) async {
+    return _runCancellation(
+      () => _apiService.cancelParcel(parcelId, reason: reason),
+      onSuccess: loadSentParcels,
+    );
   }
 
-  Future<bool> cancelParcel(String parcelId, {String? reason}) async {
+  /// Annule une mission assignée par le chauffeur, via son propre endpoint
+  /// (`/driver/parcels/:id/cancel`). Le backend reste la seule autorité pour la
+  /// pénalité, le wallet, les points, la dette et le remboursement : le mobile
+  /// se contente de relire la réponse. Contrairement au client, le chauffeur
+  /// rafraîchit ses propres missions après l'annulation.
+  Future<CancellationOutcome> cancelDriverParcel(String parcelId,
+      {String? reason}) async {
+    return _runCancellation(
+      () => _apiService.cancelDriverParcel(parcelId, reason: reason),
+      onSuccess: loadDriverParcels,
+    );
+  }
+
+  /// Exécute un appel d'annulation (client ou chauffeur) avec le même contrat :
+  /// `success == true` → résultat parsé ; `success == false` / erreur réseau →
+  /// un libellé exploitable. Jamais de « succès » inventé après une erreur.
+  Future<CancellationOutcome> _runCancellation(
+    Future<Map<String, dynamic>> Function() request, {
+    required Future<void> Function() onSuccess,
+  }) async {
     state = state.copyWith(isLoading: true);
     try {
-      final result = await _apiService.cancelParcel(parcelId, reason: reason);
+      final result = await request();
       if (result['success'] == true) {
-        await loadSentParcels();
+        await onSuccess();
         state = state.copyWith(isLoading: false, error: null);
-        return true;
+        return CancellationOutcome(
+          result: CancellationResult.fromResponse(result),
+        );
       }
-      state = state.copyWith(
-        error: result['message'] ?? 'Erreur annulation',
-        isLoading: false,
-      );
-      return false;
+      final message = result['message']?.toString();
+      final code = result['error'] is Map
+          ? (result['error'] as Map)['code']?.toString()
+          : null;
+      final friendly = _cancellationErrorMessage(code, message);
+      state = state.copyWith(error: friendly, isLoading: false);
+      return CancellationOutcome(errorMessage: friendly, errorCode: code);
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
+      final friendly = 'Impossible d’annuler le colis pour le moment';
+      state = state.copyWith(error: friendly, isLoading: false);
+      return CancellationOutcome(errorMessage: friendly);
     }
   }
 
@@ -518,4 +539,35 @@ class ParcelState {
         'delivered': completedParcels.length,
         'cancelled': cancelledParcels.length,
       };
+}
+
+/// Traduit un code d'erreur d'annulation renvoyé par l'API en un libellé
+/// compréhensible. Le message du serveur reste prioritaire : on ne le remplace
+/// que lorsque le code est connu et plus parlant.
+String _cancellationErrorMessage(String? code, String? message) {
+  if (message != null && message.isNotEmpty) return message;
+  switch (code?.toUpperCase()) {
+    case 'PARCEL_ALREADY_CANCELLED':
+    case 'ALREADY_CANCELLED':
+      return 'Ce colis a déjà été annulé';
+    case 'CANCELLATION_NOT_ALLOWED':
+    case 'CANCELLATION_FORBIDDEN':
+      return 'Cette annulation n’est pas autorisée';
+    case 'CANCELLATION_REASON_REQUIRED':
+      return 'Veuillez sélectionner un motif d’annulation valide';
+    case 'CANCELLATION_EXEMPT_REASON_FORBIDDEN':
+      return 'Ce motif d’annulation est réservé au support';
+    case 'STATUS_CHANGED':
+      return 'Le statut du colis a changé. Actualisez la page';
+    case 'REFUND_IMPOSSIBLE':
+      return 'Le remboursement n’est pas possible pour ce colis';
+    case 'PAYDUNYA_ERROR':
+      return 'Le remboursement via PayDunya a échoué';
+    case 'INSUFFICIENT_FUNDS':
+      return 'Fonds insuffisants pour cette opération';
+    case 'DEBT_LIMIT_EXCEEDED':
+      return 'La dette du chauffeur dépasse la limite autorisée';
+    default:
+      return message ?? 'L’annulation a échoué';
+  }
 }
