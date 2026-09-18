@@ -174,7 +174,9 @@ class BidNegotiation {
       case 'initial':
         return 'Offre initiale';
       case 'counter':
-        return isDriver ? 'Contre-proposition chauffeur' : 'Contre-proposition client';
+        return isDriver
+            ? 'Contre-proposition chauffeur'
+            : 'Contre-proposition client';
       case 'accepted':
         return 'Acceptation';
       default:
@@ -199,6 +201,7 @@ class Bid {
   final DateTime createdAt;
   final DateTime? respondedAt;
   final String? responseMessage;
+
   /// Camp qui a posé le dernier prix (`client` / `driver`). Seul l'autre camp
   /// peut accepter : l'API renvoie 409 sinon.
   final String? lastProposedBy;
@@ -240,23 +243,20 @@ class Bid {
       id: json['id']?.toString() ?? '',
       parcelId:
           json['parcel_id']?.toString() ?? json['parcelId']?.toString() ?? '',
-      driverId:
-          json['driverId']?.toString() ?? driver?['id']?.toString() ?? '',
+      driverId: json['driverId']?.toString() ?? driver?['id']?.toString() ?? '',
       driverName: json['driverName']?.toString() ??
           driver?['fullName']?.toString() ??
           '',
-      driverPhone: json['driverPhone']?.toString() ??
-          driver?['phone']?.toString() ??
-          '',
+      driverPhone:
+          json['driverPhone']?.toString() ?? driver?['phone']?.toString() ?? '',
       driverRating: json['driverRating'] != null
           ? _toDouble(json['driverRating'])
           : driver?['rating'] != null
               ? _toDouble(driver?['rating'])
               : null,
-      driverCity: json['driverCity']?.toString() ??
-          driver?['city']?.toString(),
-      driverZoneName: json['driverZoneName']?.toString() ??
-          driver?['zoneName']?.toString(),
+      driverCity: json['driverCity']?.toString() ?? driver?['city']?.toString(),
+      driverZoneName:
+          json['driverZoneName']?.toString() ?? driver?['zoneName']?.toString(),
       price: _toDouble(json['price']),
       message: json['message']?.toString(),
       status: json['status'] != null
@@ -281,8 +281,8 @@ class Bid {
       lastPrice: json['lastPrice'] != null || json['last_price'] != null
           ? _toDouble(json['lastPrice'] ?? json['last_price'])
           : null,
-      lastMessage: json['lastMessage']?.toString() ??
-          json['last_message']?.toString(),
+      lastMessage:
+          json['lastMessage']?.toString() ?? json['last_message']?.toString(),
       canClientAccept: json['canClientAccept'] as bool?,
       canDriverAccept: json['canDriverAccept'] as bool?,
       audioUrl: json['audioUrl']?.toString() ?? json['audio_url']?.toString(),
@@ -320,7 +320,8 @@ class Bid {
   bool get isNegotiating => status == BidStatus.negotiating;
   bool get isAccepted => status == BidStatus.accepted;
   bool get isRejected => status == BidStatus.rejected;
-  bool get isActive => status == BidStatus.pending || status == BidStatus.negotiating;
+  bool get isActive =>
+      status == BidStatus.pending || status == BidStatus.negotiating;
   bool get isLastProposedByDriver => lastProposedBy == 'driver';
   bool get isLastProposedByClient => lastProposedBy == 'client';
 
@@ -433,6 +434,9 @@ class Parcel {
   final String? driverName;
   final String? driverPhone;
   final String? driverProfilePhoto;
+  final double? driverRating;
+  final bool driverVerified;
+  final String? driverVehicleType;
 
   // Prix et options
   final double? price;
@@ -559,6 +563,9 @@ class Parcel {
     this.driverName,
     this.driverPhone,
     this.driverProfilePhoto,
+    this.driverRating,
+    this.driverVerified = false,
+    this.driverVehicleType,
     this.price,
     this.proposedPrice,
     this.negotiatedPrice,
@@ -630,11 +637,16 @@ class Parcel {
           ? ParcelStatus.fromString(json['status'].toString())
           : ParcelStatus.pending,
       departureZoneId: json['departureZoneId']?.toString() ?? '',
-      departureZoneName:
-          (json['departureCity'] ?? json['departureGarageName'] ?? json['departureZoneName'])?.toString() ?? '',
+      departureZoneName: (json['departureCity'] ??
+                  json['departureGarageName'] ??
+                  json['departureZoneName'])
+              ?.toString() ??
+          '',
       arrivalZoneId: json['arrivalZoneId']?.toString(),
-      arrivalZoneName:
-          (json['arrivalCity'] ?? json['arrivalGarageName'] ?? json['arrivalZoneName'])?.toString(),
+      arrivalZoneName: (json['arrivalCity'] ??
+              json['arrivalGarageName'] ??
+              json['arrivalZoneName'])
+          ?.toString(),
       departureCity: json['departureCity']?.toString(),
       arrivalCity: json['arrivalCity']?.toString(),
       createdAt: json['createdAt'] != null
@@ -650,6 +662,16 @@ class Parcel {
         : null;
     DateTime? parseDateTime(dynamic value) =>
         value != null ? DateTime.tryParse(value.toString()) : null;
+
+    DriverLocation? parseDriverLocation(dynamic value) {
+      if (value is! Map) return null;
+      final map = Map<String, dynamic>.from(value);
+      // L'API utilise `{ available: false }` lorsqu'aucune position n'existe.
+      // Ne pas transformer cette sentinelle en coordonnées (0, 0).
+      if (map['available'] == false) return null;
+      final location = DriverLocation.fromJson(map);
+      return location.hasCoordinates ? location : null;
+    }
 
     List<String> parseList(dynamic value) {
       if (value == null) return [];
@@ -712,27 +734,35 @@ class Parcel {
           ? ParcelStatus.fromString(parseString(json['status'])!)
           : ParcelStatus.pending,
       departureZoneId: parseString(json['departureZoneId']) ?? '',
-      departureZoneName: parseString(
-            json['departureCity'] ??
-            json['departureGarageName'] ??
-            json['departureZoneName']) ??
+      departureZoneName: parseString(json['departureCity'] ??
+              json['departureGarageName'] ??
+              json['departureZoneName']) ??
           '',
       arrivalZoneId: parseString(json['arrivalZoneId']),
-      arrivalZoneName: parseString(
-            json['arrivalCity'] ??
-            json['arrivalGarageName'] ??
-            json['arrivalZoneName']),
+      arrivalZoneName: parseString(json['arrivalCity'] ??
+          json['arrivalGarageName'] ??
+          json['arrivalZoneName']),
       departureCity: parseString(json['departureCity']),
       arrivalCity: parseString(json['arrivalCity']),
       departureLatitude: parseDouble(json['departureLatitude']),
       departureLongitude: parseDouble(json['departureLongitude']),
       arrivalLatitude: parseDouble(json['arrivalLatitude']),
       arrivalLongitude: parseDouble(json['arrivalLongitude']),
-      driverId: parseString(json['driverId']),
-      driverName: parseString(json['driverName']),
+      driverId: parseString(json['driverId'] ?? json['driver']?['id']),
+      driverName: parseString(json['driverName'] ??
+          json['driver']?['name'] ??
+          json['driver']?['fullName']),
       driverPhone: parseString(json['driverPhone']),
       driverProfilePhoto: parseString(json['driver']?['profilePhoto']) ??
           parseString(json['driverProfilePhoto']),
+      driverRating: parseDouble(
+        json['driverRating'] ?? json['driver']?['rating'],
+      ),
+      driverVerified: json['driverVerified'] == true ||
+          json['driver']?['isVerified'] == true,
+      driverVehicleType: parseString(
+        json['driverVehicleType'] ?? json['driver']?['vehicleType'],
+      ),
       price: parseDouble(json['price']),
       proposedPrice:
           parseDouble(json['proposedPrice'] ?? json['proposed_price']),
@@ -768,23 +798,26 @@ class Parcel {
           parseString(json['assignedDriverId'] ?? json['assigned_driver_id']),
       proposedDriverId:
           parseString(json['proposedDriverId'] ?? json['proposed_driver_id']),
-      proposedDriverName: parseString(
-          json['proposedDriverName'] ?? json['proposed_driver_name'] ??
+      proposedDriverName: parseString(json['proposedDriverName'] ??
+          json['proposed_driver_name'] ??
           json['proposedDriver']?['fullName']),
-      proposedDriverPhone: parseString(
-          json['proposedDriverPhone'] ?? json['proposed_driver_phone'] ??
+      proposedDriverPhone: parseString(json['proposedDriverPhone'] ??
+          json['proposed_driver_phone'] ??
           json['proposedDriver']?['phone']),
-      proposalStatus: parseString(
-          proposal?['status'] ?? json['proposalStatus'] ?? json['proposal_status']),
-      proposalPrice: parseDouble(
-          proposal?['price'] ?? json['proposalPrice'] ?? json['proposal_price']),
+      proposalStatus: parseString(proposal?['status'] ??
+          json['proposalStatus'] ??
+          json['proposal_status']),
+      proposalPrice: parseDouble(proposal?['price'] ??
+          json['proposalPrice'] ??
+          json['proposal_price']),
       proposalLastMessage: parseString(proposal?['lastMessage']),
-      proposalLastOfferBy: parseString(
-          proposal?['lastOfferBy'] ?? json['lastOfferBy'] ?? json['last_offer_by']),
+      proposalLastOfferBy: parseString(proposal?['lastOfferBy'] ??
+          json['lastOfferBy'] ??
+          json['last_offer_by']),
       proposalNegotiationCount: (proposal?['negotiationCount'] ??
-              json['negotiationCount'] ??
-              json['negotiation_count'] ??
-              0) as int,
+          json['negotiationCount'] ??
+          json['negotiation_count'] ??
+          0) as int,
       proposalCanClientAccept: proposal?['canClientAccept'] as bool?,
       proposalCanDriverAccept: proposal?['canDriverAccept'] as bool?,
       photoUrls: parseList(json['photoUrls']),
@@ -803,15 +836,13 @@ class Parcel {
       cancellationReason: parseString(json['cancellationReason']),
       cancelledAt: parseDateTime(json['cancelledAt']),
       cancellation: json['cancellation'] is Map
-          ? CancellationResult.fromResponse(Map<String, dynamic>.from(
-              json['cancellation'] as Map))
+          ? CancellationResult.fromResponse(
+              Map<String, dynamic>.from(json['cancellation'] as Map))
           : null,
       events: events,
-      driverLocation: json['driverLocation'] is Map ||
-              json['driver_location'] is Map
-          ? DriverLocation.fromJson(Map<String, dynamic>.from(
-              json['driverLocation'] ?? json['driver_location']))
-          : null,
+      driverLocation: parseDriverLocation(
+        json['driverLocation'] ?? json['driver_location'],
+      ),
     );
   }
 
@@ -846,6 +877,10 @@ class Parcel {
         'driverId': driverId,
         'driverName': driverName,
         'driverPhone': driverPhone,
+        'driverProfilePhoto': driverProfilePhoto,
+        'driverRating': driverRating,
+        'driverVerified': driverVerified,
+        'driverVehicleType': driverVehicleType,
         'price': price,
         'proposedPrice': proposedPrice,
         'negotiatedPrice': negotiatedPrice,
@@ -1220,6 +1255,9 @@ class Parcel {
     String? driverName,
     String? driverPhone,
     String? driverProfilePhoto,
+    double? driverRating,
+    bool? driverVerified,
+    String? driverVehicleType,
     double? price,
     double? proposedPrice,
     double? negotiatedPrice,
@@ -1302,6 +1340,9 @@ class Parcel {
       driverName: driverName ?? this.driverName,
       driverPhone: driverPhone ?? this.driverPhone,
       driverProfilePhoto: driverProfilePhoto ?? this.driverProfilePhoto,
+      driverRating: driverRating ?? this.driverRating,
+      driverVerified: driverVerified ?? this.driverVerified,
+      driverVehicleType: driverVehicleType ?? this.driverVehicleType,
       price: price ?? this.price,
       proposedPrice: proposedPrice ?? this.proposedPrice,
       negotiatedPrice: negotiatedPrice ?? this.negotiatedPrice,

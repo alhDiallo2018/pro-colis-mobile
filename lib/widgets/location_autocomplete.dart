@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 
@@ -186,7 +187,19 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
       return;
     }
     final details = await PlacesService.placeDetails(place.placeId);
-    if (details == null || !mounted) return;
+    if (!mounted) return;
+    if (details == null || !details.hasCoordinates) {
+      developer.log(
+        'Détails ou coordonnées introuvables pour ${place.placeId}',
+        name: 'LocationAutocomplete',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ce lieu n’a pas pu être localisé précisément.'),
+        ),
+      );
+      return;
+    }
 
     // Le champ `name` des détails peut être vide : on retombe alors sur le
     // libellé principal de la prédiction, qui est le nom réel du lieu.
@@ -196,8 +209,8 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
 
     if (resolved.hasCoordinates) {
       widget.onCoordinates?.call(resolved.latitude!, resolved.longitude!);
-      widget.onPlaceDetails?.call(
-          resolved.latitude!, resolved.longitude!, resolved);
+      widget.onPlaceDetails
+          ?.call(resolved.latitude!, resolved.longitude!, resolved);
     }
     widget.onPlace?.call(resolved);
   }
@@ -206,34 +219,48 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   /// par géocodage inverse. Les coordonnées restent la source technique ; le
   /// texte affiché n'est qu'une représentation, jamais un remplacement.
   Future<void> _geolocate() async {
+    if (mounted) setState(() => _isLoading = true);
     try {
       final position = await resolveCurrentPosition();
       final lat = position.latitude;
       final lng = position.longitude;
 
-      PlaceDetails? details;
-      try {
-        details = await PlacesService.reverseGeocode(lat, lng);
-      } catch (_) {
-        details = null;
+      final details = await PlacesService.reverseGeocode(lat, lng);
+      if (!mounted) return;
+      final label = details?.label;
+      if (details == null || label == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Votre position est trouvée, mais sa localité est introuvable. '
+              'Recherchez l’adresse par son nom.',
+            ),
+          ),
+        );
+        return;
       }
 
-      // Repli explicite quand le géocodage inverse n'a rien produit.
-      final label = details?.label ?? 'Position actuelle';
       _suppressListener = true;
       widget.controller.text = label;
       _suppressListener = false;
 
       widget.onCoordinates?.call(lat, lng);
-      final place = details ?? PlaceDetails(latitude: lat, longitude: lng);
-      widget.onPlaceDetails?.call(lat, lng, place);
-      widget.onPlace?.call(place);
-    } catch (e) {
+      widget.onPlaceDetails?.call(lat, lng, details);
+      widget.onPlace?.call(details);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Impossible de localiser et nommer la position courante',
+        name: 'LocationAutocomplete',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(locationErrorMessage(e))),
+          SnackBar(content: Text(locationErrorMessage(error))),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -336,8 +363,9 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
         autofocus: widget.autofocus,
         decoration: InputDecoration(
           labelText: widget.label,
-          hintText:
-              widget.hint ?? widget.placeholder ?? 'Rechercher une adresse ou une ville...',
+          hintText: widget.hint ??
+              widget.placeholder ??
+              'Rechercher une adresse ou une ville...',
           helperText: widget.helperText,
           labelStyle: const TextStyle(
             color: Colors.grey,

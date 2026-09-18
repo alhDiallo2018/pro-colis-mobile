@@ -74,6 +74,7 @@ void main() {
           'id': 'w1',
           'userId': 'u1',
           'balance': 5000,
+          'commissionDebt': 0,
         },
         'transactions': <dynamic>[],
       }, 200);
@@ -87,10 +88,30 @@ void main() {
           'id': 'w1',
           'userId': 'u1',
           'balance': 0,
+          'commissionDebt': 0,
         },
         'transactions': <dynamic>[],
       }, 200);
       expect(wallet.balance, 0.0);
+    });
+
+    test('lit le seuil de dette et le blocage décidés par le backend', () {
+      final wallet = ApiService.parseWallet({
+        'success': true,
+        'wallet': {
+          'id': 'w1',
+          'userId': 'u1',
+          'balance': 0,
+          'commissionDebt': 1000,
+          'debtLimit': 1000,
+          'canAcceptNewDeliveries': false,
+        },
+        'transactions': <dynamic>[],
+      }, 200);
+
+      expect(wallet.commissionDebt, 1000);
+      expect(wallet.debtLimit, 1000);
+      expect(wallet.canAcceptNewDeliveries, isFalse);
     });
 
     test('erreur serveur → ApiException', () {
@@ -108,6 +129,26 @@ void main() {
         () => ApiService.parseWallet({
           'success': true,
           'message': 'Portefeuille',
+        }, 200),
+        throwsA(isA<ApiException>()),
+      );
+    });
+
+    test('wallet sans solde → ApiException (PAS 0 FCFA inventé)', () {
+      expect(
+        () => ApiService.parseWallet({
+          'success': true,
+          'wallet': {'id': 'w1', 'userId': 'u1', 'commissionDebt': 0},
+        }, 200),
+        throwsA(isA<ApiException>()),
+      );
+    });
+
+    test('wallet sans dette → ApiException (PAS dette nulle inventée)', () {
+      expect(
+        () => ApiService.parseWallet({
+          'success': true,
+          'wallet': {'id': 'w1', 'userId': 'u1', 'balance': 1000},
         }, 200),
         throwsA(isA<ApiException>()),
       );

@@ -54,8 +54,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
     // Un solde de points inconnu (erreur réseau / réponse invalide) n'est
     // jamais présenté comme « 0 pts » : on affiche un tiret explicite.
     final score = scoreState.score;
-    final pointsText =
-        score != null ? '${score.points} pts' : '— pts';
+    final pointsText = score != null ? '${score.points} pts' : '— pts';
 
     return GestureDetector(
       onTap: () {
@@ -236,7 +235,8 @@ class ScoreDisplayWidget extends ConsumerWidget {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         transaction.description,
@@ -298,9 +298,21 @@ class ScoreDisplayWidget extends ConsumerWidget {
     // Contexte racine (celui de l'écran) conservé pour la suite de l'achat :
     // le contexte du dialog devient invalide dès que celui-ci est fermé.
     final rootContext = context;
-    // Le prix unitaire du point provient de la configuration publique
-    // (`score.cfaPerPoint`), jamais d'une valeur codée en dur.
-    final cfaPerPoint = ref.read(publicConfigProvider)?.cfaPerPoint ?? 1.0;
+    // Le prix unitaire est une donnée financière administrée. Si la
+    // configuration n'est pas disponible, on bloque l'achat au lieu
+    // d'inventer un taux local qui pourrait débiter un mauvais montant.
+    final cfaPerPoint = ref.read(publicConfigProvider)?.cfaPerPoint;
+    if (cfaPerPoint == null || cfaPerPoint <= 0) {
+      ref.read(publicConfigProvider.notifier).load();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Tarif des points indisponible. Actualisez puis réessayez.',
+          ),
+        ),
+      );
+      return;
+    }
 
     showDialog(
       context: context,
@@ -326,7 +338,8 @@ class ScoreDisplayWidget extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.info_outline, color: Colors.green, size: 20),
+                        const Icon(Icons.info_outline,
+                            color: Colors.green, size: 20),
                         const SizedBox(width: 8),
                         Text(
                           '1 point = ${cfaPerPoint.toStringAsFixed(cfaPerPoint == cfaPerPoint.roundToDouble() ? 0 : 2)} FCFA',
@@ -357,7 +370,8 @@ class ScoreDisplayWidget extends ConsumerWidget {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF0B6E3A), width: 1.5),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF0B6E3A), width: 1.5),
                       ),
                     ),
                     // Mise à jour automatique du prix total à chaque saisie.
@@ -376,10 +390,14 @@ class ScoreDisplayWidget extends ConsumerWidget {
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: amount > 0 ? Colors.green.shade50 : Colors.grey.shade50,
+                      color: amount > 0
+                          ? Colors.green.shade50
+                          : Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: amount > 0 ? Colors.green.shade300 : Colors.grey.shade300,
+                        color: amount > 0
+                            ? Colors.green.shade300
+                            : Colors.grey.shade300,
                       ),
                     ),
                     child: Row(
@@ -413,7 +431,9 @@ class ScoreDisplayWidget extends ConsumerWidget {
                               'FCFA',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: amount > 0 ? Colors.grey.shade700 : Colors.grey.shade400,
+                                color: amount > 0
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade400,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -442,7 +462,8 @@ class ScoreDisplayWidget extends ConsumerWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0B6E3A),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 10),
                       ),
                       child: const Text('Acheter'),
                     );
@@ -530,9 +551,7 @@ class ScoreDisplayWidget extends ConsumerWidget {
       if (!context.mounted) return;
 
       if (confirm['status'] == 'completed') {
-        await ref
-            .read(scoreProvider.notifier)
-            .loadScore(user.id);
+        await ref.read(scoreProvider.notifier).loadScore(user.id);
         messenger.showSnackBar(
           SnackBar(
             content: Text('Paiement confirmé. Vos points ont été crédités.'),
@@ -560,7 +579,8 @@ class ScoreDisplayWidget extends ConsumerWidget {
       if (context.mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Erreur lors de l’achat de points. Veuillez réessayer.'),
+            content:
+                Text('Erreur lors de l’achat de points. Veuillez réessayer.'),
             backgroundColor: Colors.red,
           ),
         );

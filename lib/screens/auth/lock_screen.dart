@@ -40,25 +40,54 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       _error = null;
     });
 
-    final unlocked = await ref.read(authProvider.notifier).unlockWithBiometrics();
-    if (!mounted) return;
+    try {
+      final unlocked =
+          await ref.read(authProvider.notifier).unlockWithBiometrics();
+      if (!mounted) return;
 
-    if (unlocked) {
-      ref.read(sessionLockProvider.notifier).unlock();
-      return;
+      if (unlocked) {
+        ref.read(sessionLockProvider.notifier).unlock();
+        return;
+      }
+
+      setState(() {
+        _busy = false;
+        _error =
+            'Déverrouillage impossible. Réessayez ou utilisez votre code PIN.';
+      });
+    } catch (error, stackTrace) {
+      debugPrint('[LockScreen] Erreur de déverrouillage : $error');
+      debugPrintStack(
+        label: '[LockScreen] Trace de déverrouillage',
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = 'Une erreur est survenue. Utilisez votre code PIN.';
+      });
     }
-
-    setState(() {
-      _busy = false;
-      _error = 'Déverrouillage impossible. Réessayez ou utilisez votre code PIN.';
-    });
   }
 
   /// Repli toujours accessible : un capteur mouillé, sale ou défaillant ne doit
   /// jamais enfermer l'utilisateur hors de son compte.
   Future<void> _usePin() async {
-    ref.read(sessionLockProvider.notifier).unlock();
-    await ref.read(authProvider.notifier).logout(forgetBiometrics: false);
+    if (_busy) return;
+    setState(() => _busy = true);
+
+    try {
+      // On garde l'écran opaque jusqu'à la fin de la déconnexion. Le retirer
+      // avant exposerait brièvement le dashboard restauré au démarrage.
+      await ref.read(authProvider.notifier).logout(forgetBiometrics: false);
+    } catch (error, stackTrace) {
+      debugPrint('[LockScreen] Repli vers le PIN impossible : $error');
+      debugPrintStack(
+        label: '[LockScreen] Trace du repli PIN',
+        stackTrace: stackTrace,
+      );
+    } finally {
+      if (mounted) ref.read(sessionLockProvider.notifier).unlock();
+    }
   }
 
   @override
@@ -89,7 +118,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'Session verrouillée',
+                    'Application verrouillée',
                     style: TextStyle(
                       fontFamily: AppFonts.display,
                       fontWeight: FontWeight.w800,
@@ -99,8 +128,8 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Votre session a été fermée par sécurité après une période '
-                    'd’inactivité. Utilisez votre empreinte pour la rouvrir.',
+                    'Utilisez votre empreinte ou la biométrie configurée sur '
+                    'cet appareil pour ouvrir SENDPROCOLIS.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: AppFonts.body,

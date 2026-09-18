@@ -12,7 +12,6 @@ import '../../models/wallet.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/public_config_provider.dart';
 import '../../services/api_service.dart';
-import '../../services/commission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/pay_debt_sheet.dart';
@@ -110,19 +109,23 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                           onPay: _showPayDebtSheet,
                         ),
                       ],
-                  const SizedBox(height: 20),
-                  const PcSectionHeader('Comment gérer mon portefeuille'),
-                  _buildHowItWorks(),
-                  const SizedBox(height: 22),
-                  const PcSectionHeader('Historique du portefeuille'),
-                  _buildTransactionHistory(),
-                ],
-              ),
-            ),
+                      const SizedBox(height: 20),
+                      const PcSectionHeader('Comment gérer mon portefeuille'),
+                      _buildHowItWorks(),
+                      const SizedBox(height: 22),
+                      const PcSectionHeader('Historique du portefeuille'),
+                      _buildTransactionHistory(),
+                    ],
+                  ),
+                ),
     );
   }
 
   Widget _buildBalanceCard() {
+    final publicConfig = ref.watch(publicConfigProvider);
+    final hasCommissionTariff = publicConfig != null &&
+        publicConfig.commissionPercentage > 0 &&
+        publicConfig.commissionMaximum >= publicConfig.commissionMinimum;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -186,7 +189,11 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Commission: ${CommissionService.percentage.toStringAsFixed(0)}% (min ${CommissionService.minimum.toStringAsFixed(0)} FCFA, max ${CommissionService.maximum.toStringAsFixed(0)} FCFA)',
+                      hasCommissionTariff
+                          ? 'Commission: ${publicConfig.commissionPercentage.toStringAsFixed(0)}% '
+                              '(min ${publicConfig.commissionMinimum.toStringAsFixed(0)} FCFA, '
+                              'max ${publicConfig.commissionMaximum.toStringAsFixed(0)} FCFA)'
+                          : 'Barème de commission temporairement indisponible',
                       style: AppFonts.plusJakartaSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -217,7 +224,8 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
                   child: _GhostButton(
                     label: 'Utiliser',
                     icon: Icons.redeem_rounded,
-                    onPressed: (_commissionDebt ?? 0) > 0 ? _showPayDebtSheet : null,
+                    onPressed:
+                        (_commissionDebt ?? 0) > 0 ? _showPayDebtSheet : null,
                   ),
                 ),
               ],
@@ -257,7 +265,7 @@ class _DriverPointsScreenState extends ConsumerState<DriverPointsScreen> {
               Icons.add_circle_rounded,
               PcTone.amber,
               'Rechargez votre portefeuille',
-              '1 FCFA = 1 crédit. Rechargez en Wave, OM, CB...'),
+              'Le solde est crédité après confirmation du paiement.'),
           row(Icons.rocket_launch_rounded, PcTone.primary,
               'Maintenez un solde suffisant', 'Pour accepter des livraisons',
               divider: false),
@@ -504,7 +512,6 @@ class _DebtNotice extends StatelessWidget {
 // ==================== RECHARGE BOTTOM SHEET ====================
 
 class _RechargeSheetContent extends ConsumerStatefulWidget {
-
   const _RechargeSheetContent();
 
   @override
@@ -640,7 +647,7 @@ class _RechargeSheetContentState extends ConsumerState<_RechargeSheetContent> {
           ),
           const SizedBox(height: 6),
           Text(
-            '1 FCFA = 1 crédit. Les crédits sont utilisés pour payer les commissions.',
+            'Le montant confirmé est ajouté au portefeuille et peut servir au paiement des commissions.',
             style: TextStyle(fontSize: 13, color: AppTheme.slate500),
           ),
           const SizedBox(height: 16),

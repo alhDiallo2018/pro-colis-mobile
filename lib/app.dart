@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'providers/public_config_provider.dart';
 import 'providers/session_lock_provider.dart';
 import 'providers/theme_provider.dart';
 import 'routes/app_router.dart';
+import 'screens/accueil/splash_screen.dart';
 import 'screens/auth/lock_screen.dart';
 import 'services/auth_notifier.dart';
 import 'services/notification_badge_service.dart';
@@ -32,6 +34,13 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
     super.initState();
     _router = AppRouter.router();
     WidgetsBinding.instance.addObserver(this);
+
+    // Le stockage sécurisé est asynchrone. Pendant sa résolution, le builder
+    // conserve le splash au-dessus du routeur pour qu'un écran authentifié ne
+    // soit jamais visible avant la décision de verrouillage.
+    unawaited(
+      ref.read(sessionLockProvider.notifier).initializeOnLaunch(),
+    );
 
     // Branche la navigation depuis une notification : le handler est affecté
     // après la création du routeur, ce qui rejoue aussi une éventuelle
@@ -118,7 +127,7 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
 
     // Lu ici, dans le `build` du Consumer : `ref.watch` depuis la closure
     // `builder` s'exécuterait pendant la construction d'un descendant.
-    final locked = ref.watch(sessionLockProvider);
+    final lockStatus = ref.watch(sessionLockProvider);
 
     final themeMode = ref.watch(themeModeProvider);
     final platformBrightness = MediaQuery.platformBrightnessOf(context);
@@ -151,7 +160,10 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
         child: Stack(
           children: [
             child ?? const SizedBox.shrink(),
-            if (locked) const Positioned.fill(child: LockScreen()),
+            if (lockStatus == SessionLockStatus.checking)
+              const Positioned.fill(child: SplashScreen()),
+            if (lockStatus == SessionLockStatus.locked)
+              const Positioned.fill(child: LockScreen()),
           ],
         ),
       ),

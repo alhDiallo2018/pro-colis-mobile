@@ -30,27 +30,27 @@ class _ConfigField {
   final bool secret;
 
   const _ConfigField(
-      this.key,
-      this.label,
-      this.type,
-      this.defaultValue, {
-        this.options = const [],
-        this.secret = false,
-      });
+    this.key,
+    this.label,
+    this.type,
+    this.defaultValue, {
+    this.options = const [],
+    this.secret = false,
+  });
 }
 
 enum _ConfigFieldType { string, number, boolean, select }
 
 const _sections = <_ConfigSection>[
   _ConfigSection('Tarification', Icons.payments_rounded, PcTone.amber, [
-    _ConfigField('pricing.baseFee', 'Frais de base (FCFA)',
-        _ConfigFieldType.number, '1000'),
+    _ConfigField(
+        'pricing.baseFee', 'Frais de base (FCFA)', _ConfigFieldType.number, ''),
     _ConfigField('pricing.pricePerKg', 'Prix par kg (FCFA)',
-        _ConfigFieldType.number, '500'),
+        _ConfigFieldType.number, ''),
     _ConfigField('pricing.urgentFee', 'Frais urgence (FCFA)',
-        _ConfigFieldType.number, '1000'),
+        _ConfigFieldType.number, ''),
     _ConfigField('pricing.insuranceFee', 'Frais assurance (FCFA)',
-        _ConfigFieldType.number, '1000'),
+        _ConfigFieldType.number, ''),
   ]),
   _ConfigSection('Score & Réputation', Icons.stars_rounded, PcTone.primary, [
     _ConfigField('score.deliveryCompleted', 'Points par livraison réussie',
@@ -58,19 +58,19 @@ const _sections = <_ConfigSection>[
     _ConfigField('score.signupBonus', 'Points bonus inscription',
         _ConfigFieldType.number, '0'),
     _ConfigField('score.cfaPerPoint', 'Équivalent CFA par point (FCFA)',
-        _ConfigFieldType.number, '1'),
+        _ConfigFieldType.number, ''),
     _ConfigField('score.commitmentFee', 'Points de frais d’engagement',
-        _ConfigFieldType.number, '1'),
+        _ConfigFieldType.number, ''),
     _ConfigField('score.standardThreshold', 'Seuil niveau Standard (points)',
-        _ConfigFieldType.number, '100'),
+        _ConfigFieldType.number, ''),
     _ConfigField('score.premiumThreshold', 'Seuil niveau Premium (points)',
-        _ConfigFieldType.number, '500'),
+        _ConfigFieldType.number, ''),
     _ConfigField('score.eliteThreshold', 'Seuil niveau Elite (points)',
-        _ConfigFieldType.number, '1000'),
+        _ConfigFieldType.number, ''),
   ]),
   _ConfigSection('Finances — Retraits', Icons.savings_rounded, PcTone.green, [
     _ConfigField('withdrawal.minAmount', 'Montant minimum de retrait (FCFA)',
-        _ConfigFieldType.number, '500'),
+        _ConfigFieldType.number, ''),
     _ConfigField('withdrawal.maxAmount', 'Montant maximum (0 = illimité)',
         _ConfigFieldType.number, '0'),
   ]),
@@ -95,31 +95,31 @@ const _sections = <_ConfigSection>[
   ]),
   _ConfigSection('Uploads', Icons.cloud_upload_rounded, PcTone.green, [
     _ConfigField('uploads.maxPhotoMb', 'Taille max photo (Mo)',
-        _ConfigFieldType.number, '10'),
+        _ConfigFieldType.number, ''),
   ]),
   _ConfigSection('Maintenance', Icons.engineering_rounded, PcTone.red, [
     _ConfigField('maintenance.enabled', 'Mode maintenance',
         _ConfigFieldType.boolean, 'false'),
   ]),
   _ConfigSection('Support & Aide', Icons.support_agent_rounded, PcTone.green, [
-    _ConfigField('support.phone', 'Téléphone commercial',
-        _ConfigFieldType.string, ''),
-    _ConfigField('support.email', 'Email commercial',
-        _ConfigFieldType.string, ''),
+    _ConfigField(
+        'support.phone', 'Téléphone commercial', _ConfigFieldType.string, ''),
+    _ConfigField(
+        'support.email', 'Email commercial', _ConfigFieldType.string, ''),
     _ConfigField('support.technicalPhone', 'Téléphone technique',
         _ConfigFieldType.string, ''),
     _ConfigField('support.technicalEmail', 'Email technique',
         _ConfigFieldType.string, ''),
     _ConfigField('support.responseTime', 'Délai de réponse (ex: 24h)',
-        _ConfigFieldType.string, '24h'),
+        _ConfigFieldType.string, ''),
     _ConfigField('support.availability', 'Disponibilité (ex: 7j/7)',
-        _ConfigFieldType.string, '7j/7'),
+        _ConfigFieldType.string, ''),
   ]),
   _ConfigSection('Informations légales', Icons.gavel_rounded, PcTone.primary, [
-    _ConfigField('legal.companyName', 'Raison sociale',
-        _ConfigFieldType.string, ''),
-    _ConfigField('legal.address', 'Adresse du siège',
-        _ConfigFieldType.string, ''),
+    _ConfigField(
+        'legal.companyName', 'Raison sociale', _ConfigFieldType.string, ''),
+    _ConfigField(
+        'legal.address', 'Adresse du siège', _ConfigFieldType.string, ''),
     _ConfigField('legal.registrationNumber', 'Numéro d\'immatriculation',
         _ConfigFieldType.string, ''),
     _ConfigField('legal.cdpAuthorization', 'Numéro d\'autorisation CDP',
@@ -182,11 +182,11 @@ class AdminParametresScreen extends ConsumerStatefulWidget {
 }
 
 // ✅ Correction : ConsumerState au lieu de State
-class _AdminParametresScreenState
-    extends ConsumerState<AdminParametresScreen> {
+class _AdminParametresScreenState extends ConsumerState<AdminParametresScreen> {
   final ApiService _apiService = ApiService();
   final Map<String, TextEditingController> _textControllers = {};
   final Map<String, bool> _boolValues = {};
+  final Set<String> _loadedConfigKeys = {};
   final Set<String> _visibleSecrets = {};
   bool _isLoading = true;
   bool _isSaving = false;
@@ -215,6 +215,12 @@ class _AdminParametresScreenState
     });
     try {
       final result = await _apiService.getAdminConfig();
+      if (result['success'] == false) {
+        throw StateError(
+          result['message']?.toString() ??
+              'La configuration système n’a pas pu être chargée.',
+        );
+      }
       final Map<String, dynamic> apiConfig = {};
 
       final raw = result['config'] ?? result['data'];
@@ -224,7 +230,7 @@ class _AdminParametresScreenState
           apiConfig[m['key']?.toString() ?? ''] = m['value'];
         }
       } else if (raw is Map) {
-        (raw as Map).forEach((k, v) {
+        raw.forEach((k, v) {
           apiConfig[k.toString()] = v;
         });
       }
@@ -235,6 +241,9 @@ class _AdminParametresScreenState
         }
         _textControllers.clear();
         _boolValues.clear();
+        _loadedConfigKeys
+          ..clear()
+          ..addAll(apiConfig.keys);
 
         for (final section in _sections) {
           for (final field in section.fields) {
@@ -255,7 +264,10 @@ class _AdminParametresScreenState
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[AdminParametres] Échec chargement configuration: $e\n$stackTrace',
+      );
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -275,12 +287,29 @@ class _AdminParametresScreenState
             break;
           case _ConfigFieldType.number:
             final raw = _textControllers[field.key]?.text.trim() ?? '';
+            // Une clé absente de l'API et laissée vide n'est pas remplacée par
+            // zéro : le serveur reste l'unique source de valeur par défaut.
+            if (raw.isEmpty && !_loadedConfigKeys.contains(field.key)) continue;
             final parsed = num.tryParse(raw);
-            result[field.key] = parsed ?? 0;
+            if (parsed == null) {
+              throw FormatException(
+                'Le champ « ${field.label} » doit contenir un nombre.',
+              );
+            }
+            result[field.key] = parsed;
             break;
           case _ConfigFieldType.string:
           case _ConfigFieldType.select:
-            result[field.key] = _textControllers[field.key]?.text.trim() ?? '';
+            final raw = _textControllers[field.key]?.text.trim() ?? '';
+            // Les secrets ne sont jamais renvoyés par l'API. Un champ secret
+            // vide signifie donc « conserver la valeur existante », et non
+            // « écraser le secret par une chaîne vide ».
+            if (field.secret && raw.isEmpty) continue;
+            if (!_loadedConfigKeys.contains(field.key) &&
+                raw == field.defaultValue) {
+              continue;
+            }
+            result[field.key] = raw;
             break;
         }
       }
@@ -295,6 +324,9 @@ class _AdminParametresScreenState
     });
     try {
       final config = _collectFormValues();
+      if (config.isEmpty) {
+        throw StateError('Aucune valeur à enregistrer.');
+      }
       final result = await _apiService.updateAdminConfig(config);
       if (mounted) {
         if (result['success'] == true) {
@@ -314,7 +346,10 @@ class _AdminParametresScreenState
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[AdminParametres] Échec enregistrement configuration: $e\n$stackTrace',
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -345,25 +380,25 @@ class _AdminParametresScreenState
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-          ? _buildErrorView()
-          : Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-              children: [
-                _buildIntro(),
-                const SizedBox(height: 18),
-                for (final section in _sections) ...[
-                  _buildSectionCard(section),
-                  const SizedBox(height: 16),
-                ],
-              ],
-            ),
-          ),
-          _buildSaveBar(),
-        ],
-      ),
+              ? _buildErrorView()
+              : Column(
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+                        children: [
+                          _buildIntro(),
+                          const SizedBox(height: 18),
+                          for (final section in _sections) ...[
+                            _buildSectionCard(section),
+                            const SizedBox(height: 16),
+                          ],
+                        ],
+                      ),
+                    ),
+                    _buildSaveBar(),
+                  ],
+                ),
     );
   }
 
@@ -378,8 +413,8 @@ class _AdminParametresScreenState
             color: AppTheme.teal50,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
-          child: Icon(Icons.settings_rounded,
-              size: 24, color: AppTheme.primary),
+          child:
+              Icon(Icons.settings_rounded, size: 24, color: AppTheme.primary),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -488,9 +523,9 @@ class _AdminParametresScreenState
             initialValue: current,
             items: field.options
                 .map((option) => DropdownMenuItem(
-              value: option,
-              child: Text(option),
-            ))
+                      value: option,
+                      child: Text(option),
+                    ))
                 .toList(),
             onChanged: (value) {
               if (value != null) controller.text = value;
@@ -522,31 +557,31 @@ class _AdminParametresScreenState
           style: isNumber
               ? AppTheme.mono(fontSize: 14, fontWeight: FontWeight.w600)
               : AppFonts.manrope(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textPrimary),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary),
           decoration: InputDecoration(
             hintText:
-            isNumber ? 'Saisir une valeur numérique' : 'Saisir une valeur',
+                isNumber ? 'Saisir une valeur numérique' : 'Saisir une valeur',
             suffixIcon: field.secret
                 ? IconButton(
-              tooltip: secretVisible ? 'Masquer' : 'Afficher',
-              icon: Icon(secretVisible
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined),
-              onPressed: () {
-                setState(() {
-                  if (secretVisible) {
-                    _visibleSecrets.remove(field.key);
-                  } else {
-                    _visibleSecrets.add(field.key);
-                  }
-                });
-              },
-            )
+                    tooltip: secretVisible ? 'Masquer' : 'Afficher',
+                    icon: Icon(secretVisible
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined),
+                    onPressed: () {
+                      setState(() {
+                        if (secretVisible) {
+                          _visibleSecrets.remove(field.key);
+                        } else {
+                          _visibleSecrets.add(field.key);
+                        }
+                      });
+                    },
+                  )
                 : null,
             contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
       ],

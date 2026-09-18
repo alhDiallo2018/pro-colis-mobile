@@ -1,4 +1,7 @@
+import 'dart:developer' as developer;
+
 import 'package:dio/dio.dart';
+import 'package:geocoding/geocoding.dart';
 
 import '../models/place.dart';
 
@@ -30,9 +33,9 @@ class PlacesService {
     defaultValue: '',
   );
 
-  /// Vrai quand une clé a bien été injectée au build. Sans elle, les appels
-  /// Places / Geocoding renvoient `REQUEST_DENIED` et l'interface doit se
-  /// replier sur la saisie manuelle ou sur « Position actuelle ».
+  /// Vrai quand une clé a bien été injectée au build. Sans elle, la recherche
+  /// Places n'est pas disponible et le géocodage inverse utilise le service
+  /// natif du téléphone comme solution de repli.
   static bool get isConfigured => googleApiKey.trim().isNotEmpty;
 
   static final Dio _dio = Dio(BaseOptions(
@@ -52,12 +55,12 @@ class PlacesService {
     final input = query.trim();
     if (input.length < 2 || !isConfigured) return const [];
 
-    final response = await _dio.get('$_base/place/autocomplete/json',
-        queryParameters: {
-          'input': input,
-          'language': 'fr',
-          'key': googleApiKey,
-        });
+    final response =
+        await _dio.get('$_base/place/autocomplete/json', queryParameters: {
+      'input': input,
+      'language': 'fr',
+      'key': googleApiKey,
+    });
 
     final data = response.data;
     if (response.statusCode == 200 && data['status'] == 'OK') {
@@ -78,13 +81,13 @@ class PlacesService {
     if (placeId.trim().isEmpty || !isConfigured) return null;
 
     try {
-      final response = await _dio.get('$_base/place/details/json',
-          queryParameters: {
-            'place_id': placeId,
-            'fields': 'name,geometry,address_components,formatted_address',
-            'language': 'fr',
-            'key': googleApiKey,
-          });
+      final response =
+          await _dio.get('$_base/place/details/json', queryParameters: {
+        'place_id': placeId,
+        'fields': 'name,geometry,address_components,formatted_address',
+        'language': 'fr',
+        'key': googleApiKey,
+      });
 
       final data = response.data;
       if (response.statusCode != 200 || data['status'] != 'OK') return null;
@@ -112,35 +115,85 @@ class PlacesService {
   /// Géocodage inverse d'un point GPS, pour afficher un libellé lisible au
   /// lieu des seules coordonnées.
   ///
-  /// Renvoie `null` si aucun résultat ou en cas d'erreur : l'appelant affiche
-  /// alors un repli explicite (« Position actuelle ») sans perdre les
-  /// coordonnées.
+  /// Google est prioritaire, puis le géocodeur natif du téléphone prend le
+  /// relais. `null` signifie qu'aucun nom géographique fiable n'a été trouvé :
+  /// l'interface ne doit jamais remplacer ce nom par de simples coordonnées.
   static Future<PlaceDetails?> reverseGeocode(
       double latitude, double longitude) async {
-    if (!isConfigured) return null;
+    if (isConfigured) {
+      try {
+        final response =
+            await _dio.get('$_base/geocode/json', queryParameters: {
+          'latlng': '$latitude,$longitude',
+          'language': 'fr',
+          'key': googleApiKey,
+        });
+
+        final data = response.data;
+        if (response.statusCode == 200 && data['status'] == 'OK') {
+          final results = data['results'] as List?;
+          if (results != null && results.isNotEmpty) {
+            final first = results.first as Map<String, dynamic>;
+            final place = PlaceDetails.fromComponents(
+              first['address_components'] as List?,
+              placeId: first['place_id'] as String?,
+              formattedAddress: first['formatted_address'] as String?,
+              latitude: latitude,
+              longitude: longitude,
+            );
+            if (place.hasGeographicLabel) return place;
+          }
+        }
+      } catch (error, stackTrace) {
+        developer.log(
+          'Le géocodage Google a échoué, utilisation du repli natif',
+          name: 'PlacesService',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
 
     try {
-      final response = await _dio.get('$_base/geocode/json', queryParameters: {
-        'latlng': '$latitude,$longitude',
-        'language': 'fr',
-        'key': googleApiKey,
-      });
+      final placemarks = await placemarkFromCoordinates(latitude, longitude);
+      if (placemarks.isEmpty) return null;
 
-      final data = response.data;
-      if (response.statusCode != 200 || data['status'] != 'OK') return null;
+      final placemark = placemarks.first;
+      final addressParts = <String?>[
+        placemark.street,
+        placemark.subLocality,
+        placemark.locality,
+        placemark.administrativeArea,
+        placemark.country,
+      ];
+      // Plusieurs niveaux administratifs portent parfois la même valeur. On
+      // les déduplique pour produire une adresse naturelle et stable.
+      final seen = <String>{};
+      final address = addressParts
+          .map((part) => part?.trim())
+          .whereType<String>()
+          .where((part) => part.isNotEmpty && seen.add(part.toLowerCase()))
+          .join(', ');
 
-      final results = data['results'] as List?;
-      if (results == null || results.isEmpty) return null;
-
-      final first = results.first as Map<String, dynamic>;
-      return PlaceDetails.fromComponents(
-        first['address_components'] as List?,
-        placeId: first['place_id'] as String?,
-        formattedAddress: first['formatted_address'] as String?,
+      final place = PlaceDetails(
+        formattedAddress: address.isEmpty ? null : address,
+        district: placemark.subLocality,
+        city: (placemark.locality?.trim().isNotEmpty ?? false)
+            ? placemark.locality
+            : placemark.subAdministrativeArea,
+        region: placemark.administrativeArea,
+        country: placemark.country,
         latitude: latitude,
         longitude: longitude,
       );
-    } catch (_) {
+      return place.hasGeographicLabel ? place : null;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Aucun géocodeur n’a pu résoudre la localité',
+        name: 'PlacesService',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }

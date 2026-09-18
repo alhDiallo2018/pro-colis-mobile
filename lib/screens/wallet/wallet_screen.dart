@@ -24,6 +24,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   /// `null` signifie « inconnu » (non chargé ou erreur) : ne jamais afficher 0.
   double? _balance;
   double? _commissionDebt;
+  double? _debtLimit;
+  bool _canAcceptNewDeliveries = true;
   String? _error;
   bool _loading = true;
   List<Map<String, dynamic>> _transactions = [];
@@ -51,6 +53,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         setState(() {
           _balance = wallet.balance;
           _commissionDebt = wallet.commissionDebt;
+          _debtLimit = wallet.debtLimit;
+          _canAcceptNewDeliveries = wallet.canAcceptNewDeliveries;
           _transactions = wallet.transactions
               .map((t) => {
                     'id': t.id,
@@ -169,55 +173,59 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       if ((_commissionDebt ?? 0) > 0) ...[
                         const SizedBox(height: 14),
                         _DebtBanner(
-                            debt: _commissionDebt ?? 0, onPay: _showPayDebtSheet),
-                      ],
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      if (isDriver) ...[
-                        Expanded(
-                          child: PcButton(
-                            'Mes points',
-                            icon: Icons.redeem_rounded,
-                            variant: PcButtonVariant.secondary,
-                            block: true,
-                            onPressed: () => context.push('/driver/points'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: PcButton(
-                            'Retirer des fonds',
-                            icon: Icons.payments,
-                            variant: PcButtonVariant.primary,
-                            block: true,
-                            onPressed: _showWithdrawSheet,
-                          ),
-                        ),
-                      ] else ...[
-                        Expanded(
-                          child: PcButton(
-                            'Historique',
-                            icon: Icons.receipt_long_rounded,
-                            variant: PcButtonVariant.secondary,
-                            block: true,
-                            onPressed: () {},
-                          ),
+                          debt: _commissionDebt ?? 0,
+                          debtLimit: _debtLimit ?? 0,
+                          isBlocked: !_canAcceptNewDeliveries,
+                          onPay: _showPayDebtSheet,
                         ),
                       ],
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          if (isDriver) ...[
+                            Expanded(
+                              child: PcButton(
+                                'Mes points',
+                                icon: Icons.redeem_rounded,
+                                variant: PcButtonVariant.secondary,
+                                block: true,
+                                onPressed: () => context.push('/driver/points'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: PcButton(
+                                'Retirer des fonds',
+                                icon: Icons.payments,
+                                variant: PcButtonVariant.primary,
+                                block: true,
+                                onPressed: _showWithdrawSheet,
+                              ),
+                            ),
+                          ] else ...[
+                            Expanded(
+                              child: PcButton(
+                                'Historique',
+                                icon: Icons.receipt_long_rounded,
+                                variant: PcButtonVariant.secondary,
+                                block: true,
+                                onPressed: () {},
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (isDriver && _withdrawals.isNotEmpty) ...[
+                        const SizedBox(height: 18),
+                        const PcSectionHeader('Mes demandes de retrait'),
+                        _buildWithdrawals(),
+                      ],
+                      const SizedBox(height: 18),
+                      const PcSectionHeader('Historique'),
+                      _buildTransactions(),
                     ],
                   ),
-                  if (isDriver && _withdrawals.isNotEmpty) ...[
-                    const SizedBox(height: 18),
-                    const PcSectionHeader('Mes demandes de retrait'),
-                    _buildWithdrawals(),
-                  ],
-                  const SizedBox(height: 18),
-                  const PcSectionHeader('Historique'),
-                  _buildTransactions(),
-                ],
-              ),
-            ),
+                ),
       bottomNavigationBar: const AppBottomNav(),
     );
   }
@@ -415,9 +423,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
 class _DebtBanner extends StatelessWidget {
   final double debt;
+  final double debtLimit;
+  final bool isBlocked;
   final VoidCallback onPay;
 
-  const _DebtBanner({required this.debt, required this.onPay});
+  const _DebtBanner({
+    required this.debt,
+    required this.debtLimit,
+    required this.isBlocked,
+    required this.onPay,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -425,9 +440,11 @@ class _DebtBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.red50,
+        color: isBlocked ? AppTheme.red50 : AppTheme.amber50,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.red100),
+        border: Border.all(
+          color: isBlocked ? AppTheme.red100 : AppTheme.amber100,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,7 +452,13 @@ class _DebtBanner extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.error_outline_rounded, color: AppTheme.red500, size: 20),
+              Icon(
+                isBlocked
+                    ? Icons.lock_outline_rounded
+                    : Icons.warning_amber_rounded,
+                color: isBlocked ? AppTheme.red500 : AppTheme.amber600,
+                size: 20,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -446,18 +469,25 @@ class _DebtBanner extends StatelessWidget {
                       style: AppFonts.plusJakartaSans(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.red500,
+                        color: isBlocked ? AppTheme.red500 : AppTheme.amber600,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Dette de ${fmt.format(debt.toInt())} FCFA. '
-                      'Vous pouvez terminer vos livraisons en cours, mais vous '
-                      'devez régler cette dette avant d\'accepter un nouveau colis.',
+                      isBlocked
+                          ? 'Votre dette de ${fmt.format(debt.toInt())} FCFA a '
+                              'atteint le seuil de ${fmt.format(debtLimit.toInt())} FCFA. '
+                              'Réglez-la pour accepter un nouveau colis.'
+                          : debtLimit > 0
+                              ? 'Dette : ${fmt.format(debt.toInt())} FCFA. '
+                                  'Blocage des nouvelles missions à partir de '
+                                  '${fmt.format(debtLimit.toInt())} FCFA.'
+                              : 'Dette : ${fmt.format(debt.toInt())} FCFA. '
+                                  'Aucun seuil de blocage n’est actuellement activé.',
                       style: AppFonts.manrope(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: AppTheme.red500,
+                        color: isBlocked ? AppTheme.red500 : AppTheme.amber600,
                         height: 1.4,
                       ),
                     ),

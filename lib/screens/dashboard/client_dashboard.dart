@@ -33,6 +33,7 @@ import '../shared/messages_screen.dart';
 
 import '../../services/notification_service.dart';
 import '../../services/notification_badge_service.dart';
+import '../../utils/unread_messages.dart';
 
 class ClientDashboard extends ConsumerStatefulWidget {
   const ClientDashboard({super.key});
@@ -116,8 +117,9 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
           _unreadNotificationsCount = unreadCount;
         });
       }
-      // Le badge de l'icône suit le même compteur que l'application.
-      await NotificationBadgeService.setCount(unreadCount);
+      // Le badge système additionne notifications et messages côté serveur ;
+      // recopier seulement ce compteur effacerait les messages non lus.
+      await NotificationBadgeService.refresh();
     } catch (e) {
       debugPrint('❌ Erreur chargement compteur notifications: $e');
       if (mounted) {
@@ -138,10 +140,12 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
       int count = 0;
       Map<String, dynamic>? latest;
       for (final c in convs) {
-        final receiver = c['receiver'] as Map<String, dynamic>?;
-        final isRead = c['isRead'] == true;
-        if (receiver?['id']?.toString() == myId && !isRead) {
-          count++;
+        final unread = unreadMessagesInConversation(
+          c,
+          currentUserId: myId,
+        );
+        if (unread > 0) {
+          count += unread;
           latest ??= c;
         }
       }
@@ -369,7 +373,13 @@ class _MesColisTabState extends State<_MesColisTab> {
     ('Tous', <ParcelStatus>[]),
     (
       'Attente',
-      [ParcelStatus.pending, ParcelStatus.free, ParcelStatus.proposalSent, ParcelStatus.negotiating, ParcelStatus.confirmed]
+      [
+        ParcelStatus.pending,
+        ParcelStatus.free,
+        ParcelStatus.proposalSent,
+        ParcelStatus.negotiating,
+        ParcelStatus.confirmed
+      ]
     ),
     (
       'Transit',
@@ -884,11 +894,12 @@ class _ClientRecentParcelCard extends StatelessWidget {
     required this.onTap,
   });
 
-  String get _arrival => (parcel.arrivalCity?.isNotEmpty == true
-      ? parcel.arrivalCity
-      : parcel.arrivalZoneName?.isNotEmpty == true
-          ? parcel.arrivalZoneName
-          : null) ??
+  String get _arrival =>
+      (parcel.arrivalCity?.isNotEmpty == true
+          ? parcel.arrivalCity
+          : parcel.arrivalZoneName?.isNotEmpty == true
+              ? parcel.arrivalZoneName
+              : null) ??
       '—';
 
   String get _price {
@@ -1198,8 +1209,7 @@ class HomeScreen extends StatelessWidget {
         pendingOffers.add(_OfferPreview(parcel: parcel, bid: bid));
       }
       // Proposition directe ouverte (Flux B) sans bid actif
-      if (parcel.hasOpenProposal &&
-          !parcel.bids.any((b) => b.isActive)) {
+      if (parcel.hasOpenProposal && !parcel.bids.any((b) => b.isActive)) {
         pendingOffers.add(_OfferPreview(parcel: parcel));
       }
     }
@@ -1740,10 +1750,9 @@ class _OfferPreviewRow extends StatelessWidget {
     // depuis le champ proposal du colis.
     if (bid == null) {
       final p = offer.parcel;
-      final driverName =
-          p.proposedDriverName?.isNotEmpty == true
-              ? p.proposedDriverName!
-              : 'Chauffeur';
+      final driverName = p.proposedDriverName?.isNotEmpty == true
+          ? p.proposedDriverName!
+          : 'Chauffeur';
       final price = p.currentProposalPrice ?? 0;
       final msg = p.proposalLastMessage ?? p.trackingNumber;
 

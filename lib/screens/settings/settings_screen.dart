@@ -97,6 +97,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
       setState(() => _biometricEnabled = true);
       _notify('Déverrouillage biométrique activé');
+    } catch (error, stackTrace) {
+      debugPrint('[Settings] Configuration biométrique impossible : $error');
+      debugPrintStack(
+        label: '[Settings] Trace de configuration biométrique',
+        stackTrace: stackTrace,
+      );
+      _notify('Impossible de modifier le déverrouillage biométrique');
     } finally {
       if (mounted) setState(() => _biometricBusy = false);
     }
@@ -442,7 +449,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   tone: PcTone.primary,
                   title: 'Déverrouillage biométrique',
                   subtitle: _biometricAvailable
-                      ? 'Empreinte ou reconnaissance faciale'
+                      ? 'Ouvrir l’app par empreinte ou reconnaissance faciale'
                       : 'Aucun capteur configuré sur cet appareil',
                   value: _biometricEnabled,
                   onChanged: _biometricAvailable && !_biometricBusy

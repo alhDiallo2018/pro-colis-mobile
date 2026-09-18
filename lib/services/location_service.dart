@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import 'api_service.dart';
 import 'location_fix.dart';
@@ -24,21 +21,24 @@ const Duration kLocationUploadInterval = Duration(seconds: 60);
 /// service n'est démarré que lorsqu'un colis est réellement en cours de
 /// transport, et arrêté dès la livraison ou l'annulation.
 class LocationService {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  LocationService._internal();
+
+  /// Instance applicative unique : le suivi ne doit pas être détruit lorsque
+  /// l'utilisateur ferme simplement la fiche d'un colis.
+  static final LocationService _instance = LocationService._internal();
+  factory LocationService() => _instance;
+
+  final ApiService _api = ApiService();
 
   Timer? _locationTimer;
-  bool _isUpdatingLocation = false;
+  int? _updatingGeneration;
   String? _activeParcelId;
+  int _trackingGeneration = 0;
 
   /// Colis actuellement suivi, ou `null` si le suivi est arrêté.
   String? get activeParcelId => _activeParcelId;
 
   bool get isTracking => _locationTimer != null;
-
-  Future<bool> requestPermission() async {
-    final status = await Permission.location.request();
-    return status.isGranted;
-  }
 
   /// Délègue à [resolveCurrentPosition] : service vérifié, permission demandée
   /// et délai maximum appliqué, pour ne pas laisser deux logiques de
@@ -68,25 +68,14 @@ class LocationService {
     double? accuracy,
   }) async {
     try {
-      final token = await _storage.read(key: 'token');
-      final dio = Dio(BaseOptions(
-        baseUrl: ApiService.baseUrl,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null && token.isNotEmpty)
-            'Authorization': 'Bearer $token',
-        },
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
-      ));
-
-      // Le backend expose POST /driver/location (un PUT renvoie 404).
-      await dio.post('/driver/location', data: {
-        'parcelId': parcelId,
-        'latitude': latitude,
-        'longitude': longitude,
-        if (accuracy != null) 'accuracy': accuracy,
-      });
+      // Réutilise le client API authentifié : même jeton, même refresh de
+      // session et même politique d'erreurs que les autres appels métier.
+      await _api.updateDriverLocation(
+        parcelId: parcelId,
+        latitude: latitude,
+        longitude: longitude,
+        accuracy: accuracy,
+      );
     } catch (error, stackTrace) {
       developer.log(
         'Échec de la mise à jour de la position',
@@ -94,6 +83,7 @@ class LocationService {
         error: error,
         stackTrace: stackTrace,
       );
+      rethrow;
     }
   }
 
@@ -103,21 +93,31 @@ class LocationService {
   /// [kLocationUploadInterval]. Relancer avec un autre colis remplace le suivi
   /// précédent : un chauffeur ne transporte qu'un colis à la fois.
   Future<void> startLocationTracking({required String parcelId}) async {
-    if (_activeParcelId == parcelId && isTracking) return;
-
-    final hasPermission = await requestPermission();
-    if (!hasPermission) return;
+    if (_activeParcelId == parcelId &&
+        (isTracking || _updatingGeneration == _trackingGeneration)) {
+      return;
+    }
 
     stopLocationTracking();
     _activeParcelId = parcelId;
+    final generation = _trackingGeneration;
 
-    Future<void> tick() async {
-      if (_isUpdatingLocation) return;
-      _isUpdatingLocation = true;
+    Future<void> tick({bool propagateError = false}) async {
+      if (_updatingGeneration == generation ||
+          generation != _trackingGeneration ||
+          _activeParcelId != parcelId) {
+        return;
+      }
+      _updatingGeneration = generation;
       try {
         final position = await resolveCurrentPosition(
           accuracy: LocationAccuracy.medium,
         );
+        // Le suivi peut avoir été coupé pendant l'acquisition GPS. Dans ce
+        // cas, ne jamais publier une position devenue orpheline.
+        if (generation != _trackingGeneration || _activeParcelId != parcelId) {
+          return;
+        }
         await updateLocationOnServer(
           parcelId: parcelId,
           latitude: position.latitude,
@@ -131,18 +131,35 @@ class LocationService {
           error: error,
           stackTrace: stackTrace,
         );
+        if (propagateError) rethrow;
       } finally {
-        _isUpdatingLocation = false;
+        if (_updatingGeneration == generation) {
+          _updatingGeneration = null;
+        }
       }
     }
 
-    // Première position sans attendre la première échéance du minuteur.
-    unawaited(tick());
+    // La première acquisition est attendue : si le GPS ou l'autorisation est
+    // indisponible, l'appelant reçoit l'erreur et aucun faux suivi actif ne
+    // reste affiché en mémoire.
+    try {
+      await tick(propagateError: true);
+    } catch (error, stackTrace) {
+      stopLocationTracking();
+      developer.log(
+        'Impossible de démarrer le suivi GPS',
+        name: 'LocationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
     _locationTimer = Timer.periodic(kLocationUploadInterval, (_) => tick());
   }
 
   /// Arrête l'envoi de positions et oublie le colis suivi.
   void stopLocationTracking() {
+    _trackingGeneration++;
     _locationTimer?.cancel();
     _locationTimer = null;
     _activeParcelId = null;
@@ -165,8 +182,14 @@ class LocationService {
         return '$street, $locality, $country';
       }
       return 'Adresse non trouvée';
-    } catch (e) {
-      return 'Erreur de géocodage: $e';
+    } catch (error, stackTrace) {
+      developer.log(
+        'Géocodage inverse impossible',
+        name: 'LocationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return 'Adresse indisponible pour le moment';
     }
   }
 }

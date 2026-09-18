@@ -27,9 +27,12 @@ import '../../services/api/parcels_api.dart';
 import '../../services/api_service.dart';
 import '../../services/form_draft_store.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/driver_visibility.dart';
+import '../../utils/debt_block.dart';
 import '../../utils/format.dart';
 import '../../widgets/form_draft_ui.dart';
 import '../../widgets/location_autocomplete.dart';
+import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/phone_contact_picker.dart';
@@ -103,20 +106,16 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   List<User> _drivers = [];
   bool _driversLoaded = false;
   bool _loadingDrivers = false;
+  bool _verifiedDriversOnly = false;
 
   // Recherche de chauffeur par nom, ville ou localité.
   final _driverSearchController = TextEditingController();
   String _driverQuery = '';
 
-  /// Estimation renvoyée par l'API, arrondie à l'entier.
-  ///
-  /// Le barème vit dans `SystemConfig` côté serveur : la valeur était codée en
-  /// dur ici (`14500` / `12500`), si bien qu'elle ignorait le poids saisi et
-  /// qu'un tarif réglé par l'administrateur n'avait aucun effet sur l'écran.
-  /// Le repli ne sert qu'avant la première réponse et hors connexion —
-  /// l'utilisateur reste libre de fixer son prix.
-  static const int _fallbackEstimate = 12500;
-  int _estimatedPrice = _fallbackEstimate;
+  /// Estimation renvoyée par l'API, arrondie à l'entier. `null` signifie que le
+  /// serveur n'a pas encore fourni de tarif : aucun montant métier n'est
+  /// inventé côté mobile dans ce cas.
+  int? _estimatedPrice;
 
   /// Dernière estimation reçue, conservée pour afficher le supplément réel
   /// d'urgence plutôt qu'un montant écrit en dur dans l'interface.
@@ -127,6 +126,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   /// Le poids se saisit caractère par caractère : on laisse la frappe se poser
   /// avant d'interroger le serveur.
   Timer? _estimateTimer;
+  int _estimateGeneration = 0;
 
   // ---- Brouillon ----
   late final FormDraftStore _draftStore;
@@ -146,7 +146,6 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   @override
   void initState() {
     super.initState();
-    _priceController.text = _estimatedPrice.toString();
     _draftStore = FormDraftStore(
       slot: 'colis',
       ownerId: ref.read(authProvider).user?.id,
@@ -177,19 +176,42 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   /// Laisse la frappe se poser avant d'interroger le serveur.
   void _scheduleEstimate() {
     _estimateTimer?.cancel();
-    _estimateTimer =
-        Timer(const Duration(milliseconds: 500), _refreshEstimate);
+    _estimateTimer = Timer(const Duration(milliseconds: 500), _refreshEstimate);
   }
 
   Future<void> _refreshEstimate() async {
+    final generation = ++_estimateGeneration;
     final weight = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
+    // Sans poids réel, attendre la saisie évite de présenter le tarif par
+    // défaut d'un kilo comme s'il correspondait au colis de l'utilisateur.
+    if (weight == null || weight <= 0) {
+      if (!mounted) return;
+      setState(() {
+        _estimatedPrice = null;
+        _lastEstimate = null;
+      });
+      if (!_priceEdited) _priceController.clear();
+      return;
+    }
+
+    // Invalide immédiatement l'ancien tarif. Ainsi une erreur réseau après un
+    // changement de poids/options ne laisse pas à l'écran une estimation qui
+    // correspondait à la saisie précédente.
+    if (mounted) {
+      setState(() {
+        _estimatedPrice = null;
+        _lastEstimate = null;
+      });
+      if (!_priceEdited) _priceController.clear();
+    }
     final estimate = await _parcelsApi.estimate(
-      // Sans poids saisi, l'API applique son défaut d'un kilo.
-      weight: weight == null || weight <= 0 ? 1 : weight,
+      weight: weight,
       isUrgent: _urgent,
       isInsured: _insurance,
     );
-    if (!mounted || estimate == null) return;
+    if (!mounted || estimate == null || generation != _estimateGeneration) {
+      return;
+    }
 
     setState(() {
       _estimatedPrice = estimate.amount.round();
@@ -197,7 +219,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
     });
     // Un prix déjà retouché par l'utilisateur ne doit jamais être écrasé.
     if (!_priceEdited) {
-      _priceController.text = _estimatedPrice.toString();
+      _priceController.text = estimate.amount.round().toString();
     }
   }
 
@@ -407,7 +429,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
 
     setState(() {
       _step = (data['step'] as num?)?.toInt() ?? 0;
-      _departureZoneId = data['departureZoneId']?.toString() ?? _departureZoneId;
+      _departureZoneId =
+          data['departureZoneId']?.toString() ?? _departureZoneId;
       _arrivalZoneId = data['arrivalZoneId']?.toString() ?? _arrivalZoneId;
       _receiverName.text = data['receiverName']?.toString() ?? '';
       _receiverPhone.text = data['receiverPhone']?.toString() ?? '';
@@ -416,11 +439,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       _type = ParcelType.fromString(data['type']?.toString() ?? '');
       _weight.text = data['weight']?.toString() ?? '';
       _description.text = data['description']?.toString() ?? '';
-      _insurance = data['insurance'] as bool? ?? true;
+      _insurance = data['insurance'] as bool? ?? false;
       _urgent = data['urgent'] as bool? ?? false;
       _priceEdited = data['priceEdited'] as bool? ?? false;
-      _priceController.text =
-          data['price']?.toString() ?? _estimatedPrice.toString();
+      _priceController.text = data['price']?.toString() ??
+          (_estimatedPrice == null ? '' : _estimatedPrice.toString());
       _paymentChannel = PaymentChannel.fromString(data['paymentChannel']);
       _cashCollectionPoint =
           CashCollectionPoint.tryParse(data['cashCollectionPoint']) ??
@@ -558,15 +581,15 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: Icon(Icons.photo_camera_rounded,
-                  color: AppTheme.primary),
+              leading:
+                  Icon(Icons.photo_camera_rounded, color: AppTheme.primary),
               title: Text('Prendre une photo',
                   style: AppFonts.manrope(fontWeight: FontWeight.w600)),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
-              leading: Icon(Icons.photo_library_rounded,
-                  color: AppTheme.primary),
+              leading:
+                  Icon(Icons.photo_library_rounded, color: AppTheme.primary),
               title: Text('Choisir dans la galerie',
                   style: AppFonts.manrope(fontWeight: FontWeight.w600)),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
@@ -786,22 +809,38 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   /// Chauffeurs filtrés par la recherche (nom, ville, région, localité).
   List<User> get _filteredDrivers {
     final query = _driverQuery.trim().toLowerCase();
-    if (query.isEmpty) return _drivers;
-    return _drivers.where((d) {
-      final haystack = [
-        d.fullName,
-        d.city ?? '',
-        d.region ?? '',
-        d.zoneName ?? '',
-        d.address ?? '',
-      ].join(' ').toLowerCase();
-      return haystack.contains(query);
-    }).toList();
+    final matching = query.isEmpty
+        ? _drivers
+        : _drivers.where((d) {
+            final haystack = [
+              d.fullName,
+              d.city ?? '',
+              d.region ?? '',
+              d.zoneName ?? '',
+              d.address ?? '',
+            ].join(' ').toLowerCase();
+            return haystack.contains(query);
+          });
+    return visibleDrivers(
+      matching,
+      verifiedOnly: _verifiedDriversOnly,
+    );
+  }
+
+  void _setVerifiedDriversOnly(bool value) {
+    setState(() {
+      _verifiedDriversOnly = value;
+      // Un profil masqué ne doit pas rester sélectionné en arrière-plan.
+      if (value && !(_driverById(_driverId)?.isVerified ?? false)) {
+        _driverId = null;
+      }
+    });
+    _scheduleDraftSave();
   }
 
   double get _enteredPrice {
     final raw = _priceController.text.trim().replaceAll(' ', '');
-    return double.tryParse(raw) ?? _estimatedPrice.toDouble();
+    return double.tryParse(raw) ?? 0;
   }
 
   Future<void> _loadZones() async {
@@ -850,6 +889,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       _receiverName.text.trim().isNotEmpty &&
       _receiverPhone.text.trim().isNotEmpty &&
       (_mode != 'driver' || _driverId != null);
+
+  /// Le prix peut venir de l'estimation API ou d'une saisie manuelle, mais il
+  /// doit être explicite et positif avant d'ouvrir le récapitulatif.
+  bool get _step2Valid => _enteredPrice > 0;
 
   Future<void> _submit() async {
     if (_submitting) return;
@@ -905,7 +948,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       data['driverName'] = driver.fullName;
     }
 
-    final result = await ref.read(parcelProvider.notifier).createParcel(data);
+    final parcelNotifier = ref.read(parcelProvider.notifier);
+    final result = await parcelNotifier.createParcel(data);
     if (!mounted) return;
 
     if (result != null) {
@@ -926,6 +970,18 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       setState(() => _submitting = false);
       final err = ref.read(parcelProvider).error;
       setState(() => _error = err ?? 'Publication impossible.');
+
+      // Le serveur a joint l'UUID réel de la dette ayant déclenché le seuil :
+      // on ouvre directement le paiement, sans laisser le client chercher le
+      // colis d'origine ni fabriquer un identifiant côté mobile.
+      final debt = payableClientDebtFrom(parcelNotifier.lastCreationError);
+      if (debt != null && mounted) {
+        await showPayClientDebtSheet(
+          context,
+          debt: debt,
+          onRefresh: () async {},
+        );
+      }
     }
   }
 
@@ -1236,8 +1292,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               fontWeight: FontWeight.w500,
               color: AppTheme.slate400,
             ),
-            prefixIcon: Icon(Icons.search_rounded,
-                size: 20, color: AppTheme.slate400),
+            prefixIcon:
+                Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
             suffixIcon: _driverQuery.isEmpty
                 ? null
                 : IconButton(
@@ -1261,6 +1317,27 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          value: _verifiedDriversOnly,
+          onChanged: _setVerifiedDriversOnly,
+          title: Text(
+            'Afficher uniquement les chauffeurs vérifiés',
+            style: AppFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          subtitle: Text(
+            'Les profils vérifiés restent prioritaires dans tous les cas.',
+            style: AppFonts.manrope(
+              fontSize: 11.5,
+              color: AppTheme.textSecondary,
             ),
           ),
         ),
@@ -1383,6 +1460,27 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                           overflow: TextOverflow.ellipsis,
                           style: AppFonts.plusJakartaSans(
                               fontSize: 14, fontWeight: FontWeight.w700)),
+                      if (d.isVerified) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.verified_rounded,
+                              size: 14,
+                              color: AppTheme.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Identité vérifiée',
+                              style: AppFonts.manrope(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 2),
                       Text(subtitle,
                           maxLines: 1,
@@ -1405,8 +1503,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.star_rounded,
-                    size: 16, color: AppTheme.amber500),
+                Icon(Icons.star_rounded, size: 16, color: AppTheme.amber500),
                 const SizedBox(width: 3),
                 Text(rating,
                     style: AppFonts.plusJakartaSans(
@@ -1480,7 +1577,9 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         const SizedBox(height: 4),
         _switchRow(
           'Assurer le colis',
-          'Couvre jusqu’à 200 000 FCFA',
+          _insurance && (_lastEstimate?.insuranceFee ?? 0) > 0
+              ? 'Frais ${formatFcfa(_lastEstimate!.insuranceFee)}'
+              : 'Protection selon les conditions de la plateforme',
           _insurance,
           (v) {
             setState(() => _insurance = v);
@@ -1522,7 +1621,12 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppTheme.teal700),
-          decoration: _dec('Ex : $_estimatedPrice', Icons.payments_rounded),
+          decoration: _dec(
+            _estimatedPrice == null
+                ? 'Saisissez un prix'
+                : 'Suggestion API : $_estimatedPrice',
+            Icons.payments_rounded,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
@@ -1796,8 +1900,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       children: [
         Row(
           children: [
-            Icon(Icons.attach_file_rounded,
-                size: 18, color: AppTheme.primary),
+            Icon(Icons.attach_file_rounded, size: 18, color: AppTheme.primary),
             const SizedBox(width: 6),
             Text('Pièces jointes',
                 style: AppFonts.plusJakartaSans(
@@ -2063,7 +2166,9 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                         iconTrailing: Icons.arrow_forward_rounded,
                         size: PcButtonSize.lg,
                         block: true,
-                        onPressed: () => setState(() => _step = 2),
+                        onPressed: _step2Valid
+                            ? () => setState(() => _step = 2)
+                            : null,
                       ),
                     ),
                   ],

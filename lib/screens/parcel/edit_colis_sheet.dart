@@ -320,8 +320,8 @@ class _EditColisSheetState extends ConsumerState<_EditColisSheet> {
     setState(() => _submitting = false);
 
     if (result['success'] != true) {
-      setState(() => _error =
-          result['message']?.toString() ?? 'Modification impossible.');
+      setState(() =>
+          _error = result['message']?.toString() ?? 'Modification impossible.');
       return;
     }
 
@@ -492,8 +492,7 @@ class _EditColisSheetState extends ConsumerState<_EditColisSheet> {
           maxLines: 3,
           maxLength: 200,
           style: AppFonts.manrope(fontSize: 14),
-          decoration:
-              _inputDecoration('Ex : deux cartons de vêtements.', null),
+          decoration: _inputDecoration('Ex : deux cartons de vêtements.', null),
         ),
         const SizedBox(height: 12),
         Row(
@@ -516,7 +515,8 @@ class _EditColisSheetState extends ConsumerState<_EditColisSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _fieldLabel('Prix proposé (FCFA)'),
-                  _textField(_price, 'Ex : 12500', Icons.payments_rounded,
+                  _textField(
+                      _price, 'Saisissez le montant', Icons.payments_rounded,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true)),
                 ],
@@ -534,8 +534,7 @@ class _EditColisSheetState extends ConsumerState<_EditColisSheet> {
             return ChoiceChip(
               label: Text(type.label),
               avatar: Icon(type.icon,
-                  size: 16,
-                  color: selected ? Colors.white : AppTheme.slate500),
+                  size: 16, color: selected ? Colors.white : AppTheme.slate500),
               selected: selected,
               selectedColor: AppTheme.primary,
               labelStyle: AppFonts.manrope(
@@ -577,8 +576,7 @@ class _EditColisSheetState extends ConsumerState<_EditColisSheet> {
           const SizedBox(height: 14),
           CashCollectionPointField(
             value: _cashCollectionPoint,
-            onChanged: (point) =>
-                setState(() => _cashCollectionPoint = point),
+            onChanged: (point) => setState(() => _cashCollectionPoint = point),
           ),
         ],
 

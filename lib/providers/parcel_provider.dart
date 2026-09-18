@@ -19,6 +19,11 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
   ParcelNotifier() : super(ParcelState.initial());
 
   final ApiService _apiService = ApiService();
+  ApiException? _lastCreationError;
+
+  /// Dernier refus structuré de création (dette, validation, etc.). L'écran
+  /// peut ainsi proposer l'action adéquate sans analyser un texte traduit.
+  ApiException? get lastCreationError => _lastCreationError;
 
   Future<void> loadMyParcels({String? status}) async {
     state = state.copyWith(isLoading: true);
@@ -251,6 +256,7 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
   }
 
   Future<Parcel?> createParcel(Map<String, dynamic> data) async {
+    _lastCreationError = null;
     state = state.copyWith(isLoading: true);
     try {
       final parcel = await _apiService.createParcel(data);
@@ -258,6 +264,7 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
       state = state.copyWith(isLoading: false, error: null, isSuccess: true);
       return parcel;
     } catch (e) {
+      _lastCreationError = e is ApiException ? e : null;
       state = state.copyWith(error: e.toString(), isLoading: false);
       return null;
     }

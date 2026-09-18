@@ -7,11 +7,9 @@ export 'commission_service.dart';
 export 'form_draft_store.dart';
 export 'location_fix.dart';
 export 'location_service.dart';
-export 'mock_data.dart';
 export 'notification_engine.dart';
 export 'notification_service.dart';
 export 'paydunya_config_service.dart';
 export 'places_service.dart';
 export 'push_notification_service.dart';
 export 'api/index.dart';
-

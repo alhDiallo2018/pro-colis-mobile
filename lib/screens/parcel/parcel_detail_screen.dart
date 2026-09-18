@@ -1,5 +1,6 @@
 // mobile/lib/screens/parcel/parcel_detail_screen.dart
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -21,7 +22,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../providers/public_config_provider.dart';
 import '../../services/api_service.dart';
-import '../../services/commission_service.dart';
+import '../../services/location_fix.dart';
 import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
@@ -124,7 +125,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 
   @override
   void dispose() {
-    _locationService.stopLocationTracking();
+    // Le suivi appartient à la mission, pas à cet écran. Le tableau chauffeur
+    // l'arrêtera lorsque la mission sera livrée, annulée ou à la déconnexion.
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -212,8 +214,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       final result = await _apiService.estimateParcelCommission(_parcel.id);
       if (!mounted) return;
       setState(() {
-        _driverCommission =
-            (result['commission'] as num?)?.toDouble() ?? 0;
+        _driverCommission = (result['commission'] as num?)?.toDouble() ?? 0;
         _driverCommissionPercentage =
             (result['percentage'] as num?)?.toDouble() ?? 0;
       });
@@ -231,9 +232,23 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       return;
     }
     if (_parcel.isBeingTransported) {
-      _locationService.startLocationTracking(parcelId: _parcel.id);
+      unawaited(_startLocationTracking());
     } else {
       _locationService.stopLocationTracking();
+    }
+  }
+
+  Future<void> _startLocationTracking() async {
+    try {
+      await _locationService.startLocationTracking(parcelId: _parcel.id);
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[ParcelDetail] Démarrage du suivi GPS impossible: '
+        '$error\n$stackTrace',
+      );
+      if (mounted) {
+        _showSnack(locationErrorMessage(error));
+      }
     }
   }
 
@@ -314,7 +329,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     // Le chauffeur n'a pas de devis dédié : les motifs proviennent de la
     // configuration publique (`cancellation.reasons`). Le backend reste la
     // seule autorité : un motif exonérant sera de toute façon refusé.
-    final reasons = ref.read(publicConfigProvider)?.cancellationReasons ?? const <CancellationReason>[];
+    final reasons = ref.read(publicConfigProvider)?.cancellationReasons ??
+        const <CancellationReason>[];
 
     final reason = await showCancellationConfirmDialog(
       context,
@@ -328,7 +344,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     try {
       final outcome = await ref
           .read(parcelProvider.notifier)
-          .cancelDriverParcel(_parcel.id, reason: reason.isEmpty ? null : reason);
+          .cancelDriverParcel(_parcel.id,
+              reason: reason.isEmpty ? null : reason);
       if (!mounted) return;
 
       if (outcome.isSuccess) {
@@ -501,15 +518,13 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                       Row(
                         children: [
                           IconButton(
-                            icon: Icon(Icons.share,
-                                color: AppTheme.primary),
+                            icon: Icon(Icons.share, color: AppTheme.primary),
                             onPressed: () =>
                                 _shareReceipt(sheetContext, receiptKey),
                             tooltip: 'Partager',
                           ),
                           IconButton(
-                            icon:
-                                Icon(Icons.link, color: AppTheme.primary),
+                            icon: Icon(Icons.link, color: AppTheme.primary),
                             onPressed: _shareTracking,
                             tooltip: 'Partager le lien',
                           ),
@@ -893,8 +908,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     if (_parcel.canBePaidOnline && !_parcel.hasDriver) {
       return const [
         _NoPaymentNotice(
-          message:
-              'Paiement en attente de confirmation par le chauffeur. '
+          message: 'Paiement en attente de confirmation par le chauffeur. '
               'Le montant sera mis à jour dès l\'acceptation de l\'offre.',
         ),
       ];
@@ -953,8 +967,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
             iconTone: PcTone.green,
             title: 'Départ',
             trailing: _InfoValue(
-              value: _parcel.departureZoneName?.isNotEmpty == true
-                  ? _parcel.departureZoneName!
+              value: _parcel.departureZoneName.isNotEmpty
+                  ? _parcel.departureZoneName
                   : 'Non renseigné',
             ),
           ),
@@ -1330,9 +1344,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     if (_isUpdating) return;
     setState(() => _isUpdating = true);
     try {
-      final ok = await ref
-          .read(parcelProvider.notifier)
-          .acceptBid(_parcel.id, bid.id);
+      final ok =
+          await ref.read(parcelProvider.notifier).acceptBid(_parcel.id, bid.id);
       if (!mounted) return;
       if (ok) {
         _showSnack('Offre acceptée. Le chauffeur va confirmer.');
@@ -1372,9 +1385,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 
     setState(() => _isUpdating = true);
     try {
-      final ok = await ref
-          .read(parcelProvider.notifier)
-          .rejectBid(_parcel.id, bid.id);
+      final ok =
+          await ref.read(parcelProvider.notifier).rejectBid(_parcel.id, bid.id);
       if (!mounted) return;
       if (ok) {
         _showSnack('Offre refusée');
@@ -1433,8 +1445,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Refuser la proposition ?'),
-        content: Text(
-            'Refuser la proposition de $_proposalDriverName à '
+        content: Text('Refuser la proposition de $_proposalDriverName à '
             '${_fcfaDisplay(_parcel.currentProposalPrice ?? 0)} FCFA ?'),
         actions: [
           TextButton(
@@ -1458,8 +1469,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       );
       if (!mounted) return;
       if (result['success'] == false) {
-        _showSnack(
-            result['message']?.toString() ?? 'Impossible de refuser');
+        _showSnack(result['message']?.toString() ?? 'Impossible de refuser');
       } else {
         _showSnack('Proposition refusée');
         await _loadDetailData();
@@ -1496,7 +1506,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: AppTheme.slate300,
                     borderRadius: BorderRadius.circular(2),
@@ -1562,10 +1573,12 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
                 onPressed: () {
                   final price = double.tryParse(priceCtrl.text.trim());
                   if (price == null || price <= 0) return;
-                  Navigator.pop(ctx, _CounterResult(
-                    price: price.toInt(),
-                    message: msgCtrl.text.trim(),
-                  ));
+                  Navigator.pop(
+                      ctx,
+                      _CounterResult(
+                        price: price.toInt(),
+                        message: msgCtrl.text.trim(),
+                      ));
                 },
                 icon: Icons.send_rounded,
                 size: PcButtonSize.lg,
@@ -2089,18 +2102,16 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               const SizedBox(height: 4),
               const PcSectionHeader('Offres reçues'),
               const SizedBox(height: 8),
-              ..._parcel.bids
-                  .where((b) => b.isActive)
-                  .map((bid) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _ClientBidCard(
-                          bid: bid,
-                          isUpdating: _isUpdating,
-                          onAccept: () => _clientAcceptBid(bid),
-                          onReject: () => _clientRejectBid(bid),
-                          onNegotiate: () => _openBidNegotiation(bid),
-                        ),
-                      )),
+              ..._parcel.bids.where((b) => b.isActive).map((bid) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ClientBidCard(
+                      bid: bid,
+                      isUpdating: _isUpdating,
+                      onAccept: () => _clientAcceptBid(bid),
+                      onReject: () => _clientRejectBid(bid),
+                      onNegotiate: () => _openBidNegotiation(bid),
+                    ),
+                  )),
               const SizedBox(height: 6),
             ],
             if (_isClientWithOpenProposal) ...[
@@ -2187,8 +2198,7 @@ class _ClientBidCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final driverName =
-        bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName;
+    final driverName = bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName;
     final price = bid.lastPrice ?? bid.price;
     final message = bid.lastMessage ?? bid.message;
     final hasMessage = message?.trim().isNotEmpty == true;
@@ -2232,8 +2242,8 @@ class _ClientBidCard extends StatelessWidget {
               ),
               if (bid.isNegotiating)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppTheme.amber50,
                     borderRadius: BorderRadius.circular(99),
@@ -2652,8 +2662,7 @@ class _CancellationHistoryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.cancel_rounded,
-                  color: AppTheme.red500, size: 22),
+              Icon(Icons.cancel_rounded, color: AppTheme.red500, size: 22),
               const SizedBox(width: 8),
               const Text(
                 'Annulation',
@@ -2679,7 +2688,8 @@ class _CancellationHistoryCard extends StatelessWidget {
             ),
           ],
           if (cancellation != null &&
-              (cancellation.hasClientImpact || cancellation.hasDriverImpact)) ...[
+              (cancellation.hasClientImpact ||
+                  cancellation.hasDriverImpact)) ...[
             const SizedBox(height: 10),
             _buildConsequences(cancellation),
           ],
@@ -2755,11 +2765,10 @@ class _CancellationHistoryCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(color: AppTheme.slate600, fontSize: 13)),
+          Text(label, style: TextStyle(color: AppTheme.slate600, fontSize: 13)),
           Text(value,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w800)),
+              style:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -3141,8 +3150,8 @@ class _ClientProposalSection extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: status == 'countered'
                           ? AppTheme.amber50
@@ -3159,9 +3168,7 @@ class _ClientProposalSection extends StatelessWidget {
                                 : AppTheme.teal600),
                         const SizedBox(width: 4),
                         Text(
-                          status == 'countered'
-                              ? 'Contre-offre'
-                              : 'En attente',
+                          status == 'countered' ? 'Contre-offre' : 'En attente',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -3203,8 +3210,7 @@ class _ClientProposalSection extends StatelessWidget {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: AppTheme.slate100,
-                    borderRadius:
-                        BorderRadius.circular(AppTheme.radiusSm),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                   ),
                   child: Text(
                     lastMsg,
@@ -3545,24 +3551,26 @@ class _PaydunyaPayCardState extends State<_PaydunyaPayCard> {
     try {
       final estimate =
           await widget.apiService.estimateCommission(widget.amount);
+      final commission = estimate['commission'];
+      final netAmount = estimate['netAmount'];
+      final percentage = estimate['percentage'];
+      if (commission is! num || netAmount is! num || percentage is! num) {
+        throw const FormatException('Estimation de commission incomplète');
+      }
       if (mounted) {
         setState(() {
-          _commission = (estimate['commission'] as num?)?.toDouble() ??
-              CommissionService.calculate(widget.amount);
-          _netAmount = (estimate['netAmount'] as num?)?.toDouble() ??
-              widget.amount - _commission;
-          _percentage = (estimate['percentage'] as num?)?.toDouble() ??
-              CommissionService.percentage;
+          _commission = commission.toDouble();
+          _netAmount = netAmount.toDouble();
+          _percentage = percentage.toDouble();
         });
       }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _commission = CommissionService.calculate(widget.amount);
-          _netAmount = widget.amount - _commission;
-          _percentage = CommissionService.percentage;
-        });
-      }
+    } catch (error, stackTrace) {
+      // Le paiement reste disponible, mais aucun montant de commission
+      // approximatif n'est affiché lorsque le serveur ne répond pas.
+      debugPrint(
+        '[ParcelPayment] Estimation de commission indisponible: '
+        '$error\n$stackTrace',
+      );
     }
   }
 

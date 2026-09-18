@@ -41,7 +41,8 @@ class PayCommissionDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<PayCommissionDialog> createState() => _PayCommissionDialogState();
+  ConsumerState<PayCommissionDialog> createState() =>
+      _PayCommissionDialogState();
 }
 
 class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
@@ -49,6 +50,7 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
   bool _loading = true;
   bool _paying = false;
   String? _error;
+  bool _estimateError = false;
 
   /// Les soldes (wallet/points) sont `null` tant qu'ils n'ont pas été chargés
   /// avec succès : un solde inconnu n'est jamais présenté comme 0.
@@ -70,25 +72,35 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
     setState(() {
       _loading = true;
       _balanceError = false;
+      _estimateError = false;
+      _error = null;
     });
 
-    // 1. Estimation de commission : le repli local reste acceptable (c'est une
-    //    estimation d'affichage, la vérité financière reste le backend).
-    double commission;
-    double netAmount;
-    double percentage;
+    // 1. L'estimation financière vient obligatoirement du backend. Sans les
+    //    trois valeurs attendues, le paiement reste bloqué au lieu de partir
+    //    avec une commission calculée localement.
+    double commission = 0;
+    double netAmount = 0;
+    double percentage = 0;
+    var estimateError = false;
     try {
       final estimate = await _api.estimateCommission(widget.deliveryAmount);
-      commission = (estimate['commission'] as num?)?.toDouble() ??
-          CommissionService.calculate(widget.deliveryAmount);
-      netAmount = (estimate['netAmount'] as num?)?.toDouble() ??
-          widget.deliveryAmount - commission;
-      percentage = (estimate['percentage'] as num?)?.toDouble() ??
-          CommissionService.percentage;
-    } catch (_) {
-      commission = CommissionService.calculate(widget.deliveryAmount);
-      netAmount = widget.deliveryAmount - commission;
-      percentage = CommissionService.percentage;
+      final rawCommission = estimate['commission'];
+      final rawNetAmount = estimate['netAmount'];
+      final rawPercentage = estimate['percentage'];
+      if (rawCommission is! num ||
+          rawNetAmount is! num ||
+          rawPercentage is! num) {
+        throw const FormatException('Estimation de commission incomplète');
+      }
+      commission = rawCommission.toDouble();
+      netAmount = rawNetAmount.toDouble();
+      percentage = rawPercentage.toDouble();
+    } catch (error, stackTrace) {
+      estimateError = true;
+      debugPrint(
+        '[PayCommissionDialog] Estimation indisponible: $error\n$stackTrace',
+      );
     }
 
     // 2. Soldes : une erreur ne doit JAMAIS être traduite en solde nul. On
@@ -116,12 +128,18 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
       _walletBalance = walletBalance;
       _scoreBalance = scoreBalance;
       _balanceError = balanceError;
+      _estimateError = estimateError;
+      _error = estimateError
+          ? 'Impossible de charger la commission depuis le serveur.'
+          : null;
       _loading = false;
     });
   }
 
-  bool get _canPayWallet => _walletBalance != null && _walletBalance! >= _commission;
-  bool get _canPayScore => _scoreBalance != null && _scoreBalance! >= _commission;
+  bool get _canPayWallet =>
+      _walletBalance != null && _walletBalance! >= _commission;
+  bool get _canPayScore =>
+      _scoreBalance != null && _scoreBalance! >= _commission;
   bool get _canPayCombined =>
       _walletBalance != null &&
       _scoreBalance != null &&
@@ -140,6 +158,8 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
   /// Le bouton de validation est-il actionnable ? Jamais si les soldes n'ont
   /// pas pu être chargés : on ne peut pas déterminer la capacité de paiement.
   bool get _canSubmitPayment =>
+      !_estimateError &&
+      _commission > 0 &&
       !_balanceError &&
       (_canPayWallet || _canPayScore || _canPayCombined || _canGoIntoDebt);
 
@@ -158,19 +178,25 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
   Future<void> _pay() async {
     setState(() => _paying = true);
     try {
-      final source = (_canPayWallet && _source != 'score') ? 'wallet' : (_canPayScore ? 'score' : 'auto');
-      final result = await _api.payCashCommission(widget.parcelId, source, amount: widget.deliveryAmount);
+      final source = (_canPayWallet && _source != 'score')
+          ? 'wallet'
+          : (_canPayScore ? 'score' : 'auto');
+      final result = await _api.payCashCommission(widget.parcelId, source,
+          amount: widget.deliveryAmount);
       if (mounted) {
         if (result['success'] == true) {
-          final walletUsed = (result['walletDebited'] as num?)?.toDouble() ?? (_source == 'wallet' ? _commission : _walletPart);
-          final ptsUsed = (result['pointsDebited'] as num?)?.toDouble() ?? (_source == 'score' ? _commission : _scorePart);
+          final walletUsed = (result['walletDebited'] as num?)?.toDouble() ??
+              (_source == 'wallet' ? _commission : _walletPart);
+          final ptsUsed = (result['pointsDebited'] as num?)?.toDouble() ??
+              (_source == 'score' ? _commission : _scorePart);
           final debt = (result['debt'] as num?)?.toDouble() ?? 0;
           final parts = <String>[];
           if (walletUsed > 0) parts.add('${_fcfa(walletUsed)} portefeuille');
           if (ptsUsed > 0) parts.add('${ptsUsed.toInt()} pts');
           if (debt > 0) parts.add('${_fcfa(debt)} en dette');
 
-          final paidLabel = parts.isEmpty ? _fcfa(_commission) : parts.join(' + ');
+          final paidLabel =
+              parts.isEmpty ? _fcfa(_commission) : parts.join(' + ');
           final message = debt > 0
               ? 'Commission de ${_fcfa(_commission)} comptabilisée. '
                   'Reste dû : ${_fcfa(debt)} (à régulariser).'
@@ -224,9 +250,11 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                         height: 40,
                         decoration: BoxDecoration(
                           color: AppTheme.amber50,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusMd),
                         ),
-                        child: Icon(Icons.receipt_long_rounded, color: AppTheme.amber600, size: 22),
+                        child: Icon(Icons.receipt_long_rounded,
+                            color: AppTheme.amber600, size: 22),
                       ),
                       const SizedBox(width: 12),
                       Text(
@@ -262,10 +290,13 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        _rowInfo('Montant livraison', _fcfa(widget.deliveryAmount), AppTheme.textBody),
-                        _rowInfo('Commission (${_percentage.toInt()}%)', '- ${_fcfa(_commission)}', AppTheme.red500),
+                        _rowInfo('Montant livraison',
+                            _fcfa(widget.deliveryAmount), AppTheme.textBody),
+                        _rowInfo('Commission (${_percentage.toInt()}%)',
+                            '- ${_fcfa(_commission)}', AppTheme.red500),
                         Divider(color: AppTheme.amber200, height: 16),
-                        _rowInfo('Votre gain net', _fcfa(_netAmount), AppTheme.green700),
+                        _rowInfo('Votre gain net', _fcfa(_netAmount),
+                            AppTheme.green700),
                       ],
                     ),
                   ),
@@ -293,7 +324,9 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                               : 'Solde indisponible',
                           enough: _canPayWallet,
                           selected: _source == 'wallet',
-                          onTap: _canPayWallet ? () => setState(() => _source = 'wallet') : null,
+                          onTap: _canPayWallet
+                              ? () => setState(() => _source = 'wallet')
+                              : null,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -306,7 +339,9 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                               : 'Solde indisponible',
                           enough: _canPayScore,
                           selected: _source == 'score',
-                          onTap: _canPayScore ? () => setState(() => _source = 'score') : null,
+                          onTap: _canPayScore
+                              ? () => setState(() => _source = 'score')
+                              : null,
                         ),
                       ),
                     ],
@@ -360,7 +395,8 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.join_full_rounded, size: 16, color: AppTheme.teal600),
+                              Icon(Icons.join_full_rounded,
+                                  size: 16, color: AppTheme.teal600),
                               const SizedBox(width: 6),
                               Text(
                                 'Portefeuille + Points',
@@ -404,7 +440,8 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
 
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!, style: TextStyle(color: AppTheme.red500, fontSize: 12)),
+                    Text(_error!,
+                        style: TextStyle(color: AppTheme.red500, fontSize: 12)),
                   ],
                   const SizedBox(height: 20),
 
@@ -426,7 +463,8 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
                           variant: PcButtonVariant.primary,
                           block: true,
                           loading: _paying,
-                          onPressed: _canSubmitPayment && !_paying ? _pay : null,
+                          onPressed:
+                              _canSubmitPayment && !_paying ? _pay : null,
                         ),
                       ),
                     ],
@@ -443,8 +481,14 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary)),
-          Text(value, style: AppTheme.mono(fontSize: 13, fontWeight: FontWeight.w700, color: valueColor)),
+          Text(label,
+              style: AppFonts.manrope(
+                  fontSize: 13, color: AppTheme.textSecondary)),
+          Text(value,
+              style: AppTheme.mono(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: valueColor)),
         ],
       ),
     );
@@ -475,7 +519,9 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
           children: [
             Row(
               children: [
-                Icon(icon, size: 16, color: selected ? AppTheme.teal600 : AppTheme.slate500),
+                Icon(icon,
+                    size: 16,
+                    color: selected ? AppTheme.teal600 : AppTheme.slate500),
                 const SizedBox(width: 6),
                 Text(
                   label,
@@ -510,5 +556,4 @@ class _PayCommissionDialogState extends ConsumerState<PayCommissionDialog> {
       ),
     );
   }
-
 }

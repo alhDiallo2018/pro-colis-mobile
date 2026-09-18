@@ -118,10 +118,10 @@ class PublicConfig {
     this.commissionMaximum = 0,
     this.deliveryPoints = 0,
     this.signupBonus = 0,
-    this.cfaPerPoint = 1,
+    this.cfaPerPoint = 0,
     this.commitmentFee = 0,
     this.scorePacks = const [],
-    this.withdrawalMinAmount = 500,
+    this.withdrawalMinAmount = 0,
     this.withdrawalMaxAmount = 0,
     this.withdrawalMaxPerDay = 0,
     this.insufficientPolicy = 'block',
@@ -172,20 +172,18 @@ class PublicConfig {
         : const <String, dynamic>{};
 
     return PublicConfig(
-      commissionPercentage:
-          _num(commission['percentage'], 0),
+      commissionPercentage: _num(commission['percentage'], 0),
       commissionMinimum: _num(commission['minAmount'], 0),
       commissionMaximum: _num(commission['maxAmount'], 0),
       deliveryPoints: _num(points['deliveryCompleted'], 0),
       signupBonus: _num(points['signupBonus'], 0),
-      cfaPerPoint: _num(points['cfaPerPoint'], 1),
+      cfaPerPoint: _num(points['cfaPerPoint'], 0),
       commitmentFee: _num(points['commitmentFee'], 0),
       scorePacks: _intList(points['packs']),
-      withdrawalMinAmount: _num(withdrawal['minAmount'], 500),
+      withdrawalMinAmount: _num(withdrawal['minAmount'], 0),
       withdrawalMaxAmount: _num(withdrawal['maxAmount'], 0),
       withdrawalMaxPerDay: _num(withdrawal['maxPerDay'], 0),
-      insufficientPolicy:
-          _str(json['insufficientPolicy'], 'block'),
+      insufficientPolicy: _str(json['insufficientPolicy'], 'block'),
       debtLimit: _num(json['debtLimit'], 0),
       supportPhone: _str(support['phone'], ''),
       supportEmail: _str(support['email'], ''),
@@ -195,10 +193,10 @@ class PublicConfig {
       supportAvailability: _str(support['availability'], ''),
       helpTopics: _objList(help['topics'], HelpTopic.fromJson),
       helpFaqs: _objList(help['faqs'], HelpFaq.fromJson),
-      cancellationReasons: _objList(
-              cancellation['reasons'], CancellationReason.fromJson)
-          .where((r) => r.isValid)
-          .toList(),
+      cancellationReasons:
+          _objList(cancellation['reasons'], CancellationReason.fromJson)
+              .where((r) => r.isValid)
+              .toList(),
       legalCompanyName: _str(legal['companyName'], ''),
       legalAddress: _str(legal['address'], ''),
       legalRegistrationNumber: _str(legal['registrationNumber'], ''),
@@ -256,7 +254,8 @@ class PublicConfig {
   String get displayLegalDirectorEmail => legalDirectorEmail.trim();
 
   /// Directeur Technique (nom) configuré par l'administrateur.
-  String get displayLegalTechnicalDirectorName => legalTechnicalDirectorName.trim();
+  String get displayLegalTechnicalDirectorName =>
+      legalTechnicalDirectorName.trim();
 
   /// Directeur Technique (email) configuré par l'administrateur.
   String get displayLegalTechnicalDirectorEmail =>

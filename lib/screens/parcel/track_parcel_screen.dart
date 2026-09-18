@@ -151,6 +151,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       final parcel = await ref
           .read(parcelProvider.notifier)
           .trackParcel(trackingNumberToUse);
+      if (!mounted) return;
       setState(() {
         _isSearching = false;
         _trackedParcel = parcel;
@@ -179,7 +180,9 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('[TrackParcel] Échec suivi colis: $e\n$stackTrace');
+      if (!mounted) return;
       setState(() {
         _isSearching = false;
         _notFound = true;
@@ -218,8 +221,12 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         setState(() => _trackedParcel = parcel);
         _syncTrackingRefreshTimer();
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
       // Une erreur réseau ponctuelle ne doit pas vider l'écran de suivi.
+      debugPrint(
+        '[TrackParcel] Rafraîchissement silencieux impossible: '
+        '$error\n$stackTrace',
+      );
     }
   }
 
@@ -243,7 +250,34 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       _trackedParcel = null;
       _notFound = false;
     });
+    _syncTrackingRefreshTimer();
     _focusNode.requestFocus();
+  }
+
+  Future<void> _openDriverLocation(DriverLocation location) async {
+    if (!location.hasCoordinates) return;
+    final uri = Uri.https(
+      'www.google.com',
+      '/maps/search/',
+      {
+        'api': '1',
+        'query': '${location.latitude},${location.longitude}',
+      },
+    );
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) throw StateError('Aucune application cartographique');
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[TrackParcel] Ouverture de la position impossible: '
+        '$error\n$stackTrace',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible d’ouvrir la carte.')),
+        );
+      }
+    }
   }
 
   void _removeRecentSearch(String search) {
@@ -1405,6 +1439,15 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
       );
     }
 
+    final driverDetails = <String>[
+      if (parcel.driverVerified) 'Identité vérifiée',
+      if (parcel.driverRating != null && parcel.driverRating! > 0)
+        '${parcel.driverRating!.toStringAsFixed(1)} ★',
+      if ((parcel.driverVehicleType ?? '').trim().isNotEmpty)
+        parcel.driverVehicleType!.trim(),
+    ];
+    final phone = (parcel.driverPhone ?? '').trim();
+
     return PcCard(
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -1415,17 +1458,34 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  parcel.driverName ?? 'Chauffeur',
-                  style: AppFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        parcel.driverName ?? 'Chauffeur',
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (parcel.driverVerified) ...[
+                      const SizedBox(width: 5),
+                      Icon(
+                        Icons.verified_rounded,
+                        size: 17,
+                        color: AppTheme.primary,
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Zone partenaire · 4,8 ★ · Camion',
+                  driverDetails.isEmpty
+                      ? 'Informations chauffeur disponibles dans le détail'
+                      : driverDetails.join(' · '),
                   style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
@@ -1436,7 +1496,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             ),
           ),
           IconButton(
-            onPressed: () => _callDriver(parcel.driverPhone ?? ''),
+            onPressed: phone.isEmpty ? null : () => _callDriver(phone),
             icon: const Icon(Icons.call_rounded),
             style: IconButton.styleFrom(
               backgroundColor: AppTheme.primaryLight,
@@ -1463,6 +1523,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   Widget _buildDesignLiveTracking(Parcel parcel) {
     final location = parcel.driverLocation;
     final hasPosition = location != null && location.hasCoordinates;
+    final isLive = hasPosition && !location.isStale(DateTime.now());
 
     return PcCard(
       padding: const EdgeInsets.all(16),
@@ -1501,7 +1562,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
                   ],
                 ),
               ),
-              if (hasPosition)
+              if (isLive)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1544,6 +1605,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               arrivalLongitude: parcel.arrivalLongitude,
               driverLatitude: hasPosition ? location.latitude : null,
               driverLongitude: hasPosition ? location.longitude : null,
+              driverAccuracy: hasPosition ? location.accuracy : null,
               departureLabel: parcel.departureZoneName,
               arrivalLabel: parcel.arrivalZoneName ?? parcel.arrivalCity,
             ),
@@ -1556,6 +1618,24 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
               value:
                   '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}',
               mono: true,
+            ),
+            if (location.accuracy != null &&
+                location.accuracy!.isFinite &&
+                location.accuracy! >= 0)
+              _DesignInfoRow(
+                icon: Icons.gps_fixed_rounded,
+                label: 'Précision GPS',
+                value: '± ${location.accuracy!.round()} m',
+                mono: true,
+              ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _openDriverLocation(location),
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                label: const Text('Ouvrir la position exacte'),
+              ),
             ),
           ],
         ],
@@ -2934,8 +3014,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
   /// Caméra indisponible ou refusée : sans porte de sortie, l'écran serait un
   /// cul-de-sac. On explique et on propose les réglages puis la saisie manuelle.
   Widget _buildError(BuildContext context, MobileScannerException error) {
-    final denied =
-        error.errorCode == MobileScannerErrorCode.permissionDenied;
+    final denied = error.errorCode == MobileScannerErrorCode.permissionDenied;
     final message = denied
         ? 'SendProColis n’a pas accès à la caméra. Autorisez-la dans les '
             'réglages pour scanner les colis.'

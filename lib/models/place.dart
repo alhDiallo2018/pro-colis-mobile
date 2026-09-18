@@ -44,6 +44,7 @@ class PlaceDetails {
     this.placeId,
     this.name,
     this.formattedAddress,
+    this.district,
     this.city,
     this.region,
     this.country,
@@ -60,6 +61,9 @@ class PlaceDetails {
   /// Adresse complète et compréhensible (`Grand Dakar, Dakar, Sénégal`).
   final String? formattedAddress;
 
+  /// Quartier, arrondissement ou sous-localité. Ce niveau est souvent plus
+  /// utile que la ville pour nommer une zone pointée précisément sur la carte.
+  final String? district;
   final String? city;
   final String? region;
   final String? country;
@@ -69,6 +73,24 @@ class PlaceDetails {
 
   /// Vrai quand les coordonnées sont exploitables.
   bool get hasCoordinates => latitude != null && longitude != null;
+
+  /// Nom court à employer pour une zone. Les faux libellés techniques et les
+  /// chaînes composées uniquement de coordonnées sont volontairement ignorés.
+  String? get zoneName {
+    for (final candidate in [name, district, city, region, country]) {
+      final clean = _humanLabel(candidate);
+      if (clean != null) return clean;
+    }
+
+    final address = _clean(formattedAddress);
+    if (address == null || _isCoordinateOnly(address)) return null;
+    final firstAddressPart = address.split(',').first;
+    return _humanLabel(firstAddressPart);
+  }
+
+  /// Une sélection cartographique n'est exploitable par l'utilisateur que si
+  /// elle contient un vrai nom géographique en plus de ses coordonnées.
+  bool get hasGeographicLabel => zoneName != null;
 
   /// Libellé humain lisible, par ordre de priorité :
   ///  1. adresse complète si disponible ;
@@ -95,6 +117,7 @@ class PlaceDetails {
     String? placeId,
     String? name,
     String? formattedAddress,
+    String? district,
     String? city,
     String? region,
     String? country,
@@ -105,6 +128,7 @@ class PlaceDetails {
       placeId: placeId ?? this.placeId,
       name: name ?? this.name,
       formattedAddress: formattedAddress ?? this.formattedAddress,
+      district: district ?? this.district,
       city: city ?? this.city,
       region: region ?? this.region,
       country: country ?? this.country,
@@ -116,6 +140,30 @@ class PlaceDetails {
   static String? _clean(String? value) {
     final trimmed = value?.trim();
     return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+  }
+
+  static String? _humanLabel(String? value) {
+    final clean = _clean(value);
+    if (clean == null) return null;
+
+    final normalized = clean.toLowerCase();
+    const genericLabels = {
+      'ma position',
+      'position actuelle',
+      'current location',
+    };
+    if (genericLabels.contains(normalized)) return null;
+
+    // Google ou certains géocodeurs natifs peuvent placer "lat, lng" dans le
+    // champ `name`. Ce texte est une donnée technique, pas une localité.
+    return _isCoordinateOnly(clean) ? null : clean;
+  }
+
+  static bool _isCoordinateOnly(String value) {
+    final coordinateOnly = RegExp(
+      r'^[-+]?\d{1,3}(?:[.,]\d+)?\s*[,;]\s*[-+]?\d{1,3}(?:[.,]\d+)?$',
+    );
+    return coordinateOnly.hasMatch(value);
   }
 
   /// Les types sont classés du plus précis au plus large : on garde le premier
@@ -144,6 +192,12 @@ class PlaceDetails {
       placeId: placeId,
       name: name,
       formattedAddress: formattedAddress,
+      district: _pick(list, [
+        'neighborhood',
+        'sublocality_level_1',
+        'sublocality',
+        'administrative_area_level_3',
+      ]),
       city: _pick(
           list, ['locality', 'postal_town', 'administrative_area_level_2']),
       region: _pick(list, ['administrative_area_level_1']),

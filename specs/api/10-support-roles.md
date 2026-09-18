@@ -229,11 +229,11 @@ Le seed cree 10 tickets (dont 5 actifs et plusieurs en depassement de SLA),
 mensuel calibre pour afficher une jauge lisible (~79 %). Un seed « tout propre »
 afficherait des ecrans vides et ne prouverait rien.
 
-### Mode hors-ligne — `MOCK_API=true`
+### Donnees mobiles
 
-`lib/services/mock_data.dart` conserve deux comptes support en
-`@sendprocolis.test` pour le mode sans backend. Ils sont **distincts** des
-comptes seedes ci-dessus.
+Le client mobile n'embarque plus de comptes, soldes, colis ou paiements de
+demonstration. Tous les parcours applicatifs utilisent l'API ; les donnees de
+test restent cantonnees aux tests automatises et aux seeds du backend.
 
 ## 7. Ce qui reste en donnees de demonstration
 

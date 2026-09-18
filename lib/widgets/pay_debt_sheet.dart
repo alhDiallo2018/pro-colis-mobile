@@ -68,13 +68,16 @@ class _PayDebtSheetContentState extends State<PayDebtSheetContent> {
     final amount = _amount;
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Montant invalide'), backgroundColor: AppTheme.error),
+        SnackBar(
+            content: Text('Montant invalide'), backgroundColor: AppTheme.error),
       );
       return;
     }
     if (amount > widget.balance) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Solde insuffisant'), backgroundColor: AppTheme.error),
+        SnackBar(
+            content: Text('Solde insuffisant'),
+            backgroundColor: AppTheme.error),
       );
       return;
     }
@@ -86,8 +89,10 @@ class _PayDebtSheetContentState extends State<PayDebtSheetContent> {
       );
       if (!mounted) return;
       if (result['success'] == true) {
-        final repaid = (result['debtRepaid'] as num?)?.toDouble() ?? amount;
-        final remaining = (result['remainingDebt'] as num?)?.toDouble() ?? 0;
+        // ApiService garantit la présence de ces deux valeurs backend avant
+        // de déclarer l'opération réussie : aucun reliquat n'est calculé ici.
+        final repaid = (result['debtRepaid'] as num).toDouble();
+        final remaining = (result['remainingDebt'] as num).toDouble();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -96,7 +101,8 @@ class _PayDebtSheetContentState extends State<PayDebtSheetContent> {
                       'Reste : ${_format(remaining)} FCFA.'
                   : 'Dette de commission réglée (${_format(repaid)} FCFA).',
             ),
-            backgroundColor: remaining > 0 ? AppTheme.amber600 : AppTheme.green600,
+            backgroundColor:
+                remaining > 0 ? AppTheme.amber600 : AppTheme.green600,
           ),
         );
         widget.onPaid();
@@ -116,7 +122,8 @@ class _PayDebtSheetContentState extends State<PayDebtSheetContent> {
       debugPrint('[PayDebtSheet] Échec paiement dette: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
+          SnackBar(
+              content: Text('Erreur: $e'), backgroundColor: AppTheme.error),
         );
       }
     } finally {
@@ -184,7 +191,8 @@ class _PayDebtSheetContentState extends State<PayDebtSheetContent> {
               keyboardType: TextInputType.number,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                hintText: '${fmt.format(maxPayable.toInt())} (solde disponible)',
+                hintText:
+                    '${fmt.format(maxPayable.toInt())} (solde disponible)',
                 prefixIcon: const Icon(Icons.payments),
               ),
             ),

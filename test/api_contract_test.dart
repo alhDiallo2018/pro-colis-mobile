@@ -5,6 +5,10 @@ import 'package:procolis/services/api/client.dart';
 
 void main() {
   group('configuration API partagée', () {
+    test('le repli mobile ne pointe jamais vers localhost', () {
+      expect(AppConfig.apiBaseUrl, isNot(contains('localhost')));
+    });
+
     test('construit un lien de suivi valide et encodé', () {
       expect(
         AppConfig.trackingUrl('PC 2026/001'),

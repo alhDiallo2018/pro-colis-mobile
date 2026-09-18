@@ -5,7 +5,11 @@
 abstract final class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:18081/api/v1',
+    // Une application installée ne peut pas joindre le backend via
+    // `localhost` (qui désigne le téléphone lui-même). Le domaine public est
+    // donc le seul repli sûr ; les environnements locaux doivent continuer à
+    // injecter explicitement API_BASE_URL avec --dart-define.
+    defaultValue: 'https://sendprocolis.com/api/v1',
   );
 
   /// Inactivité tolérée avant verrouillage de l'écran.

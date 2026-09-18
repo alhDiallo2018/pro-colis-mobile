@@ -1,6 +1,8 @@
 // 4-step parcel creation wizard matching the web app
 // Step 0: Destinataire → Step 1: Livraison → Step 2: Colis → Step 3: Recapitulatif
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,10 +18,14 @@ import '../../models/zone.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../services/api/client.dart';
+import '../../services/api/parcels_api.dart';
 import '../../services/api/zones_api.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/driver_visibility.dart';
+import '../../utils/debt_block.dart';
 import '../../widgets/payment_channel_selector.dart';
+import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/phone_contact_picker.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../../widgets/route_picker.dart';
@@ -62,6 +68,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   List<User> _drivers = [];
   User? _selectedDriver;
   bool _loadingDrivers = false;
+  bool _verifiedDriversOnly = false;
 
   // Step 2 - Colis
   ParcelType _parcelType = ParcelType.package;
@@ -70,6 +77,14 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   final _descriptionCtrl = TextEditingController();
   bool _isUrgent = false;
   bool _isInsured = false;
+
+  // Le barème reste exclusivement côté API. Le délai évite une requête à
+  // chaque caractère pendant la saisie du poids.
+  final ParcelsApi _parcelsApi = ParcelsApi(ApiClient());
+  Timer? _estimateTimer;
+  int _estimateGeneration = 0;
+  ParcelEstimate? _parcelEstimate;
+  bool _priceEdited = false;
 
   // Règlement : espèces de la main à la main, ou encaissement par la plateforme.
   PaymentChannel _paymentChannel = PaymentChannel.cash;
@@ -91,6 +106,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     _loadZones();
     _loadDriversForZone();
     _applyPreselectedDriver();
+    _weightCtrl.addListener(_scheduleEstimate);
   }
 
   Future<void> _applyPreselectedDriver() async {
@@ -98,9 +114,15 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     if (id == null || id.isEmpty) return;
     // Avant le premier build : affectation directe, pas de setState.
     _isFreeMode = false;
-    final driver = await _apiService.getPublicDriver(id);
-    if (mounted && driver != null) {
-      setState(() => _selectedDriver = driver);
+    try {
+      final driver = await _apiService.getPublicDriver(id);
+      if (mounted && driver != null) {
+        setState(() => _selectedDriver = driver);
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[NewParcelWizard] Échec chargement chauffeur: $error\n$stackTrace',
+      );
     }
   }
 
@@ -113,6 +135,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     _weightCtrl.dispose();
     _proposedPriceCtrl.dispose();
     _descriptionCtrl.dispose();
+    _estimateTimer?.cancel();
     _recorder.dispose();
     _player.dispose();
     super.dispose();
@@ -137,7 +160,11 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     try {
       final zones = await _apiService.getAllZones();
       if (mounted) setState(() => _zones = zones);
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[NewParcelWizard] Échec chargement zones: $error\n$stackTrace',
+      );
+    }
   }
 
   Future<void> _loadDriversForZone({String? zoneId}) async {
@@ -147,7 +174,11 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     try {
       final drivers = await _apiService.getZoneDrivers(gid);
       if (mounted) setState(() => _drivers = drivers);
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[NewParcelWizard] Échec chargement chauffeurs: $error\n$stackTrace',
+      );
+    }
     if (mounted) setState(() => _loadingDrivers = false);
   }
 
@@ -168,12 +199,63 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       _detectingZone = true;
       _detectedZone = null;
     });
-    final zones = await _zonesApi.detectZones(lat, lng);
-    if (!mounted) return;
-    setState(() {
-      _detectingZone = false;
-      _detectedZone = zones.isNotEmpty ? zones.first : null;
-    });
+    try {
+      final zones = await _zonesApi.detectZones(lat, lng);
+      if (!mounted) return;
+      setState(() {
+        _detectingZone = false;
+        _detectedZone = zones.isNotEmpty ? zones.first : null;
+      });
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[NewParcelWizard] Échec détection zone: $error\n$stackTrace',
+      );
+      if (mounted) setState(() => _detectingZone = false);
+    }
+  }
+
+  void _scheduleEstimate() {
+    _estimateTimer?.cancel();
+    _estimateTimer = Timer(
+      const Duration(milliseconds: 500),
+      _refreshEstimate,
+    );
+  }
+
+  /// Charge le prix suggéré et ses suppléments auprès du serveur. Si l'appel
+  /// échoue, aucun montant de remplacement n'est inventé côté mobile.
+  Future<void> _refreshEstimate() async {
+    final generation = ++_estimateGeneration;
+    final weight = double.tryParse(
+      _weightCtrl.text.trim().replaceAll(',', '.'),
+    );
+    if (weight == null || weight <= 0) {
+      if (!mounted) return;
+      setState(() => _parcelEstimate = null);
+      if (!_priceEdited) _proposedPriceCtrl.clear();
+      return;
+    }
+
+    // Ne jamais conserver le tarif d'une ancienne saisie lorsqu'une nouvelle
+    // requête échoue ou répond plus tard que la suivante.
+    if (mounted) {
+      setState(() => _parcelEstimate = null);
+      if (!_priceEdited) _proposedPriceCtrl.clear();
+    }
+
+    final estimate = await _parcelsApi.estimate(
+      weight: weight,
+      isUrgent: _isUrgent,
+      isInsured: _isInsured,
+    );
+    if (!mounted || estimate == null || generation != _estimateGeneration) {
+      return;
+    }
+
+    setState(() => _parcelEstimate = estimate);
+    if (!_priceEdited) {
+      _proposedPriceCtrl.text = estimate.amount.round().toString();
+    }
   }
 
   /// Zone ajoutée à la volée depuis le sélecteur de trajet : absente de la
@@ -198,6 +280,21 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     }
   }
 
+  List<User> get _visibleDrivers => visibleDrivers(
+        _drivers,
+        verifiedOnly: _verifiedDriversOnly,
+      );
+
+  void _setVerifiedDriversOnly(bool value) {
+    setState(() {
+      _verifiedDriversOnly = value;
+      // Ne pas conserver silencieusement un chauffeur désormais masqué.
+      if (value && !(_selectedDriver?.isVerified ?? false)) {
+        _selectedDriver = null;
+      }
+    });
+  }
+
   void _goToStep(int step) {
     setState(() => _currentStep = step);
   }
@@ -213,8 +310,13 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             _departureZoneId != _arrivalZoneId &&
             (_isFreeMode || _selectedDriver != null);
       case 2:
-        return _weightCtrl.text.trim().isNotEmpty &&
-            double.tryParse(_weightCtrl.text.trim()) != null;
+        final weight = double.tryParse(
+          _weightCtrl.text.trim().replaceAll(',', '.'),
+        );
+        final price = double.tryParse(
+          _proposedPriceCtrl.text.trim().replaceAll(',', '.'),
+        );
+        return weight != null && weight > 0 && price != null && price > 0;
       default:
         return true;
     }
@@ -319,10 +421,11 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     if (user == null) return;
 
     final weight = double.tryParse(_weightCtrl.text.trim()) ?? 0;
-    final proposedPrice = double.tryParse(_proposedPriceCtrl.text.trim()) ?? 0;
-    final description = _descriptionCtrl.text.trim().isEmpty
-        ? 'Colis à transporter'
-        : _descriptionCtrl.text.trim();
+    final proposedPrice = double.tryParse(
+          _proposedPriceCtrl.text.trim().replaceAll(',', '.'),
+        ) ??
+        0;
+    final description = _descriptionCtrl.text.trim();
 
     setState(() => _isPublishing = true);
 
@@ -338,7 +441,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             ? null
             : _receiverEmailCtrl.text.trim(),
         'receiverAddress': _receiverAddressCtrl.text.trim(),
-        'description': description,
+        'description': description.isEmpty ? null : description,
         'weight': weight,
         'type': _parcelType.value,
         'status': _isFreeMode ? 'free' : 'negotiating',
@@ -358,8 +461,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           'driverId': _selectedDriver!.id,
       };
 
-      final result =
-          await ref.read(parcelProvider.notifier).createParcel(parcelData);
+      final parcelNotifier = ref.read(parcelProvider.notifier);
+      final result = await parcelNotifier.createParcel(parcelData);
 
       if (result != null && mounted) {
         for (final photo in _photos) {
@@ -381,9 +484,23 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             : 'Offre envoyée au chauffeur — en attente de réponse');
         if (mounted) Navigator.pop(context, result);
       } else if (mounted) {
-        _showSnack('Erreur lors de la création du colis');
+        final failure = parcelNotifier.lastCreationError;
+        _showSnack(
+          failure?.message ?? 'Erreur lors de la création du colis',
+        );
+        final debt = payableClientDebtFrom(failure);
+        if (debt != null) {
+          await showPayClientDebtSheet(
+            context,
+            debt: debt,
+            onRefresh: () async {},
+          );
+        }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[NewParcelWizard] Échec publication colis: $e\n$stackTrace',
+      );
       if (mounted) _showSnack('Erreur: $e');
     } finally {
       if (mounted) setState(() => _isPublishing = false);
@@ -657,16 +774,29 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         ),
         if (!_isFreeMode) ...[
           const SizedBox(height: 16),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: _verifiedDriversOnly,
+            onChanged: _setVerifiedDriversOnly,
+            title: const Text(
+              'Uniquement les chauffeurs vérifiés',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+            subtitle: const Text(
+              'Les chauffeurs vérifiés sont toujours affichés en premier.',
+            ),
+          ),
           if (_loadingDrivers)
             const Center(
                 child: Padding(
                     padding: EdgeInsets.all(16),
                     child: CircularProgressIndicator()))
-          else if (_drivers.isEmpty)
+          else if (_visibleDrivers.isEmpty)
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Aucun chauffeur disponible pour cette zone',
+                child: Text('Aucun chauffeur correspondant pour cette zone',
                     textAlign: TextAlign.center),
               ),
             )
@@ -675,10 +805,10 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               height: 150,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: _drivers.length,
+                itemCount: _visibleDrivers.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, i) {
-                  final d = _drivers[i];
+                  final d = _visibleDrivers[i];
                   return _driverCard(d);
                 },
               ),
@@ -725,9 +855,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                     radius: 16,
                     backgroundColor: AppTheme.primaryLight,
                     child: Text(
-                      d.fullName.isNotEmpty
-                          ? d.fullName[0].toUpperCase()
-                          : '?',
+                      d.fullName.isNotEmpty ? d.fullName[0].toUpperCase() : '?',
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppTheme.primary,
@@ -735,6 +863,14 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                     ),
                   ),
                   const Spacer(),
+                  if (d.isVerified) ...[
+                    Icon(
+                      Icons.verified_rounded,
+                      size: 17,
+                      color: AppTheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   Container(
                     width: 9,
                     height: 9,
@@ -754,8 +890,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                 d.fullName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700),
+                style:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
               ),
               Text(
                 [d.city, d.region]
@@ -763,14 +899,12 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                     .join(', '),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    TextStyle(fontSize: 9.5, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 9.5, color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(Icons.star_rounded,
-                      size: 12, color: AppTheme.amber500),
+                  Icon(Icons.star_rounded, size: 12, color: AppTheme.amber500),
                   const SizedBox(width: 2),
                   Text(
                     rating > 0 ? rating.toStringAsFixed(1) : '—',
@@ -780,8 +914,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                   const Spacer(),
                   Text(
                     '${d.completedDeliveries ?? 0} liv.',
-                    style: TextStyle(
-                        fontSize: 9.5, color: AppTheme.textSecondary),
+                    style:
+                        TextStyle(fontSize: 9.5, color: AppTheme.textSecondary),
                   ),
                 ],
               ),
@@ -789,7 +923,9 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               Text(
                 status.label,
                 style: TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor),
               ),
             ],
           ),
@@ -914,6 +1050,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             Expanded(
               child: TextField(
                 controller: _proposedPriceCtrl,
+                onChanged: (_) => _priceEdited = true,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Prix proposé (FCFA)',
@@ -938,20 +1075,34 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         const SizedBox(height: 8),
         SwitchListTile(
           value: _isUrgent,
-          onChanged: (v) => setState(() => _isUrgent = v),
+          onChanged: (v) {
+            setState(() => _isUrgent = v);
+            _refreshEstimate();
+          },
           title: const Text('Express / Urgent',
               style: TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: const Text('Livraison prioritaire (+2000 FCFA)'),
+          subtitle: Text(
+            _isUrgent && (_parcelEstimate?.urgentFee ?? 0) > 0
+                ? 'Livraison prioritaire (+${_parcelEstimate!.urgentFee.toStringAsFixed(0)} FCFA)'
+                : 'Livraison prioritaire — tarif calculé par la plateforme',
+          ),
           activeThumbColor: AppTheme.red400,
           dense: true,
           contentPadding: EdgeInsets.zero,
         ),
         SwitchListTile(
           value: _isInsured,
-          onChanged: (v) => setState(() => _isInsured = v),
+          onChanged: (v) {
+            setState(() => _isInsured = v);
+            _refreshEstimate();
+          },
           title: const Text('Assurance',
               style: TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: const Text('Protection du colis (200 000 FCFA)'),
+          subtitle: Text(
+            _isInsured && (_parcelEstimate?.insuranceFee ?? 0) > 0
+                ? 'Protection (+${_parcelEstimate!.insuranceFee.toStringAsFixed(0)} FCFA)'
+                : 'Protection selon les conditions de la plateforme',
+          ),
           activeThumbColor: AppTheme.green500,
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -1085,7 +1236,14 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               ),
               if (_descriptionCtrl.text.trim().isNotEmpty)
                 _recapRow('Description', _descriptionCtrl.text.trim()),
-              _recapBadgeRow('Express', _isUrgent, 'Oui (+2000 FCFA)', 'Non'),
+              _recapBadgeRow(
+                'Express',
+                _isUrgent,
+                (_parcelEstimate?.urgentFee ?? 0) > 0
+                    ? 'Oui (+${_parcelEstimate!.urgentFee.toStringAsFixed(0)} FCFA)'
+                    : 'Oui',
+                'Non',
+              ),
               _recapBadgeRow('Assurance', _isInsured, 'Oui', 'Non'),
             ],
             onEdit: () => _goToStep(2)),

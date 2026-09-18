@@ -10,10 +10,15 @@ Le conteneur compile l'application Flutter en web puis la sert avec Nginx.
 docker compose up --build
 ```
 
-Par défaut :
+Avec Docker Compose local :
 
 - App web : http://localhost:8081
 - API backend : http://localhost:18081/api/v1
+
+Sans `API_BASE_URL`, un build mobile utilise
+`https://sendprocolis.com/api/v1`. Pour le développement sur émulateur ou
+téléphone, injecter explicitement l'adresse joignable du backend avec
+`--dart-define=API_BASE_URL=...` (ne pas utiliser `localhost` sur un appareil).
 
 Variables utiles :
 

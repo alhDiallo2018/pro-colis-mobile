@@ -14,6 +14,7 @@ import 'package:procolis/screens/super-admin/chauffeurs_management_screen.dart';
 import 'package:procolis/screens/super-admin/stats_screen.dart';
 import 'package:procolis/screens/super-admin/admin_parametres_screen.dart';
 import 'package:procolis/services/api_service.dart';
+import 'package:procolis/services/notification_badge_service.dart';
 import 'package:procolis/theme/app_theme.dart';
 
 import '../../providers/auth_provider.dart';
@@ -109,6 +110,7 @@ class SuperAdminDashboard extends ConsumerStatefulWidget {
 }
 
 class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
+  final ApiService _apiService = ApiService();
   int _selectedIndex = 0;
   int _unreadNotificationsCount = 0;
 
@@ -127,16 +129,17 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     });
   }
 
-  void _loadNotificationsCount() {
-    // Simuler le chargement du nombre de notifications non lues
-    // À remplacer par un vrai appel API
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _unreadNotificationsCount = 1; // Exemple pour super admin
-        });
-      }
-    });
+  Future<void> _loadNotificationsCount() async {
+    try {
+      final count = await _apiService.getUnreadNotificationsCount();
+      if (mounted) setState(() => _unreadNotificationsCount = count);
+      await NotificationBadgeService.refresh();
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[SuperAdminDashboard] Compteur de notifications indisponible: '
+        '$error\n$stackTrace',
+      );
+    }
   }
 
   void _onNotificationsTap() {
@@ -273,11 +276,12 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   });
 
   int get _totalParcels => parcelState.parcels.length;
-  int get _pendingParcels =>
-      parcelState.parcels.where((p) =>
-        p.status == ParcelStatus.pending ||
-        p.status == ParcelStatus.proposalSent ||
-        p.status == ParcelStatus.negotiating).length;
+  int get _pendingParcels => parcelState.parcels
+      .where((p) =>
+          p.status == ParcelStatus.pending ||
+          p.status == ParcelStatus.proposalSent ||
+          p.status == ParcelStatus.negotiating)
+      .length;
   int get _inTransitParcels =>
       parcelState.parcels.where((p) => p.isInProgress).length;
   int get _deliveredParcels =>

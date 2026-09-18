@@ -7,6 +7,8 @@
 // le recopier côté mobile ferait diverger l'estimation affichée du tarif que
 // l'administrateur a réglé.
 
+import 'dart:developer' as developer;
+
 import 'client.dart';
 
 /// Détail d'une estimation, tel que renvoyé par `POST /parcels/estimate`.
@@ -41,6 +43,9 @@ class ParcelEstimate {
         urgentFee: _toDouble(json['urgentFee']),
         insuranceFee: _toDouble(json['insuranceFee']),
       );
+
+  /// Une estimation à zéro ne doit jamais devenir un prix proposé implicite.
+  bool get isValid => amount > 0 && amount.isFinite;
 }
 
 class ParcelsApi {
@@ -52,7 +57,8 @@ class ParcelsApi {
   ///
   /// Renvoie `null` plutôt que de lever : l'estimation est une aide à la
   /// saisie, pas une étape bloquante — le formulaire doit rester utilisable
-  /// hors connexion, l'utilisateur pouvant de toute façon fixer son prix.
+  /// hors connexion, l'utilisateur pouvant de toute façon fixer son prix. Les
+  /// anomalies restent journalisées pour diagnostiquer le contrat serveur.
   Future<ParcelEstimate?> estimate({
     required double weight,
     bool isUrgent = false,
@@ -66,11 +72,37 @@ class ParcelsApi {
       });
       final data = client.handle(res);
       final status = res.statusCode ?? 500;
-      if (status >= 400 || data['success'] == false) return null;
+      if (status >= 400 || data['success'] == false) {
+        developer.log(
+          'Estimation colis refusée par l’API (HTTP $status)',
+          name: 'ParcelsApi',
+        );
+        return null;
+      }
       final raw = (data['estimate'] as Map?)?.cast<String, dynamic>();
-      if (raw == null) return null;
-      return ParcelEstimate.fromJson(raw);
-    } catch (_) {
+      if (raw == null) {
+        developer.log(
+          'Réponse d’estimation sans champ estimate',
+          name: 'ParcelsApi',
+        );
+        return null;
+      }
+      final estimate = ParcelEstimate.fromJson(raw);
+      if (!estimate.isValid) {
+        developer.log(
+          'Estimation colis invalide: ${estimate.amount}',
+          name: 'ParcelsApi',
+        );
+        return null;
+      }
+      return estimate;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Impossible de récupérer l’estimation du colis',
+        name: 'ParcelsApi',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }

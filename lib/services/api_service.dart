@@ -16,8 +16,6 @@ import '../models/parcel.dart';
 import '../models/user.dart';
 import '../models/wallet.dart';
 import 'api/api.dart';
-import 'commission_service.dart';
-import 'mock_data.dart';
 
 class ApiService {
   static const String baseUrl = AppConfig.apiBaseUrl;
@@ -29,8 +27,6 @@ class ApiService {
   String mediaUrl(String url) => ApiService.resolveMediaUrl(url);
   final Dio _dio = Dio();
   final _storage = const FlutterSecureStorage();
-
-  static const bool isMockMode = MockData.enabled;
 
   /// Signal émis quand un 401 n'a pas pu être rattrapé par un rafraîchissement :
   /// la session est morte et l'application doit revenir à l'écran de connexion.
@@ -84,7 +80,8 @@ class ApiService {
         final token = await _storage.read(key: 'token').timeout(
           const Duration(seconds: 5),
           onTimeout: () {
-            debugPrint('⚠️ [API] lecture du jeton expirée pour ${options.path}');
+            debugPrint(
+                '⚠️ [API] lecture du jeton expirée pour ${options.path}');
             return null;
           },
         );
@@ -196,7 +193,6 @@ class ApiService {
   Future<void> clearToken() async {
     await _storage.delete(key: 'token');
     await _storage.delete(key: 'refresh_token');
-    await _storage.delete(key: 'mock_user_id');
   }
 
   Map<String, dynamic> _handleResponse(Response response) {
@@ -210,6 +206,12 @@ class ApiService {
     return {};
   }
 
+  ApiException _apiExceptionFromResponse(
+    Map<String, dynamic> body,
+    int statusCode,
+  ) =>
+      ApiException.fromResponse(body, statusCode);
+
   /// Ferme la session côté serveur avant d'effacer les jetons locaux.
   ///
   /// Sans cet appel, le refresh token restait valable jusqu'à son expiration :
@@ -219,7 +221,7 @@ class ApiService {
   Future<void> logout() async {
     try {
       final refreshToken = await _storage.read(key: 'refresh_token');
-      if (refreshToken != null && refreshToken.isNotEmpty && !isMockMode) {
+      if (refreshToken != null && refreshToken.isNotEmpty) {
         await _dio.post(
           '/auth/logout',
           data: {'refreshToken': refreshToken},
@@ -236,18 +238,6 @@ class ApiService {
   Future<Map<String, dynamic>> loginWithPin(
       String pin, String identifier) async {
     try {
-      if (isMockMode) {
-        final user = MockData.findUserByIdentifier(identifier);
-        if (user == null || pin != MockData.pin) {
-          return {
-            'success': false,
-            'message': 'PIN incorrect. Mock PIN: ${MockData.pin}',
-          };
-        }
-        await setToken('mock-token-${user.id}');
-        await _storage.write(key: 'mock_user_id', value: user.id);
-        return MockData.loginPayload(user);
-      }
       final response = await _dio.post('/auth/login-with-pin', data: {
         'identifier': identifier,
         'pin': pin,
@@ -264,17 +254,6 @@ class ApiService {
 
   Future<Map<String, dynamic>> register(Map<String, dynamic> payload) async {
     try {
-      if (isMockMode) {
-        return {
-          'success': true,
-          'userId': 'mock-new-user',
-          'user': {
-            'id': 'mock-new-user',
-            'fullName': payload['fullName'],
-            'role': payload['role'] ?? 'client'
-          },
-        };
-      }
       final response = await _dio.post('/auth/register', data: payload);
       final responseData = _handleResponse(response);
       if (responseData['accessToken'] != null) {
@@ -288,13 +267,6 @@ class ApiService {
 
   Future<User> getCurrentUser() async {
     try {
-      if (isMockMode) {
-        final userId = await _storage.read(key: 'mock_user_id');
-        if (userId == null || userId.isEmpty) {
-          throw Exception('Aucun utilisateur mock connecté');
-        }
-        return MockData.userById(userId);
-      }
       final response = await _dio.get('/auth/me');
       final responseData = _handleResponse(response);
       if (responseData['user'] != null) {
@@ -327,12 +299,6 @@ class ApiService {
 
   Future<List<Parcel>> getMyParcels({String? status}) async {
     try {
-      if (isMockMode) {
-        final user = await getCurrentUser();
-        final parcels = MockData.parcelsForUser(user);
-        if (status == null || status.isEmpty) return parcels;
-        return parcels.where((p) => p.status.value == status).toList();
-      }
       final queryParams = <String, dynamic>{};
       if (status != null && status.isNotEmpty) queryParams['status'] = status;
       final response = await _dio.get('/client/parcels/my-parcels',
@@ -401,11 +367,12 @@ class ApiService {
 
   Future<Parcel> createParcel(Map<String, dynamic> data) async {
     try {
-      if (isMockMode) {
-        return MockData.parcels.first;
-      }
       final response = await _dio.post('/client/parcels/create', data: data);
       final responseData = _handleResponse(response);
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode >= 400 || responseData['success'] == false) {
+        throw _apiExceptionFromResponse(responseData, statusCode);
+      }
       final parcel = responseData['parcel'];
       if (parcel != null) {
         return Parcel.fromJson(parcel as Map<String, dynamic>);
@@ -502,7 +469,6 @@ class ApiService {
 
   Future<List<Parcel>> getFreeParcels() async {
     try {
-      if (isMockMode) return MockData.freeParcels();
       final response = await _dio.get('/public/parcels/free');
       final responseData = _handleResponse(response);
       final List<dynamic> parcelsData =
@@ -517,14 +483,17 @@ class ApiService {
   }
 
   Future<Parcel> trackParcel(String trackingNumber) async {
-    final response = await _dio.get('/public/parcels/track/$trackingNumber');
+    final encodedTrackingNumber = Uri.encodeComponent(trackingNumber.trim());
+    final response =
+        await _dio.get('/public/parcels/track/$encodedTrackingNumber');
     final responseData = _handleResponse(response);
     final rawParcel = responseData['data'] is Map
         ? (responseData['data'] as Map<String, dynamic>)['parcel'] ??
             responseData['data']
         : responseData['parcel'];
     if (rawParcel != null) {
-      final parcelMap = Map<String, dynamic>.from(rawParcel as Map<String, dynamic>);
+      final parcelMap =
+          Map<String, dynamic>.from(rawParcel as Map<String, dynamic>);
       // Le backend renvoie la position du chauffeur comme champ « frère » du
       // colis (`{ parcel, events, driverLocation }`), pas imbriqué. On la
       // fusionne pour que `Parcel.driverLocation` puisse la lire sans inventer
@@ -540,6 +509,42 @@ class ApiService {
       return Parcel.fromJson(parcelMap);
     }
     throw Exception(responseData['message'] ?? 'Colis non trouvé');
+  }
+
+  /// Enregistre une coordonnée GPS réelle pour le colis transporté.
+  ///
+  /// Le backend déduit le chauffeur du jeton, valide l'assignation et refuse
+  /// les coordonnées invalides. Les réponses 4xx doivent être traitées ici :
+  /// Dio les retourne comme des réponses normales à cause de `validateStatus`.
+  Future<void> updateDriverLocation({
+    required String parcelId,
+    required double latitude,
+    required double longitude,
+    double? accuracy,
+  }) async {
+    try {
+      final response = await _dio.post('/driver/location', data: {
+        'parcelId': parcelId,
+        'latitude': latitude,
+        'longitude': longitude,
+        if (accuracy != null) 'accuracy': accuracy,
+      });
+      final body = _handleResponse(response);
+      final status = response.statusCode ?? 0;
+      if (status >= 400 || body['success'] == false) {
+        throw ApiException(
+          body['message']?.toString() ??
+              'Impossible de transmettre la position.',
+          status,
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[ApiService] Envoi GPS impossible pour le colis $parcelId: '
+        '$error\n$stackTrace',
+      );
+      rethrow;
+    }
   }
 
   Future<List<ParcelEvent>> getParcelTimeline(String parcelId) async {
@@ -703,11 +708,6 @@ class ApiService {
   /// GET /driver/proposals
   Future<List<Parcel>> getDriverProposals() async {
     try {
-      if (isMockMode) {
-        return MockData.parcels
-            .where((p) => p.proposedDriverId != null)
-            .toList();
-      }
       final response = await _dio.get('/driver/proposals');
       final responseData = _handleResponse(response);
       final List<dynamic> parcelsData = responseData['parcels'] ?? [];
@@ -1073,13 +1073,6 @@ class ApiService {
   /// ✅ MODIFIÉ : Utilise assignedDriverId pour filtrer les missions assignées
   Future<List<Parcel>> getDriverParcels() async {
     try {
-      if (isMockMode) {
-        final user = await getCurrentUser();
-        return MockData.parcelsForUser(user)
-            .where(
-                (p) => p.assignedDriverId == user.id || p.driverId == user.id)
-            .toList();
-      }
       final response = await _dio.get(
         '/driver/parcels',
         queryParameters: {}, // Vide explicitement
@@ -1137,10 +1130,6 @@ class ApiService {
 
   Future<List<Parcel>> getGarageParcels({String? status}) async {
     try {
-      if (isMockMode) {
-        final user = await getCurrentUser();
-        return MockData.parcelsForUser(user);
-      }
       final response = await _dio.get('/garage-admin/parcels');
       final responseData = _handleResponse(response);
       final List<dynamic> parcelsData = responseData['parcels'] ?? [];
@@ -1154,7 +1143,6 @@ class ApiService {
 
   Future<List<User>> getGarageDrivers() async {
     try {
-      if (isMockMode) return MockData.drivers;
       final response = await _dio.get('/garage-admin/drivers');
       final responseData = _handleResponse(response);
       final List<dynamic> driversData = responseData['drivers'] ?? [];
@@ -1199,7 +1187,10 @@ class ApiService {
     } on DioException catch (e) {
       return {'success': false, 'message': _describeDioError(e)};
     } catch (_) {
-      return {'success': false, 'message': 'Impossible de mettre à jour le colis'};
+      return {
+        'success': false,
+        'message': 'Impossible de mettre à jour le colis'
+      };
     }
   }
 
@@ -1207,7 +1198,6 @@ class ApiService {
 
   Future<List<Parcel>> getAllParcelsSuperAdmin() async {
     try {
-      if (isMockMode) return MockData.parcels;
       final response = await _dio.get('/super-admin/parcels');
       final responseData = _handleResponse(response);
       final List<dynamic> parcelsData = responseData['parcels'] ?? [];
@@ -1237,7 +1227,6 @@ class ApiService {
 
   Future<List<User>> getAllUsersSuperAdmin() async {
     try {
-      if (isMockMode) return MockData.users;
       final response = await _dio.get('/super-admin/users');
       final responseData = _handleResponse(response);
       final List<dynamic> usersData = responseData['users'] ?? [];
@@ -1605,7 +1594,6 @@ class ApiService {
 
   Future<int> getUnreadNotificationsCount() async {
     try {
-      if (isMockMode) return 3;
       final response = await _dio.get('/notifications/unread-count');
       final responseData = _handleResponse(response);
       return _asInt(responseData['unreadCount']);
@@ -1619,7 +1607,6 @@ class ApiService {
   /// `unreadCount`, qui sert alors de repli.
   Future<int> getUnreadBadgeCount() async {
     try {
-      if (isMockMode) return 3;
       final response = await _dio.get('/notifications/unread-count');
       final responseData = _handleResponse(response);
       return _asInt(responseData['total'] ?? responseData['unreadCount']);
@@ -1786,43 +1773,6 @@ class ApiService {
 
   Future<Wallet> getWallet(String userId) async {
     try {
-      if (isMockMode) {
-        return Wallet(
-          id: 'wallet-$userId',
-          userId: userId,
-          balance: 5000,
-          totalDeposited: 10000,
-          totalConsumed: 750,
-          totalRefunded: 0,
-          isActive: true,
-          createdAt: DateTime.now().subtract(const Duration(days: 30)),
-          updatedAt: DateTime.now(),
-          transactions: [
-            WalletTransaction(
-              id: 'wtx-1',
-              userId: userId,
-              walletId: 'wallet-$userId',
-              amount: 5000,
-              type: WalletTransactionType.deposit,
-              parcelId: null,
-              trackingNumber: null,
-              description: 'Recharge wallet',
-              createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-            ),
-            WalletTransaction(
-              id: 'wtx-2',
-              userId: userId,
-              walletId: 'wallet-$userId',
-              amount: -250,
-              type: WalletTransactionType.commission,
-              parcelId: 'parcel-1',
-              trackingNumber: 'PC-1234-5678',
-              description: 'Commission livraison #PC-1234-5678',
-              createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-            ),
-          ],
-        );
-      }
       final response = await _dio.get('/driver/wallet');
       final fullData = _handleResponse(response);
       return parseWallet(fullData, response.statusCode ?? 0);
@@ -1854,6 +1804,19 @@ class ApiService {
         200,
       );
     }
+    final hasBalance = walletData.containsKey('balance') ||
+        walletData.containsKey('availableBalance');
+    if (!hasBalance || walletData['commissionDebt'] == null) {
+      throw const ApiException(
+        'Réponse financière incomplète du serveur.',
+        200,
+      );
+    }
+    // Valide les nombres avant de construire le modèle : `Wallet.fromJson`
+    // reste tolérant pour les écrans non financiers, mais ce flux critique ne
+    // doit jamais convertir silencieusement une valeur absente en 0 FCFA.
+    _asDouble(walletData['balance'] ?? walletData['availableBalance']);
+    _asDouble(walletData['commissionDebt']);
     final txData = rawData['transactions'] as List<dynamic>?;
     final map = Map<String, dynamic>.from(walletData);
     if (txData != null) map['transactions'] = txData;
@@ -1949,6 +1912,7 @@ class ApiService {
   Future<List<User>> searchDriversPublic({
     String? city,
     String? zoneId,
+    bool verifiedOnly = false,
     int limit = 100,
   }) async {
     try {
@@ -1956,6 +1920,7 @@ class ApiService {
           await _dio.get('/public/drivers/search', queryParameters: {
         if (city != null && city.isNotEmpty) 'city': city,
         if (zoneId != null && zoneId.isNotEmpty) 'zoneId': zoneId,
+        if (verifiedOnly) 'verifiedOnly': true,
         'limit': limit,
       });
       final responseData = _handleResponse(response);
@@ -1963,7 +1928,10 @@ class ApiService {
       return driversData
           .map((json) => User.fromJson(json as Map<String, dynamic>))
           .toList();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[ApiService] Échec recherche chauffeurs publics: $e\n$stackTrace',
+      );
       return [];
     }
   }
@@ -1971,16 +1939,24 @@ class ApiService {
   /// Chauffeurs actifs desservant une zone (`zone_drivers` + rattachement garage
   /// hérité) — la brique « choisir un chauffeur par localité ». La liste est
   /// déjà filtrée côté API par la zone de départ du colis.
-  Future<List<User>> getZoneDrivers(String zoneId) async {
+  Future<List<User>> getZoneDrivers(
+    String zoneId, {
+    bool verifiedOnly = false,
+  }) async {
     try {
-      if (isMockMode) return MockData.drivers;
-      final response = await _dio.get('/public/drivers/zone/$zoneId');
+      final response = await _dio.get(
+        '/public/drivers/zone/$zoneId',
+        queryParameters: {if (verifiedOnly) 'verifiedOnly': true},
+      );
       final responseData = _handleResponse(response);
       final List<dynamic> driversData = responseData['drivers'] ?? [];
       return driversData
           .map((json) => User.fromJson(json as Map<String, dynamic>))
           .toList();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[ApiService] Échec chargement chauffeurs de zone: $e\n$stackTrace',
+      );
       return [];
     }
   }
@@ -2002,7 +1978,6 @@ class ApiService {
 
   Future<List<Parcel>> getAllParcels({String? status}) async {
     try {
-      if (isMockMode) return MockData.parcels;
       final queryParams =
           status != null ? {'status': status} : <String, dynamic>{};
       final response =
@@ -2530,7 +2505,6 @@ class ApiService {
 
   Future<List<User>> getAllDriversSuperAdmin() async {
     try {
-      if (isMockMode) return MockData.drivers;
       final response = await _dio.get('/super-admin/users');
       final responseData = _handleResponse(response);
       final List<dynamic> usersData = responseData['users'] ?? [];
@@ -2851,12 +2825,6 @@ class ApiService {
   Future<Map<String, dynamic>> createPaydunyaPayment(String type,
       {String? parcelId, int? points, double? amount, String? debtId}) async {
     try {
-      if (isMockMode) {
-        return {
-          'token': 'mock-paydunya-token',
-          'paymentUrl': 'https://paydunya.com/mock'
-        };
-      }
       return _modularPaydunya.createPayment(type,
           parcelId: parcelId, points: points, amount: amount, debtId: debtId);
     } catch (e) {
@@ -2875,13 +2843,6 @@ class ApiService {
     double? amount,
   }) async {
     try {
-      if (isMockMode) {
-        return {
-          'success': true,
-          'token': 'mock-paydunya-token',
-          'paymentUrl': 'https://paydunya.com/mock',
-        };
-      }
       return _modularPaydunya.createPenaltyDebtPayment(
         debtId: debtId,
         amount: amount,
@@ -2893,9 +2854,6 @@ class ApiService {
 
   Future<Map<String, dynamic>> confirmPaydunyaPayment(String token) async {
     try {
-      if (isMockMode) {
-        return {'token': token, 'status': 'completed', 'amount': 5000.0};
-      }
       return _modularPaydunya.confirmPayment(token);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -2905,18 +2863,6 @@ class ApiService {
   // ==================== COMMISSION ====================
 
   Future<Map<String, dynamic>> estimateCommission(double amount) async {
-    if (isMockMode) {
-      final commission = CommissionService.calculate(amount);
-      return {
-        'amount': amount,
-        'commission': commission,
-        'netAmount': amount - commission,
-        'percentage': CommissionService.percentage,
-        'minAmount': CommissionService.minimum,
-        'maxAmount': CommissionService.maximum,
-        'profile': 'local'
-      };
-    }
     return _modularCommission.estimate(amount);
   }
 
@@ -2926,14 +2872,6 @@ class ApiService {
 
   Future<Map<String, dynamic>> payCashCommission(String parcelId, String source,
       {double? amount}) async {
-    if (isMockMode) {
-      final commission = CommissionService.calculate(amount ?? 0);
-      return {
-        'success': true,
-        'commission': commission,
-        'newWalletBalance': (amount ?? 0) - commission
-      };
-    }
     return _modularCommission.payCashCommission(parcelId, source,
         amount: amount);
   }
@@ -3057,8 +2995,29 @@ class ApiService {
         '/driver/wallet/pay-debt',
         data: {if (amount != null) 'amount': amount},
       );
-      return _handleResponse(response);
+      final result = _handleResponse(response);
+      final status = response.statusCode ?? 0;
+      if (status >= 400 || result['success'] == false) return result;
+
+      // Ces valeurs proviennent de la transaction atomique du backend. Sans
+      // elles, l'interface ne peut pas annoncer honnêtement un débit réussi.
+      for (final key in const [
+        'debtRepaid',
+        'remainingDebt',
+        'commissionDebt',
+        'balance',
+      ]) {
+        if (result[key] == null) {
+          return {
+            'success': false,
+            'message': 'Réponse de règlement de dette incomplète.',
+          };
+        }
+        _asDouble(result[key]);
+      }
+      return result;
     } catch (e) {
+      debugPrint('[ApiService] Règlement de dette impossible: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
@@ -3074,7 +3033,38 @@ class ApiService {
 class ApiException implements Exception {
   final String message;
   final int statusCode;
-  const ApiException(this.message, this.statusCode);
+  final String? code;
+  final List<Map<String, dynamic>> details;
+
+  const ApiException(
+    this.message,
+    this.statusCode, {
+    this.code,
+    this.details = const [],
+  });
+
+  factory ApiException.fromResponse(
+    Map<String, dynamic> body,
+    int statusCode,
+  ) {
+    final error = body['error'];
+    final errorMap = error is Map
+        ? Map<String, dynamic>.from(error)
+        : const <String, dynamic>{};
+    final rawDetails = errorMap['details'];
+    final details = rawDetails is List
+        ? rawDetails
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList()
+        : const <Map<String, dynamic>>[];
+    return ApiException(
+      body['message']?.toString() ?? 'Opération refusée par le serveur.',
+      statusCode,
+      code: errorMap['code']?.toString(),
+      details: details,
+    );
+  }
 
   @override
   String toString() => message;

@@ -23,7 +23,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // l'écran de connexion : sinon l'application reste sur un écran authentifié
     // dont chaque requête échoue, qui tourne sans jamais rien afficher.
     ApiService.onSessionExpired = _handleSessionExpired;
-    _loadUser();
+    _sessionRestoration = _loadUser();
   }
 
   void _handleSessionExpired() {
@@ -33,6 +33,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   final ApiService _apiService = ApiService();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  late final Future<void> _sessionRestoration;
 
   Future<void> _saveIdentifier(String identifier) async {
     await _storage.write(key: 'saved_identifier', value: identifier);
@@ -77,10 +78,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       String pin, String identifier) async {
     state = AuthState.loading();
     try {
-      await _saveIdentifier(identifier);
       final result = await _apiService.loginWithPin(pin, identifier);
 
       if (result['success'] == true || result['accessToken'] != null) {
+        // L'identifiant biométrique ne doit changer qu'après une connexion
+        // valide : une faute de frappe ne doit pas casser le prochain accès.
+        await _saveIdentifier(identifier);
         final userData = result['user'];
         final User user = userData != null
             ? User.fromJson(userData)
@@ -140,8 +143,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     state = AuthState.loading();
     try {
-      await _saveIdentifier(phone);
-
       final payload = <String, dynamic>{
         'phone': phone,
         'fullName': fullName,
@@ -158,6 +159,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final result = await _apiService.register(payload);
 
       if (result['accessToken'] != null) {
+        await _saveIdentifier(phone);
         final userData = result['user'];
         final User user = userData != null
             ? User.fromJson(userData)
@@ -167,6 +169,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return {'success': true};
       } else if (result['success'] == true) {
         // Cas où le token est déjà stocké via l'intercepteur
+        await _saveIdentifier(phone);
         final user = await _apiService.getCurrentUser();
         state = AuthState.authenticated(user);
         _registerPushToken();
@@ -188,18 +191,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// un écran mais de refaire une vraie connexion : l'empreinte ne fait
   /// qu'autoriser la lecture du PIN mémorisé.
   Future<bool> unlockWithBiometrics() async {
-    if (!await BiometricService.isEnabled()) return false;
+    try {
+      if (!await BiometricService.isEnabled()) return false;
 
-    final approved = await BiometricService.authenticate(
-      'Déverrouillez votre session SENDPROCOLIS',
-    );
-    if (!approved) return false;
+      final approved = await BiometricService.authenticate(
+        'Déverrouillez votre session SENDPROCOLIS',
+      );
+      if (!approved) return false;
 
-    final pin = await BiometricService.readPin();
-    if (pin == null || pin.isEmpty) return false;
+      // Au démarrage à froid, la restauration du jeton et la demande système
+      // peuvent progresser en parallèle. On attend la première pour éviter que
+      // deux connexions concurrentes écrasent l'état utilisateur ou les jetons.
+      await _sessionRestoration;
 
-    final result = await loginWithSavedPin(pin);
-    return result['success'] == true;
+      final pin = await BiometricService.readPin();
+      if (pin == null || pin.isEmpty) return false;
+
+      final result = await loginWithSavedPin(pin);
+      return result['success'] == true;
+    } catch (error, stackTrace) {
+      debugPrint(
+          '[AuthNotifier] Déverrouillage biométrique impossible : $error');
+      debugPrintStack(
+        label: '[AuthNotifier] Trace de déverrouillage biométrique',
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
   }
 
   /// [forgetBiometrics] distingue les deux sorties possibles.
@@ -209,13 +227,47 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// « utiliser mon code PIN » de l'écran de verrouillage passe aussi par ici,
   /// et un doigt mouillé ne doit pas désactiver le réglage.
   Future<void> logout({bool forgetBiometrics = true}) async {
-    if (forgetBiometrics) await BiometricService.disable();
-    await _apiService.logout();
-    // Les brouillons de formulaires contiennent des coordonnées de
-    // destinataires et des pièces jointes : ils ne doivent rien laisser sur
-    // l'appareil pour le compte suivant.
-    await FormDraftStore.clearAll();
-    state = AuthState.unauthenticated();
+    try {
+      // Important au démarrage à froid : une restauration encore en cours ne
+      // doit pas réauthentifier l'utilisateur juste après sa déconnexion.
+      await _sessionRestoration;
+      if (forgetBiometrics) await BiometricService.disable();
+      await _apiService.logout();
+    } catch (error, stackTrace) {
+      debugPrint('[AuthNotifier] Déconnexion incomplète : $error');
+      debugPrintStack(
+        label: '[AuthNotifier] Trace de déconnexion',
+        stackTrace: stackTrace,
+      );
+      // Même si la révocation distante ou le Keystore échoue, les jetons
+      // locaux doivent disparaître pour fermer immédiatement l'application.
+      try {
+        await _apiService.clearToken();
+      } catch (clearError, clearStackTrace) {
+        debugPrint(
+          '[AuthNotifier] Suppression locale des jetons impossible : '
+          '$clearError',
+        );
+        debugPrintStack(
+          label: '[AuthNotifier] Trace de suppression des jetons',
+          stackTrace: clearStackTrace,
+        );
+      }
+    } finally {
+      // Les brouillons contiennent des coordonnées et des pièces jointes : ils
+      // ne doivent jamais passer au compte suivant, même après une panne réseau.
+      try {
+        await FormDraftStore.clearAll();
+      } catch (error, stackTrace) {
+        debugPrint(
+            '[AuthNotifier] Nettoyage des brouillons impossible : $error');
+        debugPrintStack(
+          label: '[AuthNotifier] Trace de nettoyage des brouillons',
+          stackTrace: stackTrace,
+        );
+      }
+      if (mounted) state = AuthState.unauthenticated();
+    }
   }
 
   Future<void> refreshUser() async {
@@ -268,9 +320,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<Map<String, dynamic>> changePin(
       String currentPin, String newPin) async {
     try {
-      return await _apiService.changePin(currentPin, newPin);
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      final result = await _apiService.changePin(currentPin, newPin);
+
+      // Le PIN sécurisé alimente la reconnexion biométrique. Il doit suivre le
+      // changement serveur, sinon l'empreinte serait acceptée mais la connexion
+      // échouerait avec l'ancien secret au prochain lancement.
+      if (result['success'] == true && await BiometricService.isEnabled()) {
+        try {
+          await BiometricService.enable(newPin);
+        } catch (error, stackTrace) {
+          // Le changement serveur a déjà réussi : on le retourne comme tel et
+          // journalise uniquement la désynchronisation locale.
+          debugPrint(
+            '[AuthNotifier] Mise à jour du PIN biométrique impossible : $error',
+          );
+          debugPrintStack(
+            label: '[AuthNotifier] Trace de mise à jour du PIN biométrique',
+            stackTrace: stackTrace,
+          );
+        }
+      }
+      return result;
+    } catch (error, stackTrace) {
+      debugPrint('[AuthNotifier] Changement de PIN impossible : $error');
+      debugPrintStack(
+        label: '[AuthNotifier] Trace de changement de PIN',
+        stackTrace: stackTrace,
+      );
+      return {'success': false, 'message': error.toString()};
     }
   }
 

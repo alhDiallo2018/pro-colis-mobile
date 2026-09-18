@@ -141,6 +141,21 @@ Reponse :
 }
 ```
 
+## Déverrouillage biométrique mobile
+
+Statut : `IMPLEMENTE`
+
+- Activation volontaire depuis les paramètres après confirmation de la
+  biométrie et du code PIN.
+- Au démarrage à froid, l'application conserve le splash tant que le réglage
+  sécurisé n'est pas résolu, puis demande automatiquement l'empreinte lorsque
+  l'option est active.
+- Au retour d'une mise en arrière-plan supérieure au délai de session, le même
+  verrou est affiché au-dessus de l'écran courant.
+- Le PIN mémorisé est conservé dans le Keychain / Keystore et n'est lu qu'après
+  validation par la biométrie du système.
+- Un repli vers la connexion PIN reste toujours accessible.
+
 ## Utilisateur courant
 
 Statut : `IMPLEMENTE`

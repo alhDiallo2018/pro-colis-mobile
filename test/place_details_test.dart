@@ -25,7 +25,8 @@ void main() {
     });
 
     test('tolère l’absence de structured_formatting', () {
-      final result = PlaceResult.fromJson({'description': 'Dakar', 'place_id': 'p'});
+      final result =
+          PlaceResult.fromJson({'description': 'Dakar', 'place_id': 'p'});
       expect(result.mainText, '');
       expect(result.secondaryText, '');
     });
@@ -87,9 +88,18 @@ void main() {
     test('fromComponents extrait ville / région / pays', () {
       final place = PlaceDetails.fromComponents(
         [
-          {'types': ['country'], 'long_name': 'Sénégal'},
-          {'types': ['administrative_area_level_1'], 'long_name': 'Dakar'},
-          {'types': ['locality'], 'long_name': 'Dakar'},
+          {
+            'types': ['country'],
+            'long_name': 'Sénégal'
+          },
+          {
+            'types': ['administrative_area_level_1'],
+            'long_name': 'Dakar'
+          },
+          {
+            'types': ['locality'],
+            'long_name': 'Dakar'
+          },
         ],
         placeId: 'ChIJ',
         name: 'Grand Dakar',
@@ -104,6 +114,50 @@ void main() {
       expect(place.name, 'Grand Dakar');
       expect(place.latitude, 14.7645);
       expect(place.longitude, -17.4444);
+    });
+
+    test('fromComponents extrait le quartier avant la ville pour une zone', () {
+      final place = PlaceDetails.fromComponents(
+        [
+          {
+            'types': ['country'],
+            'long_name': 'Sénégal'
+          },
+          {
+            'types': ['locality'],
+            'long_name': 'Dakar'
+          },
+          {
+            'types': ['sublocality_level_1'],
+            'long_name': 'Ouakam'
+          },
+        ],
+        formattedAddress: 'Ouakam, Dakar, Sénégal',
+        latitude: 14.72,
+        longitude: -17.49,
+      );
+
+      expect(place.district, 'Ouakam');
+      expect(place.zoneName, 'Ouakam');
+      expect(place.hasGeographicLabel, isTrue);
+    });
+
+    test('refuse les faux noms de position et les coordonnées seules', () {
+      const currentPosition = PlaceDetails(
+        name: 'Ma position',
+        latitude: 14.72,
+        longitude: -17.49,
+      );
+      const coordinates = PlaceDetails(
+        formattedAddress: '14.72000, -17.49000',
+        latitude: 14.72,
+        longitude: -17.49,
+      );
+
+      expect(currentPosition.zoneName, isNull);
+      expect(currentPosition.hasGeographicLabel, isFalse);
+      expect(coordinates.zoneName, isNull);
+      expect(coordinates.hasGeographicLabel, isFalse);
     });
 
     test('copyWith remplace uniquement les champs fournis', () {

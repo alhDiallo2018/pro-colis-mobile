@@ -1,4 +1,3 @@
-
 double _toDouble(dynamic value) {
   if (value == null) return 0;
   if (value is num) return value.toDouble();
@@ -23,8 +22,7 @@ enum WalletTransactionType {
 
   static WalletTransactionType fromString(String v) {
     final normalized = v.trim().toLowerCase();
-    return WalletTransactionType.values.firstWhere(
-        (e) => e.value == normalized,
+    return WalletTransactionType.values.firstWhere((e) => e.value == normalized,
         orElse: () => WalletTransactionType.adjustment);
   }
 }
@@ -123,7 +121,9 @@ class WalletTransaction {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is WalletTransaction && runtimeType == other.runtimeType && id == other.id;
+      other is WalletTransaction &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;
@@ -141,7 +141,8 @@ class Wallet {
   final double totalWithdrawn; // Total retiré
   final double totalCommissionsPaid; // Total commissions payées
   final double commissionDebt; // Commission impayée à régulariser (FCFA)
-  final bool canAcceptNewDeliveries; // Dette réglée → nouvelles missions autorisées
+  final double debtLimit; // Seuil administrable de blocage (0 = désactivé)
+  final bool canAcceptNewDeliveries;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -158,6 +159,7 @@ class Wallet {
     this.totalWithdrawn = 0,
     this.totalCommissionsPaid = 0,
     this.commissionDebt = 0,
+    this.debtLimit = 0,
     this.canAcceptNewDeliveries = true,
     this.isActive = true,
     required this.createdAt,
@@ -168,20 +170,23 @@ class Wallet {
   factory Wallet.fromJson(Map<String, dynamic> json) {
     final txs = json['transactions'] as List<dynamic>?;
     final debt = _toDouble(json['commissionDebt']);
+    final debtLimit = _toDouble(json['debtLimit']);
     return Wallet(
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
       balance: _toDouble(json['balance'] ?? json['availableBalance']),
       pendingBalance: _toDouble(json['pendingBalance']),
       totalDeposited: _toDouble(json['totalDeposited']),
-      totalConsumed: _toDouble(json['totalConsumed'] ?? json['totalCommissionsPaid']),
+      totalConsumed:
+          _toDouble(json['totalConsumed'] ?? json['totalCommissionsPaid']),
       totalRefunded: _toDouble(json['totalRefunded']),
       totalWithdrawn: _toDouble(json['totalWithdrawn']),
       totalCommissionsPaid: _toDouble(json['totalCommissionsPaid']),
       commissionDebt: debt,
+      debtLimit: debtLimit,
       canAcceptNewDeliveries: json['canAcceptNewDeliveries'] is bool
           ? json['canAcceptNewDeliveries'] as bool
-          : debt <= 0,
+          : !(debtLimit > 0 && debt >= debtLimit),
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())
@@ -191,8 +196,7 @@ class Wallet {
           : DateTime.now(),
       transactions: txs != null
           ? txs
-              .map((t) =>
-                  WalletTransaction.fromJson(t as Map<String, dynamic>))
+              .map((t) => WalletTransaction.fromJson(t as Map<String, dynamic>))
               .toList()
           : [],
     );
@@ -209,6 +213,7 @@ class Wallet {
         'totalWithdrawn': totalWithdrawn,
         'totalCommissionsPaid': totalCommissionsPaid,
         'commissionDebt': commissionDebt,
+        'debtLimit': debtLimit,
         'canAcceptNewDeliveries': canAcceptNewDeliveries,
         'isActive': isActive,
         'createdAt': createdAt.toIso8601String(),
@@ -227,6 +232,7 @@ class Wallet {
     double? totalWithdrawn,
     double? totalCommissionsPaid,
     double? commissionDebt,
+    double? debtLimit,
     bool? canAcceptNewDeliveries,
     bool? isActive,
     DateTime? createdAt,
@@ -244,6 +250,7 @@ class Wallet {
       totalWithdrawn: totalWithdrawn ?? this.totalWithdrawn,
       totalCommissionsPaid: totalCommissionsPaid ?? this.totalCommissionsPaid,
       commissionDebt: commissionDebt ?? this.commissionDebt,
+      debtLimit: debtLimit ?? this.debtLimit,
       canAcceptNewDeliveries:
           canAcceptNewDeliveries ?? this.canAcceptNewDeliveries,
       isActive: isActive ?? this.isActive,

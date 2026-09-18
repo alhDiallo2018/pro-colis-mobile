@@ -9,9 +9,9 @@
 // absent (null) et l'interface affiche l'indisponibilité.
 
 double _toDouble(dynamic v) {
-  if (v == null) return 0;
+  if (v == null) return double.nan;
   if (v is num) return v.toDouble();
-  return double.tryParse(v.toString()) ?? 0;
+  return double.tryParse(v.toString()) ?? double.nan;
 }
 
 DateTime? _parseDateTime(dynamic v) =>
@@ -50,17 +50,22 @@ class DriverLocation {
       parcelId: json['parcelId']?.toString() ?? json['parcel_id']?.toString(),
       latitude: _toDouble(json['latitude'] ?? json['lat']),
       longitude: _toDouble(json['longitude'] ?? json['lng']),
-      accuracy: json['accuracy'] != null
-          ? _toDouble(json['accuracy'])
-          : null,
+      accuracy: json['accuracy'] != null ? _toDouble(json['accuracy']) : null,
       recordedAt: recordedAt,
     );
   }
 
-  /// La position est exploitable dès que latitude et longitude sont des
-  /// coordonnées plausibles (non nulles toutes les deux).
+  /// La position n'est exploitable que si les deux coordonnées existent, sont
+  /// finies et appartiennent aux plages GPS. Cela empêche une réponse partielle
+  /// de placer le chauffeur sur une position fictive.
   bool get hasCoordinates =>
-      latitude != 0 || longitude != 0;
+      latitude.isFinite &&
+      longitude.isFinite &&
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180 &&
+      (latitude != 0 || longitude != 0);
 
   /// Ancienneté de la position, ou `null` si aucun horodatage n'est fourni.
   Duration? age(DateTime now) {
@@ -71,7 +76,8 @@ class DriverLocation {
 
   /// Une position trop ancienne ne doit plus être présentée comme « temps
   /// réel ». Le seuil par défaut est de 5 minutes.
-  bool isStale(DateTime now, {Duration threshold = const Duration(minutes: 5)}) {
+  bool isStale(DateTime now,
+      {Duration threshold = const Duration(minutes: 5)}) {
     final a = age(now);
     if (a == null) return true;
     return a > threshold;

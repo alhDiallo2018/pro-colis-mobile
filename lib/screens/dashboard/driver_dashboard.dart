@@ -19,9 +19,11 @@ import 'package:procolis/models/user.dart';
 import 'package:procolis/models/voice_message.dart';
 import 'package:procolis/screens/dashboard/notifications/notifications_screen.dart';
 import 'package:procolis/services/api_service.dart';
-import 'package:procolis/services/commission_service.dart';
+import 'package:procolis/services/location_service.dart';
 import 'package:procolis/services/notification_service.dart';
 import 'package:procolis/services/notification_badge_service.dart';
+import 'package:procolis/utils/unread_messages.dart';
+import 'package:procolis/utils/debt_block.dart';
 import 'package:procolis/theme/app_theme.dart';
 import 'package:procolis/theme/fonts.dart';
 import 'package:record/record.dart';
@@ -1540,6 +1542,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
   int _unreadMessagesCount = 0;
   bool _isUpdatingStatus = false;
   final ApiService _dashApi = ApiService();
+  final LocationService _locationService = LocationService();
   Timer? _pollTimer;
 
   @override
@@ -1566,6 +1569,10 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
+    // Le dashboard représente la session chauffeur. Lorsqu'il disparaît
+    // réellement (déconnexion/changement de rôle), aucune position ne doit
+    // continuer à être envoyée avec l'ancienne session.
+    _locationService.stopLocationTracking();
     super.dispose();
   }
 
@@ -1584,11 +1591,47 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     });
   }
 
+  /// Aligne le suivi GPS global sur la mission réellement transportée.
+  ///
+  /// Cette synchronisation est exécutée après chaque rechargement des colis :
+  /// elle redémarre donc aussi après le retour au premier plan, sans obliger le
+  /// chauffeur à ouvrir la fiche du colis.
+  Future<void> _syncLocationTracking(
+    List<Parcel> parcels,
+    String? driverId,
+  ) async {
+    Parcel? activeMission;
+    for (final parcel in parcels) {
+      final assignedToCurrentDriver = driverId != null &&
+          (parcel.assignedDriverId == driverId || parcel.driverId == driverId);
+      if (assignedToCurrentDriver && parcel.isBeingTransported) {
+        activeMission = parcel;
+        break;
+      }
+    }
+
+    if (activeMission == null) {
+      _locationService.stopLocationTracking();
+      return;
+    }
+
+    try {
+      await _locationService.startLocationTracking(
+        parcelId: activeMission.id,
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[DriverDashboard] Suivi GPS indisponible: $error\n$stackTrace',
+      );
+    }
+  }
+
   Future<void> _loadNotificationsCount() async {
     try {
       final c = await _dashApi.getUnreadNotificationsCount();
       if (mounted) setState(() => _unreadNotificationsCount = c);
-      await NotificationBadgeService.setCount(c);
+      // Le badge de l'icône est global : notifications + chaque message non lu.
+      await NotificationBadgeService.refresh();
     } catch (_) {}
   }
 
@@ -1600,10 +1643,12 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
       int count = 0;
       Map<String, dynamic>? latest;
       for (final conv in convs) {
-        final receiver = conv['receiver'] as Map<String, dynamic>?;
-        final isRead = conv['isRead'] == true;
-        if (receiver?['id']?.toString() == myId && !isRead) {
-          count++;
+        final unread = unreadMessagesInConversation(
+          conv,
+          currentUserId: myId,
+        );
+        if (unread > 0) {
+          count += unread;
           latest ??= conv;
         }
       }
@@ -1665,6 +1710,11 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     final authState = ref.watch(authProvider);
     final user = authState.user;
     final parcelState = ref.watch(parcelProvider);
+
+    ref.listen<ParcelState>(parcelProvider, (previous, next) {
+      if (next.isLoading || identical(previous?.parcels, next.parcels)) return;
+      unawaited(_syncLocationTracking(next.parcels, user?.id));
+    });
 
     ref.listen<int>(dashboardTabProvider, (prev, next) {
       if (next != _selectedIndex && next >= 0 && next < 5) {
@@ -1840,7 +1890,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   double _weekRevenue = 0;
   List<double> _revenueBars = List<double>.filled(7, 0);
   Map<String, dynamic> _stats = {};
-  
+
   // ✅ NOUVEAU : Propositions reçues
   List<Parcel> _proposals = [];
 
@@ -1894,30 +1944,30 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
       ]);
       if (!mounted) return;
       final payments = results[3] as List<Map<String, dynamic>>;
-    final now = DateTime.now();
-    final weekStart = DateTime(now.year, now.month, now.day)
-        .subtract(Duration(days: now.weekday - 1));
-    final bars = List<double>.filled(7, 0);
-    double weekTotal = 0;
-    for (final p in payments) {
-      final amount = (p['amount'] ?? 0).toDouble();
-      try {
-        final date = DateTime.parse(p['createdAt']?.toString() ?? '');
-        final dayIndex = date.difference(weekStart).inDays;
-        if (dayIndex >= 0 && dayIndex < 7) {
-          bars[dayIndex] += amount;
-          weekTotal += amount;
-        }
-      } catch (_) {}
-    }
-    setState(() {
-      _walletBalance = results[0] as double;
-      _bidsSent = results[1] as List<Map<String, dynamic>>;
-      _ads = results[2] as List<Map<String, dynamic>>;
-      _revenueBars = bars;
-      _weekRevenue = weekTotal;
-      _stats = results[4] as Map<String, dynamic>;
-    });
+      final now = DateTime.now();
+      final weekStart = DateTime(now.year, now.month, now.day)
+          .subtract(Duration(days: now.weekday - 1));
+      final bars = List<double>.filled(7, 0);
+      double weekTotal = 0;
+      for (final p in payments) {
+        final amount = (p['amount'] ?? 0).toDouble();
+        try {
+          final date = DateTime.parse(p['createdAt']?.toString() ?? '');
+          final dayIndex = date.difference(weekStart).inDays;
+          if (dayIndex >= 0 && dayIndex < 7) {
+            bars[dayIndex] += amount;
+            weekTotal += amount;
+          }
+        } catch (_) {}
+      }
+      setState(() {
+        _walletBalance = results[0] as double;
+        _bidsSent = results[1] as List<Map<String, dynamic>>;
+        _ads = results[2] as List<Map<String, dynamic>>;
+        _revenueBars = bars;
+        _weekRevenue = weekTotal;
+        _stats = results[4] as Map<String, dynamic>;
+      });
     } catch (e, stackTrace) {
       debugPrint('❌ [Dashboard] _loadDashboardData failed: $e\n$stackTrace');
     }
@@ -1939,22 +1989,43 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   }
 
   // ✅ NOUVEAU : Répondre à une proposition
-  Future<void> _respondToProposal(String parcelId, String action, {double? price}) async {
+  Future<void> _respondToProposal(String parcelId, String action,
+      {double? price}) async {
     try {
-      await _api.respondToProposal(parcelId, action, price: price);
+      final result =
+          await _api.respondToProposal(parcelId, action, price: price);
+      if (result['success'] == false) {
+        if (!mounted) return;
+        final debtBlocked = isDriverDebtBlockResponse(result);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['message']?.toString() ?? 'Action impossible',
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            action: debtBlocked
+                ? SnackBarAction(
+                    label: 'Régler',
+                    textColor: Colors.white,
+                    onPressed: () => context.push('/wallet'),
+                  )
+                : null,
+          ),
+        );
+        return;
+      }
       await _loadProposals();
       await _loadDashboardData();
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            action == 'accept' 
-              ? '✅ Proposition acceptée !' 
-              : action == 'reject' 
-                ? '❌ Proposition refusée'
-                : '💬 Contre-offre envoyée'
-          ),
+          content: Text(action == 'accept'
+              ? '✅ Proposition acceptée !'
+              : action == 'reject'
+                  ? '❌ Proposition refusée'
+                  : '💬 Contre-offre envoyée'),
           backgroundColor: action == 'accept' ? Colors.green : Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1974,7 +2045,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   // ✅ NOUVEAU : Dialog de négociation
   void _showNegotiationDialog(Parcel parcel) {
     final priceController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2033,9 +2104,10 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   List<Parcel> get _activeMissions {
     final missions = widget.parcelState.parcels
         .where((parcel) =>
-            (parcel.assignedDriverId == widget.user?.id || 
-             parcel.driverId == widget.user?.id) &&
-            (parcel.status.isInProgress || parcel.status == ParcelStatus.confirmed))
+            (parcel.assignedDriverId == widget.user?.id ||
+                parcel.driverId == widget.user?.id) &&
+            (parcel.status.isInProgress ||
+                parcel.status == ParcelStatus.confirmed))
         .toList();
     return missions.isNotEmpty ? missions : widget.parcelState.parcels;
   }
@@ -2270,7 +2342,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
         children: [
           Row(
             children: [
-              Icon(Icons.how_to_vote_rounded, color: AppTheme.primary, size: 20),
+              Icon(Icons.how_to_vote_rounded,
+                  color: AppTheme.primary, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -2334,7 +2407,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
             showPrimaryAction: false,
             primaryActionLabel: 'Voir',
             primaryActionIcon: Icons.arrow_forward_rounded,
-            onPrimaryAction: () { },
+            onPrimaryAction: () {},
             customFooter: Column(
               children: [
                 Row(
@@ -2969,8 +3042,7 @@ class _ProposalContactRow extends StatelessWidget {
           Icon(icon, size: 15, color: AppTheme.slate500),
           const SizedBox(width: 6),
           Text('$label : ',
-              style: TextStyle(
-                  fontSize: 12, color: AppTheme.textSecondary)),
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
           Expanded(
             child: Text(
               value,
@@ -3475,7 +3547,10 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     try {
       final res = await _api.driverRespondToBid(bidId, {'action': 'accept'});
       if (res['success'] == false) {
-        _snack(res['message']?.toString() ?? 'Action impossible');
+        _snack(
+          res['message']?.toString() ?? 'Action impossible',
+          debtBlocked: isDriverDebtBlockResponse(res),
+        );
       } else {
         _snack('Offre acceptée — vous êtes maintenant assigné');
         widget.onRefresh();
@@ -3496,7 +3571,10 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
       final res = await _api.respondToProposal(mission.id, action,
           price: price, message: message);
       if (res['success'] == false) {
-        _snack(res['message']?.toString() ?? 'Action impossible');
+        _snack(
+          res['message']?.toString() ?? 'Action impossible',
+          debtBlocked: isDriverDebtBlockResponse(res),
+        );
       } else {
         _snack(action == 'accept'
             ? 'Proposition acceptée — vous êtes maintenant assigné'
@@ -3635,25 +3713,34 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     );
   }
 
-  void _snack(String message) {
+  void _snack(String message, {bool debtBlocked = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        action: debtBlocked
+            ? SnackBarAction(
+                label: 'Régler',
+                onPressed: () => context.push('/wallet'),
+              )
+            : null,
+      ),
     );
   }
 
   List<Parcel> get _activeMissions => widget.parcelState.parcels
       .where((parcel) =>
-          (parcel.assignedDriverId == widget.user?.id || 
-           parcel.driverId == widget.user?.id) &&
+          (parcel.assignedDriverId == widget.user?.id ||
+              parcel.driverId == widget.user?.id) &&
           (parcel.status == ParcelStatus.confirmed ||
-           parcel.status.isInProgress))
+              parcel.status.isInProgress))
       .toList();
 
   List<Parcel> get _completedMissions => widget.parcelState.parcels
-      .where((parcel) => 
-          (parcel.assignedDriverId == widget.user?.id || 
-           parcel.driverId == widget.user?.id) &&
+      .where((parcel) =>
+          (parcel.assignedDriverId == widget.user?.id ||
+              parcel.driverId == widget.user?.id) &&
           parcel.status == ParcelStatus.delivered)
       .toList();
 
@@ -3681,10 +3768,11 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
 
   Widget _buildMissionFooter(Parcel mission) {
     final userId = widget.user?.id;
-    
+
     // ✅ Vérifier si c'est une mission assignée ou une proposition
-    final isAssigned = mission.assignedDriverId == userId || mission.driverId == userId;
-    
+    final isAssigned =
+        mission.assignedDriverId == userId || mission.driverId == userId;
+
     // ✅ Si c'est une proposition en attente (pas encore assignée)
     if (!isAssigned && mission.hasOpenProposal) {
       final busy = _respondingBidId == mission.id;
@@ -3754,8 +3842,9 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     // ✅ Colis libre sur lequel ce chauffeur a une enchère en cours : même
     // grammaire que la proposition directe, mais l'action porte sur l'enchère.
     if (!isAssigned) {
-      final ownBids =
-          mission.bids.where((b) => b.driverId == userId && b.isActive).toList();
+      final ownBids = mission.bids
+          .where((b) => b.driverId == userId && b.isActive)
+          .toList();
       if (ownBids.isNotEmpty) {
         final activeBid = ownBids.first;
         final busy = _respondingBidId == activeBid.id;
@@ -3769,7 +3858,8 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
                 variant: PcButtonVariant.danger,
                 size: PcButtonSize.sm,
                 loading: busy,
-                onPressed: busy ? null : () => _rejectOffer(mission, activeBid.id),
+                onPressed:
+                    busy ? null : () => _rejectOffer(mission, activeBid.id),
               ),
             ),
             const SizedBox(width: 6),
@@ -3793,7 +3883,8 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
                   variant: PcButtonVariant.primary,
                   size: PcButtonSize.sm,
                   loading: busy,
-                  onPressed: busy ? null : () => _acceptOffer(mission, activeBid.id),
+                  onPressed:
+                      busy ? null : () => _acceptOffer(mission, activeBid.id),
                 ),
               )
             else
@@ -3848,11 +3939,10 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
     }
 
     // ✅ Commission et client (inchangé)
-    final commissionEstimate =
-        mission.price != null ? CommissionService.calculate(mission.price!) : 0;
-    final commissionLabel = mission.status.isCompleted
-        ? 'Commission: ${commissionEstimate.toStringAsFixed(0)} FCFA'
-        : 'Commission est.: ${commissionEstimate.toStringAsFixed(0)} FCFA';
+    // Le barème financier est administré côté API. La liste des missions ne
+    // fabrique donc aucune estimation locale ; le montant fiable est chargé
+    // dans la fiche détaillée du colis.
+    const commissionLabel = 'Commission disponible dans le détail';
     final client = mission.senderName.isNotEmpty
         ? mission.senderName
         : 'Client SendProcolis';

@@ -10,10 +10,12 @@ class FinanceDashboardScreen extends ConsumerStatefulWidget {
   const FinanceDashboardScreen({super.key});
 
   @override
-  ConsumerState<FinanceDashboardScreen> createState() => _FinanceDashboardScreenState();
+  ConsumerState<FinanceDashboardScreen> createState() =>
+      _FinanceDashboardScreenState();
 }
 
-class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen> {
+class _FinanceDashboardScreenState
+    extends ConsumerState<FinanceDashboardScreen> {
   final ApiService _api = ApiService();
   Map<String, dynamic>? _dashboard;
   bool _loading = true;
@@ -26,17 +28,27 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final data = await _api.financeDashboard();
-      setState(() { _dashboard = data; _loading = false; });
+      setState(() {
+        _dashboard = data;
+        _loading = false;
+      });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
   int _num(dynamic v) => (v is num) ? v.toInt() : (int.tryParse('$v') ?? 0);
-  double _d(dynamic v) => (v is num) ? v.toDouble() : (double.tryParse('$v') ?? 0);
+  double _d(dynamic v) =>
+      (v is num) ? v.toDouble() : (double.tryParse('$v') ?? 0);
 
   String _fcfa(dynamic v) {
     final n = _d(v);
@@ -61,7 +73,8 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
                   ? const EmptyState(
                       icon: Icons.account_balance_wallet,
                       title: 'Aucune donnée',
-                      message: 'Les données financières ne sont pas disponibles.',
+                      message:
+                          'Les données financières ne sont pas disponibles.',
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
@@ -77,13 +90,20 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
 
   Widget _statGrid(Map<String, dynamic> d) {
     final stats = <_StatItem>[
-      _StatItem('Wallets', Icons.wallet, AppTheme.primary, '${_num(d['totalWallets'])}', 'Total Wallets'),
-      _StatItem('Solde Total', Icons.account_balance_wallet, AppTheme.successColor, _fcfa(d['totalBalance']), ''),
-      _StatItem('Total Rechargé', Icons.trending_up, AppTheme.teal400, _fcfa(d['totalDeposited']), ''),
-      _StatItem('Commissions Mois', Icons.percent, AppTheme.amber500, _fcfa(d['commissionsMonth']), 'Ce mois'),
-      _StatItem('Recharges Mois', Icons.add_card, AppTheme.primary, _fcfa(d['depositsMonth']), 'Ce mois'),
-      _StatItem('Wallets Faibles', Icons.warning_amber, AppTheme.red400, '${_num(d['walletsLow'])}', '<500 FCFA'),
-      _StatItem('Wallets Inactifs', Icons.hourglass_disabled, AppTheme.slate500, '${_num(d['walletsInactive'])}', 'Inactifs'),
+      _StatItem('Wallets', Icons.wallet, AppTheme.primary,
+          '${_num(d['totalWallets'])}', 'Total Wallets'),
+      _StatItem('Solde Total', Icons.account_balance_wallet,
+          AppTheme.successColor, _fcfa(d['totalBalance']), ''),
+      _StatItem('Total Rechargé', Icons.trending_up, AppTheme.teal400,
+          _fcfa(d['totalDeposited']), ''),
+      _StatItem('Commissions Mois', Icons.percent, AppTheme.amber500,
+          _fcfa(d['commissionsMonth']), 'Ce mois'),
+      _StatItem('Recharges Mois', Icons.add_card, AppTheme.primary,
+          _fcfa(d['depositsMonth']), 'Ce mois'),
+      _StatItem('Wallets Faibles', Icons.warning_amber, AppTheme.red400,
+          '${_num(d['walletsLow'])}', 'Selon le seuil configuré'),
+      _StatItem('Wallets Inactifs', Icons.hourglass_disabled, AppTheme.slate500,
+          '${_num(d['walletsInactive'])}', 'Inactifs'),
     ];
 
     return Wrap(
@@ -104,7 +124,8 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
             Row(
               children: [
                 Container(
-                  width: 34, height: 34,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: item.color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
@@ -118,14 +139,16 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
             Text(
               item.value,
               style: AppFonts.plusJakartaSans(
-                fontSize: 18, fontWeight: FontWeight.w800,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               item.label,
-              style: AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
+              style:
+                  AppFonts.manrope(fontSize: 13, color: AppTheme.textSecondary),
             ),
           ],
         ),

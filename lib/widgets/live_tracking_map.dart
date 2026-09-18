@@ -22,6 +22,7 @@ class LiveTrackingMap extends StatefulWidget {
   final double? arrivalLongitude;
   final double? driverLatitude;
   final double? driverLongitude;
+  final double? driverAccuracy;
   final String? departureLabel;
   final String? arrivalLabel;
 
@@ -33,6 +34,7 @@ class LiveTrackingMap extends StatefulWidget {
     this.arrivalLongitude,
     this.driverLatitude,
     this.driverLongitude,
+    this.driverAccuracy,
     this.departureLabel,
     this.arrivalLabel,
   });
@@ -44,13 +46,29 @@ class LiveTrackingMap extends StatefulWidget {
 class _LiveTrackingMapState extends State<LiveTrackingMap> {
   GoogleMapController? _mapController;
 
-  LatLng? get _departure => _point(
-      widget.departureLatitude, widget.departureLongitude);
-  LatLng? get _arrival => _point(widget.arrivalLatitude, widget.arrivalLongitude);
+  @override
+  void didUpdateWidget(covariant LiveTrackingMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Les marqueurs sont reconstruits par Flutter, puis la caméra suit la
+    // nouvelle position reçue lors du polling sans intervention du client.
+    if (oldWidget.driverLatitude != widget.driverLatitude ||
+        oldWidget.driverLongitude != widget.driverLongitude) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fitBounds();
+      });
+    }
+  }
+
+  LatLng? get _departure =>
+      _point(widget.departureLatitude, widget.departureLongitude);
+  LatLng? get _arrival =>
+      _point(widget.arrivalLatitude, widget.arrivalLongitude);
   LatLng? get _driver => _point(widget.driverLatitude, widget.driverLongitude);
 
   LatLng? _point(double? lat, double? lng) {
     if (lat == null || lng == null) return null;
+    if (!lat.isFinite || !lng.isFinite) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
     if (lat == 0 && lng == 0) return null;
     return LatLng(lat, lng);
   }
@@ -62,9 +80,9 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
         if (_driver != null) _driver!,
       ];
 
-  /// Un seul point exploitable : il faut au moins deux coordonnées connues
-  /// pour rendre une carte utile (départ/destination ou départ/chauffeur…).
-  bool get _canRenderMap => _points.length >= 2;
+  /// Même une position chauffeur seule doit être visible : les anciennes
+  /// zones ne possèdent pas toujours de coordonnées de départ/destination.
+  bool get _canRenderMap => _points.isNotEmpty;
 
   @override
   void dispose() {
@@ -78,8 +96,8 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
         Marker(
           markerId: const MarkerId('departure'),
           position: _departure!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueGreen),
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
           infoWindow: InfoWindow(
             title: 'Départ',
             snippet: widget.departureLabel ?? '',
@@ -89,8 +107,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
         Marker(
           markerId: const MarkerId('arrival'),
           position: _arrival!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueRose),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
           infoWindow: InfoWindow(
             title: 'Destination',
             snippet: widget.arrivalLabel ?? '',
@@ -100,8 +117,8 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
         Marker(
           markerId: const MarkerId('driver'),
           position: _driver!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueAzure),
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           infoWindow: const InfoWindow(title: 'Position du chauffeur'),
         ),
     };
@@ -121,6 +138,30 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
         color: AppTheme.teal500,
         width: 4,
         geodesic: true,
+      ),
+    };
+  }
+
+  /// Cercle de précision fourni par le GPS du téléphone. Il matérialise
+  /// honnêtement l'incertitude au lieu de présenter le marqueur comme un point
+  /// mathématiquement exact lorsque le signal est moins précis.
+  Set<Circle> _buildAccuracyCircle() {
+    final driver = _driver;
+    final accuracy = widget.driverAccuracy;
+    if (driver == null ||
+        accuracy == null ||
+        !accuracy.isFinite ||
+        accuracy <= 0) {
+      return {};
+    }
+    return {
+      Circle(
+        circleId: const CircleId('driver_accuracy'),
+        center: driver,
+        radius: accuracy,
+        fillColor: AppTheme.primary.withValues(alpha: 0.12),
+        strokeColor: AppTheme.primary.withValues(alpha: 0.45),
+        strokeWidth: 1,
       ),
     };
   }
@@ -147,8 +188,15 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
     final controller = _mapController;
     if (controller == null) return;
     final points = _points;
-    if (points.length < 2) return;
-    controller.animateCamera(CameraUpdate.newLatLngBounds(_boundsFor(points), 80));
+    if (points.isEmpty) return;
+    if (points.length == 1) {
+      controller.animateCamera(
+        CameraUpdate.newLatLngZoom(points.first, 16),
+      );
+      return;
+    }
+    controller
+        .animateCamera(CameraUpdate.newLatLngBounds(_boundsFor(points), 80));
   }
 
   @override
@@ -175,8 +223,12 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: GoogleMap(
-        initialCameraPosition: CameraPosition(target: initialTarget, zoom: 7),
+        initialCameraPosition: CameraPosition(
+          target: initialTarget,
+          zoom: _points.length == 1 ? 16 : 7,
+        ),
         markers: _buildMarkers(),
+        circles: _buildAccuracyCircle(),
         polylines: _buildPolyline(),
         mapType: MapType.normal,
         zoomControlsEnabled: false,
