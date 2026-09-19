@@ -6,6 +6,7 @@ import 'package:procolis/theme/fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/parcel.dart';
+import '../../../models/advertisement.dart';
 import '../../../models/payment.dart';
 import '../../../models/user.dart';
 import '../../../services/api_service.dart';
@@ -219,15 +220,14 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   // ============================================================
 
   Widget _buildHero() {
+    final route = Advertisement.fromJson(_adData ?? {});
     final departure = _parcelFromAd?.departureZoneName ??
         widget.parcel?.departureZoneName ??
-        _adData?['departureCity']?.toString() ??
-        _adData?['departureZoneName']?.toString() ??
+        route.departureCity ??
         'Depart';
     final arrival = _parcelFromAd?.arrivalZoneName ??
         widget.parcel?.arrivalZoneName ??
-        _adData?['arrivalCity']?.toString() ??
-        _adData?['arrivalZoneName']?.toString() ??
+        route.arrivalCity ??
         'Arrivee';
 
     return PcGradientHeader(

@@ -35,6 +35,9 @@ class Garage {
     required this.updatedAt,
   });
 
+  /// Libellé pour les sélecteurs de zones, même lorsque `city` est vide.
+  String get locationLabel => name.trim().isNotEmpty ? name.trim() : city.trim();
+
   factory Garage.fromJson(Map<String, dynamic> json) {
     DateTime? parseDateTime(dynamic value) {
       if (value == null) return null;

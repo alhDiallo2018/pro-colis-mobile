@@ -1771,6 +1771,14 @@ class ApiService {
 
   // ==================== WALLET ====================
 
+  /// Les erreurs restent distinctes d'une liste vide : zéro dette n'est
+  /// affiché qu'après une réponse serveur réussie.
+  Future<Map<String, dynamic>> getClientDebts({int page = 1}) async {
+    final response = await _dio.get('/client/debts',
+        queryParameters: {'page': page, 'limit': 20});
+    return _handleResponse(response);
+  }
+
   Future<Wallet> getWallet(String userId) async {
     try {
       final response = await _dio.get('/driver/wallet');
@@ -2257,6 +2265,15 @@ class ApiService {
     }
   }
 
+  /// Le DTO conserve ici son nom historique Garage, mais son identifiant
+  /// appartient au référentiel zones utilisé par les formulaires actuels.
+  static Garage? parseResolvedPlaceZone(Map<String, dynamic> response) {
+    if (response['success'] != true) return null;
+    final zone = response['data'] ?? response['zone'];
+    if (zone is! Map || zone['id'] == null) return null;
+    return Garage.fromJson(Map<String, dynamic>.from(zone));
+  }
+
   Future<Garage?> resolvePlaceZone({
     String? placeId,
     required String name,
@@ -2279,11 +2296,11 @@ class ApiService {
         if (city != null) 'city': city,
       });
       final data = _handleResponse(response);
-      final mirror = data['zone'] ?? data['garage'];
-      if (mirror is Map) {
-        return Garage.fromJson(Map<String, dynamic>.from(mirror));
-      }
-      debugPrint('❌ [API] resolvePlaceZone: aucun garage miroir renvoyé');
+      // Les sélecteurs envoient departureZoneId / arrivalZoneId : conserver
+      // l'UUID de la zone, jamais celui du garage miroir de compatibilité.
+      final zone = parseResolvedPlaceZone(data);
+      if (zone != null) return zone;
+      debugPrint('❌ [API] resolvePlaceZone: aucune zone renvoyée');
       return null;
     } catch (e) {
       debugPrint('❌ [API] resolvePlaceZone failed: $e');

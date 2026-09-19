@@ -61,6 +61,17 @@ class Advertisement {
       return num.tryParse(v.toString());
     }
 
+    // Un champ vide ne doit pas masquer un nom de zone présent. Les réponses
+    // récentes exposent le nom du lieu ; les anciennes ne portent que la ville.
+    String? location(String side) {
+      for (final key in ['${side}Name', '${side}ZoneName',
+        '${side}GarageName', '${side}City']) {
+        final value = asString(json[key])?.trim();
+        if (value != null && value.isNotEmpty) return value;
+      }
+      return null;
+    }
+
     final offers = json['offers'];
 
     return Advertisement(
@@ -71,8 +82,8 @@ class Advertisement {
           'Chauffeur',
       driverPhone: asString(json['driverPhone']) ?? asString(driver?['phone']),
       driverProfilePhoto: asString(json['driverProfilePhoto']) ?? asString(driver?['profilePhoto']),
-      departureCity: asString(json['departureCity']),
-      arrivalCity: asString(json['arrivalCity']),
+      departureCity: location('departure'),
+      arrivalCity: location('arrival'),
       departureAt: asDate(json['departureAt']),
       availableWeight: asNum(json['availableWeight']),
       proposedPrice: asNum(json['proposedPrice']),

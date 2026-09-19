@@ -139,6 +139,17 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
 
     _departureZoneId = asText(ad['departureZoneId']);
     _arrivalZoneId = asText(ad['arrivalZoneId']);
+    // Une zone pending n'est pas dans /public/zones. Réutiliser le lieu de
+    // l'annonce pour que la modification conserve son libellé et son UUID.
+    for (final side in ['departure', 'arrival']) {
+      final id = asText(ad['${side}ZoneId']);
+      final name = asText(ad['${side}Name']) ??
+          asText(ad['${side}ZoneName']) ?? asText(ad['${side}City']);
+      if (id != null && name != null) {
+        _zones.add(Garage.fromJson({'id': id, 'name': name,
+          'city': ad['${side}City']}));
+      }
+    }
     _departureAt = DateTime.tryParse(ad['departureAt']?.toString() ?? '');
     _weightController.text = numberText(ad['availableWeight']);
     _priceController.text = numberText(ad['proposedPrice']);
@@ -256,7 +267,8 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       final zones = await _api.getAllZones();
       if (mounted) {
         setState(() {
-          _zones = zones;
+          _zones = [...zones, ..._zones.where((local) =>
+              !zones.any((zone) => zone.id == local.id))];
           _loadingGarages = false;
         });
       }
@@ -375,8 +387,8 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
     return <String, dynamic>{
       'departureZoneId': _departureZoneId,
       'arrivalZoneId': _arrivalZoneId,
-      'departureCity': dep?.city,
-      'arrivalCity': arr?.city,
+      'departureCity': dep?.locationLabel,
+      'arrivalCity': arr?.locationLabel,
       'departureAt': _departureAt?.toIso8601String(),
       'availableWeight': double.tryParse(_weightController.text.trim()),
       'proposedPrice': double.tryParse(_priceController.text.trim()),
@@ -395,11 +407,11 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
 
     if (_initialValues['departureZoneId'] != _departureZoneId) {
       data['departureZoneId'] = _departureZoneId;
-      data['departureCity'] = _zoneById(_departureZoneId)?.city;
+      data['departureCity'] = _zoneById(_departureZoneId)?.locationLabel;
     }
     if (_initialValues['arrivalZoneId'] != _arrivalZoneId) {
       data['arrivalZoneId'] = _arrivalZoneId;
-      data['arrivalCity'] = _zoneById(_arrivalZoneId)?.city;
+      data['arrivalCity'] = _zoneById(_arrivalZoneId)?.locationLabel;
     }
     if (_initialValues['departureAt'] != _departureAt?.toIso8601String()) {
       data['departureAt'] = _departureAt?.toIso8601String();
@@ -676,7 +688,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '${_zoneById(_departureZoneId)?.city ?? '—'}  →  ${_zoneById(_arrivalZoneId)?.city ?? '—'}'
+                  '${_zoneById(_departureZoneId)?.locationLabel ?? '—'}  →  ${_zoneById(_arrivalZoneId)?.locationLabel ?? '—'}'
                   '${_departureAt != null ? '  ·  ${_formatDate(_departureAt!)}' : ''}',
                   style: AppFonts.plusJakartaSans(
                       fontSize: 13,

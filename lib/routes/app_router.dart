@@ -11,6 +11,7 @@ import '../screens/accueil/splash_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/client/client_libre_service_screen.dart';
+import '../screens/client/client_debts_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/dashboard/notifications/notifications_screen.dart';
 import '../screens/dashboard/support_admin_dashboard.dart';
@@ -478,6 +479,16 @@ class AppRouter {
           path: '/profile',
           name: 'profile',
           builder: (context, state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: '/client/debts',
+          builder: (context, state) => const ClientDebtsScreen(),
+        ),
+        // Le portefeuille expose la dette consolidée et les règlements
+        // chauffeur ; conserver une seule source pour les montants.
+        GoRoute(
+          path: '/driver/debts',
+          builder: (context, state) => const WalletScreen(showDebts: true),
         ),
         GoRoute(
           path: '/wallet',

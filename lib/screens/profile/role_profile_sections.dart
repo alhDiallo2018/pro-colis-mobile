@@ -668,14 +668,22 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
         ),
         RoleQuickLink(
           icon: Icons.account_balance_wallet_rounded,
-          title: 'Mon portefeuille',
-          subtitle: 'Bientôt disponible',
-          tone: PcTone.neutral,
+          title: 'Mes dettes',
+          subtitle: 'Consulter et régler mes pénalités',
+          route: '/client/debts',
+          tone: PcTone.amber,
         ),
       ];
 
     case UserRole.driver:
       return const [
+        RoleQuickLink(
+          icon: Icons.receipt_long_rounded,
+          title: 'Mes dettes',
+          subtitle: 'Consulter et régulariser mon solde',
+          route: '/driver/debts',
+          tone: PcTone.amber,
+        ),
         RoleQuickLink(
           icon: Icons.description_rounded,
           title: 'Documents du véhicule',

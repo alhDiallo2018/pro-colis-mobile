@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../models/parcel.dart';
+import '../../models/advertisement.dart';
 import '../../providers/advertisement_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/parcel_provider.dart';
@@ -539,8 +540,9 @@ class _DriverMesAnnoncesScreenState
   }
 
   Widget _buildAdCard(Map<String, dynamic> ad) {
-    final departure = ad['departureCity']?.toString() ?? '—';
-    final arrival = ad['arrivalCity']?.toString() ?? '—';
+    final route = Advertisement.fromJson(ad);
+    final departure = route.departureCity ?? '—';
+    final arrival = route.arrivalCity ?? '—';
     final proposedPrice = ad['proposedPrice'];
     final weight = ad['availableWeight'];
     final status = ad['status']?.toString() ?? 'open';
@@ -1397,8 +1399,9 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final ad = widget.ad;
-    final departure = ad['departureCity']?.toString() ?? '—';
-    final arrival = ad['arrivalCity']?.toString() ?? '—';
+    final route = Advertisement.fromJson(ad);
+    final departure = route.departureCity ?? '—';
+    final arrival = route.arrivalCity ?? '—';
     final proposedPrice = ad['proposedPrice'];
     final weight = ad['availableWeight'];
     final status = ad['status']?.toString() ?? 'open';

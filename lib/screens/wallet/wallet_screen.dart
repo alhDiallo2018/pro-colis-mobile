@@ -12,7 +12,8 @@ import '../../widgets/pay_debt_sheet.dart';
 import '../../widgets/pc_components.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
-  const WalletScreen({super.key});
+  final bool showDebts;
+  const WalletScreen({super.key, this.showDebts = false});
 
   @override
   ConsumerState<WalletScreen> createState() => _WalletScreenState();
@@ -153,7 +154,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Portefeuille'),
+        title: Text(widget.showDebts ? 'Mes dettes' : 'Portefeuille'),
         backgroundColor: AppTheme.cardColor,
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
@@ -169,6 +170,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
                     children: [
+                      if (widget.showDebts && _commissionDebt == 0) ...[
+                        const PcCard(child: ListTile(
+                          leading: Icon(Icons.task_alt_rounded),
+                          title: Text('Vous êtes à jour'),
+                          subtitle: Text('Aucune dette à régler.'),
+                        )),
+                        const SizedBox(height: 14),
+                      ],
                       _BalanceHero(balance: _balance ?? 0),
                       if ((_commissionDebt ?? 0) > 0) ...[
                         const SizedBox(height: 14),
