@@ -5,6 +5,7 @@
 // support) proviennent exclusivement de cette configuration : rien n'est codé
 // en dur dans les écrans.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/public_config.dart';
@@ -20,14 +21,32 @@ final publicConfigProvider =
 });
 
 class PublicConfigNotifier extends StateNotifier<PublicConfig?> {
-  PublicConfigNotifier() : super(null);
+  PublicConfigNotifier({Future<Map<String, dynamic>> Function()? loadConfig})
+      : _loadConfig = loadConfig ?? ApiService().getPublicConfig,
+        super(null);
 
-  final ApiService _api = ApiService();
+  final Future<Map<String, dynamic>> Function() _loadConfig;
+  Future<bool>? _pendingLoad;
 
-  Future<void> load() async {
+  /// Partage la requête en cours entre le démarrage et l'ouverture de l'aide :
+  /// une réponse plus ancienne ne doit pas écraser une configuration récente.
+  Future<bool> load() async {
+    if (_pendingLoad != null) return _pendingLoad!;
+    final pending = _load();
+    _pendingLoad = pending;
     try {
-      final raw = await _api.getPublicConfig();
-      if (raw.isEmpty) return;
+      return await pending;
+    } finally {
+      _pendingLoad = null;
+    }
+  }
+
+  Future<bool> _load() async {
+    try {
+      final raw = await _loadConfig();
+      if (raw.isEmpty) {
+        throw const FormatException("Configuration publique indisponible");
+      }
       final config = PublicConfig.fromJson(raw);
 
       // Applique la commission configurée au service de calcul local, afin que
@@ -39,10 +58,15 @@ class PublicConfigNotifier extends StateNotifier<PublicConfig?> {
       ));
       CommissionService.setInsufficientPolicy(config.insufficientPolicy);
 
+      if (!mounted) return false;
       state = config;
-    } catch (_) {
-      // Échec réseau : on conserve les valeurs déjà en mémoire. Les écrans
-      // affichent un repli cohérent tant que la config n'est pas disponible.
+      return true;
+    } catch (error, stackTrace) {
+      // Conserve la dernière réponse valide sans remplacer le contenu administré
+      // par des FAQ locales. L'appelant peut proposer de réessayer.
+      debugPrint('[PublicConfig] Chargement impossible : $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return false;
     }
   }
 }

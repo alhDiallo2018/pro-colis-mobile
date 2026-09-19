@@ -19,6 +19,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/form_draft_ui.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/route_picker.dart';
+import '../../widgets/voice_note_field.dart';
 
 /// Ouvre le modal de création d'annonce. Renvoie `true` si une annonce a été
 /// publiée (le parent peut alors rafraîchir sa liste).
@@ -76,6 +77,8 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   bool _loadingGarages = true;
   bool _submitting = false;
   String? _error;
+  String? _audioUrl;
+  bool _voiceBusy = false;
 
   List<Garage> _zones = [];
   String? _departureZoneId;
@@ -144,16 +147,18 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
     for (final side in ['departure', 'arrival']) {
       final id = asText(ad['${side}ZoneId']);
       final name = asText(ad['${side}Name']) ??
-          asText(ad['${side}ZoneName']) ?? asText(ad['${side}City']);
+          asText(ad['${side}ZoneName']) ??
+          asText(ad['${side}City']);
       if (id != null && name != null) {
-        _zones.add(Garage.fromJson({'id': id, 'name': name,
-          'city': ad['${side}City']}));
+        _zones.add(Garage.fromJson(
+            {'id': id, 'name': name, 'city': ad['${side}City']}));
       }
     }
     _departureAt = DateTime.tryParse(ad['departureAt']?.toString() ?? '');
     _weightController.text = numberText(ad['availableWeight']);
     _priceController.text = numberText(ad['proposedPrice']);
     _descriptionController.text = asText(ad['description']) ?? '';
+    _audioUrl = asText(ad['audioUrl']);
 
     _initialValues = {
       'departureZoneId': _departureZoneId,
@@ -162,6 +167,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       'availableWeight': _weightController.text,
       'proposedPrice': _priceController.text,
       'description': _descriptionController.text,
+      'audioUrl': _audioUrl,
     };
   }
 
@@ -173,7 +179,8 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
         _initialValues['departureAt'] != _departureAt?.toIso8601String() ||
         _initialValues['availableWeight'] != _weightController.text ||
         _initialValues['proposedPrice'] != _priceController.text ||
-        _initialValues['description'] != _descriptionController.text;
+        _initialValues['description'] != _descriptionController.text ||
+        _initialValues['audioUrl'] != _audioUrl;
   }
 
   @override
@@ -201,7 +208,8 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       _departureAt != null ||
       _weightController.text.trim().isNotEmpty ||
       _priceController.text.trim().isNotEmpty ||
-      _descriptionController.text.trim().isNotEmpty;
+      _descriptionController.text.trim().isNotEmpty ||
+      _audioUrl != null;
 
   Map<String, dynamic> _draftPayload() => {
         'step': _step,
@@ -211,6 +219,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
         'weight': _weightController.text,
         'price': _priceController.text,
         'description': _descriptionController.text,
+        'audioUrl': _audioUrl,
       };
 
   void _scheduleDraftSave() {
@@ -223,7 +232,13 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   }
 
   Future<void> _saveDraft() async {
-    if (_draftPending || _submitting || !_hasContent) return;
+    if (_draftPending || _submitting) return;
+    // Supprimer la dernière note d'un brouillon vide doit aussi effacer son
+    // ancienne URL, sinon elle réapparaîtrait à la prochaine ouverture.
+    if (!_hasContent) {
+      await _draftStore.clear();
+      return;
+    }
     await _draftStore.save(_draftPayload());
   }
 
@@ -240,6 +255,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       _weightController.text = data['weight']?.toString() ?? '';
       _priceController.text = data['price']?.toString() ?? '';
       _descriptionController.text = data['description']?.toString() ?? '';
+      _audioUrl = data['audioUrl']?.toString();
       _pendingDraft = null;
     });
   }
@@ -267,8 +283,11 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       final zones = await _api.getAllZones();
       if (mounted) {
         setState(() {
-          _zones = [...zones, ..._zones.where((local) =>
-              !zones.any((zone) => zone.id == local.id))];
+          _zones = [
+            ...zones,
+            ..._zones
+                .where((local) => !zones.any((zone) => zone.id == local.id))
+          ];
           _loadingGarages = false;
         });
       }
@@ -286,7 +305,9 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   }
 
   bool get _step1Valid =>
-      _departureZoneId != null && _arrivalZoneId != null && _departureZoneId != _arrivalZoneId;
+      _departureZoneId != null &&
+      _arrivalZoneId != null &&
+      _departureZoneId != _arrivalZoneId;
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
@@ -318,6 +339,11 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   /// à perdre. Fermer une saisie vide ne doit poser aucune question.
   Future<void> _handleClose() async {
     if (_submitting) return;
+    if (_voiceBusy) {
+      setState(() =>
+          _error = 'Terminez ou supprimez la note vocale avant de quitter.');
+      return;
+    }
 
     // En modification il n'y a pas de brouillon à garder : on confirme
     // seulement, et uniquement si quelque chose a bougé.
@@ -351,7 +377,12 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
     }
 
     if (!_hasContent) {
+      // Une suppression suivie d'une fermeture immédiate précède le délai
+      // d'autosauvegarde : efface aussi l'ancien brouillon dans ce cas.
+      _draftSaveTimer?.cancel();
       if (mounted) Navigator.pop(context, false);
+      // Un brouillon seulement proposé n'a pas été abandonné par l'utilisateur.
+      if (!_draftPending) await _draftStore.clear();
       return;
     }
 
@@ -395,6 +426,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       'description': _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
+      if (_audioUrl != null) 'audioUrl': _audioUrl,
     };
   }
 
@@ -427,11 +459,16 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       data['description'] = description.isEmpty ? null : description;
     }
 
+    // null supprime une note existante ; l'absence de clé la conserve.
+    if (_initialValues['audioUrl'] != _audioUrl) {
+      data['audioUrl'] = _audioUrl;
+    }
+
     return data;
   }
 
   Future<void> _submit() async {
-    if (!_step1Valid || _submitting) return;
+    if (!_step1Valid || _submitting || _voiceBusy) return;
 
     final notifier = ref.read(advertisementProvider.notifier);
     final adId = _editedAdId;
@@ -673,6 +710,25 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
           decoration: _inputDecoration(
               'Ex : véhicule climatisé, départ confirmé.', null),
         ),
+        const SizedBox(height: 18),
+        _fieldLabel('Note vocale (optionnel)'),
+        VoiceNoteField(
+          value: _audioUrl,
+          enabled: !_submitting,
+          onChanged: (url) {
+            setState(() {
+              _audioUrl = url;
+              _error = null;
+            });
+            // L'URL distante survit à la fermeture/reprise du brouillon,
+            // contrairement au fichier temporaire du microphone.
+            _scheduleDraftSave();
+          },
+          onBusyChanged: (busy) => setState(() => _voiceBusy = busy),
+        ),
+        if (_voiceBusy)
+          const Text('Terminez ou supprimez la note vocale avant de publier.'),
+        const SizedBox(height: 12),
         if (_error != null) ...[
           const SizedBox(height: 6),
           _warning(_error!, danger: true),
@@ -683,8 +739,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
           color: AppTheme.teal50,
           child: Row(
             children: [
-              Icon(Icons.route_rounded,
-                  color: AppTheme.primary, size: 18),
+              Icon(Icons.route_rounded, color: AppTheme.primary, size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -723,7 +778,9 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
                     variant: PcButtonVariant.secondary,
                     size: PcButtonSize.lg,
                     block: true,
-                    onPressed: () => setState(() => _step = 0),
+                    onPressed: _voiceBusy || _submitting
+                        ? null
+                        : () => setState(() => _step = 0),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -737,7 +794,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
                     size: PcButtonSize.lg,
                     block: true,
                     loading: _submitting,
-                    onPressed: _submit,
+                    onPressed: _voiceBusy ? null : _submit,
                   ),
                 ),
               ],

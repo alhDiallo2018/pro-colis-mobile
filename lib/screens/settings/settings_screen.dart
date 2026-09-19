@@ -481,7 +481,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   iconTone: PcTone.neutral,
                   title: 'Conditions d’utilisation',
                   chevron: true,
-                  onTap: () => context.go('/cgu'),
+                  // Empile la page légale pour que le retour restaure les paramètres.
+                  onTap: () => context.push('/cgu'),
                 ),
                 const PcDivider(),
                 PcListRow(
@@ -489,7 +490,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   iconTone: PcTone.neutral,
                   title: 'Confidentialité',
                   chevron: true,
-                  onTap: () => context.go('/confidentialite'),
+                  onTap: () => context.push('/confidentialite'),
                 ),
                 const PcDivider(),
                 PcListRow(
