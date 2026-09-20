@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/painting.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Affichage des notifications locales (canal `sendprocolis_channel`).
@@ -39,6 +40,7 @@ class NotificationService {
     priority: Priority.high,
     // Logo SendProColis monochrome : silhouette blanche sur fond transparent.
     icon: 'ic_stat_sendprocolis',
+    color: Color(0xFF018982),
   );
 
   static const DarwinNotificationDetails _iosDetails =
@@ -46,7 +48,8 @@ class NotificationService {
 
   static Future<void> initialize() async {
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        // Même silhouette pour le repli du plugin et les notifications FCM.
+        AndroidInitializationSettings('ic_stat_sendprocolis');
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings();
     const InitializationSettings settings = InitializationSettings(
@@ -59,8 +62,8 @@ class NotificationService {
     );
 
     // App relancée depuis une notification (terminée).
-    final launchDetails = await _localNotifications
-        .getNotificationAppLaunchDetails();
+    final launchDetails =
+        await _localNotifications.getNotificationAppLaunchDetails();
     if (launchDetails?.didNotificationLaunchApp ?? false) {
       _onNotificationResponse(launchDetails!.notificationResponse);
     }

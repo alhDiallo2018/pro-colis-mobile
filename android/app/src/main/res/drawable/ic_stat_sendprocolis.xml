@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Symbole ProColis (colis, abri et repère), simplifié pour rester lisible à
+     24 dp. Android utilise uniquement l'alpha d'une petite icône : les formes
+     sont blanches sur fond transparent, sans le fond carré de l'icône d'app.
+     Un drawable vectoriel conserve cette silhouette sur toutes les densités. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="36"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M162,215 L168,183 Q171,171 184,163 L272,111 L384,177" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M205,223 L275,182 L310,202 L240,244 Z M253,251 L323,210 L358,230 L288,271 Z M205,239 L232,255 L232,284 L248,294 L248,264 L276,280 L276,351 L205,310 Z M289,280 L358,241 L358,312 L289,351 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="14"
+        android:strokeLineCap="round"
+        android:pathData="M124,215 L145,215 M92,244 L156,244 M53,244 L72,244 M115,274 L166,274 M142,302 L174,302" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="36"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M154,318 L270,397 Q277,401 285,396 L395,323" />
+    <!-- Le trou du repère reste transparent après la teinte système. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M426,209 C404,209 386,226 386,249 C386,270 412,306 426,322 C440,306 466,270 466,249 C466,226 448,209 426,209 Z M426,228 C437,228 447,237 447,249 C447,261 437,270 426,270 C414,270 405,261 405,249 C405,237 414,228 426,228 Z" />
+</vector>
