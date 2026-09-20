@@ -109,12 +109,16 @@ class ProcolisQuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final Color? iconColor;
+  final Color? backgroundColor;
 
   const ProcolisQuickAction({
     super.key,
     required this.icon,
     required this.label,
     this.onTap,
+    this.iconColor,
+    this.backgroundColor,
   });
 
   @override
@@ -129,10 +133,10 @@ class ProcolisQuickAction extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppTheme.primaryLight,
+              color: backgroundColor ?? AppTheme.primaryLight,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: Icon(icon, color: AppTheme.primary),
+            child: Icon(icon, color: iconColor ?? AppTheme.primary, size: 26),
           ),
           const SizedBox(height: 6),
           Text(

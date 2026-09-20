@@ -1510,6 +1510,8 @@ class _ClientQuickActions extends StatelessWidget {
         Expanded(
           child: ProcolisQuickAction(
             icon: Icons.add_box_rounded,
+            iconColor: AppTheme.green700,
+            backgroundColor: AppTheme.green50,
             label: 'Nouveau',
             onTap: onNew,
           ),
@@ -1517,7 +1519,9 @@ class _ClientQuickActions extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: ProcolisQuickAction(
-            icon: Icons.sell_rounded,
+            icon: Icons.campaign_rounded,
+            iconColor: AppTheme.amber700,
+            backgroundColor: AppTheme.amber50,
             label: 'Annonces',
             onTap: onLibre,
           ),
@@ -1525,7 +1529,9 @@ class _ClientQuickActions extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: ProcolisQuickAction(
-            icon: Icons.qr_code_2_rounded,
+            icon: Icons.route_rounded,
+            iconColor: AppTheme.deep500,
+            backgroundColor: AppTheme.infoSoft,
             label: 'Suivre',
             onTap: onTrack,
           ),
@@ -1533,7 +1539,9 @@ class _ClientQuickActions extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: ProcolisQuickAction(
-            icon: Icons.local_offer_rounded,
+            icon: Icons.handshake_rounded,
+            iconColor: AppTheme.teal700,
+            backgroundColor: AppTheme.teal50,
             label: 'Offres',
             onTap: onOffers,
           ),

@@ -8,15 +8,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.CAMERA" />
 
-    
-    <!-- ==================== PERMISSIONS APPELS ==================== -->
-    <!-- Pour passer des appels téléphoniques -->
-    <uses-permission android:name="android.permission.CALL_PHONE" />
-    
-    <!-- Pour lire l'état du téléphone -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- Les liens tel: ouvrent le composeur (ACTION_DIAL, déclaré plus bas).
+         Ils ne nécessitent ni CALL_PHONE ni READ_PHONE_STATE, qui imposaient
+         inutilement la téléphonie aux appareils éligibles sur Google Play. -->
     
     <!-- ==================== PERMISSIONS CAMÉRA ==================== -->
     <!-- Pour la caméra (photos/vidéos). Aucun accès galerie/stockage requis :
@@ -37,6 +32,20 @@
     <!-- ==================== PERMISSIONS CONTACTS (optionnel) ==================== -->
     <!-- Utilisé pour choisir rapidement le destinataire d'un colis. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <!-- Une permission peut être interprétée par Google Play comme un matériel
+         obligatoire, même sans uses-feature. Ces fonctions sont optionnelles :
+         saisie manuelle des lieux/contacts, galerie et messages texte restent
+         utilisables sans GPS, caméra ou micro. Déclarer aussi l'autofocus et
+         les variantes de localisation évite les filtres implicites associés. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
     
     <application
         android:label="SendProColis"
