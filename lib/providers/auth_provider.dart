@@ -9,6 +9,8 @@ import 'dart:async';
 
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../services/auth_session.dart';
+import 'package:dio/dio.dart';
 import '../services/biometric_service.dart';
 import '../services/form_draft_store.dart';
 import '../services/push_notification_service.dart';
@@ -18,7 +20,9 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 });
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthState.initial()) {
+  AuthNotifier({ApiService? apiService})
+      : _apiService = apiService ?? ApiService(),
+        super(AuthState.initial()) {
     // Un 401 définitif (jeton expiré, rafraîchissement refusé) doit ramener à
     // l'écran de connexion : sinon l'application reste sur un écran authentifié
     // dont chaque requête échoue, qui tourne sans jamais rien afficher.
@@ -27,13 +31,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   void _handleSessionExpired() {
-    if (!mounted || !state.isAuthenticated) return;
+    if (!mounted) return;
     state = AuthState.unauthenticated();
   }
 
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  late final Future<void> _sessionRestoration;
+  late Future<void> _sessionRestoration;
 
   Future<void> _saveIdentifier(String identifier) async {
     await _storage.write(key: 'saved_identifier', value: identifier);
@@ -44,26 +48,55 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _loadUser() async {
+    String? generation;
     try {
-      final token = await _apiService.getToken();
-      if (token == null || token.isEmpty) {
+      final session = await AuthSessionManager.instance.read();
+      if (!mounted) return;
+      if (session == null) {
         state = AuthState.unauthenticated();
         return;
       }
+      generation = session.generation;
       final user = await _apiService.getCurrentUser();
+      final current = await AuthSessionManager.instance.read();
+      if (!mounted || current?.generation != generation) return;
       state = AuthState.authenticated(user);
       _registerPushToken();
     } catch (error, stackTrace) {
+      // Ne pas journaliser les headers Dio, susceptibles de contenir le Bearer.
       debugPrint(
-        '[AuthNotifier] Impossible de restaurer la session : $error',
-      );
+          '[AuthNotifier] Restauration indisponible (${error.runtimeType})');
       debugPrintStack(
-        label: '[AuthNotifier] Trace de restauration de session',
-        stackTrace: stackTrace,
-      );
-      await _apiService.clearToken();
-      state = AuthState.unauthenticated();
+          label: '[AuthNotifier] Restauration', stackTrace: stackTrace);
+      if (!mounted) return;
+      // Une restauration ancienne ne doit pas modifier une connexion recente.
+      if (generation != null) {
+        try {
+          final current = await AuthSessionManager.instance.read();
+          if (!mounted || (current != null && current.generation != generation))
+            return;
+        } catch (_) {
+          if (!mounted || state.isAuthenticated) return;
+        }
+      }
+      final cause = error is DioException ? error.error : error;
+      if (cause is SessionChangedException) return;
+      if (cause is SessionExpiredException) {
+        state = AuthState.unauthenticated();
+        return;
+      }
+      // Hors ligne/5xx : garder les jetons et proposer une restauration, sans
+      // presenter un ancien profil comme une authentification serveur valide.
+      state = AuthState.pendingSession(
+          'Connexion indisponible. Votre session est conservée.');
     }
+  }
+
+  Future<void> retrySessionRestoration() async {
+    if (!state.hasPendingSession) return;
+    state = AuthState.loading();
+    _sessionRestoration = _loadUser();
+    await _sessionRestoration;
   }
 
   /// Enregistre le token FCM côté backend (fire-and-forget, jamais bloquant).
@@ -116,6 +149,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Le SDK Google n'ouvre pas la session de l'app : seuls les jetons émis
+  /// par notre API après association/inscription peuvent être mémorisés.
+  Future<void> completeGoogleLogin(Map<String, dynamic> result) async {
+    await _sessionRestoration;
+    if (!mounted) return;
+    if (result['status'] != 'authenticated' ||
+        result['user'] is! Map ||
+        result['accessToken'] is! String ||
+        result['refreshToken'] is! String) {
+      throw const FormatException('Réponse de connexion Google invalide');
+    }
+    final user = User.fromJson(Map<String, dynamic>.from(result['user']));
+    final identifier = user.phone;
+    final previousIdentifier = await getSavedIdentifier();
+    // Sans PIN saisi, on ne peut pas remplacer le secret biométrique. Le
+    // supprimer sur changement de compte évite de reconnecter l'ancien user.
+    if (previousIdentifier != identifier) await BiometricService.disable();
+    await _saveIdentifier(identifier);
+    await AuthSessionManager.instance.establish(result);
+    if (!mounted) return;
+    state = AuthState.authenticated(user);
+    _registerPushToken();
+  }
+
   /// Connexion avec le PIN uniquement (utilise l'identifiant sauvegardé)
   Future<Map<String, dynamic>> loginWithSavedPin(String pin) async {
     final savedIdentifier = await getSavedIdentifier();
@@ -153,8 +210,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (address != null && address.isNotEmpty) payload['address'] = address;
       if (city != null && city.isNotEmpty) payload['city'] = city;
       if (region != null && region.isNotEmpty) payload['region'] = region;
-      if (zoneId != null && zoneId.isNotEmpty)
-        payload['zoneId'] = zoneId;
+      if (zoneId != null && zoneId.isNotEmpty) payload['zoneId'] = zoneId;
 
       final result = await _apiService.register(payload);
 
@@ -187,9 +243,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Déverrouille une session endormie à partir de l'empreinte.
   ///
-  /// L'API ayant fermé la session pour inactivité, il ne s'agit pas de rouvrir
-  /// un écran mais de refaire une vraie connexion : l'empreinte ne fait
-  /// qu'autoriser la lecture du PIN mémorisé.
+  /// Le verrou local ne revoque pas la session serveur. Une session restauree
+  /// se deverrouille sans nouvelle connexion ; seul un refus definitif exige
+  /// le repli vers le PIN memorise.
   Future<bool> unlockWithBiometrics() async {
     try {
       if (!await BiometricService.isEnabled()) return false;
@@ -203,6 +259,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // peuvent progresser en parallèle. On attend la première pour éviter que
       // deux connexions concurrentes écrasent l'état utilisateur ou les jetons.
       await _sessionRestoration;
+      if (state.isAuthenticated || state.hasPendingSession) return true;
 
       final pin = await BiometricService.readPin();
       if (pin == null || pin.isEmpty) return false;
@@ -371,12 +428,14 @@ class AuthState {
   final User? user;
   final String? error;
   final bool isAuthenticated;
+  final bool hasPendingSession;
 
   AuthState({
     required this.isLoading,
     this.user,
     this.error,
     this.isAuthenticated = false,
+    this.hasPendingSession = false,
   });
 
   /// État de démarrage : `isLoading` est vrai pour que l'écran de splash (et le
@@ -389,6 +448,8 @@ class AuthState {
       AuthState(isLoading: false, user: user, isAuthenticated: true);
   factory AuthState.unauthenticated() =>
       AuthState(isLoading: false, isAuthenticated: false);
+  factory AuthState.pendingSession(String error) =>
+      AuthState(isLoading: false, error: error, hasPendingSession: true);
   factory AuthState.error(String error) =>
       AuthState(isLoading: false, error: error);
 
@@ -414,12 +475,14 @@ class AuthState {
     User? user,
     String? error,
     bool? isAuthenticated,
+    bool? hasPendingSession,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       user: user ?? this.user,
       error: error ?? this.error,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      hasPendingSession: hasPendingSession ?? this.hasPendingSession,
     );
   }
 }

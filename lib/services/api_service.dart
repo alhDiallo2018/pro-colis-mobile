@@ -6,7 +6,6 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -16,6 +15,7 @@ import '../models/parcel.dart';
 import '../models/user.dart';
 import '../models/wallet.dart';
 import 'api/api.dart';
+import 'auth_session.dart';
 
 class ApiService {
   static const String baseUrl = AppConfig.apiBaseUrl;
@@ -26,20 +26,11 @@ class ApiService {
 
   String mediaUrl(String url) => ApiService.resolveMediaUrl(url);
   final Dio _dio = Dio();
-  final _storage = const FlutterSecureStorage();
 
-  /// Signal émis quand un 401 n'a pas pu être rattrapé par un rafraîchissement :
-  /// la session est morte et l'application doit revenir à l'écran de connexion.
-  /// Sans ce signal l'utilisateur restait sur un écran authentifié dont toutes
-  /// les requêtes échouaient en silence, donc vide et sans issue.
-  static VoidCallback? onSessionExpired;
-
-  static void _notifySessionExpired() {
-    final callback = onSessionExpired;
-    if (callback == null) return;
-    debugPrint('🔒 [API] Session expirée : retour à la connexion');
-    callback();
-  }
+  static VoidCallback? get onSessionExpired =>
+      AuthSessionManager.instance.onExpired;
+  static set onSessionExpired(VoidCallback? callback) =>
+      AuthSessionManager.instance.onExpired = callback;
 
   // Modular API delegates (shared ApiClient)
   ApiClient? _apiClient;
@@ -65,134 +56,16 @@ class ApiService {
   }
 
   void _setupInterceptors() {
-    _dio.interceptors.add(QueuedInterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final isPublic = _isPublicRoute(options.path);
-        if (isPublic) {
-          debugPrint('PUBLIC ${options.method} ${options.path}');
-          return handler.next(options);
-        }
-        // Le stockage sécurisé passe par un canal de plateforme : quand il ne
-        // répond pas (Keystore occupé, plugin absent sur le web), la requête
-        // resterait en file d'attente indéfiniment et l'écran tournerait sans
-        // fin. On préfère partir sans jeton : l'API répond 401 et l'écran
-        // affiche une erreur exploitable.
-        final token = await _storage.read(key: 'token').timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            debugPrint(
-                '⚠️ [API] lecture du jeton expirée pour ${options.path}');
-            return null;
-          },
-        );
-        if (token != null && token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        return handler.next(options);
-      },
-      onResponse: (response, handler) async {
-        if (response.statusCode == 401 &&
-            !_isPublicRoute(response.requestOptions.path) &&
-            response.requestOptions.extra['retriedAfterRefresh'] != true) {
-          final refreshedToken = await _refreshAccessToken();
-          if (refreshedToken != null && refreshedToken.isNotEmpty) {
-            final retryOptions = response.requestOptions;
-            retryOptions.extra['retriedAfterRefresh'] = true;
-            retryOptions.headers['Authorization'] = 'Bearer $refreshedToken';
-            final retryResponse =
-                await _retryRequestWithToken(retryOptions, refreshedToken);
-            return handler.resolve(retryResponse);
-          }
-          await clearToken();
-          _notifySessionExpired();
-        }
-        return handler.next(response);
-      },
-      onError: (DioException error, handler) async {
-        final statusCode = error.response?.statusCode;
-        final path = error.requestOptions.path;
-        if (statusCode == 401 && !_isPublicRoute(path)) {
-          await clearToken();
-          _notifySessionExpired();
-        }
-        return handler.next(error);
-      },
-    ));
+    _dio.interceptors.add(SessionAuthInterceptor(_dio));
   }
 
-  static const Set<String> _publicRoutes = {
-    '/auth/register',
-    '/auth/login-with-pin',
-    '/auth/refresh',
-    '/auth/logout',
-    '/public/',
-    '/health',
-  };
-
-  bool _isPublicRoute(String path) =>
-      _publicRoutes.any((route) => path.startsWith(route));
-
-  Future<String?> _refreshAccessToken() async {
-    final refreshToken = await _storage.read(key: 'refresh_token');
-    if (refreshToken == null || refreshToken.isEmpty) return null;
-    try {
-      final refreshDio = Dio(BaseOptions(
-        baseUrl: baseUrl,
-        headers: {'Content-Type': 'application/json'},
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-        validateStatus: (status) => status != null && status < 500,
-      ));
-      final response = await refreshDio.post<Map<String, dynamic>>(
-        '/auth/refresh',
-        data: {'refreshToken': refreshToken},
-      );
-      final responseData = response.data ?? {};
-      if (response.statusCode == 200 && responseData['accessToken'] != null) {
-        await _storeAuthTokens(responseData);
-        return responseData['accessToken']?.toString();
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<Response<dynamic>> _retryRequestWithToken(
-    RequestOptions requestOptions,
-    String accessToken,
-  ) async {
-    final retryDio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      headers: {'Content-Type': 'application/json'},
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      validateStatus: (status) => status != null && status < 500,
-    ));
-    requestOptions.headers['Authorization'] = 'Bearer $accessToken';
-    return retryDio.fetch<dynamic>(requestOptions);
-  }
-
-  Future<void> _storeAuthTokens(Map<String, dynamic> responseData) async {
-    final accessToken = responseData['accessToken']?.toString();
-    final refreshToken = responseData['refreshToken']?.toString();
-    if (accessToken != null && accessToken.isNotEmpty) {
-      await setToken(accessToken);
-    }
-    if (refreshToken != null && refreshToken.isNotEmpty) {
-      await _storage.write(key: 'refresh_token', value: refreshToken);
-    }
-  }
-
-  Future<String?> getToken() async => await _storage.read(key: 'token');
-
-  Future<void> setToken(String token) async {
-    await _storage.write(key: 'token', value: token);
-  }
-
+  Future<void> _storeAuthTokens(Map<String, dynamic> data) =>
+      AuthSessionManager.instance.establish(data);
+  Future<String?> getToken() => AuthSessionManager.instance.accessToken();
+  Future<void> setToken(String token) =>
+      AuthSessionManager.instance.setAccessToken(token);
   Future<void> clearToken() async {
-    await _storage.delete(key: 'token');
-    await _storage.delete(key: 'refresh_token');
+    await AuthSessionManager.instance.clear();
   }
 
   Map<String, dynamic> _handleResponse(Response response) {
@@ -219,18 +92,17 @@ class ApiService {
   /// l'appareil. L'échec réseau ne bloque pas la déconnexion locale, qui doit
   /// aboutir même hors ligne.
   Future<void> logout() async {
+    // Invalider localement AVANT le reseau empeche un refresh retardataire de
+    // ressusciter le compte. Le serveur revoque aussi le successeur de ce jeton.
+    final previous = await AuthSessionManager.instance.clear();
+    if (previous?.refreshToken == null) return;
     try {
-      final refreshToken = await _storage.read(key: 'refresh_token');
-      if (refreshToken != null && refreshToken.isNotEmpty) {
-        await _dio.post(
-          '/auth/logout',
-          data: {'refreshToken': refreshToken},
-        );
-      }
+      await _dio
+          .post('/auth/logout', data: {'refreshToken': previous!.refreshToken});
     } catch (error) {
-      debugPrint('[API] Déconnexion serveur impossible : $error');
+      debugPrint(
+          '[API] Deconnexion serveur indisponible (${error.runtimeType})');
     }
-    await clearToken();
   }
 
   // ==================== AUTH ====================
@@ -1536,6 +1408,20 @@ class ApiService {
 
   // ==================== SUPPORT ADMIN ====================
 
+  /// API du fil partage : les erreurs restent visibles au lieu de devenir une
+  /// liste vide, notamment lorsqu'une conversation a change d'agent.
+  Future<Map<String, dynamic>> supportChatRequest(String path,
+      {Map<String, dynamic>? data}) async {
+    final response = data == null
+        ? await _dio.get('/support/chat$path')
+        : await _dio.post('/support/chat$path', data: data);
+    final result = _handleResponse(response);
+    if (result['success'] != true) {
+      throw Exception(result['message'] ?? 'Support indisponible');
+    }
+    return result;
+  }
+
   Future<List<Map<String, dynamic>>> adminSupportConversations() async {
     try {
       final response = await _dio.get('/messages/admin/support/conversations');
@@ -1774,8 +1660,8 @@ class ApiService {
   /// Les erreurs restent distinctes d'une liste vide : zéro dette n'est
   /// affiché qu'après une réponse serveur réussie.
   Future<Map<String, dynamic>> getClientDebts({int page = 1}) async {
-    final response = await _dio.get('/client/debts',
-        queryParameters: {'page': page, 'limit': 20});
+    final response = await _dio
+        .get('/client/debts', queryParameters: {'page': page, 'limit': 20});
     return _handleResponse(response);
   }
 

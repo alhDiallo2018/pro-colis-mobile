@@ -62,3 +62,6 @@ android/key.properties
 # Configuration locale de SDK (chemins machine, clés API locales).
 local.properties
 **/local.properties
+
+# Livrables Android signés, archivés localement hors des sources.
+/releases/android/

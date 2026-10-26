@@ -12,20 +12,15 @@ abstract final class AppConfig {
     defaultValue: 'https://sendprocolis.com/api/v1',
   );
 
-  /// Inactivité tolérée avant verrouillage de l'écran.
-  ///
-  /// Doit refléter `SESSION_IDLE_TIMEOUT` côté API : si l'application est plus
-  /// permissive, l'utilisateur retrouve son écran puis se fait éjecter à la
-  /// première requête ; si elle est plus stricte, elle verrouille une session
-  /// encore vivante. Injectable au build pour rester alignée sans nouvelle
-  /// version du code.
-  static const int sessionIdleTimeoutSeconds = int.fromEnvironment(
-    'SESSION_IDLE_TIMEOUT_SECONDS',
-    defaultValue: 60,
+  /// Verrou LOCAL uniquement : la biometrie protege l'ecran sans fermer la
+  /// session reseau. L'ancien define reste accepte pour les scripts de build.
+  static const int sessionLockTimeoutSeconds = int.fromEnvironment(
+    'SESSION_LOCK_TIMEOUT_SECONDS',
+    defaultValue:
+        int.fromEnvironment('SESSION_IDLE_TIMEOUT_SECONDS', defaultValue: 60),
   );
-
-  static Duration get sessionIdleTimeout =>
-      Duration(seconds: sessionIdleTimeoutSeconds);
+  static Duration get sessionLockTimeout =>
+      Duration(seconds: sessionLockTimeoutSeconds);
 
   static const String _configuredPublicAppUrl = String.fromEnvironment(
     'APP_BASE_URL',

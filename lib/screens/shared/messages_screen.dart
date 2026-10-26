@@ -29,12 +29,14 @@ class MessagesScreen extends ConsumerStatefulWidget {
   final String? initialPeerId;
   final String? initialPeerName;
   final String? initialParcelId;
+  final String? supportConversationId;
 
   const MessagesScreen({
     super.key,
     this.initialPeerId,
     this.initialPeerName,
     this.initialParcelId,
+    this.supportConversationId,
   });
 
   @override
@@ -60,6 +62,15 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   StreamSubscription<PlayerState>? _audioStateSubscription;
   String? _loadingThreadKey;
   bool _isSending = false;
+  String? _supportError;
+  Map<String, dynamic>? _supportConversation;
+
+  bool get _canReplySupport =>
+      widget.supportConversationId == null ||
+      _supportConversation?['userId'] == ref.read(authProvider).user?.id ||
+      (_supportConversation?['assignedTo']?['id'] ==
+              ref.read(authProvider).user?.id &&
+          _supportConversation?['status'] == 'open');
 
   bool _isRecording = false;
   bool _isPaused = false;
@@ -109,8 +120,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     if (parcelId != null && parcelId.isNotEmpty) {
       await _loadConversations();
       for (final conv in _conversations) {
-        final convParcelId = conv['parcelId']?.toString() ??
-            conv['parcel']?['id']?.toString();
+        final convParcelId =
+            conv['parcelId']?.toString() ?? conv['parcel']?['id']?.toString();
         if (convParcelId != parcelId) continue;
 
         final peer = _extractPeer(conv);
@@ -120,9 +131,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         if (peerId != null && peerId.isNotEmpty) {
           await _openConversation(
             peerId,
-            peerName ??
-                widget.initialPeerName ??
-                'Conversation',
+            peerName ?? widget.initialPeerName ?? 'Conversation',
             parcelId: parcelId,
           );
           return;
@@ -167,6 +176,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   }
 
   Future<void> _loadConversations() async {
+    if (widget.supportConversationId != null) return;
     try {
       final convs = await _apiService.getConversations();
       if (mounted) {
@@ -188,19 +198,31 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     if (_loadingThreadKey == threadKey) return;
     _loadingThreadKey = threadKey;
     try {
-      final msgs = await _apiService.getMessagesThread(
-        peerId,
-        parcelId: parcelId,
-      );
+      List<Map<String, dynamic>> msgs;
+      if (widget.supportConversationId != null) {
+        final result = await _apiService.supportChatRequest(
+            '/conversations/${widget.supportConversationId}');
+        msgs = List<Map<String, dynamic>>.from(result['messages'] as List);
+        if (mounted)
+          setState(() => _supportConversation =
+              Map<String, dynamic>.from(result['conversation'] as Map));
+      } else {
+        msgs = await _apiService.getMessagesThread(peerId, parcelId: parcelId);
+      }
       // Un ancien appel ne doit jamais remplacer le fil sélectionné pendant
       // que la requête réseau était en cours.
-      if (mounted &&
-          peerId == _activePeerId &&
-          parcelId == _activeParcelId) {
-        setState(() => _messages = msgs);
+      if (mounted && peerId == _activePeerId && parcelId == _activeParcelId) {
+        setState(() {
+          _messages = msgs;
+          _supportError = null;
+        });
         _scrollToBottom();
       }
     } catch (error, stackTrace) {
+      if (mounted && widget.supportConversationId != null) {
+        setState(() => _supportError =
+            'Chargement impossible. Nouvelle tentative en cours.');
+      }
       debugPrint(
         'MessagesScreen: chargement du fil $threadKey impossible '
         '($error)\n$stackTrace',
@@ -267,8 +289,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     return {'id': null, 'name': null};
   }
 
-  Future<void> _openConversation(
-      String peerId, String peerName, {String? parcelId}) async {
+  Future<void> _openConversation(String peerId, String peerName,
+      {String? parcelId}) async {
     if (peerId.isEmpty) return;
     setState(() {
       _activePeerId = peerId;
@@ -284,27 +306,50 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       await _loadParcelDetail();
     }
     await _loadMessages();
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
-  Future<void> _sendMessage({String? audioUrl, String? photoUrl, String? videoUrl}) async {
+  Future<void> _sendMessage(
+      {String? audioUrl, String? photoUrl, String? videoUrl}) async {
+    if (!_canReplySupport) return;
     final body = _messageController.text.trim();
-    if ((body.isEmpty && audioUrl == null && photoUrl == null && videoUrl == null) ||
+    if ((body.isEmpty &&
+            audioUrl == null &&
+            photoUrl == null &&
+            videoUrl == null) ||
         _activePeerId == null ||
         _isSending) return;
 
     setState(() => _isSending = true);
     final data = <String, dynamic>{
       'receiverId': _activePeerId,
-      'body': (audioUrl != null || photoUrl != null || videoUrl != null) ? '' : body,
+      'body': (audioUrl != null || photoUrl != null || videoUrl != null)
+          ? ''
+          : body,
       if (audioUrl != null) 'audioUrl': audioUrl,
       if (photoUrl != null) 'photoUrl': photoUrl,
       if (videoUrl != null) 'videoUrl': videoUrl,
       if (_activeParcelId != null) 'parcelId': _activeParcelId,
     };
-    final sendResult = await _apiService.sendMessage(data);
+    Map<String, dynamic> sendResult;
+    try {
+      sendResult = widget.supportConversationId == null
+          ? await _apiService.sendMessage(data)
+          : await _apiService.supportChatRequest(
+              '/conversations/${widget.supportConversationId}/messages',
+              data: data);
+    } catch (error) {
+      if (mounted) {
+        _showSnackBar(error.toString());
+        setState(() => _isSending = false);
+      }
+      await _loadMessages();
+      return;
+    }
+    if (!mounted) return;
     if (sendResult['success'] == false && mounted) {
-      _showSnackBar(sendResult['message']?.toString() ?? "Échec de l'envoi. Vérifiez que le destinataire existe.");
+      _showSnackBar(sendResult['message']?.toString() ??
+          "Échec de l'envoi. Vérifiez que le destinataire existe.");
       setState(() => _isSending = false);
       return;
     }
@@ -362,7 +407,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     if (await _audioRecorder.hasPermission()) {
       try {
         final tempDir = Directory.systemTemp;
-        final filePath = '${tempDir.path}/sendprocolis_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        final filePath =
+            '${tempDir.path}/sendprocolis_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _audioRecorder.start(
           const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
           path: filePath,
@@ -412,7 +458,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     if (!_isRecording) return;
 
     final path = await _audioRecorder.stop();
-    setState(() { _isRecording = false; _isPaused = false; });
+    setState(() {
+      _isRecording = false;
+      _isPaused = false;
+    });
 
     if (path != null && _activePeerId != null) {
       _showSnackBar('Envoi du message vocal...');
@@ -551,7 +600,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         await _loadMessages();
         await _loadParcelDetail();
       } else {
-        _showSnackBar(result['message']?.toString() ?? 'Erreur lors de l\'acceptation');
+        _showSnackBar(
+            result['message']?.toString() ?? 'Erreur lors de l\'acceptation');
       }
     } catch (_) {
       _showSnackBar('Erreur lors de l\'acceptation');
@@ -564,7 +614,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     setState(() {
       _showPriceInput = true;
       _priceController.clear();
-      _messageController.text = 'Contre-proposition à ${nf.format(currentAmount)} FCFA : ';
+      _messageController.text =
+          'Contre-proposition à ${nf.format(currentAmount)} FCFA : ';
       _pendingNegotiateBidId = bidId;
     });
   }
@@ -623,11 +674,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     const SizedBox(height: 16),
 
                     // Tracking and status
-                    _buildParcelDetailRow(
-                        'N° de suivi', parcel.trackingNumber),
+                    _buildParcelDetailRow('N° de suivi', parcel.trackingNumber),
                     const SizedBox(height: 8),
-                    _buildParcelDetailRow(
-                        'Statut', parcel.status.label),
+                    _buildParcelDetailRow('Statut', parcel.status.label),
                     const SizedBox(height: 16),
 
                     // Description
@@ -648,9 +697,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     Row(
                       children: [
                         Expanded(
-                          child: _buildParcelDetailBox(
-                              'Poids', parcel.formattedWeight,
-                              Icons.fitness_center),
+                          child: _buildParcelDetailBox('Poids',
+                              parcel.formattedWeight, Icons.fitness_center),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -666,13 +714,16 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                       Row(
                         children: [
                           Expanded(
-                            child: _buildParcelDetailBox('Prix',
-                                formatter.format(parcel.price!), Icons.monetization_on),
+                            child: _buildParcelDetailBox(
+                                'Prix',
+                                formatter.format(parcel.price!),
+                                Icons.monetization_on),
                           ),
                           if (parcel.negotiatedPrice != null) ...[
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _buildParcelDetailBox('Prix négocié',
+                              child: _buildParcelDetailBox(
+                                  'Prix négocié',
                                   formatter.format(parcel.negotiatedPrice!),
                                   Icons.handshake,
                                   color: AppTheme.green500),
@@ -705,12 +756,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.flag,
-                            size: 16, color: AppTheme.slate500),
+                        Icon(Icons.flag, size: 16, color: AppTheme.slate500),
                         const SizedBox(width: 6),
                         Expanded(
-                            child: Text(
-                                parcel.arrivalZoneName ?? 'Non défini',
+                            child: Text(parcel.arrivalZoneName ?? 'Non défini',
                                 style: TextStyle(
                                     fontSize: 14,
                                     color: AppTheme.textPrimary))),
@@ -736,8 +785,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                     if (parcel.receiverAddress != null &&
                         parcel.receiverAddress!.isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      _buildParcelDetailRow(
-                          'Adresse', parcel.receiverAddress!),
+                      _buildParcelDetailRow('Adresse', parcel.receiverAddress!),
                     ],
                     const SizedBox(height: 16),
 
@@ -761,12 +809,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                               fontSize: 13,
                               color: AppTheme.slate500)),
                       const SizedBox(height: 8),
-                      _buildParcelDetailRow(
-                          'Nom', parcel.driverName ?? ''),
+                      _buildParcelDetailRow('Nom', parcel.driverName ?? ''),
                       if (parcel.driverPhone != null) ...[
                         const SizedBox(height: 4),
-                        _buildParcelDetailRow(
-                            'Téléphone', parcel.driverPhone!),
+                        _buildParcelDetailRow('Téléphone', parcel.driverPhone!),
                       ],
                       const SizedBox(height: 16),
                     ],
@@ -786,20 +832,17 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                           return GestureDetector(
                             onTap: () => _openUrl(url),
                             child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(10),
                               child: Image.network(
                                 url,
                                 width: 80,
                                 height: 80,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    Container(
+                                errorBuilder: (_, __, ___) => Container(
                                   width: 80,
                                   height: 80,
                                   color: AppTheme.slate100,
-                                  child: Icon(
-                                      Icons.broken_image,
+                                  child: Icon(Icons.broken_image,
                                       color: AppTheme.slate400),
                                 ),
                               ),
@@ -827,29 +870,24 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: AppTheme.slate50,
-                                borderRadius:
-                                    BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: AppTheme.slate200),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppTheme.slate200),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.videocam,
-                                      color: AppTheme.primary),
+                                  Icon(Icons.videocam, color: AppTheme.primary),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       'Voir la vidéo',
                                       style: TextStyle(
                                           color: AppTheme.primary,
-                                          fontWeight:
-                                              FontWeight.w600,
+                                          fontWeight: FontWeight.w600,
                                           fontSize: 13),
                                     ),
                                   ),
                                   Icon(Icons.open_in_new,
-                                      size: 16,
-                                      color: AppTheme.slate400),
+                                      size: 16, color: AppTheme.slate400),
                                 ],
                               ),
                             ),
@@ -869,35 +907,27 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                       const SizedBox(height: 8),
                       ...parcel.audioUrls.map((url) {
                         final isThisPlaying =
-                            _currentlyPlayingAudioUrl == url &&
-                                _isPlayingAudio;
+                            _currentlyPlayingAudioUrl == url && _isPlayingAudio;
                         return Padding(
-                          padding:
-                              const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: GestureDetector(
                             onTap: () => _togglePlayAudio(url),
                             child: Container(
-                              padding:
-                                  const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: AppTheme.amber50,
-                                borderRadius:
-                                    BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                    color: AppTheme
-                                        .amber400
-                                        .withAlpha(60)),
+                                    color: AppTheme.amber400.withAlpha(60)),
                               ),
                               child: Row(
-                                mainAxisSize:
-                                    MainAxisSize.min,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
                                     isThisPlaying
                                         ? Icons.pause
                                         : Icons.play_arrow,
-                                    color: AppTheme
-                                        .amber700,
+                                    color: AppTheme.amber700,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
@@ -905,10 +935,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                                         ? 'Lecture...'
                                         : 'Écouter le message vocal',
                                     style: TextStyle(
-                                        color: AppTheme
-                                            .amber700,
-                                        fontWeight:
-                                            FontWeight.w600,
+                                        color: AppTheme.amber700,
+                                        fontWeight: FontWeight.w600,
                                         fontSize: 13),
                                   ),
                                 ],
@@ -927,8 +955,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                             fontSize: 13,
                             color: AppTheme.slate500)),
                     const SizedBox(height: 8),
-                    _buildParcelDetailRow(
-                        'Créé le', parcel.formattedDateTime),
+                    _buildParcelDetailRow('Créé le', parcel.formattedDateTime),
                     if (parcel.pickupDate != null) ...[
                       const SizedBox(height: 4),
                       _buildParcelDetailRow(
@@ -966,15 +993,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         ),
         Expanded(
           child: Text(value,
-              style:
-                  TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
+              style: TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
         ),
       ],
     );
   }
 
-  Widget _buildParcelDetailBox(
-      String label, String value, IconData icon, {Color? color}) {
+  Widget _buildParcelDetailBox(String label, String value, IconData icon,
+      {Color? color}) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1062,7 +1088,11 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               title: Row(
                 children: [
                   PcAvatar(_activePeerName ?? 'Conversation',
-                      size: 34, status: PcAvatarStatus.online),
+                      size: 34,
+                      status: widget.supportConversationId == null ||
+                              _supportConversation?['assignedTo'] != null
+                          ? PcAvatarStatus.online
+                          : PcAvatarStatus.offline),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -1101,8 +1131,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
             ),
       body: _activePeerId != null ? _buildChatView() : _buildConversationList(),
       // Barre de nav uniquement sur la liste des conversations, pas dans le chat
-      bottomNavigationBar:
-          _activePeerId != null ? null : const AppBottomNav(),
+      bottomNavigationBar: _activePeerId != null ? null : const AppBottomNav(),
     );
   }
 
@@ -1119,6 +1148,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   }
 
   void _closeConversation() {
+    if (widget.supportConversationId != null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
     _audioPlayer.stop();
     setState(() {
       _activePeerId = null;
@@ -1149,7 +1182,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         icon: Icons.forum_rounded,
         tone: PcTone.primary,
         title: 'Aucune conversation',
-        message: 'Vos echanges avec les chauffeurs et clients apparaitront ici.',
+        message:
+            'Vos echanges avec les chauffeurs et clients apparaitront ici.',
       );
     }
 
@@ -1172,7 +1206,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         icon: Icons.forum_rounded,
         tone: PcTone.primary,
         title: 'Aucune conversation',
-        message: 'Vos echanges avec les chauffeurs et clients apparaitront ici.',
+        message:
+            'Vos echanges avec les chauffeurs et clients apparaitront ici.',
       );
     }
 
@@ -1186,9 +1221,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         itemBuilder: (context, index) {
           final conv = deduped[index];
           final peer = _extractPeer(conv);
-          final peerName = peer['name']?.isNotEmpty == true
-              ? peer['name']!
-              : 'Inconnu';
+          final peerName =
+              peer['name']?.isNotEmpty == true ? peer['name']! : 'Inconnu';
           final peerId = peer['id'] ?? '';
           final parcelId = conv['parcelId']?.toString();
           final trackingNumber = conv['trackingNumber']?.toString();
@@ -1271,7 +1305,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
             itemBuilder: (context, index) {
               final msg = _messages[index];
               final isLastNonMePrice = _isLastNonMePriceAtIndex(index);
-              return _buildMessageBubble(msg, user, isLastNonMePrice: isLastNonMePrice);
+              return _buildMessageBubble(msg, user,
+                  isLastNonMePrice: isLastNonMePrice);
             },
           ),
         ),
@@ -1282,8 +1317,22 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         // Price input row
         if (_showPriceInput) _buildPriceInputRow(),
 
+        if (_supportError != null)
+          Padding(
+              padding: const EdgeInsets.all(8), child: Text(_supportError!)),
+
         // Input bar
-        _buildInputBar(),
+        if (widget.supportConversationId != null)
+          Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                _supportConversation?['assignedTo'] != null
+                    ? 'Prise en charge par ${_supportConversation!['assignedTo']['fullName']}'
+                    : _supportConversation?['status'] == 'closed'
+                        ? 'Conversation clôturée. Un nouveau message rouvrira la demande.'
+                        : 'En attente d’un agent disponible. Vous pouvez laisser votre message.',
+              )),
+        if (_canReplySupport) _buildInputBar(),
       ],
     );
   }
@@ -1354,15 +1403,15 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               ),
             ),
             const SizedBox(width: 6),
-            Icon(Icons.info_outline_rounded,
-                size: 18, color: AppTheme.teal600),
+            Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.teal600),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> msg, dynamic user, {bool isLastNonMePrice = false}) {
+  Widget _buildMessageBubble(Map<String, dynamic> msg, dynamic user,
+      {bool isLastNonMePrice = false}) {
     final isMe = msg['senderId'] == user?.id;
     final body = msg['body']?.toString() ?? '';
     final audioUrl = msg['audioUrl']?.toString();
@@ -1380,11 +1429,26 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       bubble = _buildPhotoBubble(msg, isMe, photoUrl, body);
     } else if (hasVideo) {
       bubble = _buildVideoBubble(msg, isMe, videoUrl, body);
-    } else if (body.startsWith('__PRIX__:')) {
+    } else if (widget.supportConversationId == null &&
+        body.startsWith('__PRIX__:')) {
       bubble = _buildPriceProposal(msg, isMe, body, bidId,
           isLastNonMePrice: isLastNonMePrice);
     } else {
       bubble = _buildTextBubble(msg, isMe, body);
+    }
+
+    if (widget.supportConversationId != null) {
+      // Le nom reste celui de l'auteur du message, meme apres un transfert.
+      return Column(
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(msg['senderName'] as String? ?? 'Support',
+                    style: const TextStyle(fontSize: 11))),
+            bubble,
+          ]);
     }
 
     // Modifier et supprimer se cachent derrière un appui long, comme dans les
@@ -1392,8 +1456,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     // propositions de prix figées) viennent du provider pour ne pas être
     // réécrites ici en divergeant de l'API.
     final currentUserId = user?.id?.toString();
-    final canEdit = canEditMessage(msg, currentUserId);
-    final canDelete = canDeleteMessage(msg, currentUserId);
+    final canEdit = widget.supportConversationId == null &&
+        canEditMessage(msg, currentUserId);
+    final canDelete = widget.supportConversationId == null &&
+        canDeleteMessage(msg, currentUserId);
     if (!canEdit && !canDelete) return bubble;
 
     return GestureDetector(
@@ -1504,7 +1570,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     if (result['success'] == true) {
       await _loadMessages();
     } else {
-      _showMessageError(result['message']?.toString() ?? 'Modification refusée');
+      _showMessageError(
+          result['message']?.toString() ?? 'Modification refusée');
     }
   }
 
@@ -1528,8 +1595,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-            child: const Text('Supprimer',
-                style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Supprimer', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1562,8 +1629,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: isMe ? AppTheme.primary : AppTheme.cardColor,
           borderRadius: BorderRadius.only(
@@ -1623,8 +1690,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.72),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
         decoration: BoxDecoration(
           color: isMe ? AppTheme.primary : AppTheme.cardColor,
           borderRadius: BorderRadius.only(
@@ -1644,7 +1711,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               child: Container(
                 width: 38,
                 height: 38,
-                decoration: BoxDecoration(color: playBg, shape: BoxShape.circle),
+                decoration:
+                    BoxDecoration(color: playBg, shape: BoxShape.circle),
                 child: Icon(
                   isThisPlaying
                       ? Icons.pause_rounded
@@ -1694,8 +1762,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         padding: body.isNotEmpty
             ? const EdgeInsets.all(10)
             : const EdgeInsets.all(4),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: isMe ? AppTheme.primary : AppTheme.cardColor,
           borderRadius: BorderRadius.only(
@@ -1767,8 +1835,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         padding: body.isNotEmpty
             ? const EdgeInsets.all(10)
             : const EdgeInsets.all(4),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: isMe ? AppTheme.primary : AppTheme.cardColor,
           borderRadius: BorderRadius.only(
@@ -1831,7 +1899,22 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   }
 
   static const List<double> _waveHeights = [
-    8, 14, 20, 12, 24, 16, 10, 22, 14, 18, 9, 20, 13, 8, 16, 11,
+    8,
+    14,
+    20,
+    12,
+    24,
+    16,
+    10,
+    22,
+    14,
+    18,
+    9,
+    20,
+    13,
+    8,
+    16,
+    11,
   ];
 
   Widget _buildWaveform({
@@ -1860,15 +1943,17 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   }
 
   Widget _buildPriceProposal(
-      Map<String, dynamic> msg, bool isMe, String body, String? bidId, {bool isLastNonMePrice = false}) {
+      Map<String, dynamic> msg, bool isMe, String body, String? bidId,
+      {bool isLastNonMePrice = false}) {
     final remaining = body.substring('__PRIX__:'.length);
     final parts = remaining.split(':');
     final amountStr = parts.first;
-    final priceMessage =
-        parts.length > 1 ? parts.sublist(1).join(':') : '';
+    final priceMessage = parts.length > 1 ? parts.sublist(1).join(':') : '';
     final amount = double.tryParse(amountStr);
     final nf = NumberFormat.decimalPattern('fr_FR');
-    final showActions = !isMe && bidId != null && bidId.isNotEmpty &&
+    final showActions = !isMe &&
+        bidId != null &&
+        bidId.isNotEmpty &&
         _activeParcel?.senderId == ref.read(authProvider).user?.id &&
         isLastNonMePrice;
 
@@ -1877,8 +1962,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.82),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
         decoration: BoxDecoration(
           color: AppTheme.amber50,
           borderRadius: BorderRadius.only(
@@ -1992,7 +2077,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       decoration: BoxDecoration(
         color: _isPaused ? AppTheme.amber50 : AppTheme.red50,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: _isPaused ? AppTheme.amber100 : AppTheme.red100),
+        border:
+            Border.all(color: _isPaused ? AppTheme.amber100 : AppTheme.red100),
       ),
       child: Row(
         children: [
@@ -2121,8 +2207,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                         color: amber ? AppTheme.amberOnFg : Colors.white),
                   )
                 : Icon(Icons.send_rounded,
-                    size: 20,
-                    color: amber ? AppTheme.amberOnFg : Colors.white),
+                    size: 20, color: amber ? AppTheme.amberOnFg : Colors.white),
           ),
         ),
       ),
@@ -2140,23 +2225,24 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         top: false,
         child: Row(
           children: [
-            // Add / price toggle button
-            PcIconButton(
-              Icons.payments_rounded,
-              variant: _showPriceInput
-                  ? PcIconButtonVariant.soft
-                  : PcIconButtonVariant.ghost,
-              round: true,
-              tooltip: 'Proposer un prix',
-              onPressed: () {
-                setState(() {
-                  _showPriceInput = !_showPriceInput;
-                  if (!_showPriceInput) {
-                    _priceController.clear();
-                  }
-                });
-              },
-            ),
+            // Les propositions tarifaires concernent uniquement les livraisons.
+            if (widget.supportConversationId == null)
+              PcIconButton(
+                Icons.payments_rounded,
+                variant: _showPriceInput
+                    ? PcIconButtonVariant.soft
+                    : PcIconButtonVariant.ghost,
+                round: true,
+                tooltip: 'Proposer un prix',
+                onPressed: () {
+                  setState(() {
+                    _showPriceInput = !_showPriceInput;
+                    if (!_showPriceInput) {
+                      _priceController.clear();
+                    }
+                  });
+                },
+              ),
             const SizedBox(width: 4),
 
             // Photo picker button
@@ -2165,9 +2251,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
               variant: PcIconButtonVariant.ghost,
               round: true,
               tooltip: 'Envoyer une photo',
-              onPressed: _isBusyMedia
-                  ? null
-                  : () => _showMediaPicker(context),
+              onPressed: _isBusyMedia ? null : () => _showMediaPicker(context),
             ),
             const SizedBox(width: 2),
 
@@ -2226,12 +2310,12 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
                             ? Icons.mic_off_rounded
                             : Icons.mic_none_rounded,
                         size: 22,
-                        color: _isRecording
-                            ? AppTheme.red400
-                            : AppTheme.slate500,
+                        color:
+                            _isRecording ? AppTheme.red400 : AppTheme.slate500,
                       ),
                       tooltip: 'Message vocal',
-                      onPressed: _isRecording ? _stopRecording : _startRecording,
+                      onPressed:
+                          _isRecording ? _stopRecording : _startRecording,
                     ),
                   ],
                 ),

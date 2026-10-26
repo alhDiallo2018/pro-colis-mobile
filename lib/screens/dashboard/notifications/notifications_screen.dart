@@ -534,6 +534,7 @@ class _NotificationItem {
       : DateFormat("EEEE d MMMM yyyy 'à' HH:mm", 'fr_FR').format(createdAt!);
 
   String? get relatedRoute {
+    if (type == 'support_chat') return '/support';
     if (parcelId != null && parcelId!.isNotEmpty) {
       return '/parcel/${Uri.encodeComponent(parcelId!)}';
     }
@@ -544,6 +545,7 @@ class _NotificationItem {
   }
 
   String? get relatedActionLabel {
+    if (type == 'support_chat') return 'Ouvrir la conversation support';
     if (parcelId != null && parcelId!.isNotEmpty) return 'Voir le colis';
     if (advertisementId != null && advertisementId!.isNotEmpty) {
       return 'Voir l’annonce';

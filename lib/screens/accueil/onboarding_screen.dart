@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart'; // À adapter selon votre structure
@@ -20,11 +21,50 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   static const int _questionCount = 3;
+  static const String _seenKey = 'onboarding_seen';
 
+  bool _checkingFirstVisit = true;
   int _currentStep = 0;
   _OnboardingGoal? _goal;
   _OnboardingExperience? _experience;
   _OnboardingPriority? _priority;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstVisit();
+  }
+
+  Future<void> _checkFirstVisit() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      if (preferences.getBool(_seenKey) == true) {
+        // Le routeur renvoie déjà les utilisateurs connectés au dashboard.
+        // Cela couvre aussi un retour au logo /landing après déconnexion.
+        context.go('/login');
+        return;
+      }
+      setState(() => _checkingFirstVisit = false);
+      // Mémoriser la première présentation, même si le questionnaire n'est
+      // pas terminé. Ne pas notifier le routeur : le parcours en cours doit
+      // rester visible jusqu'à ce que l'utilisateur le quitte lui-même.
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        try {
+          if (!await preferences.setBool(_seenKey, true)) {
+            debugPrint('[Onboarding] Présentation non mémorisée.');
+          }
+        } catch (error) {
+          debugPrint('[Onboarding] Enregistrement : ${error.runtimeType}');
+        }
+      });
+    } catch (error) {
+      // Une panne du stockage local ne doit pas bloquer l'accès à l'app.
+      debugPrint('[Onboarding] Lecture : ${error.runtimeType}');
+      if (mounted) setState(() => _checkingFirstVisit = false);
+    }
+  }
 
   bool get _isResultStep => _currentStep == _questionCount;
 
@@ -58,6 +98,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Évite un flash du questionnaire lors des lancements suivants.
+    if (_checkingFirstVisit) {
+      return const Scaffold(body: Center(child: AppLogo(size: 180)));
+    }
     // Récupérer l'état d'authentification
     final authState = ref.watch(authProvider);
     final isLoggedIn = authState.isAuthenticated;

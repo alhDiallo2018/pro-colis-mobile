@@ -24,10 +24,9 @@ typedef SessionClock = DateTime Function();
 
 /// Verrouillage de l'écran au lancement et après un arrière-plan prolongé.
 ///
-/// L'API ferme la session au-delà de `SESSION_IDLE_TIMEOUT`. Sans ce verrou,
-/// l'utilisateur retrouverait ses écrans habituels dont chaque requête
-/// répondrait 401, puis serait renvoyé à la connexion complète. Le verrou lui
-/// offre le chemin court : une empreinte au lieu du PIN.
+/// Le verrou est local et independant de l'expiration serveur. Le passage en
+/// arriere-plan ne supprime jamais les jetons et le retour peut fonctionner
+/// sans connexion reseau. La verification API conserve ses propres limites.
 ///
 /// Au démarrage à froid, il empêche aussi une restauration silencieuse du jeton
 /// de contourner l'option biométrique choisie dans les paramètres.
@@ -92,7 +91,7 @@ class SessionLockNotifier extends StateNotifier<SessionLockStatus> {
     if (leftAt == null || state != SessionLockStatus.unlocked) return;
 
     final away = _now().difference(leftAt);
-    if (away < AppConfig.sessionIdleTimeout) return;
+    if (away < AppConfig.sessionLockTimeout) return;
 
     try {
       if (!await _isBiometricEnabled()) return;

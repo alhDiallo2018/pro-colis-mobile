@@ -7,6 +7,7 @@ class ProcolisCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
+
   /// `null` : couleur de carte par défaut, résolue selon le thème courant.
   final Color? color;
 
@@ -203,6 +204,8 @@ class ProcolisTabItem {
   });
 }
 
+/// Navigation commune : le bouton médian garde sa destination et gagne une
+/// silhouette surélevée. Les barres à quatre onglets restent équilibrées.
 class ProcolisTabBar extends StatelessWidget {
   final List<ProcolisTabItem> items;
   final int currentIndex;
@@ -217,33 +220,61 @@ class ProcolisTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final middle =
+        items.length >= 3 && items.length.isOdd ? items.length ~/ 2 : null;
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 220);
+    // La partie surélevée reste DANS les limites de la barre : elle reçoit
+    // aussi les taps sur son bord supérieur, sans empiéter sur le contenu.
+    final labelHeight = MediaQuery.textScalerOf(context).scale(11) * 1.25;
     return SafeArea(
       top: false,
-      child: Container(
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          border: Border(top: BorderSide(color: AppTheme.slate200)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0B464F).withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: SizedBox(
+        height: 88 + labelHeight,
+        child: Stack(
           children: [
-            for (var i = 0; i < items.length; i++)
-              Expanded(
-                child: _ProcolisTabButton(
-                  item: items[i],
-                  active: i == currentIndex,
-                  onTap: () => onTap(i),
+            Positioned(
+              top: 18,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppTheme.cardColor,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: AppTheme.slate200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black
+                          .withValues(alpha: AppTheme.isDark ? 0.22 : 0.07),
+                      blurRadius: 24,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    Expanded(
+                      flex: i == middle ? 12 : 10,
+                      child: _ProcolisTabButton(
+                        item: items[i],
+                        active: i == currentIndex,
+                        prominent: i == middle,
+                        duration: duration,
+                        onTap: () => onTap(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -254,75 +285,160 @@ class ProcolisTabBar extends StatelessWidget {
 class _ProcolisTabButton extends StatelessWidget {
   final ProcolisTabItem item;
   final bool active;
+  final bool prominent;
+  final Duration duration;
   final VoidCallback onTap;
 
   const _ProcolisTabButton({
     required this.item,
     required this.active,
+    required this.prominent,
+    required this.duration,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppTheme.primary : AppTheme.slate400;
-
-    return InkWell(
+    final color = active ? AppTheme.teal600 : AppTheme.slate500;
+    final count = item.badge ?? 0;
+    return Semantics(
+      button: true,
+      selected: active,
+      label: item.label,
+      value: count > 0 ? '$count éléments' : null,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  item.icon,
-                  size: active ? 26 : 25,
-                  color: color,
-                  fill: active ? 1 : 0,
-                  weight: active ? 600 : 400,
-                ),
-                if (item.badge != null && item.badge != 0)
-                  Positioned(
-                    top: -4,
-                    right: -8,
-                    child: Container(
-                      height: 16,
-                      constraints: const BoxConstraints(minWidth: 16),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppTheme.red400,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: AppTheme.cardColor, width: 2),
-                      ),
-                      child: Text(
-                        item.badge! > 99 ? '99+' : '${item.badge}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          height: 1,
-                          fontWeight: FontWeight.w800,
-                        ),
+      child: Tooltip(
+        message: item.label,
+        excludeFromSemantics: true,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            excludeFromSemantics: true,
+            borderRadius: BorderRadius.circular(24),
+            child: ExcludeSemantics(
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 64,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          if (prominent)
+                            _centralIcon()
+                          else
+                            AnimatedContainer(
+                              duration: duration,
+                              curve: Curves.easeOutCubic,
+                              width: 48,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? AppTheme.teal50
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: AnimatedScale(
+                                scale: active ? 1.08 : 1,
+                                duration: duration,
+                                child: Icon(item.icon, size: 23, color: color),
+                              ),
+                            ),
+                          if (count > 0)
+                            Positioned(
+                              top: prominent ? 2 : -3,
+                              right: prominent ? 0 : -2,
+                              child: Container(
+                                constraints: const BoxConstraints(minWidth: 19),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.red400,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: AppTheme.cardColor, width: 2),
+                                ),
+                                child: Text(
+                                  count > 99 ? '99+' : '$count',
+                                  textAlign: TextAlign.center,
+                                  // Le compte complet reste accessible au lecteur
+                                  // d'écran, même si la pastille est plafonnée.
+                                  textScaler: TextScaler.noScaling,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    height: 1,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Text(
-              item.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                  const SizedBox(height: 6),
+                  AnimatedDefaultTextStyle(
+                    duration: duration,
+                    style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                          color: color,
+                          fontSize: 11,
+                          height: 1.25,
+                          fontWeight:
+                              active ? FontWeight.w800 : FontWeight.w600,
+                        ),
+                    child: Text(item.label,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  const SizedBox(height: 5),
+                  AnimatedContainer(
+                    duration: duration,
+                    width: active ? 16 : 4,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? (prominent ? AppTheme.secondary : AppTheme.primary)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _centralIcon() {
+    return Container(
+      width: 64,
+      height: 64,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppTheme.cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF018982).withValues(alpha: 0.24),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: AnimatedScale(
+        scale: active ? 1.08 : 1,
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: AppTheme.brandGradient,
+          ),
+          child: Icon(item.icon, size: 30, color: Colors.white),
         ),
       ),
     );

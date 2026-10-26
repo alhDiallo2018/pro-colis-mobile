@@ -17,6 +17,8 @@ import 'services/notification_navigation.dart';
 import 'services/notification_service.dart';
 import 'services/push_notification_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/app_update_gate.dart';
+import 'widgets/support_presence_monitor.dart';
 
 class ProColisApp extends ConsumerStatefulWidget {
   const ProColisApp({super.key});
@@ -95,7 +97,7 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
 
   /// Au retour au premier plan, resynchronise le badge de l'icône avec le
   /// nombre réel de notifications non lues côté backend, et verrouille l'écran
-  /// si l'absence a dépassé le délai d'inactivité toléré par l'API.
+  /// si l'absence a dépassé le délai de verrouillage local.
   ///
   /// Tout état autre que `resumed` compte comme un départ : sur iOS une simple
   /// interruption passe par `inactive` avant `paused`, et démarrer le compteur
@@ -103,6 +105,7 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(ref.read(authProvider.notifier).retrySessionRestoration());
       NotificationBadgeService.refresh();
       ref.read(sessionLockProvider.notifier).evaluateOnResume();
       return;
@@ -157,15 +160,19 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
       // déverrouillage.
       builder: (context, child) => KeyedSubtree(
         key: ValueKey(brightness),
-        child: Stack(
-          children: [
-            child ?? const SizedBox.shrink(),
-            if (lockStatus == SessionLockStatus.checking)
-              const Positioned.fill(child: SplashScreen()),
-            if (lockStatus == SessionLockStatus.locked)
-              const Positioned.fill(child: LockScreen()),
-          ],
-        ),
+        child: SupportPresenceMonitor(
+            child: AppUpdateGate(
+          backButtonDispatcher: _router.backButtonDispatcher,
+          child: Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
+              if (lockStatus == SessionLockStatus.checking)
+                const Positioned.fill(child: SplashScreen()),
+              if (lockStatus == SessionLockStatus.locked)
+                const Positioned.fill(child: LockScreen()),
+            ],
+          ),
+        )),
       ),
     );
   }

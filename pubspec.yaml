@@ -1,6 +1,6 @@
 name: procolis
 description: SENDPROCOLIS - Gestion de colis interurbains
-version: 1.0.0+6
+version: 1.1.2+11
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -35,6 +35,7 @@ dependencies:
   chewie: ^1.8.1
   flutter_launcher_icons: ^0.13.1
   shared_preferences: ^2.5.5
+  package_info_plus: ^9.0.1
   cached_network_image: ^3.3.1
   record: ^6.2.1
   audioplayers: ^6.7.1
@@ -43,6 +44,7 @@ dependencies:
 
   pin_code_fields: ^8.0.1
   mobile_scanner: ^7.4.0
+  google_sign_in: ^7.2.0
 
 dev_dependencies:
   flutter_test:

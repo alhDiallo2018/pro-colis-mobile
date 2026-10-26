@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
 
 import '../../widgets/app_logo.dart';
 
@@ -12,14 +14,14 @@ import '../../widgets/app_logo.dart';
 /// iOS, `splash_logo` côté Android — pour que la bascule du natif vers Flutter
 /// passe inaperçue. Toute modification de la taille ou du fond doit donc être
 /// répercutée des deux côtés.
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   /// Largeur de la marque, identique aux écrans de lancement natifs.
   static const double _markWidth = 180;
 
@@ -51,6 +53,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
     return Scaffold(
       body: Stack(
         children: [
@@ -61,15 +64,28 @@ class _SplashScreenState extends State<SplashScreen> {
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 72),
-              child: AnimatedOpacity(
-                opacity: _showIndicator ? 1 : 0,
-                duration: const Duration(milliseconds: 250),
-                child: const SizedBox(
-                  width: 26,
-                  height: 26,
-                  child: CircularProgressIndicator(strokeWidth: 2.4),
-                ),
-              ),
+              child: auth.hasPendingSession
+                  ? Column(mainAxisSize: MainAxisSize.min, children: [
+                      Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(auth.error ?? 'Connexion indisponible',
+                              textAlign: TextAlign.center)),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                          onPressed: () => ref
+                              .read(authProvider.notifier)
+                              .retrySessionRestoration(),
+                          child: const Text('Réessayer')),
+                    ])
+                  : AnimatedOpacity(
+                      opacity: _showIndicator ? 1 : 0,
+                      duration: const Duration(milliseconds: 250),
+                      child: const SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: CircularProgressIndicator(strokeWidth: 2.4),
+                      ),
+                    ),
             ),
           ),
         ],

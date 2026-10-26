@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../models/advertisement.dart';
 import '../models/garage.dart';
+import '../models/user.dart';
 import '../models/parcel.dart';
 import '../providers/auth_provider.dart';
 import '../screens/accueil/onboarding_screen.dart';
 import '../screens/accueil/splash_screen.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/auth/google_completion_screen.dart';
+import '../screens/auth/forgot_pin_screen.dart';
 import '../screens/auth/register_page.dart';
 import '../screens/client/client_libre_service_screen.dart';
 import '../screens/client/client_debts_screen.dart';
@@ -100,8 +103,9 @@ class AppRouter {
         final container = ProviderScope.containerOf(context);
         final authState = container.read(authProvider);
         final location = state.matchedLocation;
-        final isLogin = location == '/login';
+        final isLogin = location == '/login' || location == '/google-auth';
         final isRegister = location == '/register';
+        final isPinRecovery = location == '/forgot-pin';
         final isTrack = location.startsWith('/track');
         final isLanding = location == '/' || location == '/landing';
         final isHelp = location == '/help';
@@ -120,11 +124,14 @@ class AppRouter {
             location.startsWith('/colis-interdits');
         final isPublic = isLogin ||
             isRegister ||
+            isPinRecovery ||
             isTrack ||
             isLanding ||
             isHelp ||
             isPaymentReturn ||
             isLegal;
+
+        if (authState.hasPendingSession) return isSplash ? null : '/splash';
 
         if (isSplash) {
           if (authState.isLoading) return null;
@@ -133,8 +140,8 @@ class AppRouter {
 
         if (authState.isLoading) return null;
         if (!authState.isAuthenticated && !isPublic) return '/login';
-        if (authState.isAuthenticated && (isLogin || isRegister))
-          return '/dashboard';
+        if (authState.isAuthenticated &&
+            (isLogin || isRegister || isPinRecovery)) return '/dashboard';
 
         // Une fois connecté, l'onboarding n'a plus d'utilité : il est
         // désactivé et renvoie directement vers l'espace personnel pour ne
@@ -219,6 +226,25 @@ class AppRouter {
           path: '/login',
           name: 'login',
           builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/google-auth',
+          redirect: (_, state) => state.extra is Map<String, dynamic> &&
+                  (state.extra as Map<String, dynamic>)['challengeToken']
+                      is String
+              ? null
+              : '/login',
+          builder: (_, state) => GoogleCompletionScreen(
+              challenge: state.extra as Map<String, dynamic>),
+        ),
+        GoRoute(
+          path: '/forgot-pin',
+          name: 'forgot-pin',
+          // L'identifiant prérempli reste hors de l'URL et de son historique.
+          builder: (context, state) => ForgotPinScreen(
+            initialIdentifier:
+                state.extra is String ? state.extra as String : '',
+          ),
         ),
         GoRoute(
           path: '/register',
@@ -441,7 +467,8 @@ class AppRouter {
           name: 'driver-itinerary',
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
-            final zonesRaw = (extra?['zones'] ?? extra?['garages']) as List<dynamic>?;
+            final zonesRaw =
+                (extra?['zones'] ?? extra?['garages']) as List<dynamic>?;
             final zones = zonesRaw?.whereType<Garage>().toList();
             return ItineraryMapScreen(
               departureLat: extra?['departureLat'] as double?,
@@ -531,7 +558,17 @@ class AppRouter {
         GoRoute(
           path: '/support',
           name: 'support',
-          builder: (context, state) => const SupportChatScreen(),
+          builder: (context, state) => Consumer(builder: (context, ref, _) {
+            final role = ref.watch(authProvider).user?.role;
+            return [
+              UserRole.support,
+              UserRole.supportTechnique,
+              UserRole.supportCommercial,
+              UserRole.superAdmin
+            ].contains(role)
+                ? const AdminSupportScreen()
+                : const SupportChatScreen();
+          }),
         ),
         GoRoute(
             path: '/a-propos',
@@ -773,7 +810,9 @@ class AppRouter {
           builder: (context, state) {
             final extra = state.extra;
             if (extra is Garage) return GarageDriversScreen(garage: extra);
-            final zoneId = state.uri.queryParameters['zoneId'] ?? state.uri.queryParameters['garageId'] ?? '';
+            final zoneId = state.uri.queryParameters['zoneId'] ??
+                state.uri.queryParameters['garageId'] ??
+                '';
             return _ZoneLoader(zoneId: zoneId);
           },
         ),

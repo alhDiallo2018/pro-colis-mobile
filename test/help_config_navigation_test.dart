@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:procolis/providers/public_config_provider.dart';
+import 'package:procolis/providers/app_update_provider.dart';
 import 'package:procolis/screens/help/help_screen.dart';
 import 'package:procolis/screens/legal/cgu_page.dart';
 import 'package:procolis/screens/legal/confidentialite_page.dart';
@@ -38,7 +39,13 @@ Map<String, dynamic> _config({String suffix = ''}) => {
     };
 
 Widget _scope(PublicConfigNotifier notifier, Widget child) => ProviderScope(
-      overrides: [publicConfigProvider.overrideWith((ref) => notifier)],
+      overrides: [
+        publicConfigProvider.overrideWith((ref) => notifier),
+        // Ces tests vérifient la navigation des pages légales. Le contrôle
+        // réseau/natif des versions possède sa propre suite de tests.
+        appUpdateProvider
+            .overrideWith((ref) => AppUpdateNotifier(supported: false)),
+      ],
       child: child,
     );
 

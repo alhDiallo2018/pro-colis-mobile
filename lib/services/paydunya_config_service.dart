@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'auth_session.dart';
 
 import '../config/app_config.dart';
 
@@ -38,7 +38,6 @@ class PaydunyaConfigService {
   static const String baseUrl = AppConfig.apiBaseUrl;
 
   final Dio _dio;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   PaydunyaConfigService({Dio? dio})
       : _dio = dio ??
@@ -48,11 +47,13 @@ class PaydunyaConfigService {
               connectTimeout: const Duration(seconds: 30),
               receiveTimeout: const Duration(seconds: 30),
               validateStatus: (status) => status! < 500,
-            ));
+            )) {
+    if (dio == null) _dio.interceptors.add(SessionAuthInterceptor(_dio));
+  }
 
   Future<PaydunyaConfig?> getPaydunyaConfig() async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await AuthSessionManager.instance.accessToken();
       final response = await _dio.get(
         '/admin/payments/paydunya-config',
         options: Options(headers: {
@@ -72,7 +73,7 @@ class PaydunyaConfigService {
   Future<PaydunyaConfig?> updatePaydunyaConfig(
       Map<String, dynamic> config) async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await AuthSessionManager.instance.accessToken();
       final response = await _dio.put(
         '/admin/payments/paydunya-config',
         data: config,

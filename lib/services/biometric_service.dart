@@ -7,11 +7,9 @@ import 'package:local_auth/local_auth.dart';
 
 /// Déverrouillage biométrique.
 ///
-/// L'API ferme la session après une minute d'inactivité : au retour de
-/// l'utilisateur, la session est réellement morte côté serveur. Le
-/// déverrouillage ne peut donc pas se contenter de révéler l'écran, il doit
-/// rejouer une connexion. C'est pourquoi le PIN est conservé ici : l'empreinte
-/// en commande la lecture, la reconnexion s'appuie dessus.
+/// Le verrou local ne ferme pas la session serveur : une empreinte suffit a
+/// retrouver l'ecran si la session est encore disponible. Le PIN memorise ne
+/// sert qu'au repli de reconnexion apres expiration ou revocation effective.
 ///
 /// Limite assumée : la biométrie est un portail applicatif, le secret est
 /// protégé par le Keychain / Keystore mais n'est pas lié cryptographiquement au

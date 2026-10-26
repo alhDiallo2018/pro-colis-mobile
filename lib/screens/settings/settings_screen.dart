@@ -15,6 +15,7 @@ import '../../screens/help/help_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/app_update_gate.dart';
 import '../../widgets/pc_components.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -111,7 +112,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _notify(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<String?> _askPin() async {
@@ -254,12 +256,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
 
-              final changeResult = await ref
-                  .read(authProvider.notifier)
-                  .changePin(
-                    currentPinController.text,
-                    newPinController.text,
-                  );
+              final changeResult =
+                  await ref.read(authProvider.notifier).changePin(
+                        currentPinController.text,
+                        newPinController.text,
+                      );
 
               if (!ctx.mounted) return;
 
@@ -472,6 +473,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ==================== À PROPOS ====================
           const PcSectionHeader('À propos'),
+          const AppUpdateSettingsTile(),
           PcCard(
             padding: EdgeInsets.zero,
             child: Column(
@@ -538,7 +540,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final current = ref.watch(themeModeProvider);
     return Row(
       children: [
-        _themeModeOption(ThemeMode.system, Icons.brightness_auto_rounded, current),
+        _themeModeOption(
+            ThemeMode.system, Icons.brightness_auto_rounded, current),
         const SizedBox(width: 8),
         _themeModeOption(ThemeMode.light, Icons.light_mode_rounded, current),
         const SizedBox(width: 8),

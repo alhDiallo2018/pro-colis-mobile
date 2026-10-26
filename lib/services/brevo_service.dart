@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'auth_session.dart';
 
 import '../config/app_config.dart';
 
@@ -105,7 +105,6 @@ class BrevoService {
   static const String baseUrl = AppConfig.apiBaseUrl;
 
   final Dio _dio;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   BrevoService({Dio? dio})
       : _dio = dio ??
@@ -115,11 +114,13 @@ class BrevoService {
               connectTimeout: const Duration(seconds: 30),
               receiveTimeout: const Duration(seconds: 30),
               validateStatus: (status) => status! < 500,
-            ));
+            )) {
+    if (dio == null) _dio.interceptors.add(SessionAuthInterceptor(_dio));
+  }
 
   Future<SendResult> sendEmail(BrevoEmailParams params) async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await AuthSessionManager.instance.accessToken();
       final response = await _dio.post(
         '/notifications/email/send',
         data: params.toJson(),
@@ -137,7 +138,7 @@ class BrevoService {
 
   Future<SendResult> sendSms(BrevoSmsParams params) async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await AuthSessionManager.instance.accessToken();
       final response = await _dio.post(
         '/notifications/sms/send',
         data: params.toJson(),
@@ -159,7 +160,7 @@ class BrevoService {
     required String htmlContent,
   }) async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await AuthSessionManager.instance.accessToken();
       final response = await _dio.post(
         '/notifications/email/send-bulk',
         data: {
@@ -181,7 +182,7 @@ class BrevoService {
 
   Future<BrevoConfig?> getBrevoConfig() async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await AuthSessionManager.instance.accessToken();
       final response = await _dio.get(
         '/admin/notifications/brevo-config',
         options: Options(headers: {
@@ -200,7 +201,7 @@ class BrevoService {
 
   Future<BrevoConfig?> updateBrevoConfig(Map<String, dynamic> config) async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await AuthSessionManager.instance.accessToken();
       final response = await _dio.put(
         '/admin/notifications/brevo-config',
         data: config,
@@ -220,7 +221,7 @@ class BrevoService {
 
   Future<SendResult> testBrevoConnection(String testEmail) async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await AuthSessionManager.instance.accessToken();
       final response = await _dio.post(
         '/admin/notifications/brevo-test',
         data: {'email': testEmail},

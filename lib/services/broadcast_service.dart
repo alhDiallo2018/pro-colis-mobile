@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'auth_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
@@ -13,7 +13,6 @@ class BroadcastService {
   static const String _cacheKey = 'procolis-broadcasts';
 
   final Dio _dio;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   BroadcastService({Dio? dio})
       : _dio = dio ??
@@ -23,10 +22,12 @@ class BroadcastService {
               connectTimeout: const Duration(seconds: 30),
               receiveTimeout: const Duration(seconds: 30),
               validateStatus: (status) => status! < 500,
-            ));
+            )) {
+    if (dio == null) _dio.interceptors.add(SessionAuthInterceptor(_dio));
+  }
 
   Future<String?> get _token async {
-    return await _storage.read(key: 'token');
+    return await AuthSessionManager.instance.accessToken();
   }
 
   /// Les annonces sont lues sur un endpoint public : `/super-admin/config`

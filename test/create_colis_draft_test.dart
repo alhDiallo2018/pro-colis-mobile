@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:procolis/screens/parcel/create_colis_sheet.dart';
 import 'package:procolis/services/form_draft_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,7 +57,12 @@ void main() {
 
   setUpAll(() => HttpOverrides.global = MockHttpOverrides());
 
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    // Le formulaire utilise le stockage de session : le mock doit repondre
+    // immediatement, sans laisser de timeout plateforme apres sa fermeture.
+    FlutterSecureStorage.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({});
+  });
 
   testWidgets('sans brouillon, aucun bandeau de reprise', (tester) async {
     await _openSheet(tester);
@@ -123,6 +129,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Quitter le formulaire ?'), findsOneWidget);
+    // Fermer le dialogue et sa feuille laisse les requetes de previsualisation
+    // se terminer avant que le test detruise leur contexte asynchrone.
+    await tester.tap(find.text('Garder le brouillon'));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('« Garder » conserve une saisie faite bandeau encore affiché',

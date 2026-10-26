@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/session_lock_provider.dart';
@@ -71,7 +72,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
   /// Repli toujours accessible : un capteur mouillé, sale ou défaillant ne doit
   /// jamais enfermer l'utilisateur hors de son compte.
-  Future<void> _usePin() async {
+  Future<void> _usePin({bool recover = false}) async {
     if (_busy) return;
     setState(() => _busy = true);
 
@@ -79,6 +80,11 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       // On garde l'écran opaque jusqu'à la fin de la déconnexion. Le retirer
       // avant exposerait brièvement le dashboard restauré au démarrage.
       await ref.read(authProvider.notifier).logout(forgetBiometrics: false);
+      if (mounted && recover) {
+        // La récupération est publique, mais ne doit jamais laisser une
+        // session verrouillée accessible derrière le formulaire.
+        GoRouter.of(context).go('/forgot-pin');
+      }
     } catch (error, stackTrace) {
       debugPrint('[LockScreen] Repli vers le PIN impossible : $error');
       debugPrintStack(
@@ -159,7 +165,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   const SizedBox(height: 12),
                   TextButton(
-                    onPressed: _busy ? null : _usePin,
+                    onPressed: _busy ? null : () => _usePin(),
                     child: Text(
                       'Utiliser mon code PIN',
                       style: TextStyle(
@@ -169,6 +175,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         color: AppTheme.primary,
                       ),
                     ),
+                  ),
+                  TextButton(
+                    onPressed: _busy ? null : () => _usePin(recover: true),
+                    child: const Text('Code PIN oublié ?'),
                   ),
                 ],
               ),

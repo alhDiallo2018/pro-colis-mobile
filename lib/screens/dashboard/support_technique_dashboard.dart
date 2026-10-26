@@ -369,9 +369,7 @@ class _QuickActionsRow extends StatelessWidget {
             title: 'Messagerie support',
             subtitle: 'Répondre aux conversations en direct',
             chevron: true,
-            // Cette vue existe déjà dans le tableau de bord : rester dans
-            // l'IndexedStack évite d'empiler une seconde page identique.
-            onTap: onSeeTickets,
+            onTap: () => context.push('/support-admin/conversations'),
           ),
           const PcDivider(),
           PcListRow(

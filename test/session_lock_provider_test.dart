@@ -53,7 +53,7 @@ void main() {
       await notifier.initializeOnLaunch();
       biometricEnabled = true;
       notifier.markBackgrounded();
-      now = now.add(AppConfig.sessionIdleTimeout + const Duration(seconds: 1));
+      now = now.add(AppConfig.sessionLockTimeout + const Duration(seconds: 1));
 
       await notifier.evaluateOnResume();
 
@@ -74,7 +74,7 @@ void main() {
       await notifier.initializeOnLaunch();
       notifier.unlock();
       notifier.markBackgrounded();
-      now = now.add(AppConfig.sessionIdleTimeout - const Duration(seconds: 1));
+      now = now.add(AppConfig.sessionLockTimeout - const Duration(seconds: 1));
 
       await notifier.evaluateOnResume();
 

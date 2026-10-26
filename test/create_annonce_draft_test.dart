@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:procolis/screens/driver/create_annonce_sheet.dart';
 import 'package:procolis/services/form_draft_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,7 +57,10 @@ void main() {
 
   setUpAll(() => HttpOverrides.global = MockHttpOverrides());
 
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({});
+  });
 
   testWidgets('fermer une saisie renseignée propose de garder le brouillon',
       (tester) async {

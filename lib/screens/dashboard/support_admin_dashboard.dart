@@ -34,7 +34,19 @@ import 'role_dashboard_widgets.dart';
 /// Conversations de support ouvertes, rafraîchies au pull-to-refresh.
 final supportAdminConversationsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>(
-  (ref) => ApiService().adminSupportConversations(),
+  (ref) async {
+    final result = await ApiService().supportChatRequest('/conversations');
+    // Adapter la boite partagee aux cartes du tableau de bord existant.
+    return (result['conversations'] as List).map((value) {
+      final chat = Map<String, dynamic>.from(value as Map);
+      return <String, dynamic>{
+        ...chat,
+        'body': chat['lastMessage']?['body'] ?? '',
+        'isRead': (chat['unreadCount'] ?? 0) == 0,
+        'lastAgent': chat['assignedTo'],
+      };
+    }).toList();
+  },
 );
 
 /// Journal des assistances + son résumé (`{assistances, summary}`).

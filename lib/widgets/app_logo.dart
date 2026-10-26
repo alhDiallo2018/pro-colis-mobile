@@ -99,7 +99,8 @@ class AppBrandLink extends StatelessWidget {
                     child: AppLogo(size: logoSize, isWhite: isWhite),
                   ),
                   const SizedBox(width: 12),
-                  Text(
+                  Flexible(
+                      child: Text(
                     'Send ProColis',
                     style: AppFonts.plusJakartaSans(
                       color: foreground,
@@ -107,7 +108,7 @@ class AppBrandLink extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.1,
                     ),
-                  ),
+                  )),
                 ],
               ),
             ),

@@ -8,6 +8,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
+import '../../widgets/support_presence_monitor.dart';
+import 'support_inbox_screen.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,14 +22,23 @@ import '../../theme/app_theme.dart';
 import '../../theme/fonts.dart';
 import '../../widgets/pc_components.dart';
 
-class AdminSupportScreen extends StatefulWidget {
+class AdminSupportScreen extends ConsumerWidget {
   const AdminSupportScreen({super.key});
-
   @override
-  State<AdminSupportScreen> createState() => _AdminSupportScreenState();
+  Widget build(BuildContext context, WidgetRef ref) =>
+      supportAgentRoles.contains(ref.watch(authProvider).user?.role.value)
+          ? const SupportInboxScreen()
+          : const _LegacyAdminSupportScreen();
 }
 
-class _AdminSupportScreenState extends State<AdminSupportScreen> {
+class _LegacyAdminSupportScreen extends StatefulWidget {
+  const _LegacyAdminSupportScreen();
+
+  @override
+  State<_LegacyAdminSupportScreen> createState() => _AdminSupportScreenState();
+}
+
+class _AdminSupportScreenState extends State<_LegacyAdminSupportScreen> {
   final ApiService _api = ApiService();
   final _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -482,7 +495,8 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
                     fontSize: 20,
                     color: AppTheme.textPrimary)),
       ),
-      body: _activeUserId != null ? _buildThreadView() : _buildConversationList(),
+      body:
+          _activeUserId != null ? _buildThreadView() : _buildConversationList(),
     );
   }
 
@@ -511,11 +525,11 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
           final support = conv['supportUser'] as Map<String, dynamic>?;
           final userName = user?['fullName']?.toString() ?? 'Utilisateur';
           final supportName = support?['fullName']?.toString() ?? 'Support';
-          final last =
-              (conv['lastMessage'] ?? conv['body'])?.toString() ?? '';
+          final last = (conv['lastMessage'] ?? conv['body'])?.toString() ?? '';
           final count = conv['messageCount'];
           final lastAgent =
-              (conv['lastAgent'] as Map<String, dynamic>?)?['fullName']?.toString();
+              (conv['lastAgent'] as Map<String, dynamic>?)?['fullName']
+                  ?.toString();
           final agents = (conv['agents'] as List?)?.length ?? 0;
           final unread = conv['isRead'] != true &&
               conv['receiverId']?.toString() == support?['id']?.toString();
@@ -646,8 +660,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.badge_outlined,
-                    size: 11, color: AppTheme.slate400),
+                Icon(Icons.badge_outlined, size: 11, color: AppTheme.slate400),
                 const SizedBox(width: 3),
                 Text(
                   agentName,
@@ -842,9 +855,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
               height: 44,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: _isPaused
-                    ? AppTheme.amber50
-                    : AppTheme.red50,
+                color: _isPaused ? AppTheme.amber50 : AppTheme.red50,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Row(
@@ -858,17 +869,15 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
                     style: AppFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color:
-                            _isPaused ? AppTheme.amber700 : AppTheme.red500),
+                        color: _isPaused ? AppTheme.amber700 : AppTheme.red500),
                   ),
                 ],
               ),
             ),
           ),
           IconButton(
-            icon: Icon(_isPaused
-                ? Icons.play_arrow_rounded
-                : Icons.pause_rounded),
+            icon: Icon(
+                _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded),
             color: AppTheme.primary,
             onPressed: _isPaused ? _resumeRecording : _pauseRecording,
           ),
@@ -896,7 +905,8 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
             IconButton(
               icon: const Icon(Icons.add_circle_outline_rounded),
               color: AppTheme.slate600,
-              onPressed: (_isBusyMedia || _isRecording) ? null : _showMediaPicker,
+              onPressed:
+                  (_isBusyMedia || _isRecording) ? null : _showMediaPicker,
             ),
             Expanded(
               child: TextField(
@@ -905,7 +915,8 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
                 maxLines: 4,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'Répondre à ${_activeUserName ?? "l'utilisateur"}...',
+                  hintText:
+                      'Répondre à ${_activeUserName ?? "l'utilisateur"}...',
                   filled: true,
                   fillColor: AppTheme.slate50,
                   contentPadding:
