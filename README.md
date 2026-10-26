@@ -183,13 +183,12 @@ La clé Maps doit être fournie via `GOOGLE_MAPS_API_KEY` dans l'environnement :
 elle sera transmise à la compilation Dart et à Gradle pour le SDK natif.
 Le client OAuth Google de connexion ne remplace pas cette clé Maps.
 
-La clé release locale a les empreintes publiques suivantes. Elle diffère de
-la clé d'importation attendue par Google Play : l'import de `1.1.2 (11)` a été
-refusé et la release est conservée en brouillon. Restaurer la clé d'origine
-ou faire approuver sa réinitialisation avant de publier.
+La clé d'importation d'origine est restaurée dans la configuration locale
+`android/key.properties` et correspond au certificat attendu par Play.
+Le keystore et ses mots de passe restent exclus du dépôt Git.
 
-- SHA-1 : `A3:48:31:BF:2E:A7:DE:CE:3B:5B:1D:90:30:C3:31:83:FD:27:6A:58`.
-- SHA-256 : `AE:FE:F8:B7:25:A0:64:E1:5E:22:22:E0:27:91:67:64:5E:08:EE:0C:2E:E3:AD:D0:51:DF:59:F1:CA:79:98:00`.
+- SHA-1 : `24:BE:58:23:BE:E4:66:5A:83:C8:8C:CF:74:0C:50:09:78:1A:17:23`.
+- SHA-256 : `FA:53:83:01:B9:73:D4:60:B8:CC:1C:B5:20:C2:02:9B:FD:56:CB:23:04:00:3D:55:B8:AC:4C:9F:8B:F6:38:8F`.
 
 Pour Google Sign-In, enregistrer un client OAuth Android pour
 `com.sendprocolis.app` et la signature utilisée. Pour les installations depuis
