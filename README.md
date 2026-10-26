@@ -170,6 +170,9 @@ explicitement `API_BASE_URL=https://sendprocolis.com/api/v1` et
 `APP_BASE_URL=https://sendprocolis.com`, sans reprendre une URL Docker du shell.
 Il refuse une configuration de signature absente ou incomplète.
 Passer `aab` ou `apk` en argument pour ne construire que ce format.
+Pour les AAB, il vérifie aussi l'empreinte de la clé d'importation attendue
+par le compte Play `6193041811945265589` :
+`24:BE:58:23:BE:E4:66:5A:83:C8:8C:CF:74:0C:50:09:78:1A:17:23`.
 
 Avant chaque publication, incrémenter le code de version de `pubspec.yaml`
 au-delà du dernier code utilisé dans Play Console. La version préparée ici est
@@ -180,7 +183,10 @@ La clé Maps doit être fournie via `GOOGLE_MAPS_API_KEY` dans l'environnement :
 elle sera transmise à la compilation Dart et à Gradle pour le SDK natif.
 Le client OAuth Google de connexion ne remplace pas cette clé Maps.
 
-La clé release actuellement configurée a les empreintes publiques suivantes :
+La clé release locale a les empreintes publiques suivantes. Elle diffère de
+la clé d'importation attendue par Google Play : l'import de `1.1.2 (11)` a été
+refusé et la release est conservée en brouillon. Restaurer la clé d'origine
+ou faire approuver sa réinitialisation avant de publier.
 
 - SHA-1 : `A3:48:31:BF:2E:A7:DE:CE:3B:5B:1D:90:30:C3:31:83:FD:27:6A:58`.
 - SHA-256 : `AE:FE:F8:B7:25:A0:64:E1:5E:22:22:E0:27:91:67:64:5E:08:EE:0C:2E:E3:AD:D0:51:DF:59:F1:CA:79:98:00`.
