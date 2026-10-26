@@ -3,6 +3,17 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 flutter="${FLUTTER_BIN:-.flutter-sdk/bin/flutter}"
+# Charge également la configuration locale utilisée par le build web.
+# La clé est exportée pour le SDK natif Android (Gradle).
+if [[ -f .env ]]; then
+  set -a
+  source .env
+  set +a
+fi
+if [[ -z "${GOOGLE_MAPS_API_KEY:-}" ]]; then
+  echo 'GOOGLE_MAPS_API_KEY doit être définie pour afficher la carte.' >&2
+  exit 1
+fi
 target="${1:-all}"
 case "$target" in
   all|aab|apk) ;;

@@ -8,6 +8,8 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:procolis/theme/fonts.dart';
 
@@ -19,28 +21,30 @@ import 'location_autocomplete.dart';
 import 'pc_components.dart';
 
 class ZonePickerSheet {
-  /// Renvoie le **garage miroir** de la zone retenue : c'est cet identifiant
-  /// qu'attendent `departureZoneId` / `arrivalZoneId`.
+  /// Renvoie la zone retenue via le DTO historique Garage : son id alimente `departureZoneId` / `arrivalZoneId`.
   static Future<Garage?> show({
     required BuildContext context,
     String? initialQuery,
-    String title = 'Ajouter une zone',
+    PlaceDetails? initialPlace,
+    String title = 'Choisir un lieu',
   }) {
     return showModalBottomSheet<Garage>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) =>
-          _ZonePickerContent(initialQuery: initialQuery, title: title),
+      builder: (_) => _ZonePickerContent(
+          initialQuery: initialQuery, initialPlace: initialPlace, title: title),
     );
   }
 }
 
 class _ZonePickerContent extends StatefulWidget {
   final String? initialQuery;
+  final PlaceDetails? initialPlace;
   final String title;
 
-  const _ZonePickerContent({this.initialQuery, required this.title});
+  const _ZonePickerContent(
+      {this.initialQuery, this.initialPlace, required this.title});
 
   @override
   State<_ZonePickerContent> createState() => _ZonePickerContentState();
@@ -70,7 +74,13 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl.text = widget.initialQuery ?? '';
+    _searchCtrl.text = widget.initialQuery ?? '';
+    final initial = widget.initialPlace;
+    if (initial != null && initial.hasCoordinates) {
+      _picked = LatLng(initial.latitude!, initial.longitude!);
+      _details = initial;
+    }
+    _nameCtrl.text = initial?.zoneName ?? widget.initialQuery ?? '';
     _nameCtrl.addListener(() {
       if (!_settingSuggestedName &&
           _nameCtrl.text != (widget.initialQuery ?? '')) {
@@ -88,6 +98,8 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
   }
 
   void _applyPlace(PlaceDetails place) {
+    if (_busy) return;
+    _geocodeGeneration++;
     final lat = place.latitude;
     final lng = place.longitude;
     if (lat == null || lng == null) return;
@@ -99,6 +111,7 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
     final target = LatLng(lat, lng);
     setState(() {
       _picked = target;
+      _geocoding = false;
       _details = place;
       _error = null;
       final suggested = _placeName(place);
@@ -122,6 +135,8 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
   /// Géocodage inverse d'un point pointé sur la carte : sans lui, la zone
   /// partirait sans ville ni pays.
   Future<void> _reverseGeocode(LatLng target) async {
+    if (_busy) return;
+    FocusScope.of(context).unfocus();
     final generation = ++_geocodeGeneration;
     setState(() {
       _picked = target;
@@ -154,20 +169,21 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
         _setSuggestedName(suggested);
       }
       if (_details == null) {
-        _error = 'Localité introuvable pour ce point. Touchez un lieu voisin '
-            'ou recherchez son adresse par son nom.';
+        _error = 'Adresse introuvable : indiquez le nom du lieu ci-dessous, '
+            'ou recherchez une adresse.';
       }
     });
   }
 
   Future<void> _submit() async {
+    if (_busy || _geocoding) return;
     final target = _picked;
     if (target == null) {
       setState(
           () => _error = 'Choisissez un lieu sur la carte ou dans la liste.');
       return;
     }
-    if (_details == null || !_details!.hasGeographicLabel) {
+    if (_details == null && _nameCtrl.text.trim().length < 2) {
       setState(() => _error =
           'Attendez que le nom de la localité soit identifié avant de valider.');
       return;
@@ -190,6 +206,7 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
       // administratives : il ne doit jamais reconstruire la zone à partir des
       // seules coordonnées.
       garage = await _api.resolvePlaceZone(
+        exactPoint: _details?.exactPoint ?? true,
         placeId: _details?.placeId,
         name: label,
         displayName: _details?.label ?? label,
@@ -238,6 +255,8 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
         ),
         child: SafeArea(
           top: false,
+          minimum:
+              EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
           child: Column(
             children: [
               const SizedBox(height: 10),
@@ -276,18 +295,28 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
                   children: [
                     Text(
-                      'Recherchez le lieu, ou pointez-le sur la carte s’il n’apparaît pas '
-                      'dans les suggestions. Vous pourrez l’utiliser immédiatement ; il sera '
-                      'validé ensuite par l’équipe.',
+                      '1. Recherchez une ville, un quartier ou une adresse dans le monde. '
+                      '2. Touchez la carte pour placer le repère au point exact. '
+                      '3. Vérifiez le lieu puis confirmez.',
                       style: AppFonts.manrope(
                           fontSize: 12.5, color: AppTheme.textSecondary),
                     ),
                     const SizedBox(height: 14),
                     LocationAutocomplete(
                       controller: _searchCtrl,
-                      label: 'Rechercher un lieu',
+                      label: 'Rechercher partout dans le monde',
+                      enabled: !_busy && !_geocoding,
+                      onResolving: (value) {
+                        if (!mounted) return;
+                        _geocodeGeneration++;
+                        setState(() {
+                          _geocoding = value;
+                          _picked = null;
+                          _details = null;
+                        });
+                      },
                       prefixIcon: Icons.search_rounded,
-                      hint: 'Ville, quartier, repère…',
+                      hint: 'Paris, Dakar, Tokyo, une adresse…',
                       onPlace: _applyPlace,
                     ),
                     if (_details != null) ...[
@@ -331,10 +360,16 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       child: SizedBox(
-                        height: 220,
+                        height: 300,
                         child: Stack(
                           children: [
                             GoogleMap(
+                              // Le scroll de la feuille ne doit pas intercepter
+                              // le glissement/pincement destiné à la carte.
+                              gestureRecognizers: {
+                                Factory<OneSequenceGestureRecognizer>(
+                                    () => EagerGestureRecognizer())
+                              },
                               initialCameraPosition: CameraPosition(
                                 target: _picked ?? _defaultCenter,
                                 zoom: _picked != null
@@ -342,26 +377,29 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
                                     : _defaultZoom,
                               ),
                               onMapCreated: (c) => _mapCtrl = c,
-                              onTap: _busy ? null : _reverseGeocode,
+                              onTap:
+                                  _busy || _geocoding ? null : _reverseGeocode,
                               markers: _picked == null
                                   ? {}
                                   : {
                                       Marker(
                                         markerId: const MarkerId('zone'),
                                         position: _picked!,
-                                        draggable: !_busy,
+                                        draggable: !_busy && !_geocoding,
                                         onDragEnd: _reverseGeocode,
                                       ),
                                     },
                               myLocationButtonEnabled: false,
-                              zoomControlsEnabled: false,
+                              zoomControlsEnabled: true,
                               mapToolbarEnabled: false,
                             ),
                             Positioned(
                               left: 8,
                               right: 8,
-                              bottom: 8,
-                              child: Container(
+                              // Garder les crédits Google visibles en bas.
+                              top: 8,
+                              child: IgnorePointer(
+                                  child: Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
@@ -390,7 +428,7 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
                                     ),
                                   ],
                                 ),
-                              ),
+                              )),
                             ),
                           ],
                         ),
@@ -447,10 +485,7 @@ class _ZonePickerContentState extends State<_ZonePickerContent> {
                       icon: Icons.check_rounded,
                       block: true,
                       loading: _busy,
-                      onPressed: _picked == null ||
-                              _details == null ||
-                              _geocoding ||
-                              _busy
+                      onPressed: _picked == null || _geocoding || _busy
                           ? null
                           : _submit,
                     ),

@@ -65,3 +65,6 @@ local.properties
 
 # Livrables Android signés, archivés localement hors des sources.
 /releases/android/
+
+# Clé Maps native iOS locale.
+**/Maps.local.xcconfig

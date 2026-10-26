@@ -2161,6 +2161,7 @@ class ApiService {
   }
 
   Future<Garage?> resolvePlaceZone({
+    bool exactPoint = false,
     String? placeId,
     required String name,
     String? displayName,
@@ -2173,6 +2174,7 @@ class ApiService {
     try {
       final response = await _dio.post('/zones/resolve', data: {
         if (placeId != null) 'placeId': placeId,
+        'exactPoint': exactPoint,
         'name': name,
         if (displayName != null) 'displayName': displayName,
         'latitude': latitude,

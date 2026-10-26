@@ -12,6 +12,7 @@ import '../services/location_fix.dart';
 import '../theme/app_theme.dart';
 import 'pc_components.dart';
 import 'zone_picker_sheet.dart';
+import 'location_autocomplete.dart';
 
 class GaragePickerSheet {
   static Future<Garage?> show({
@@ -65,7 +66,7 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
   bool _locating = false;
 
   List<Garage> get _filtered {
-    var list = widget.zones;
+    var list = List<Garage>.of(widget.zones);
     if (widget.exclude != null) {
       list = list.where((z) => z.id != widget.exclude!.id).toList();
     }
@@ -97,9 +98,11 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
   /// Ouvre le sélecteur Google Places / carte et renvoie directement la zone
   /// ajoutée à l'appelant : inutile de repasser par la liste, qui ne la
   /// contient pas encore.
-  Future<void> _addZone() async {
+  Future<void> _addZone({PlaceDetails? initialPlace}) async {
+    FocusScope.of(context).unfocus();
     final garage = await ZonePickerSheet.show(
       context: context,
+      initialPlace: initialPlace,
       initialQuery: _query.trim().isEmpty ? null : _query.trim(),
     );
     if (garage != null && mounted) Navigator.pop(context, garage);
@@ -107,10 +110,11 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
 
   Widget _addZoneButton({bool emphasized = false}) {
     final label = _query.trim().isEmpty
-        ? 'Ma zone n’est pas dans la liste…'
-        : 'Ajouter « ${_query.trim()} » comme nouveau lieu';
+        ? 'Choisir un point précis sur la carte'
+        : 'Rechercher « ${_query.trim()} » sur la carte';
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: emphasized ? 4 : 8),
+      padding:
+          EdgeInsets.symmetric(horizontal: 16, vertical: emphasized ? 4 : 8),
       child: GestureDetector(
         onTap: _addZone,
         child: Container(
@@ -154,8 +158,10 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
         if (widget.exclude != null && z.id == widget.exclude!.id) continue;
         if (z.latitude == null || z.longitude == null) continue;
         final dist = Geolocator.distanceBetween(
-          position.latitude, position.longitude,
-          z.latitude!, z.longitude!,
+          position.latitude,
+          position.longitude,
+          z.latitude!,
+          z.longitude!,
         );
         if (nearestDist == null || dist < nearestDist) {
           nearestDist = dist;
@@ -171,7 +177,9 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Aucune zone avec coordonnées trouvée à proximité.')),
+          const SnackBar(
+              content:
+                  Text('Aucune zone avec coordonnées trouvée à proximité.')),
         );
       }
     } catch (e) {
@@ -220,7 +228,8 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                 const SizedBox(height: 10),
                 Center(
                   child: Container(
-                    width: 42, height: 4,
+                    width: 42,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: AppTheme.slate300,
                       borderRadius: BorderRadius.circular(999),
@@ -235,14 +244,16 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                       Expanded(
                         child: Text(widget.title,
                             style: AppFonts.plusJakartaSans(
-                                fontSize: 18, fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
                                 color: AppTheme.textPrimary)),
                       ),
                       if (_locating)
                         const Padding(
                           padding: EdgeInsets.only(right: 12),
                           child: SizedBox(
-                            width: 18, height: 18,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
@@ -250,7 +261,8 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                         GestureDetector(
                           onTap: _findNearest,
                           child: Container(
-                            width: 36, height: 36,
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
                               color: AppTheme.teal50,
                               borderRadius: BorderRadius.circular(10),
@@ -271,39 +283,51 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                 const SizedBox(height: 12),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher une ville, une zone...',
-                      prefixIcon: Icon(Icons.search_rounded,
-                          color: AppTheme.slate400),
-                      suffixIcon: _query.isNotEmpty
-                          ? GestureDetector(
-                              onTap: () => _searchCtrl.clear(),
-                              child: Icon(Icons.close_rounded,
-                                  color: AppTheme.slate400),
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: AppTheme.slate50,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        borderSide: BorderSide(color: AppTheme.slate200),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        borderSide: BorderSide(color: AppTheme.slate200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        borderSide: BorderSide(color: AppTheme.primary),
-                      ),
-                    ),
-                  ),
+                  child: widget.allowAddZone
+                      ? LocationAutocomplete(
+                          controller: _searchCtrl,
+                          label: 'Rechercher partout dans le monde',
+                          hint: 'Ville, quartier, adresse…',
+                          showGeolocate: true,
+                          onPlace: (place) => _addZone(initialPlace: place),
+                        )
+                      : TextField(
+                          controller: _searchCtrl,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            hintText: 'Rechercher une ville, une zone...',
+                            prefixIcon: Icon(Icons.search_rounded,
+                                color: AppTheme.slate400),
+                            suffixIcon: _query.isNotEmpty
+                                ? GestureDetector(
+                                    onTap: () => _searchCtrl.clear(),
+                                    child: Icon(Icons.close_rounded,
+                                        color: AppTheme.slate400),
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: AppTheme.slate50,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            border: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusMd),
+                              borderSide: BorderSide(color: AppTheme.slate200),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusMd),
+                              borderSide: BorderSide(color: AppTheme.slate200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusMd),
+                              borderSide: BorderSide(color: AppTheme.primary),
+                            ),
+                          ),
+                        ),
                 ),
+                if (widget.allowAddZone) _addZoneButton(emphasized: true),
                 const SizedBox(height: 12),
                 Expanded(
                   child: _filtered.isEmpty
@@ -317,13 +341,15 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                                   ? 'Aucune zone disponible pour le moment.'
                                   : 'Aucune zone ne correspond à "$_query".',
                             ),
-                            if (widget.allowAddZone) _addZoneButton(emphasized: true),
+                            if (widget.allowAddZone)
+                              _addZoneButton(emphasized: true),
                           ],
                         )
                       : ListView.builder(
                           controller: scrollCtrl,
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                          itemCount: cities.length + (widget.allowAddZone ? 1 : 0),
+                          itemCount:
+                              cities.length + (widget.allowAddZone ? 1 : 0),
                           itemBuilder: (_, ci) {
                             if (ci == cities.length) return _addZoneButton();
                             final city = cities[ci];
@@ -339,13 +365,14 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                                   child: Row(
                                     children: [
                                       Container(
-                                        width: 28, height: 28,
+                                        width: 28,
+                                        height: 28,
                                         decoration: BoxDecoration(
                                           color: AppTheme.teal50,
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
-                                        child: Icon(
-                                            Icons.location_city_rounded,
+                                        child: Icon(Icons.location_city_rounded,
                                             size: 16, color: AppTheme.primary),
                                       ),
                                       const SizedBox(width: 10),
@@ -396,7 +423,8 @@ class _GaragePickerSheetContentState extends State<_GaragePickerSheetContent> {
                 children: [
                   Text(g.name,
                       style: AppFonts.manrope(
-                          fontSize: 14, fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary)),
                   const SizedBox(height: 2),
                   Text(

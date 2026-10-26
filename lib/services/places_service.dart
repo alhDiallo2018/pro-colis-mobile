@@ -1,6 +1,6 @@
 import 'dart:developer' as developer;
 
-import 'package:dio/dio.dart';
+import 'api/client.dart';
 import 'package:geocoding/geocoding.dart';
 
 import '../models/place.dart';
@@ -23,91 +23,66 @@ class PlacesApiException implements Exception {
 /// Accès centralisé aux APIs HTTP Google Maps utilisées par l'application :
 /// autocomplétion Places, détails d'un lieu et géocodage inverse.
 ///
-/// La clé est injectée **une seule fois** via `--dart-define=GOOGLE_MAPS_API_KEY`
-/// et lue ici. Aucun écran ne doit la récupérer ailleurs ni la hardcoder.
+/// Les appels passent par notre API : la clé serveur ne dépend plus d'un
+/// --dart-define oublié et les restrictions navigateur ne bloquent pas Places.
 class PlacesService {
   PlacesService._();
+  static final ApiClient _client = ApiClient();
 
-  static const String googleApiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: '',
-  );
+  static Future<dynamic> _get(String path, Map<String, dynamic> params) async {
+    final response =
+        await _client.dio.get('/public/places/$path', queryParameters: params);
+    final data = _client.handle(response);
+    if (data['success'] != true) {
+      throw PlacesApiException(data['error']?['code']?.toString() ?? 'UNKNOWN');
+    }
+    return data['data'];
+  }
 
-  /// Vrai quand une clé a bien été injectée au build. Sans elle, la recherche
-  /// Places n'est pas disponible et le géocodage inverse utilise le service
-  /// natif du téléphone comme solution de repli.
-  static bool get isConfigured => googleApiKey.trim().isNotEmpty;
-
-  static final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
-  ));
-
-  static const String _base = 'https://maps.googleapis.com/maps/api';
-
-  /// Autocomplétion Places : renvoie au plus 6 prédictions pour [query].
+  /// Autocomplétion mondiale Places pour [query].
   ///
   /// Lève un [PlacesApiException] quand l'API répond avec un statut d'erreur
   /// (clé refusée, quota, ...), pour que l'appelant puisse prévenir
   /// l'utilisateur une fois. Renvoie une liste vide si la requête est trop
-  /// courte ou si la clé n'est pas configurée.
-  static Future<List<PlaceResult>> autocomplete(String query) async {
+  /// courte. La configuration de la clé est gérée par le serveur.
+  static Future<List<PlaceResult>> autocomplete(String query,
+      {String? sessionToken}) async {
     final input = query.trim();
-    if (input.length < 2 || !isConfigured) return const [];
-
-    final response =
-        await _dio.get('$_base/place/autocomplete/json', queryParameters: {
+    if (input.length < 2) return const [];
+    final data = await _get('autocomplete', {
       'input': input,
-      'language': 'fr',
-      'key': googleApiKey,
+      if (sessionToken != null) 'sessionToken': sessionToken
     });
-
-    final data = response.data;
-    if (response.statusCode == 200 && data['status'] == 'OK') {
-      return (data['predictions'] as List)
-          .map((p) => PlaceResult.fromJson(p as Map<String, dynamic>))
-          .take(6)
-          .toList();
-    }
-    if (data['status'] == 'ZERO_RESULTS') return const [];
-    throw PlacesApiException(data['status']?.toString() ?? 'UNKNOWN');
+    return (data as List)
+        .map((p) => PlaceResult.fromJson(Map<String, dynamic>.from(p)))
+        .toList();
   }
 
-  /// Détails + coordonnées d'un lieu à partir de son `placeId`.
-  ///
-  /// Renvoie `null` si le lieu est introuvable ou en cas d'erreur : l'appelant
-  /// conserve alors les informations déjà saisies (texte, coordonnées).
-  static Future<PlaceDetails?> placeDetails(String placeId) async {
-    if (placeId.trim().isEmpty || !isConfigured) return null;
-
-    try {
-      final response =
-          await _dio.get('$_base/place/details/json', queryParameters: {
-        'place_id': placeId,
-        'fields': 'name,geometry,address_components,formatted_address',
-        'language': 'fr',
-        'key': googleApiKey,
-      });
-
-      final data = response.data;
-      if (response.statusCode != 200 || data['status'] != 'OK') return null;
-
-      final result = data['result'] as Map<String, dynamic>?;
-      if (result == null) return null;
-
-      final location = result['geometry']?['location'];
-      final lat = (location?['lat'] as num?)?.toDouble();
-      final lng = (location?['lng'] as num?)?.toDouble();
-
-      return PlaceDetails.fromComponents(
-        result['address_components'] as List?,
-        placeId: placeId,
+  /// Normalise le même contrat pour une suggestion et un point cartographique.
+  static PlaceDetails _parse(Map<String, dynamic> result) {
+    final location = result['geometry']?['location'];
+    return PlaceDetails.fromComponents(result['address_components'] as List?,
+        placeId: result['place_id'] as String?,
         name: result['name'] as String?,
         formattedAddress: result['formatted_address'] as String?,
-        latitude: lat,
-        longitude: lng,
-      );
-    } catch (_) {
+        latitude: (location?['lat'] as num?)?.toDouble(),
+        longitude: (location?['lng'] as num?)?.toDouble());
+  }
+
+  static Future<PlaceDetails?> placeDetails(String placeId,
+      {String? sessionToken}) async {
+    if (placeId.trim().isEmpty) return null;
+    try {
+      final data = await _get('details', {
+        'placeId': placeId,
+        if (sessionToken != null) 'sessionToken': sessionToken
+      });
+      return data is Map ? _parse(Map<String, dynamic>.from(data)) : null;
+    } catch (error, stackTrace) {
+      developer.log('Détails du lieu indisponibles',
+          name: 'PlacesService',
+          error: error is PlacesApiException ? error : error.runtimeType,
+          stackTrace: stackTrace);
       return null;
     }
   }
@@ -120,38 +95,18 @@ class PlacesService {
   /// l'interface ne doit jamais remplacer ce nom par de simples coordonnées.
   static Future<PlaceDetails?> reverseGeocode(
       double latitude, double longitude) async {
-    if (isConfigured) {
-      try {
-        final response =
-            await _dio.get('$_base/geocode/json', queryParameters: {
-          'latlng': '$latitude,$longitude',
-          'language': 'fr',
-          'key': googleApiKey,
-        });
-
-        final data = response.data;
-        if (response.statusCode == 200 && data['status'] == 'OK') {
-          final results = data['results'] as List?;
-          if (results != null && results.isNotEmpty) {
-            final first = results.first as Map<String, dynamic>;
-            final place = PlaceDetails.fromComponents(
-              first['address_components'] as List?,
-              placeId: first['place_id'] as String?,
-              formattedAddress: first['formatted_address'] as String?,
-              latitude: latitude,
-              longitude: longitude,
-            );
-            if (place.hasGeographicLabel) return place;
-          }
-        }
-      } catch (error, stackTrace) {
-        developer.log(
-          'Le géocodage Google a échoué, utilisation du repli natif',
-          name: 'PlacesService',
-          error: error,
-          stackTrace: stackTrace,
-        );
+    try {
+      final data =
+          await _get('reverse', {'latitude': latitude, 'longitude': longitude});
+      if (data is Map) {
+        final place = _parse(Map<String, dynamic>.from(data));
+        if (place.hasGeographicLabel) return place.copyWith(exactPoint: true);
       }
+    } catch (error, stackTrace) {
+      developer.log('Géocodage indisponible, utilisation du repli natif',
+          name: 'PlacesService',
+          error: error.runtimeType,
+          stackTrace: stackTrace);
     }
 
     try {
@@ -186,7 +141,7 @@ class PlacesService {
         latitude: latitude,
         longitude: longitude,
       );
-      return place.hasGeographicLabel ? place : null;
+      return place.hasGeographicLabel ? place.copyWith(exactPoint: true) : null;
     } catch (error, stackTrace) {
       developer.log(
         'Aucun géocodeur n’a pu résoudre la localité',

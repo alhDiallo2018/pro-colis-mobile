@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -41,6 +42,8 @@ class LocationAutocomplete extends StatefulWidget {
   final bool showGeolocate;
   final String? Function(String?)? validator;
   final bool autofocus;
+  final bool enabled;
+  final void Function(bool)? onResolving;
   final String? helperText;
 
   const LocationAutocomplete({
@@ -57,6 +60,8 @@ class LocationAutocomplete extends StatefulWidget {
     this.showGeolocate = true,
     this.validator,
     this.autofocus = false,
+    this.enabled = true,
+    this.onResolving,
     this.helperText,
   });
 
@@ -70,23 +75,38 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   OverlayEntry? _overlayEntry;
   List<PlaceResult> _suggestions = [];
   bool _isLoading = false;
+  String? _searchMessage;
   bool _showSuggestions = false;
   Timer? _debounce;
   bool _billingWarningShown = false;
   bool _suppressListener = false;
+  int _generation = 0;
+  // Un jeton lie les suggestions aux détails pour la facturation Google.
+  String _sessionToken = _newSessionToken();
+  static String _newSessionToken() =>
+      List.generate(32, (_) => Random.secure().nextInt(16).toRadixString(16))
+          .join();
 
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(_onFocusChange);
     widget.controller.addListener(_onTextChange);
+    // Attendre la fin du montage avant d'afficher des suggestions initiales.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.controller.text.trim().length >= 2) {
+        _fetchSuggestions(widget.controller.text);
+      }
+    });
   }
 
   @override
   void dispose() {
     _focusNode.removeListener(_onFocusChange);
     widget.controller.removeListener(_onTextChange);
+    _generation++;
     _debounce?.cancel();
+    _focusNode.dispose();
     _removeOverlay();
     super.dispose();
   }
@@ -105,6 +125,11 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
 
   void _onTextChange() {
     if (_suppressListener) return;
+    _generation++;
+    widget.onResolving?.call(false);
+    _suggestions = [];
+    _searchMessage = null;
+    _removeOverlay();
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
       _fetchSuggestions(widget.controller.text);
@@ -112,6 +137,8 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   }
 
   Future<void> _fetchSuggestions(String query) async {
+    if (!mounted || !widget.enabled) return;
+    final generation = _generation;
     if (query.trim().length < 2) {
       setState(() {
         _suggestions = [];
@@ -124,9 +151,13 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
     setState(() => _isLoading = true);
 
     try {
-      final predictions = await PlacesService.autocomplete(query);
-      if (!mounted) return;
+      final predictions =
+          await PlacesService.autocomplete(query, sessionToken: _sessionToken);
+      if (!mounted || generation != _generation) return;
       setState(() {
+        _searchMessage = predictions.isEmpty
+            ? 'Aucun lieu trouvé. Précisez la ville ou le pays, ou choisissez sur la carte.'
+            : null;
         _suggestions = predictions;
         _showSuggestions = predictions.isNotEmpty;
       });
@@ -136,7 +167,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
         _removeOverlay();
       }
     } on PlacesApiException catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       _warnBillingIfNeeded(error);
       setState(() {
         _suggestions = [];
@@ -144,14 +175,15 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
       });
       _removeOverlay();
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() {
         _suggestions = [];
         _showSuggestions = false;
       });
       _removeOverlay();
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && generation == _generation)
+        setState(() => _isLoading = false);
     }
   }
 
@@ -167,6 +199,8 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   }
 
   void _selectPlace(PlaceResult place) {
+    _generation++;
+    _debounce?.cancel();
     _suppressListener = true;
     widget.controller.text = place.description;
     _suppressListener = false;
@@ -186,8 +220,13 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
         widget.onPlace == null) {
       return;
     }
-    final details = await PlacesService.placeDetails(place.placeId);
-    if (!mounted) return;
+    final generation = _generation;
+    widget.onResolving?.call(true);
+    final details = await PlacesService.placeDetails(place.placeId,
+        sessionToken: _sessionToken);
+    if (!mounted || generation != _generation) return;
+    widget.onResolving?.call(false);
+    _sessionToken = _newSessionToken();
     if (details == null || !details.hasCoordinates) {
       developer.log(
         'Détails ou coordonnées introuvables pour ${place.placeId}',
@@ -219,6 +258,10 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   /// par géocodage inverse. Les coordonnées restent la source technique ; le
   /// texte affiché n'est qu'une représentation, jamais un remplacement.
   Future<void> _geolocate() async {
+    final generation = ++_generation;
+    _debounce?.cancel();
+    _removeOverlay();
+    widget.onResolving?.call(true);
     if (mounted) setState(() => _isLoading = true);
     try {
       final position = await resolveCurrentPosition();
@@ -226,7 +269,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
       final lng = position.longitude;
 
       final details = await PlacesService.reverseGeocode(lat, lng);
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       final label = details?.label;
       if (details == null || label == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -254,13 +297,16 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
         error: error,
         stackTrace: stackTrace,
       );
-      if (mounted) {
+      if (mounted && generation == _generation) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(locationErrorMessage(error))),
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && generation == _generation) {
+        setState(() => _isLoading = false);
+        widget.onResolving?.call(false);
+      }
     }
   }
 
@@ -281,7 +327,8 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
             color: Colors.white,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 280),
-              child: Column(
+              child: SingleChildScrollView(
+                  child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ...List.generate(_suggestions.length, (i) {
@@ -334,7 +381,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
                     ),
                   ),
                 ],
-              ),
+              )),
             ),
           ),
         ),
@@ -358,6 +405,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
     return CompositedTransformTarget(
       link: _layerLink,
       child: TextFormField(
+        enabled: widget.enabled,
         controller: widget.controller,
         focusNode: _focusNode,
         autofocus: widget.autofocus,
@@ -366,7 +414,10 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
           hintText: widget.hint ??
               widget.placeholder ??
               'Rechercher une adresse ou une ville...',
-          helperText: widget.helperText,
+          helperText: _isLoading
+              ? 'Recherche du lieu…'
+              : _searchMessage ?? widget.helperText,
+          helperMaxLines: 3,
           labelStyle: const TextStyle(
             color: Colors.grey,
             fontSize: 13,
@@ -395,7 +446,8 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
                     IconButton(
                       icon: const Icon(Icons.my_location,
                           size: 20, color: Colors.blue),
-                      onPressed: _geolocate,
+                      onPressed:
+                          widget.enabled && !_isLoading ? _geolocate : null,
                       tooltip: 'Utiliser ma position actuelle',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),

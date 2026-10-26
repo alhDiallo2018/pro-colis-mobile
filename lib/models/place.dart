@@ -41,6 +41,7 @@ class PlaceResult {
 /// la géolocalisation.
 class PlaceDetails {
   const PlaceDetails({
+    this.exactPoint = false,
     this.placeId,
     this.name,
     this.formattedAddress,
@@ -53,6 +54,7 @@ class PlaceDetails {
   });
 
   /// Identifiant stable du lieu chez Google, quand il existe.
+  final bool exactPoint;
   final String? placeId;
 
   /// Nom réel du lieu sélectionné (`Grand Dakar`, `Gare routière`, ...).
@@ -114,6 +116,7 @@ class PlaceDetails {
   }
 
   PlaceDetails copyWith({
+    bool? exactPoint,
     String? placeId,
     String? name,
     String? formattedAddress,
@@ -125,6 +128,7 @@ class PlaceDetails {
     double? longitude,
   }) {
     return PlaceDetails(
+      exactPoint: exactPoint ?? this.exactPoint,
       placeId: placeId ?? this.placeId,
       name: name ?? this.name,
       formattedAddress: formattedAddress ?? this.formattedAddress,
@@ -172,7 +176,12 @@ class PlaceDetails {
     for (final type in types) {
       for (final c in components) {
         final ts = (c['types'] as List?)?.cast<String>() ?? const [];
-        if (ts.contains(type)) return c['long_name'] as String?;
+        // Un numéro de bloc (ex. au Japon) ne suffit pas à nommer le lieu.
+        final label = (c['long_name'] as String?)?.trim();
+        if (ts.contains(type) &&
+            label != null &&
+            label.isNotEmpty &&
+            !RegExp(r'^\d+$').hasMatch(label)) return label;
       }
     }
     return null;
@@ -195,6 +204,7 @@ class PlaceDetails {
       district: _pick(list, [
         'neighborhood',
         'sublocality_level_1',
+        'sublocality_level_2',
         'sublocality',
         'administrative_area_level_3',
       ]),

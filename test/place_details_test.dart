@@ -7,6 +7,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:procolis/models/place.dart';
 
 void main() {
+  test('un numéro de bloc ne remplace pas le nom du quartier', () {
+    final place = PlaceDetails.fromComponents([
+      {
+        'long_name': '27',
+        'types': ['sublocality', 'sublocality_level_4']
+      },
+      {
+        'long_name': 'Hōnan',
+        'types': ['sublocality', 'sublocality_level_2']
+      },
+    ]);
+    expect(place.zoneName, 'Hōnan');
+    expect(place.copyWith(exactPoint: true).exactPoint, isTrue);
+  });
+
   group('PlaceResult', () {
     test('parse la prédiction et son structured_formatting', () {
       final result = PlaceResult.fromJson({
