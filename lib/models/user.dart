@@ -188,6 +188,7 @@ class User {
   // garantissait des champs vides à l'écran.
   final String? vehicleType;
   final int? vehicleCapacity;
+  final double? distanceKm;
   final DriverStatus? driverStatus;
 
   // Statistiques chauffeur
@@ -231,6 +232,7 @@ class User {
     this.vehicleModel,
     this.vehicleType,
     this.vehicleCapacity,
+    this.distanceKm,
     this.driverStatus,
     this.gender,
     this.isEmailVerified = false,
@@ -309,12 +311,12 @@ class User {
       city: json['city']?.toString(),
       region: json['region']?.toString(),
       zoneId: json['zoneId']?.toString() ?? json['zone_id']?.toString(),
-      zoneName:
-          json['zoneName']?.toString() ?? json['zone_name']?.toString(),
+      zoneName: json['zoneName']?.toString() ?? json['zone_name']?.toString(),
       vehiclePlate:
           json['vehiclePlate']?.toString() ?? json['vehicle_plate']?.toString(),
       vehicleModel:
           json['vehicleModel']?.toString() ?? json['vehicle_model']?.toString(),
+      distanceKm: double.tryParse(json['distanceKm']?.toString() ?? ''),
       vehicleType:
           json['vehicleType']?.toString() ?? json['vehicle_type']?.toString(),
       vehicleCapacity: parseInt(json['vehicleCapacity']) ??

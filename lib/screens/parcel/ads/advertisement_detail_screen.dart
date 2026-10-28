@@ -1,3 +1,4 @@
+import '../../../widgets/journey_stops_card.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -197,6 +198,8 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                           _buildDriverProfile(),
                           const SizedBox(height: 16),
                           _buildDetailsCard(),
+                          JourneyStopsCard(
+                              journey: Advertisement.fromJson(_adData ?? {})),
                           if (_myOffer != null) ...[
                             const SizedBox(height: 16),
                             _buildMyOfferCard(),
@@ -304,7 +307,10 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
         widget.parcel?.driverPhone ??
         _adData?['driver']?['phone']?.toString() ??
         _adData?['driverPhone']?.toString();
-    final zoneName = _adData?['driver']?['zoneName']?.toString() ?? _adData?['driver']?['garageName']?.toString() ?? _adData?['zoneName']?.toString() ?? _adData?['garageName']?.toString();
+    final zoneName = _adData?['driver']?['zoneName']?.toString() ??
+        _adData?['driver']?['garageName']?.toString() ??
+        _adData?['zoneName']?.toString() ??
+        _adData?['garageName']?.toString();
     final rating = (_adData?['driver']?['rating'] as num?)?.toDouble() ??
         (_adData?['rating'] as num?)?.toDouble();
 
@@ -373,8 +379,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.star_rounded,
-                      size: 15, color: AppTheme.amber500),
+                  Icon(Icons.star_rounded, size: 15, color: AppTheme.amber500),
                   const SizedBox(width: 3),
                   Text(
                     rating.toStringAsFixed(1),
@@ -747,6 +752,11 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     _priceController.clear();
     _messageController.clear();
     Parcel? selectedParcel;
+    final journey = Advertisement.fromJson(_adData ?? {});
+    final compatibleParcels = _userParcels
+        .where((p) => journey.serves(p.departureZoneId, p.arrivalZoneId,
+            weight: p.weight))
+        .toList();
 
     // Le schéma Advertisement ne stocke aucun canal de paiement. Le choix
     // final est donc fait sur le colis au moment où le client en joint un.
@@ -801,7 +811,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        if (_userParcels.isNotEmpty) ...[
+                        if (compatibleParcels.isNotEmpty) ...[
                           Text(
                             'Selectionner un colis',
                             style: AppFonts.plusJakartaSans(
@@ -815,7 +825,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                             height: 44,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
-                              itemCount: _userParcels.length + 1,
+                              itemCount: compatibleParcels.length + 1,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(width: 8),
                               itemBuilder: (ctx, index) {
@@ -843,7 +853,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                                     ),
                                   );
                                 }
-                                final parcel = _userParcels[index - 1];
+                                final parcel = compatibleParcels[index - 1];
                                 final isSelected =
                                     selectedParcel?.id == parcel.id;
                                 return ChoiceChip(
@@ -906,6 +916,12 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                           ],
                         ],
                         const SizedBox(height: 14),
+                        if (journey.itinerary != null)
+                          Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text(compatibleParcels.isEmpty
+                                  ? 'Aucun de vos colis ne correspond aux arrêts et horaires. Créez un colis avec un retrait et une remise sur ce trajet.'
+                                  : 'Choisissez le colis : ses lieux de retrait et de remise déterminent les arrêts réservés.')),
                         CustomTextField(
                           controller: _messageController,
                           label: 'Message (optionnel)',
@@ -966,6 +982,17 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
     required PaymentChannel paymentChannel,
     required CashCollectionPoint cashPoint,
   }) async {
+    final journey = Advertisement.fromJson(_adData ?? {});
+    if (journey.itinerary != null &&
+        (selectedParcel == null ||
+            !journey.serves(
+                selectedParcel.departureZoneId, selectedParcel.arrivalZoneId,
+                weight: selectedParcel.weight))) {
+      ScaffoldMessenger.of(sheetContext).showSnackBar(const SnackBar(
+          content: Text(
+              'Choisissez un colis compatible avec les arrêts et horaires de ce trajet.')));
+      return;
+    }
     final priceText = _priceController.text.trim();
     final price = double.tryParse(priceText);
     if (price == null || price <= 0) {

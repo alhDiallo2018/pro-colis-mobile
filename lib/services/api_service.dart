@@ -1,3 +1,4 @@
+import '../models/driver_discovery.dart';
 // mobile/lib/services/api_service.dart
 // Aligné sur l'API Web ProColis (React/TypeScript)
 
@@ -16,6 +17,7 @@ import '../models/user.dart';
 import '../models/wallet.dart';
 import 'api/api.dart';
 import 'auth_session.dart';
+import 'offline_access.dart';
 
 class ApiService {
   static const String baseUrl = AppConfig.apiBaseUrl;
@@ -57,6 +59,7 @@ class ApiService {
 
   void _setupInterceptors() {
     _dio.interceptors.add(SessionAuthInterceptor(_dio));
+    _dio.interceptors.add(OfflineAccessInterceptor());
   }
 
   Future<void> _storeAuthTokens(Map<String, dynamic> data) =>
@@ -66,6 +69,7 @@ class ApiService {
       AuthSessionManager.instance.setAccessToken(token);
   Future<void> clearToken() async {
     await AuthSessionManager.instance.clear();
+    OfflineAccess.instance.useSession(null);
   }
 
   Map<String, dynamic> _handleResponse(Response response) {
@@ -95,6 +99,7 @@ class ApiService {
     // Invalider localement AVANT le reseau empeche un refresh retardataire de
     // ressusciter le compte. Le serveur revoque aussi le successeur de ce jeton.
     final previous = await AuthSessionManager.instance.clear();
+    OfflineAccess.instance.useSession(null);
     if (previous?.refreshToken == null) return;
     try {
       await _dio
@@ -150,6 +155,60 @@ class ApiService {
     }
   }
 
+  /// Prépare les vraies listes du compte dès une connexion réussie. Les mêmes
+  /// URLs que les écrans alimentent le cache ; aucune donnée de démonstration.
+  Future<void> cacheOfflineHistory(User user) async {
+    try {
+      final session = await AuthSessionManager.instance.read();
+      if (session == null ||
+          OfflineAccess.instance.value.disconnected ||
+          user.isStaff) return;
+      final reads = user.isClient
+          ? <Map<String, dynamic>>[
+              {},
+              {'filter': 'sent'},
+              {'filter': 'received'}
+            ]
+          : <Map<String, dynamic>>[{}];
+      await Future.wait(reads.map((params) async {
+        try {
+          await _dio.get(
+              user.isClient ? '/client/parcels/my-parcels' : '/driver/parcels',
+              queryParameters: params,
+              options: Options(
+                  extra: {'authSession': session, 'authSessionPinned': true}));
+        } catch (error) {
+          // Une copie indisponible ne bloque jamais l'ouverture de la session.
+          debugPrint(
+              '[OfflineHistory] Synchronisation différée (${error.runtimeType})');
+        }
+      }));
+    } catch (error, stack) {
+      // Un stockage sécurisé temporairement indisponible ne bloque pas l'UI.
+      debugPrint(
+          '[OfflineHistory] Préparation impossible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+    }
+  }
+
+  /// La reprise vérifie réellement le serveur, même si le profil est en cache.
+  Future<User> reconnectUser() async {
+    try {
+      final response = await _dio.get('/auth/me',
+          options: Options(
+            extra: {OfflineAccessInterceptor.onlineOnly: true},
+          ));
+      if (response.statusCode != 200 || response.data['user'] is! Map) {
+        throw const FormatException('Session non vérifiée');
+      }
+      return User.fromJson(Map<String, dynamic>.from(response.data['user']));
+    } catch (error, stack) {
+      debugPrint('[API] Reconnexion impossible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      rethrow;
+    }
+  }
+
   // ==================== PARCELS ====================
 
   /// Convertit une liste de colis quelle que soit la forme de réponse utilisée
@@ -176,6 +235,11 @@ class ApiService {
       final response = await _dio.get('/client/parcels/my-parcels',
           queryParameters: queryParams);
       final responseData = _handleResponse(response);
+      if ((response.statusCode ?? 500) >= 400 ||
+          responseData['success'] == false) {
+        throw _apiExceptionFromResponse(
+            responseData, response.statusCode ?? 500);
+      }
       final grouped = [
         ..._parseParcelList(responseData, direction: 'sent'),
         ..._parseParcelList(responseData, direction: 'received'),
@@ -187,9 +251,10 @@ class ApiService {
       // On le déduplique ici pour ne pas fausser les compteurs du dashboard.
       final seen = <String>{};
       return parcels.where((parcel) => seen.add(parcel.id)).toList();
-    } catch (e) {
-      debugPrint("❌ [API] getMyParcels failed: $e");
-      return [];
+    } catch (error, stack) {
+      debugPrint('[API] Lecture des colis impossible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      rethrow;
     }
   }
 
@@ -200,10 +265,16 @@ class ApiService {
       final response =
           await _dio.get('/client/parcels/my-parcels', queryParameters: params);
       final responseData = _handleResponse(response);
+      if ((response.statusCode ?? 500) >= 400 ||
+          responseData['success'] == false) {
+        throw _apiExceptionFromResponse(
+            responseData, response.statusCode ?? 500);
+      }
       return _parseParcelList(responseData, direction: 'sent');
-    } catch (e) {
-      debugPrint("❌ [API] getSentParcels failed: $e");
-      return [];
+    } catch (error, stack) {
+      debugPrint('[API] Lecture des colis impossible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      rethrow;
     }
   }
 
@@ -214,10 +285,16 @@ class ApiService {
       final response =
           await _dio.get('/client/parcels/my-parcels', queryParameters: params);
       final responseData = _handleResponse(response);
+      if ((response.statusCode ?? 500) >= 400 ||
+          responseData['success'] == false) {
+        throw _apiExceptionFromResponse(
+            responseData, response.statusCode ?? 500);
+      }
       return _parseParcelList(responseData, direction: 'received');
-    } catch (e) {
-      debugPrint("❌ [API] getReceivedParcels failed: $e");
-      return [];
+    } catch (error, stack) {
+      debugPrint('[API] Lecture des colis impossible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      rethrow;
     }
   }
 
@@ -657,6 +734,81 @@ class ApiService {
     }
   }
 
+  Future<String> startJourneyLive(
+      String id, Map<String, dynamic> fix, SessionTokens auth) async {
+    final response = await _dio.post('/advertisements/$id/live',
+        data: {'enabled': true, ...fix},
+        options:
+            Options(extra: {'authSession': auth, 'authSessionPinned': true}));
+    final body = _handleResponse(response);
+    if (body['success'] != true || body['sessionId'] == null)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    return body['sessionId'].toString();
+  }
+
+  Future<void> updateJourneyLive(String id, String session,
+      Map<String, dynamic> fix, SessionTokens auth) async {
+    final response = await _dio.patch('/advertisements/$id/live',
+        data: {'sessionId': session, ...fix},
+        options:
+            Options(extra: {'authSession': auth, 'authSessionPinned': true}));
+    final body = _handleResponse(response);
+    if (body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+  }
+
+  Future<void> stopJourneyLive(
+      String id, String session, SessionTokens auth) async {
+    final response = await _dio.delete('/advertisements/$id/live',
+        data: {'sessionId': session},
+        options:
+            Options(extra: {'authSession': auth, 'authSessionPinned': true}));
+    final body = _handleResponse(response);
+    if (body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+  }
+
+  Future<List<Map<String, dynamic>>> getLiveJourneys(
+      Map<String, dynamic> params) async {
+    final response =
+        await _dio.get('/client/journeys/live', queryParameters: params);
+    final body = _handleResponse(response);
+    if (body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    return (body['journeys'] as List? ?? [])
+        .map((v) => Map<String, dynamic>.from(v as Map))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getRouteTemplates() async {
+    final response = await _dio.get('/driver/route-templates');
+    final body = _handleResponse(response);
+    if (body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    return (body['templates'] as List? ?? [])
+        .map((v) => Map<String, dynamic>.from(v as Map))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> rememberRoute(String advertisementId) async {
+    final response = await _dio.post('/driver/route-templates',
+        data: {'advertisementId': advertisementId});
+    final body = _handleResponse(response);
+    if (body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    return Map<String, dynamic>.from(body['template']);
+  }
+
+  Future<Map<String, dynamic>> scheduleRouteDepartures(
+      String templateId, Map<String, dynamic> payload) async {
+    final response = await _dio
+        .post('/driver/route-templates/$templateId/departures', data: payload);
+    final body = _handleResponse(response);
+    if (body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    return body;
+  }
+
   Future<List<Map<String, dynamic>>> getAdvertisements(
       {Map<String, dynamic>? params}) async {
     try {
@@ -950,12 +1102,19 @@ class ApiService {
         queryParameters: {}, // Vide explicitement
       );
       final responseData = _handleResponse(response);
+      if ((response.statusCode ?? 500) >= 400 ||
+          responseData['success'] == false) {
+        throw _apiExceptionFromResponse(
+            responseData, response.statusCode ?? 500);
+      }
       final List<dynamic> parcelsData = responseData['parcels'] ?? [];
       return parcelsData
           .map((json) => Parcel.fromJson(json as Map<String, dynamic>))
           .toList();
-    } catch (e) {
-      return [];
+    } catch (error, stack) {
+      debugPrint('[API] Lecture des colis impossible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      rethrow;
     }
   }
 
@@ -1756,6 +1915,7 @@ class ApiService {
     required XFile file,
     required String mediaType,
     String? parcelId,
+    String? requestId,
   }) async {
     try {
       final bytes = await file.readAsBytes();
@@ -1767,6 +1927,7 @@ class ApiService {
         ),
         'mediaType': mediaType,
         if (parcelId != null) 'parcelId': parcelId,
+        if (requestId != null) 'requestId': requestId,
       });
       final response = await _dio.post('/upload', data: formData);
       final responseData = _handleResponse(response);
@@ -1803,21 +1964,71 @@ class ApiService {
 
   // ==================== PUBLIC DRIVERS ====================
 
+  /// La session capturée protège un autre compte contre un envoi GPS tardif.
+  Future<void> shareDiscoveryPosition(
+      {required bool enabled,
+      required SessionTokens session,
+      double? latitude,
+      double? longitude}) async {
+    final response = await _dio.put('/driver/discovery-location',
+        data: {
+          'enabled': enabled,
+          if (enabled) 'latitude': latitude,
+          if (enabled) 'longitude': longitude,
+        },
+        options: Options(
+            extra: {'authSession': session, 'authSessionPinned': true}));
+    final body = _handleResponse(response);
+    if ((response.statusCode ?? 500) >= 400 || body['success'] != true) {
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    }
+  }
+
+  /// Contrat authentifié de la carte : positions approximatives et compteurs
+  /// calculés sur le même rayon et le même poids que les résultats affichés.
+  Future<DriverMapResult> getDriverDiscovery(DriverDiscoveryQuery query) async {
+    final response = await _dio.get('/client/drivers/discovery',
+        queryParameters: query.toJson());
+    final body = _handleResponse(response);
+    if ((response.statusCode ?? 500) >= 400 || body['success'] != true) {
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    }
+    return DriverMapResult.fromJson(body);
+  }
+
   Future<List<User>> searchDriversPublic({
     String? city,
     String? zoneId,
     bool verifiedOnly = false,
+    bool availableOnly = false,
+    String? vehicleType,
+    double? latitude,
+    double? longitude,
+    double? minCapacity,
     int limit = 100,
   }) async {
     try {
-      final response =
-          await _dio.get('/public/drivers/search', queryParameters: {
-        if (city != null && city.isNotEmpty) 'city': city,
-        if (zoneId != null && zoneId.isNotEmpty) 'zoneId': zoneId,
-        if (verifiedOnly) 'verifiedOnly': true,
-        'limit': limit,
-      });
+      final response = await _dio.get(
+          latitude == null
+              ? '/public/drivers/search'
+              : '/client/drivers/search',
+          queryParameters: {
+            if (city != null && city.isNotEmpty) 'city': city,
+            if (zoneId != null && zoneId.isNotEmpty) 'zoneId': zoneId,
+            if (verifiedOnly) 'verifiedOnly': true,
+            'limit': limit,
+            if (availableOnly) 'availableOnly': true,
+            if (vehicleType != null) 'vehicleType': vehicleType,
+            if (latitude != null) 'latitude': latitude,
+            if (longitude != null) 'longitude': longitude,
+            if (minCapacity != null) 'minCapacity': minCapacity,
+          });
       final responseData = _handleResponse(response);
+      if ((response.statusCode ?? 500) >= 400 ||
+          responseData['success'] == false) {
+        throw _apiExceptionFromResponse(
+            responseData, response.statusCode ?? 500);
+      }
       final List<dynamic> driversData = responseData['drivers'] ?? [];
       return driversData
           .map((json) => User.fromJson(json as Map<String, dynamic>))
@@ -1826,7 +2037,7 @@ class ApiService {
       debugPrint(
         '[ApiService] Échec recherche chauffeurs publics: $e\n$stackTrace',
       );
-      return [];
+      rethrow;
     }
   }
 

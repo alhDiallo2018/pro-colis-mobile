@@ -1,11 +1,31 @@
+import 'cancellation.dart';
+
+class HelpGuide {
+  const HelpGuide(
+      {required this.id,
+      required this.language,
+      required this.title,
+      required this.text,
+      this.audioUrl});
+  final String id, language, title, text;
+  final String? audioUrl;
+  factory HelpGuide.fromJson(dynamic value) {
+    final json = value is Map ? value : <String, dynamic>{};
+    return HelpGuide(
+        id: json['id']?.toString() ?? '',
+        language: json['language']?.toString() ?? 'fr',
+        title: json['title']?.toString() ?? '',
+        text: json['text']?.toString() ?? '',
+        audioUrl: json['audioUrl']?.toString());
+  }
+}
+
 // lib/models/public_config.dart
 //
 // Configuration publique renvoyée par `/public/config`. Elle contient les
 // paramètres métier (commission, points, retraits, contact support) que le
 // mobile affiche et utilise pour ses calculs. Aucune valeur n'est codée en dur
 // dans l'application : tout provient de la configuration administrée côté API.
-
-import 'cancellation.dart';
 
 double _num(dynamic v, double fallback) {
   if (v is num) return v.toDouble();
@@ -90,6 +110,7 @@ class PublicConfig {
   final String supportResponseTime;
   final String supportAvailability;
 
+  final List<HelpGuide> helpGuides;
   final List<HelpTopic> helpTopics;
   final List<HelpFaq> helpFaqs;
 
@@ -132,6 +153,7 @@ class PublicConfig {
     this.supportTechnicalPhone = '',
     this.supportResponseTime = '',
     this.supportAvailability = '',
+    this.helpGuides = const [],
     this.helpTopics = const [],
     this.helpFaqs = const [],
     this.cancellationReasons = const [],
@@ -191,6 +213,7 @@ class PublicConfig {
       supportTechnicalPhone: _str(support['technicalPhone'], ''),
       supportResponseTime: _str(support['responseTime'], ''),
       supportAvailability: _str(support['availability'], ''),
+      helpGuides: _objList(help['guides'], HelpGuide.fromJson),
       helpTopics: _objList(help['topics'], HelpTopic.fromJson),
       helpFaqs: _objList(help['faqs'], HelpFaq.fromJson),
       cancellationReasons:

@@ -658,6 +658,11 @@ class _SuperAdminHomeScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const PcSectionHeader('Actions rapides'),
+        OutlinedButton.icon(
+            onPressed: () => context.push('/support-tech/qualite'),
+            icon: const Icon(Icons.monitor_heart_outlined),
+            label: const Text('Qualité de service')),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(

@@ -142,7 +142,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _google() => _run(() async {
         final result = await ref.read(googleAuthServiceProvider).signIn();
-        if (!mounted || result == null) return;
+        if (!mounted) return;
+        if (result == null) {
+          setState(() => _error =
+              'Connexion Google annulée ou non aboutie. Aucun compte n’a été connecté.');
+          return;
+        }
         await _savePreferences(google: true);
         if (!mounted) return;
         if (result['status'] == 'authenticated') {

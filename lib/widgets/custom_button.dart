@@ -75,13 +75,14 @@ class CustomButton extends StatelessWidget {
         children: [
           Icon(icon, size: 18),
           const SizedBox(width: 8),
-          Text(
+          Flexible(child: Text(
             text,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: fontSize ?? 16,
               fontWeight: FontWeight.w800,
             ),
-          ),
+          )),
         ],
       );
     } else {
@@ -94,9 +95,17 @@ class CustomButton extends StatelessWidget {
       );
     }
 
-    return SizedBox(
+    return Semantics(
+      label: isLoading ? '$text, chargement en cours' : text,
+      button: true,
+      enabled: !isLoading && onPressed != null,
+      onTap: isLoading ? null : onPressed,
+      liveRegion: isLoading,
+      excludeSemantics: true,
+      child: Container(
       width: width ?? double.infinity,
-      height: height ?? 50,
+      // Les grands caractères peuvent augmenter la hauteur, jamais être coupés.
+      constraints: BoxConstraints(minHeight: height ?? 50),
       child: outlined
           ? OutlinedButton(
               onPressed: (isLoading || onPressed == null) ? null : onPressed,
@@ -108,6 +117,7 @@ class CustomButton extends StatelessWidget {
               style: buttonStyle,
               child: buttonChild,
             ),
+      ),
     );
   }
 }

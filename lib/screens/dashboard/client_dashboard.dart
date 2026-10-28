@@ -1,3 +1,4 @@
+import '../experience/workspace_screen.dart';
 // lib/screens/dashboard/client_dashboard.dart
 // ignore_for_file: prefer_const_literals_to_create_immutables, prefer_const_constructors, deprecated_member_use, unnecessary_this, unused_element
 
@@ -24,7 +25,7 @@ import '../../widgets/procolis_design_system.dart';
 import '../../widgets/segmented_control.dart';
 // IMPORTANT: Importer le nouvel écran d'annonces
 import '../parcel/ads/advertisements_screen.dart'; // <-- NOUVEAU CHEMIN
-import '../parcel/create_colis_sheet.dart';
+import '../parcel/new_parcel_wizard_screen.dart';
 import '../parcel/offres_recues_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
 import '../parcel/track_parcel_screen.dart';
@@ -53,6 +54,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
   @override
   void initState() {
     super.initState();
+    _selectedIndex = ref.read(dashboardTabProvider);
     WidgetsBinding.instance.addObserver(this);
     _loadData();
     _loadNotificationsCount();
@@ -91,8 +93,9 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
     _loadMessagesUnread();
   }
 
-  void _loadData() {
-    Future.microtask(() async {
+  // La Future remonte jusqu’au RefreshIndicator : il attend la réponse réseau.
+  Future<void> _loadData() {
+    return Future.microtask(() async {
       final client = ref.read(authProvider).user;
       final notifier = ref.read(parcelProvider.notifier);
       if (client != null) {
@@ -230,7 +233,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
           ? FloatingActionButton(
               heroTag: 'client-new-parcel',
               onPressed: () {
-                showCreateColisSheet(context);
+                showDeliveryCreation(context);
               },
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
@@ -353,7 +356,7 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
 
 class _MesColisTab extends StatefulWidget {
   final ParcelState parcelState;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
 
   const _MesColisTab({
     required this.parcelState,
@@ -699,7 +702,7 @@ class _MesColisTabState extends State<_MesColisTab> {
           ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () async => widget.onRefresh(),
+            onRefresh: widget.onRefresh,
             color: AppTheme.primary,
             child: widget.parcelState.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -707,9 +710,15 @@ class _MesColisTabState extends State<_MesColisTab> {
                     ? ListView(
                         padding: const EdgeInsets.fromLTRB(20, 56, 20, 120),
                         children: [
-                          _MesColisEmptyState(
-                            onNew: () => showCreateColisSheet(context),
-                          ),
+                          if (widget.parcelState.error != null)
+                            const Text(
+                              'Colis indisponibles. Hors ligne, seuls les colis déjà chargés sur cet appareil sont consultables.',
+                              textAlign: TextAlign.center,
+                            )
+                          else
+                            _MesColisEmptyState(
+                              onNew: () => showDeliveryCreation(context),
+                            ),
                         ],
                       )
                     : ListView.separated(
@@ -1163,7 +1172,7 @@ class _ClientParcelMeta extends StatelessWidget {
 class HomeScreen extends StatelessWidget {
   final User? user;
   final ParcelState parcelState;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
   final ValueChanged<int>? onNavigateToTab;
   final VoidCallback onNotificationsTap;
   final int unreadNotificationsCount;
@@ -1221,7 +1230,7 @@ class HomeScreen extends StatelessWidget {
 
     return RefreshIndicator(
       color: AppTheme.primary,
-      onRefresh: () async => onRefresh(),
+      onRefresh: onRefresh,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
@@ -1244,8 +1253,17 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const WorkspaceScreen())),
+                    icon: const Icon(Icons.business_center_outlined),
+                    label: const Text(
+                        'Outils d’envoi · brouillons, alertes et reçus')),
+                const SizedBox(height: 12),
                 _ClientQuickActions(
-                  onNew: () => showCreateColisSheet(context),
+                  onNew: () => showDeliveryCreation(context),
                   onLibre: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -1314,7 +1332,7 @@ class HomeScreen extends StatelessWidget {
                   )
                 else if (recentParcels.isEmpty)
                   _ClientEmptyRecent(onNew: () {
-                    showCreateColisSheet(context);
+                    showDeliveryCreation(context);
                   })
                 else
                   Column(

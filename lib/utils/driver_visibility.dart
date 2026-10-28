@@ -9,9 +9,13 @@ import '../models/user.dart';
 List<User> visibleDrivers(
   Iterable<User> source, {
   bool verifiedOnly = false,
+  bool availableOnly = false,
+  bool nearestFirst = false,
 }) {
   final drivers = source
-      .where((driver) => !verifiedOnly || driver.isVerified)
+      .where((driver) =>
+          (!verifiedOnly || driver.isVerified) &&
+          (!availableOnly || driver.driverStatus == DriverStatus.available))
       .toList(growable: false);
 
   int statusRank(DriverStatus? status) => switch (status) {
@@ -21,6 +25,12 @@ List<User> visibleDrivers(
       };
 
   drivers.sort((a, b) {
+    // Un tri de proximité explicite prime sur la note ; les GPS inconnus sont derniers.
+    if (nearestFirst) {
+      final distance = (a.distanceKm ?? double.infinity)
+          .compareTo(b.distanceKm ?? double.infinity);
+      if (distance != 0) return distance;
+    }
     final verified = (b.isVerified ? 1 : 0).compareTo(a.isVerified ? 1 : 0);
     if (verified != 0) return verified;
 

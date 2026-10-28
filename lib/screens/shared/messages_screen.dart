@@ -30,6 +30,7 @@ class MessagesScreen extends ConsumerStatefulWidget {
   final String? initialPeerName;
   final String? initialParcelId;
   final String? supportConversationId;
+  final String? supportTicketId;
 
   const MessagesScreen({
     super.key,
@@ -37,6 +38,7 @@ class MessagesScreen extends ConsumerStatefulWidget {
     this.initialPeerName,
     this.initialParcelId,
     this.supportConversationId,
+    this.supportTicketId,
   });
 
   @override
@@ -327,6 +329,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
           ? ''
           : body,
       if (audioUrl != null) 'audioUrl': audioUrl,
+      if (widget.supportTicketId != null) 'ticketId': widget.supportTicketId,
       if (photoUrl != null) 'photoUrl': photoUrl,
       if (videoUrl != null) 'videoUrl': videoUrl,
       if (_activeParcelId != null) 'parcelId': _activeParcelId,

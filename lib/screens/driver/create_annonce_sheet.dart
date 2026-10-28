@@ -1,3 +1,5 @@
+import 'route_templates_screen.dart';
+import '../../models/vehicle_type.dart';
 // lib/screens/driver/create_annonce_sheet.dart
 //
 // Modal multi-étapes de création d'une annonce de trajet (chauffeur).
@@ -5,6 +7,8 @@
 // Aligné sur le CreateAnnonceDialog du web, en flux 2 étapes.
 
 import 'dart:async';
+import 'dart:convert';
+import '../../widgets/trip_plan_editor.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,12 +27,12 @@ import '../../widgets/voice_note_field.dart';
 
 /// Ouvre le modal de création d'annonce. Renvoie `true` si une annonce a été
 /// publiée (le parent peut alors rafraîchir sa liste).
-Future<bool?> showCreateAnnonceSheet(BuildContext context) {
+Future<bool?> showCreateAnnonceSheet(BuildContext context, {ApiService? api}) {
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => const _CreateAnnonceSheet(),
+    builder: (_) => _CreateAnnonceSheet(api: api),
   );
 }
 
@@ -53,7 +57,10 @@ class _CreateAnnonceSheet extends ConsumerStatefulWidget {
   /// Annonce à modifier. `null` en création.
   final Map<String, dynamic>? existing;
 
-  const _CreateAnnonceSheet({this.existing});
+  // Le client peut être injecté pour tester la publication sans dépendre
+  // du réseau ni du stockage sécurisé global.
+  final ApiService? api;
+  const _CreateAnnonceSheet({this.existing, this.api});
 
   @override
   ConsumerState<_CreateAnnonceSheet> createState() =>
@@ -61,7 +68,7 @@ class _CreateAnnonceSheet extends ConsumerStatefulWidget {
 }
 
 class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
-  final ApiService _api = ApiService();
+  late final ApiService _api = widget.api ?? ApiService();
 
   // ---- Brouillon ----
   late final FormDraftStore _draftStore;
@@ -84,6 +91,12 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   String? _departureZoneId;
   String? _arrivalZoneId;
   DateTime? _departureAt;
+  String? _profileVehicleId;
+  String? _profileVehicleError;
+  Map<String, dynamic>? _tripPlan = {
+    'serviceType': 'trip',
+    'intermediateStops': []
+  };
 
   final _weightController = TextEditingController();
   final _priceController = TextEditingController();
@@ -106,6 +119,14 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       ownerId: ref.read(authProvider).user?.id,
     );
     _loadZones();
+    if (!_isEditing) {
+      final user = ref.read(authProvider).user;
+      final type = vehicleTypeCode(user?.vehicleType);
+      _tripPlan = {...?_tripPlan, 'serviceType': _serviceFor(type)};
+      if ((user?.vehicleCapacity ?? 0) > 0)
+        _weightController.text = user!.vehicleCapacity.toString();
+      _loadRegisteredTransport();
+    }
 
     if (_isEditing) {
       // Pas de brouillon en modification : il porterait la saisie d'une
@@ -122,6 +143,41 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       controller.addListener(_scheduleDraftSave);
     }
     _loadDraft();
+  }
+
+  String _serviceFor(String? type) => type == 'bus'
+      ? 'shuttle'
+      : type == 'gp'
+          ? 'gp'
+          : 'trip';
+  Future<void> _loadRegisteredTransport() async {
+    try {
+      final vehicle = await _api.getDriverVehicle();
+      if (!mounted) return;
+      setState(() {
+        _profileVehicleId = vehicle?['id']?.toString();
+        _profileVehicleError = vehicle == null
+            ? 'Véhicule indisponible. Vérifiez votre connexion ou complétez votre profil chauffeur.'
+            : null;
+        if (vehicle != null && _tripPlan != null) {
+          _tripPlan = {
+            ..._tripPlan!,
+            'serviceType':
+                _serviceFor(vehicleTypeCode(vehicle['type']?.toString()))
+          };
+          if (_weightController.text.isEmpty &&
+              (num.tryParse('${vehicle['capacity']}') ?? 0) > 0)
+            _weightController.text = vehicle['capacity'].toString();
+        }
+      });
+    } catch (error, stack) {
+      debugPrint(
+          '[CreateTrip] Profil véhicule indisponible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      if (mounted)
+        setState(() => _profileVehicleError =
+            'Impossible de charger votre véhicule. Réessayez.');
+    }
   }
 
   void _prefillFromExisting(Map<String, dynamic> ad) {
@@ -154,6 +210,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
             {'id': id, 'name': name, 'city': ad['${side}City']}));
       }
     }
+    _tripPlan = tripPlanFromItinerary(ad['itinerary']);
     _departureAt = DateTime.tryParse(ad['departureAt']?.toString() ?? '');
     _weightController.text = numberText(ad['availableWeight']);
     _priceController.text = numberText(ad['proposedPrice']);
@@ -168,13 +225,15 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       'proposedPrice': _priceController.text,
       'description': _descriptionController.text,
       'audioUrl': _audioUrl,
+      'tripPlan': jsonEncode(_tripPlan),
     };
   }
 
   /// Vrai si la saisie diverge de l'annonce chargée.
   bool get _hasEdits {
     if (!_isEditing) return false;
-    return _initialValues['departureZoneId'] != _departureZoneId ||
+    return _initialValues['tripPlan'] != jsonEncode(_tripPlan) ||
+        _initialValues['departureZoneId'] != _departureZoneId ||
         _initialValues['arrivalZoneId'] != _arrivalZoneId ||
         _initialValues['departureAt'] != _departureAt?.toIso8601String() ||
         _initialValues['availableWeight'] != _weightController.text ||
@@ -213,6 +272,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
 
   Map<String, dynamic> _draftPayload() => {
         'step': _step,
+        'tripPlan': _tripPlan,
         'departureZoneId': _departureZoneId,
         'arrivalZoneId': _arrivalZoneId,
         'departureAt': _departureAt?.toIso8601String(),
@@ -248,6 +308,9 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
     final data = draft.data;
 
     setState(() {
+      _tripPlan = data['tripPlan'] is Map
+          ? Map<String, dynamic>.from(data['tripPlan'])
+          : null;
       _step = (data['step'] as num?)?.toInt() ?? 0;
       _departureZoneId = data['departureZoneId']?.toString();
       _arrivalZoneId = data['arrivalZoneId']?.toString();
@@ -258,6 +321,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
       _audioUrl = data['audioUrl']?.toString();
       _pendingDraft = null;
     });
+    if (!_isEditing) _loadRegisteredTransport();
   }
 
   Future<void> _discardDraft() async {
@@ -305,9 +369,33 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   }
 
   bool get _step1Valid =>
+      (_isEditing || _profileVehicleId != null) &&
       _departureZoneId != null &&
       _arrivalZoneId != null &&
-      _departureZoneId != _arrivalZoneId;
+      _departureZoneId != _arrivalZoneId &&
+      _validTripPlan;
+
+  // Le serveur reste autoritaire ; ce contrôle évite une publication vouée
+  // à l’échec et garde le brouillon tant que le trajet n’est pas complet.
+  bool get _validTripPlan {
+    if (_tripPlan == null) return true;
+    if (_departureAt == null) return false;
+    if (_tripPlan!['serviceType'] == 'shuttle' &&
+        (_tripPlan!['lineNumber']?.toString().trim().isEmpty ?? true))
+      return false;
+    final stops = _tripPlan!['intermediateStops'] as List? ?? [];
+    final ids = <String?>{_departureZoneId, _arrivalZoneId};
+    int previous = 0;
+    for (final stop in stops) {
+      final minutes = stop['offsetMinutes'];
+      if (minutes is! int ||
+          minutes <= previous ||
+          !ids.add(stop['zoneId']?.toString())) return false;
+      previous = minutes;
+    }
+    final arrival = _tripPlan!['arrivalOffsetMinutes'];
+    return arrival is int && arrival > previous && arrival <= 43200;
+  }
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
@@ -416,13 +504,18 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
     final dep = _zoneById(_departureZoneId);
     final arr = _zoneById(_arrivalZoneId);
     return <String, dynamic>{
+      if (_tripPlan != null)
+        'itinerary':
+            itineraryFromTripPlan(_tripPlan!, _departureZoneId, _arrivalZoneId),
       'departureZoneId': _departureZoneId,
       'arrivalZoneId': _arrivalZoneId,
+      if (_profileVehicleId != null) 'vehicleId': _profileVehicleId,
       'departureCity': dep?.locationLabel,
       'arrivalCity': arr?.locationLabel,
       'departureAt': _departureAt?.toIso8601String(),
       'availableWeight': double.tryParse(_weightController.text.trim()),
-      'proposedPrice': double.tryParse(_priceController.text.trim()),
+      // Le prix se négocie après réception du colis proposé par le client.
+      'proposedPrice': null,
       'description': _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
@@ -436,6 +529,14 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
   /// l'identique.
   Map<String, dynamic> _updatePayload() {
     final data = <String, dynamic>{};
+    if (_initialValues['tripPlan'] != jsonEncode(_tripPlan) ||
+        (_tripPlan != null &&
+            (_initialValues['departureZoneId'] != _departureZoneId ||
+                _initialValues['arrivalZoneId'] != _arrivalZoneId))) {
+      data['itinerary'] = _tripPlan == null
+          ? null
+          : itineraryFromTripPlan(_tripPlan!, _departureZoneId, _arrivalZoneId);
+    }
 
     if (_initialValues['departureZoneId'] != _departureZoneId) {
       data['departureZoneId'] = _departureZoneId;
@@ -630,11 +731,31 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
         ),
       );
 
+  Future<void> _openHabitualRoutes() async {
+    // Le formulaire en cours garde son brouillon ; choisir un trajet habituel
+    // ne doit pas effacer des lieux saisis pour un autre voyage.
+    if (!_isEditing && !_draftPending) await _saveDraft();
+    if (!mounted) return;
+    final created = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const RouteTemplatesScreen()));
+    if (created == true && mounted) Navigator.pop(context, true);
+  }
+
   Widget _buildStep1() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _stepBar(),
+        if (!_isEditing) ...[
+          FilledButton.tonalIcon(
+              onPressed: _openHabitualRoutes,
+              icon: const Icon(Icons.bookmarks_outlined),
+              label: const Text('Utiliser un trajet habituel')),
+          const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                  'Les nouveaux trajets seront mémorisés automatiquement pour vos prochains départs.')),
+        ],
         if (_pendingDraft != null)
           DraftRestoreBanner(
             savedAt: _pendingDraft!.savedAt,
@@ -661,6 +782,25 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
         const SizedBox(height: 14),
         _fieldLabel('Date et heure de départ'),
         _dateField(),
+        if (_profileVehicleError != null) ...[
+          Text(_profileVehicleError!),
+          TextButton(
+              onPressed: _loadRegisteredTransport,
+              child: const Text('Réessayer')),
+        ],
+        if (_tripPlan != null)
+          TripPlanEditor(
+              value: _tripPlan!,
+              zones: _zones,
+              onChanged: (value) {
+                setState(() => _tripPlan = value);
+                _scheduleDraftSave();
+              })
+        else
+          TextButton(
+              onPressed: () => setState(() =>
+                  _tripPlan = {'serviceType': 'trip', 'intermediateStops': []}),
+              child: const Text('Ajouter le service et les arrêts')),
         if (_departureZoneId != null && _departureZoneId == _arrivalZoneId) ...[
           const SizedBox(height: 12),
           _warning('Le départ et l’arrivée doivent être différents.'),
@@ -692,9 +832,15 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _fieldLabel('Prix proposé (FCFA)'),
-                  _numberField(
-                      _priceController, 'Ex : 15000', Icons.payments_rounded),
+                  if (_isEditing) ...[
+                    _fieldLabel('Ancien prix proposé (FCFA)'),
+                    _numberField(
+                        _priceController, 'À négocier', Icons.payments_rounded),
+                  ] else ...[
+                    _fieldLabel('Prix à négocier'),
+                    const Text(
+                        'Le client propose son colis et son offre. Vous négociez ensuite le tarif.'),
+                  ],
                 ],
               ),
             ),

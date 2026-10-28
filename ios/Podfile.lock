@@ -19,8 +19,6 @@ PODS:
     - GoogleMaps/Base
   - share_plus (0.0.1):
     - Flutter
-  - video_compress (0.3.0):
-    - Flutter
 
 DEPENDENCIES:
   - contacts_service_plus (from `.symlinks/plugins/contacts_service_plus/ios`)
@@ -29,7 +27,6 @@ DEPENDENCIES:
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
   - google_maps_flutter_ios (from `.symlinks/plugins/google_maps_flutter_ios/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
-  - video_compress (from `.symlinks/plugins/video_compress/ios`)
 
 SPEC REPOS:
   trunk:
@@ -49,8 +46,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/google_maps_flutter_ios/ios"
   share_plus:
     :path: ".symlinks/plugins/share_plus/ios"
-  video_compress:
-    :path: ".symlinks/plugins/video_compress/ios"
 
 SPEC CHECKSUMS:
   contacts_service_plus: 21ef52b9989e7a6011919c8dab5bf4f931739936
@@ -61,7 +56,6 @@ SPEC CHECKSUMS:
   google_maps_flutter_ios: 0cf046caf50b00d95071f79e8031fcd5ef902beb
   GoogleMaps: 8939898920281c649150e0af74aa291c60f2e77d
   share_plus: de6030e33b4e106470e09322d87cf2a4258d2d1d
-  video_compress: f2133a07762889d67f0711ac831faa26f956980e
 
 PODFILE CHECKSUM: db4d3eec026215b1d00c6bcb70b38951ca0e0557
 

@@ -195,6 +195,9 @@ class Bid {
   final double? driverRating;
   final String? driverCity;
   final String? driverZoneName;
+  final String? driverVehicleType;
+  final String? driverAvailability;
+  final DateTime? lastMessageAt;
   final double price;
   final String? message;
   final BidStatus status;
@@ -223,6 +226,9 @@ class Bid {
     this.driverRating,
     this.driverCity,
     this.driverZoneName,
+    this.driverVehicleType,
+    this.driverAvailability,
+    this.lastMessageAt,
     required this.price,
     this.message,
     this.status = BidStatus.pending,
@@ -257,6 +263,9 @@ class Bid {
       driverCity: json['driverCity']?.toString() ?? driver?['city']?.toString(),
       driverZoneName:
           json['driverZoneName']?.toString() ?? driver?['zoneName']?.toString(),
+      driverVehicleType: json['driverVehicleType']?.toString(),
+      driverAvailability: json['driverAvailability']?.toString(),
+      lastMessageAt: DateTime.tryParse(json['lastMessageAt']?.toString() ?? ''),
       price: _toDouble(json['price']),
       message: json['message']?.toString(),
       status: json['status'] != null
@@ -301,6 +310,9 @@ class Bid {
         'price': price,
         'message': message,
         'status': status.value,
+        'driverVehicleType': driverVehicleType,
+        'driverAvailability': driverAvailability,
+        'lastMessageAt': lastMessageAt?.toIso8601String(),
         'createdAt': createdAt.toIso8601String(),
         'respondedAt': respondedAt?.toIso8601String(),
         'responseMessage': responseMessage,
@@ -374,6 +386,9 @@ class Bid {
       price: price ?? this.price,
       message: message ?? this.message,
       status: status ?? this.status,
+      driverVehicleType: driverVehicleType,
+      driverAvailability: driverAvailability,
+      lastMessageAt: lastMessageAt,
       createdAt: createdAt ?? this.createdAt,
       respondedAt: respondedAt ?? this.respondedAt,
       responseMessage: responseMessage ?? this.responseMessage,

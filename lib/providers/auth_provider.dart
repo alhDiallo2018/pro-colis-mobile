@@ -10,6 +10,7 @@ import 'dart:async';
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/auth_session.dart';
+import '../services/offline_access.dart';
 import 'package:dio/dio.dart';
 import '../services/biometric_service.dart';
 import '../services/form_draft_store.dart';
@@ -32,6 +33,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void _handleSessionExpired() {
     if (!mounted) return;
+    OfflineAccess.instance.useSession(null);
     state = AuthState.unauthenticated();
   }
 
@@ -47,7 +49,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return await _storage.read(key: 'saved_identifier');
   }
 
-  Future<void> _loadUser() async {
+  /// Sauvegarde le profil dès la connexion, sans attendre un prochain /me.
+  /// Aucun PIN n'est retenu par le cache (filtrage dans AuthSessionManager).
+  Future<void> _rememberProfile(User user) async {
+    try {
+      final session = await AuthSessionManager.instance.read();
+      if (session == null || user.isStaff || !user.isActive) return;
+      OfflineAccess.instance.useSession(session.generation);
+      await AuthSessionManager.instance.saveCachedResponse(
+        session.generation,
+        OfflineAccessInterceptor.profileKey,
+        {'user': user.toJson()},
+      );
+    } catch (error, stack) {
+      debugPrint(
+          '[AuthNotifier] Profil local indisponible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+    }
+  }
+
+  Future<bool> reconnect() async {
+    try {
+      final before = await AuthSessionManager.instance.read();
+      final user = await _apiService.reconnectUser();
+      final after = await AuthSessionManager.instance.read();
+      if (!mounted || before == null || before.generation != after?.generation)
+        return false;
+      state = AuthState.authenticated(user);
+      return true;
+    } catch (error, stack) {
+      debugPrint(
+          '[AuthNotifier] Reconnexion indisponible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      return false;
+    }
+  }
+
+  Future<void> _loadUser({bool forceNetwork = false}) async {
     String? generation;
     try {
       final session = await AuthSessionManager.instance.read();
@@ -57,11 +95,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return;
       }
       generation = session.generation;
-      final user = await _apiService.getCurrentUser();
+      final user = forceNetwork
+          ? await _apiService.reconnectUser()
+          : await _apiService.getCurrentUser();
       final current = await AuthSessionManager.instance.read();
       if (!mounted || current?.generation != generation) return;
       state = AuthState.authenticated(user);
-      _registerPushToken();
+      if (!OfflineAccess.instance.value.disconnected) _registerPushToken();
     } catch (error, stackTrace) {
       // Ne pas journaliser les headers Dio, susceptibles de contenir le Bearer.
       debugPrint(
@@ -95,7 +135,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> retrySessionRestoration() async {
     if (!state.hasPendingSession) return;
     state = AuthState.loading();
-    _sessionRestoration = _loadUser();
+    _sessionRestoration = _loadUser(forceNetwork: true);
     await _sessionRestoration;
   }
 
@@ -109,6 +149,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Connexion par identifiant (email/téléphone) + code PIN à 6 chiffres
   Future<Map<String, dynamic>> loginWithPin(
       String pin, String identifier) async {
+    await _sessionRestoration;
+    final biometricEnabled = await BiometricService.isEnabled();
+    final previousOwner = await BiometricService.currentOwner();
     state = AuthState.loading();
     try {
       final result = await _apiService.loginWithPin(pin, identifier);
@@ -124,11 +167,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         debugPrint(
           '[AuthNotifier] Connexion réussie, rôle résolu : ${user.role.value}',
         );
-        // Le déverrouillage biométrique rejoue une connexion PIN : si
-        // l'utilisateur a changé de code, le secret mémorisé doit suivre, sinon
-        // l'empreinte se met à échouer sans explication.
-        if (await BiometricService.isEnabled()) {
-          await BiometricService.enable(pin);
+        await _rememberProfile(user);
+        if (biometricEnabled) {
+          if (previousOwner == user.id)
+            await BiometricService.enableForSession(user.id);
+          else
+            await BiometricService.disable();
         }
         state = AuthState.authenticated(user);
         _registerPushToken();
@@ -170,6 +214,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await AuthSessionManager.instance.establish(result);
     if (!mounted) return;
     state = AuthState.authenticated(user);
+    await _rememberProfile(user);
     _registerPushToken();
   }
 
@@ -221,6 +266,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
             ? User.fromJson(userData)
             : await _apiService.getCurrentUser();
         state = AuthState.authenticated(user);
+        await _rememberProfile(user);
         _registerPushToken();
         return {'success': true};
       } else if (result['success'] == true) {
@@ -228,6 +274,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await _saveIdentifier(phone);
         final user = await _apiService.getCurrentUser();
         state = AuthState.authenticated(user);
+        await _rememberProfile(user);
         _registerPushToken();
         return {'success': true};
       } else {
@@ -244,8 +291,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Déverrouille une session endormie à partir de l'empreinte.
   ///
   /// Le verrou local ne revoque pas la session serveur. Une session restauree
-  /// se deverrouille sans nouvelle connexion ; seul un refus definitif exige
-  /// le repli vers le PIN memorise.
+  /// se déverrouille sans nouvelle connexion. Un refus serveur définitif
+  /// impose une nouvelle authentification en ligne.
   Future<bool> unlockWithBiometrics() async {
     try {
       if (!await BiometricService.isEnabled()) return false;
@@ -259,13 +306,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // peuvent progresser en parallèle. On attend la première pour éviter que
       // deux connexions concurrentes écrasent l'état utilisateur ou les jetons.
       await _sessionRestoration;
-      if (state.isAuthenticated || state.hasPendingSession) return true;
+      if (state.isAuthenticated) return true;
+      if (state.hasPendingSession) return _restoreLocalProfile();
 
-      final pin = await BiometricService.readPin();
-      if (pin == null || pin.isEmpty) return false;
-
-      final result = await loginWithSavedPin(pin);
-      return result['success'] == true;
+      return false;
     } catch (error, stackTrace) {
       debugPrint(
           '[AuthNotifier] Déverrouillage biométrique impossible : $error');
@@ -277,12 +321,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Rouvre seulement une copie liée à la session actuelle, après le contrôle
+  /// biométrique. Une révocation explicite a déjà supprimé cette session.
+  Future<bool> _restoreLocalProfile() async {
+    final session = await AuthSessionManager.instance.read();
+    if (session == null) return false;
+    final entry = await AuthSessionManager.instance.readCachedResponse(
+        session.generation, OfflineAccessInterceptor.profileKey);
+    final data = entry?['data']?['user'];
+    if (data is! Map) return false;
+    final user = User.fromJson(Map<String, dynamic>.from(data));
+    if (user.isStaff || !user.isActive) return false;
+    if (!mounted ||
+        (await AuthSessionManager.instance.read())?.generation !=
+            session.generation) return false;
+    OfflineAccess.instance.useSession(session.generation);
+    OfflineAccess.instance.cached(
+        OfflineAccessInterceptor.profileKey, DateTime.parse(entry!['savedAt']));
+    state = AuthState.authenticated(user);
+    return true;
+  }
+
   /// [forgetBiometrics] distingue les deux sorties possibles.
   ///
-  /// Une déconnexion explicite retire le secret : garder le PIN d'un compte que
-  /// l'utilisateur vient de quitter n'apporterait aucun confort. Mais le repli
-  /// « utiliser mon code PIN » de l'écran de verrouillage passe aussi par ici,
-  /// et un doigt mouillé ne doit pas désactiver le réglage.
+  /// Une déconnexion explicite retire le réglage biométrique. La récupération
+  /// du PIN peut le conserver, mais supprime toujours la session et son cache.
+  /// Le déverrouillage par code de l'appareil ne passe jamais par logout.
   Future<void> logout({bool forgetBiometrics = true}) async {
     try {
       // Important au démarrage à froid : une restauration encore en cours ne

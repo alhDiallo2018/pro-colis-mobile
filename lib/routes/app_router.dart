@@ -1,3 +1,5 @@
+import '../screens/experience/quality_screen.dart';
+import '../screens/experience/workspace_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -164,7 +166,9 @@ class AppRouter {
             if (location.startsWith('/driver') && !user.isDriver) {
               return '/dashboard';
             }
-            if (location.startsWith('/client') && !user.isClient) {
+            if ((location.startsWith('/client') ||
+                    location == '/shipment-tools') &&
+                !user.isClient) {
               return '/dashboard';
             }
             // Le wallet mobile (`/wallet`) est l'écran chauffeur. Garde UX
@@ -274,10 +278,16 @@ class AppRouter {
         ),
 
         GoRoute(
+            path: '/shipment-tools',
+            builder: (context, state) => const WorkspaceScreen()),
+        GoRoute(
           path: '/parcel/new',
           name: 'new-parcel',
           builder: (context, state) => NewParcelWizardScreen(
             preselectedDriverId: state.uri.queryParameters['driver'],
+            sourceParcelId: state.uri.queryParameters['source'],
+            sourceDraftId: state.uri.queryParameters['draft'],
+            recipientId: state.uri.queryParameters['recipient'],
           ),
         ),
 
@@ -567,7 +577,8 @@ class AppRouter {
               UserRole.superAdmin
             ].contains(role)
                 ? const AdminSupportScreen()
-                : const SupportChatScreen();
+                : SupportChatScreen(
+                    ticketId: state.uri.queryParameters['ticket']);
           }),
         ),
         GoRoute(
@@ -629,6 +640,9 @@ class AppRouter {
           builder: (context, state) => const AdminSupportScreen(),
         ),
 
+        GoRoute(
+            path: '/support-tech/qualite',
+            builder: (context, state) => const QualityScreen()),
         // --- Support technique ---
         GoRoute(
           path: '/support-tech/tickets',

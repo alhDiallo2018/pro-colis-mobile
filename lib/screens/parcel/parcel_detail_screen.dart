@@ -1,3 +1,4 @@
+import '../experience/parcel_experience_card.dart';
 // mobile/lib/screens/parcel/parcel_detail_screen.dart
 
 import 'dart:async';
@@ -1918,6 +1919,11 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
             ),
             const SizedBox(height: 12),
             _TagsRow(parcel: _parcel),
+            if (_parcel.senderId == ref.watch(authProvider).user?.id ||
+                _parcel.assignedDriverId == ref.watch(authProvider).user?.id)
+              ParcelExperienceCard(
+                  key: ValueKey('experience-${_parcel.id}-${_parcel.status}'),
+                  parcelId: _parcel.id),
             const SizedBox(height: 16),
             _DriverCard(
               name: _driverName,

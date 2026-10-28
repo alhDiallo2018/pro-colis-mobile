@@ -1584,10 +1584,15 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     _loadMessagesUnread();
   }
 
-  void _loadData() {
-    Future.microtask(() {
-      ref.read(parcelProvider.notifier).loadDriverParcels();
-      ref.read(parcelProvider.notifier).loadFreeParcels();
+  // Les deux listes se chargent ensemble et le geste de rafraîchissement
+  // reste actif jusqu’à leur résolution ; les erreurs sont gérées par le provider.
+  Future<void> _loadData() {
+    return Future.microtask(() async {
+      final notifier = ref.read(parcelProvider.notifier);
+      await Future.wait([
+        notifier.loadDriverParcels(),
+        notifier.loadFreeParcels(),
+      ]);
     });
   }
 
@@ -1860,7 +1865,7 @@ class _DriverTableauScreen extends StatefulWidget {
   final VoidCallback onPublishTrip;
   final bool isUpdatingStatus;
   final Future<void> Function() onToggleAvailability;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
 
   const _DriverTableauScreen({
     required this.parcelState,
@@ -1885,6 +1890,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
     with WidgetsBindingObserver {
   final ApiService _api = ApiService();
   double? _walletBalance;
+  bool _dashboardFailed = false;
+  bool _dashboardLoading = true;
   List<Map<String, dynamic>> _bidsSent = [];
   List<Map<String, dynamic>> _ads = [];
   double _weekRevenue = 0;
@@ -1928,12 +1935,13 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   }
 
   Future<void> _refreshAll() async {
-    widget.onRefresh();
+    await widget.onRefresh();
     await _loadDashboardData();
     await _loadProposals();
   }
 
   Future<void> _loadDashboardData() async {
+    if (mounted) setState(() => _dashboardLoading = true);
     try {
       final results = await Future.wait(<Future<dynamic>>[
         _api.getWalletBalance(widget.user?.id ?? ''),
@@ -1961,6 +1969,8 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
         } catch (_) {}
       }
       setState(() {
+        _dashboardFailed = false;
+        _dashboardLoading = false;
         _walletBalance = results[0] as double;
         _bidsSent = results[1] as List<Map<String, dynamic>>;
         _ads = results[2] as List<Map<String, dynamic>>;
@@ -1970,6 +1980,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
       });
     } catch (e, stackTrace) {
       debugPrint('❌ [Dashboard] _loadDashboardData failed: $e\n$stackTrace');
+      if (mounted) setState(() { _dashboardFailed = true; _dashboardLoading = false; });
     }
   }
 
@@ -2157,7 +2168,19 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
               children: [
-                // ✅ NOUVEAU : Section Propositions reçues
+                if (_dashboardLoading && _walletBalance == null)
+                  const Padding(padding: EdgeInsets.only(bottom: 16), child: LinearProgressIndicator(semanticsLabel: 'Chargement de votre activité')),
+                if (_dashboardFailed) ...[
+                  Semantics(
+                    liveRegion: true,
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Certaines données n’ont pas pu être actualisées. Vérifiez votre connexion.'),
+                      TextButton.icon(onPressed: _dashboardLoading ? null : _refreshAll, icon: const Icon(Icons.refresh), label: const Text('Réessayer')),
+                    ]),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                // Les propositions reçues restent prioritaires dans l’activité.
                 if (_proposals.isNotEmpty) ...[
                   PcSectionHeader(
                     '📩 Propositions reçues',
@@ -2168,15 +2191,13 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                   ..._proposals.map((proposal) => _buildProposalCard(proposal)),
                   const SizedBox(height: 28),
                 ],
-                GridView.count(
-                  crossAxisCount: 2,
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.24,
-                  children: [
+                // La hauteur suit le contenu, même avec les grands caractères
+                // ou un montant long ; aucune statistique n’est tronquée.
+                LayoutBuilder(builder: (context, constraints) {
+                  final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
+                  final columns = constraints.maxWidth < 300 || largeText ? 1 : 2;
+                  final tileWidth = (constraints.maxWidth - 16 * (columns - 1)) / columns;
+                  final tiles = <Widget>[
                     GestureDetector(
                       onTap: () => Navigator.push(
                           context,
@@ -2207,8 +2228,13 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                       label: 'Note moyenne',
                       tone: PcTone.amber,
                     ),
-                  ],
-                ),
+                  ];
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: tiles.map((tile) => SizedBox(width: tileWidth, child: tile)).toList(),
+                  );
+                }),
                 const SizedBox(height: 14),
                 GestureDetector(
                   onTap: () => Navigator.push(
@@ -3308,7 +3334,7 @@ class _RouteMeta extends StatelessWidget {
 class _DriverPoolTabScreen extends StatefulWidget {
   final ParcelState parcelState;
   final User? user;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
   final VoidCallback onPublishTrip;
 
   const _DriverPoolTabScreen({
@@ -3375,7 +3401,7 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
     return '${parcel.distanceLabel} · $offers offre${offers > 1 ? 's' : ''}';
   }
 
-  Future<void> _refresh() async => widget.onRefresh();
+  Future<void> _refresh() => widget.onRefresh();
 
   void _openOffer(Parcel parcel) {
     Navigator.push(
@@ -3505,7 +3531,7 @@ class _DriverPoolTabScreenState extends State<_DriverPoolTabScreen> {
 
 class _DriverMissionsTabScreen extends StatefulWidget {
   final ParcelState parcelState;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
   final User? user;
 
   const _DriverMissionsTabScreen({
@@ -3747,7 +3773,7 @@ class _DriverMissionsTabScreenState extends State<_DriverMissionsTabScreen> {
   List<Parcel> get _visibleMissions =>
       _tabIndex == 0 ? _activeMissions : _completedMissions;
 
-  Future<void> _refresh() async => widget.onRefresh();
+  Future<void> _refresh() => widget.onRefresh();
 
   void _openMission(Parcel parcel) {
     context.push('/parcel/${parcel.id}', extra: parcel).then((_) {
@@ -4836,7 +4862,7 @@ class _DriverProfileRow extends StatelessWidget {
 
 class _MyParcelsScreen extends StatefulWidget {
   final ParcelState parcelState;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
   final User? user;
   final VoidCallback onNotificationsTap;
   final int unreadNotificationsCount;
@@ -5179,7 +5205,7 @@ class _MyParcelsScreenState extends State<_MyParcelsScreen>
           child: RefreshIndicator(
             onRefresh: () async {
               await _loadFreshUser();
-              widget.onRefresh();
+              await widget.onRefresh();
             },
             color: primaryBlue,
             child: TabBarView(

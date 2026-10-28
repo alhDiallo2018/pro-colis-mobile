@@ -47,6 +47,10 @@
     <uses-feature android:name="android.hardware.location.network" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
     
+    <!-- Suivi précis activé par le chauffeur pour un départ, avec notification persistante. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <application
         android:label="SendProColis"
         android:name="${applicationName}"

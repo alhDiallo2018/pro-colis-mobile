@@ -43,6 +43,8 @@ class RestoreApi extends ApiService {
   Future<User> Function() load;
   @override
   Future<User> getCurrentUser() => load();
+  @override
+  Future<User> reconnectUser() => load();
 }
 
 void main() {

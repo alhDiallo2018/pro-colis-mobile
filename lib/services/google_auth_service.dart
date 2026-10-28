@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'api/client.dart';
@@ -13,13 +14,29 @@ class GoogleAuthException implements Exception {
 }
 
 class GoogleAuthService {
-  GoogleAuthService({ApiClient? client}) : _client = client ?? ApiClient();
+  GoogleAuthService(
+      {ApiClient? client,
+      Future<Map<String, dynamic>> Function()? nativeConfiguration,
+      Future<String?> Function(String serverClientId, String? clientId)?
+          authenticate})
+      : _client = client ?? ApiClient(),
+        _nativeConfiguration = nativeConfiguration ?? _readNativeConfiguration,
+        _authenticate = authenticate ?? _authenticateNative;
+  final Future<Map<String, dynamic>> Function() _nativeConfiguration;
+  final Future<String?> Function(String, String?) _authenticate;
+  static const _nativeChannel =
+      MethodChannel('sendprocolis/google-auth-config');
+  static Future<Map<String, dynamic>> _readNativeConfiguration() async =>
+      Map<String, dynamic>.from(
+          await _nativeChannel.invokeMapMethod<String, dynamic>('read') ?? {});
   final ApiClient _client;
   static Future<void>? _initialization;
   static String? _initializedClient;
 
   bool get supported =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      !kIsWeb &&
+      {TargetPlatform.android, TargetPlatform.iOS}
+          .contains(defaultTargetPlatform);
 
   Future<Map<String, dynamic>> configuration() =>
       _request('/auth/google/config');
@@ -35,33 +52,65 @@ class GoogleAuthService {
           'La connexion Google est momentanément indisponible. Utilisez votre email et votre PIN.');
     }
     try {
-      // Le client OAuth est public. Le serveur est la source de configuration
-      // et vérifie lui-même les jetons ; aucune clé secrète n'entre dans l'app.
-      if (_initializedClient != null && _initializedClient != clientId) {
-        throw const GoogleAuthException(
-            'Fermez puis rouvrez l’application pour réessayer.');
+      String? nativeClientId;
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final native = await _nativeConfiguration();
+        nativeClientId = native['clientId'] as String?;
+        if (nativeClientId == null ||
+            nativeClientId.isEmpty ||
+            native['urlSchemeConfigured'] != true) {
+          throw const GoogleAuthException(
+              'Google n’est pas encore configuré pour cette version iPhone. Utilisez votre PIN ou le déverrouillage local.',
+              'GOOGLE_IOS_NOT_CONFIGURED');
+        }
       }
-      _initializedClient = clientId;
-      try {
-        await (_initialization ??=
-            GoogleSignIn.instance.initialize(serverClientId: clientId));
-      } catch (_) {
-        _initialization = null;
-        _initializedClient = null;
-        rethrow;
-      }
-      final account = await GoogleSignIn.instance.authenticate();
-      final token = account.authentication.idToken;
-      if (token == null)
+      final token = await _authenticate(clientId, nativeClientId);
+      if (token == null || token.isEmpty) {
         throw const GoogleAuthException(
-            'Connexion Google impossible. Veuillez réessayer.');
+            'Google n’a pas retourné de preuve de connexion. Réessayez.',
+            'GOOGLE_TOKEN_MISSING');
+      }
       return _request('/auth/google', {'idToken': token});
     } on GoogleSignInException catch (error) {
-      if (error.code == GoogleSignInExceptionCode.canceled) return null;
       debugPrint('[GoogleAuth] SDK : ${error.code.name}');
+      if (error.code == GoogleSignInExceptionCode.canceled) return null;
+      if (error.code == GoogleSignInExceptionCode.clientConfigurationError ||
+          error.code == GoogleSignInExceptionCode.providerConfigurationError) {
+        throw GoogleAuthException(
+            'La configuration Google de cette version de l’application est incomplète. Utilisez votre PIN en attendant sa correction.',
+            error.code.name);
+      }
+      throw GoogleAuthException(
+          'Connexion Google impossible. Vérifiez Internet puis réessayez, ou utilisez votre PIN.',
+          error.code.name);
+    } on PlatformException catch (error) {
+      debugPrint('[GoogleAuth] Configuration native : ${error.code}');
       throw const GoogleAuthException(
-          'Connexion Google impossible. Réessayez ou utilisez votre PIN.');
+          'Configuration Google indisponible sur cet appareil. Utilisez votre PIN.',
+          'GOOGLE_NATIVE_CONFIGURATION');
     }
+  }
+
+  static Future<String?> _authenticateNative(
+      String serverClientId, String? clientId) async {
+    // L'identifiant Web est l'audience vérifiée par notre API ; l'identifiant
+    // iOS désigne l'application native et son schéma de retour enregistré.
+    final identity = '$serverClientId:${clientId ?? ''}';
+    if (_initializedClient != null && _initializedClient != identity) {
+      throw const GoogleAuthException(
+          'Fermez puis rouvrez l’application pour réessayer.');
+    }
+    _initializedClient = identity;
+    try {
+      await (_initialization ??= GoogleSignIn.instance
+          .initialize(serverClientId: serverClientId, clientId: clientId));
+    } catch (_) {
+      _initialization = null;
+      _initializedClient = null;
+      rethrow;
+    }
+    final account = await GoogleSignIn.instance.authenticate();
+    return account.authentication.idToken;
   }
 
   Future<Map<String, dynamic>> link(

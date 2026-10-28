@@ -1,3 +1,5 @@
+import '../../models/vehicle_type.dart';
+import '../../widgets/discovery_sharing_tile.dart';
 // mobile/lib/screens/driver/parametres_screen.dart
 // Paramètres chauffeur (compte, véhicule, disponibilité, notifications,
 // sécurité, à propos) — restylé sur le design system ProColis (web-aligné).
@@ -173,7 +175,7 @@ class _DriverParametresScreenState
       setState(() {
         _plateController.text = vehicle?['plateNumber']?.toString() ?? '';
         _modelController.text = vehicle?['model']?.toString() ?? '';
-        _typeController.text = vehicle?['type']?.toString() ?? '';
+        _typeController.text = vehicleTypeCode(vehicle?['type']?.toString());
         final capacity = vehicle?['capacity'];
         _capacityController.text =
             (capacity == null || capacity == 0) ? '' : capacity.toString();
@@ -341,8 +343,21 @@ class _DriverParametresScreenState
                       _inputField(_modelController, 'Modèle',
                           Icons.directions_car_rounded, 'Toyota HiAce'),
                       const SizedBox(height: 14),
-                      _inputField(_typeController, 'Type de véhicule',
-                          Icons.category_rounded, 'Minibus'),
+                      DropdownButtonFormField<String>(
+                        initialValue:
+                            vehicleTypes.containsKey(_typeController.text)
+                                ? _typeController.text
+                                : null,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                            labelText: 'Type de véhicule'),
+                        items: vehicleTypes.entries
+                            .map((e) => DropdownMenuItem(
+                                value: e.key, child: Text(e.value)))
+                            .toList(),
+                        onChanged: (value) =>
+                            setState(() => _typeController.text = value ?? ''),
+                      ),
                       const SizedBox(height: 14),
                       _inputField(_capacityController, 'Capacité (kg)',
                           Icons.scale_rounded, '1500',
@@ -364,6 +379,7 @@ class _DriverParametresScreenState
 
                 // ==================== DISPONIBILITÉ ====================
                 const PcSectionHeader('Disponibilité'),
+                const DiscoverySharingTile(),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
                   child: AvailabilityToggle(),

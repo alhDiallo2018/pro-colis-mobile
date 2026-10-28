@@ -54,7 +54,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       setState(() {
         _busy = false;
         _error =
-            'Déverrouillage impossible. Réessayez ou utilisez votre code PIN.';
+            'Déverrouillage impossible. Réessayez ou utilisez le code de votre appareil.';
       });
     } catch (error, stackTrace) {
       debugPrint('[LockScreen] Erreur de déverrouillage : $error');
@@ -65,7 +65,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'Une erreur est survenue. Utilisez votre code PIN.';
+        _error = 'Une erreur est survenue. Réessayez le déverrouillage.';
       });
     }
   }
@@ -74,6 +74,12 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   /// jamais enfermer l'utilisateur hors de son compte.
   Future<void> _usePin({bool recover = false}) async {
     if (_busy) return;
+    if (!recover) {
+      // Le dialogue système propose aussi le code de l'appareil. Ce repli
+      // fonctionne hors ligne et ne déconnecte pas le compte ProColis.
+      await _unlock();
+      return;
+    }
     setState(() => _busy = true);
 
     try {
@@ -167,7 +173,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   TextButton(
                     onPressed: _busy ? null : () => _usePin(),
                     child: Text(
-                      'Utiliser mon code PIN',
+                      'Utiliser le code de l’appareil',
                       style: TextStyle(
                         fontFamily: AppFonts.body,
                         fontWeight: FontWeight.w700,
@@ -178,7 +184,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   TextButton(
                     onPressed: _busy ? null : () => _usePin(recover: true),
-                    child: const Text('Code PIN oublié ?'),
+                    child: const Text('Récupérer mon code PIN ProColis'),
                   ),
                 ],
               ),

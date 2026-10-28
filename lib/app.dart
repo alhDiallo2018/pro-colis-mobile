@@ -1,3 +1,5 @@
+import 'services/journey_live_service.dart';
+import 'services/driver_discovery_service.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -19,6 +21,9 @@ import 'services/push_notification_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_update_gate.dart';
 import 'widgets/support_presence_monitor.dart';
+import 'widgets/offline_notice.dart';
+import 'services/offline_access.dart';
+import 'services/api_service.dart';
 
 class ProColisApp extends ConsumerStatefulWidget {
   const ProColisApp({super.key});
@@ -99,9 +104,8 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
   /// nombre réel de notifications non lues côté backend, et verrouille l'écran
   /// si l'absence a dépassé le délai de verrouillage local.
   ///
-  /// Tout état autre que `resumed` compte comme un départ : sur iOS une simple
-  /// interruption passe par `inactive` avant `paused`, et démarrer le compteur
-  /// au plus tôt fait pencher l'erreur du côté prudent.
+  /// Les dialogues biométriques et Google passent aussi par `inactive`.
+  /// Seul un passage réel en arrière-plan démarre le délai de verrouillage.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -110,19 +114,43 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
       ref.read(sessionLockProvider.notifier).evaluateOnResume();
       return;
     }
-    ref.read(sessionLockProvider.notifier).markBackgrounded();
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(DriverDiscoveryService.instance.stop());
+    }
+    if (state == AppLifecycleState.detached)
+      unawaited(JourneyLiveService.instance.stop());
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      ref.read(sessionLockProvider.notifier).markBackgrounded();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen(authProvider, (prev, next) {
       authRefreshNotifier.notify();
+      if (!next.isAuthenticated && !next.isLoading && !next.hasPendingSession) {
+        ref.read(sessionLockProvider.notifier).unlock();
+      }
+      if (prev?.user?.id != next.user?.id || next.user?.role.name != 'driver') {
+        unawaited(JourneyLiveService.instance.stop());
+      }
+      if (prev?.user?.id != next.user?.id ||
+          next.user?.isDriverAvailable != true) {
+        unawaited(DriverDiscoveryService.instance.stop());
+      }
       // Connexion / restauration de session : enregistre le token FCM et
       // resynchronise le badge des non-lus.
       final wasAuthenticated = prev?.isAuthenticated ?? false;
-      if (next.isAuthenticated && !wasAuthenticated) {
+      if (next.isAuthenticated &&
+          !wasAuthenticated &&
+          !OfflineAccess.instance.value.disconnected) {
         PushNotificationService.registerTokenWithBackend();
         NotificationBadgeService.refresh();
+        if (next.user != null)
+          unawaited(ApiService().cacheOfflineHistory(next.user!));
       } else if (!next.isAuthenticated && wasAuthenticated) {
         NotificationBadgeService.remove();
       }
@@ -165,7 +193,7 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
           backButtonDispatcher: _router.backButtonDispatcher,
           child: Stack(
             children: [
-              child ?? const SizedBox.shrink(),
+              OfflineNotice(child: child ?? const SizedBox.shrink()),
               if (lockStatus == SessionLockStatus.checking)
                 const Positioned.fill(child: SplashScreen()),
               if (lockStatus == SessionLockStatus.locked)

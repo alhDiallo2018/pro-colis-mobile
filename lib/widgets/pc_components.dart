@@ -99,8 +99,8 @@ class PcButton extends StatelessWidget {
     final disabled = onPressed == null || loading;
     final ({double h, double px, double fs, double ic, double gap}) s =
         switch (size) {
-      PcButtonSize.sm => (h: 36, px: 14, fs: 13, ic: 18, gap: 6),
-      PcButtonSize.md => (h: 46, px: 18, fs: 15, ic: 20, gap: 8),
+      PcButtonSize.sm => (h: 48, px: 14, fs: 13, ic: 18, gap: 6),
+      PcButtonSize.md => (h: 48, px: 18, fs: 15, ic: 20, gap: 8),
       PcButtonSize.lg => (h: 54, px: 22, fs: 16, ic: 22, gap: 8),
     };
 
@@ -154,7 +154,7 @@ class PcButton extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: _display(
                   size: s.fs,
                   weight: FontWeight.w700,
@@ -173,6 +173,10 @@ class PcButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: !disabled,
+      onTap: disabled ? null : onPressed,
+      label: loading ? '$label, chargement en cours' : label,
+      excludeSemantics: true,
+      liveRegion: loading,
       child: Material(
         color: bg,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -180,9 +184,10 @@ class PcButton extends StatelessWidget {
           onTap: disabled ? null : onPressed,
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           child: Container(
-            height: s.h,
+            // Une hauteur minimale laisse le libellé grandir avec le texte système.
+            constraints: BoxConstraints(minHeight: s.h),
             width: block ? double.infinity : null,
-            padding: EdgeInsets.symmetric(horizontal: s.px),
+            padding: EdgeInsets.symmetric(horizontal: s.px, vertical: 12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               border: border != null ? Border.all(color: border) : null,
@@ -224,8 +229,8 @@ class PcIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ({double d, double ic}) s = switch (size) {
-      PcButtonSize.sm => (d: 34, ic: 18),
-      PcButtonSize.md => (d: 44, ic: 22),
+      PcButtonSize.sm => (d: 48, ic: 18),
+      PcButtonSize.md => (d: 48, ic: 22),
       PcButtonSize.lg => (d: 52, ic: 26),
     };
     late Color bg, fg;

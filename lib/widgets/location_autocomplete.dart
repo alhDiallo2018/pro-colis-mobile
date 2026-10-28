@@ -75,12 +75,15 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   OverlayEntry? _overlayEntry;
   List<PlaceResult> _suggestions = [];
   bool _isLoading = false;
+  bool _isSearching = false;
   String? _searchMessage;
   bool _showSuggestions = false;
   Timer? _debounce;
   bool _billingWarningShown = false;
   bool _suppressListener = false;
   int _generation = 0;
+  int _searchGeneration = 0;
+  late String _lastText;
   // Un jeton lie les suggestions aux détails pour la facturation Google.
   String _sessionToken = _newSessionToken();
   static String _newSessionToken() =>
@@ -92,12 +95,9 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
     super.initState();
     _focusNode.addListener(_onFocusChange);
     widget.controller.addListener(_onTextChange);
-    // Attendre la fin du montage avant d'afficher des suggestions initiales.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && widget.controller.text.trim().length >= 2) {
-        _fetchSuggestions(widget.controller.text);
-      }
-    });
+    // Une adresse enregistrée n'est pas une saisie : aucun appel Places au
+    // montage. Seul onChanged du champ déclenche de nouvelles suggestions.
+    _lastText = widget.controller.text;
   }
 
   @override
@@ -118,27 +118,69 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
       Future.delayed(const Duration(milliseconds: 200), () {
         // Le délai laisse le clic sur une suggestion se terminer ; le garde
         // mounted évite d'accéder au FocusNode après sa destruction.
-        if (mounted && !_focusNode.hasFocus) _hideOverlay();
+        if (mounted && !_focusNode.hasFocus) {
+          if (_isSearching) _isLoading = false;
+          _isSearching = false;
+          _searchGeneration++;
+          _debounce?.cancel();
+          _suggestions = [];
+          _searchMessage = null;
+          _hideOverlay();
+        }
       });
     }
   }
 
   void _onTextChange() {
+    final text = widget.controller.text;
+    // Le curseur et le focus notifient aussi le contrôleur, sans nouvelle saisie.
+    if (text == _lastText) return;
+    _lastText = text;
     if (_suppressListener) return;
     _generation++;
+    _searchGeneration++;
     widget.onResolving?.call(false);
-    _suggestions = [];
-    _searchMessage = null;
-    _removeOverlay();
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
-      _fetchSuggestions(widget.controller.text);
+    _removeOverlay();
+    setState(() {
+      _suggestions = [];
+      _searchMessage = null;
+      _showSuggestions = false;
+      _isLoading = false;
     });
   }
 
+  void _onUserInput(String text) {
+    _debounce?.cancel();
+    if (!widget.enabled || !_focusNode.hasFocus) return;
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _fetchSuggestions(text);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant LocationAutocomplete oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onTextChange);
+      widget.controller.addListener(_onTextChange);
+      // Même texte ou non : les anciens résultats appartiennent à l'ancien champ.
+      _lastText = widget.controller.text;
+      _generation++;
+      _searchGeneration++;
+      _debounce?.cancel();
+      _suggestions = [];
+      _searchMessage = null;
+      _showSuggestions = false;
+      _isLoading = false;
+      _removeOverlay();
+    }
+  }
+
   Future<void> _fetchSuggestions(String query) async {
-    if (!mounted || !widget.enabled) return;
+    if (!mounted || !widget.enabled || !_focusNode.hasFocus) return;
     final generation = _generation;
+    final searchGeneration = ++_searchGeneration;
     if (query.trim().length < 2) {
       setState(() {
         _suggestions = [];
@@ -148,12 +190,18 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isSearching = true;
+    });
 
     try {
       final predictions =
           await PlacesService.autocomplete(query, sessionToken: _sessionToken);
-      if (!mounted || generation != _generation) return;
+      if (!mounted ||
+          generation != _generation ||
+          searchGeneration != _searchGeneration ||
+          !_focusNode.hasFocus) return;
       setState(() {
         _searchMessage = predictions.isEmpty
             ? 'Aucun lieu trouvé. Précisez la ville ou le pays, ou choisissez sur la carte.'
@@ -167,7 +215,10 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
         _removeOverlay();
       }
     } on PlacesApiException catch (error) {
-      if (!mounted || generation != _generation) return;
+      if (!mounted ||
+          generation != _generation ||
+          searchGeneration != _searchGeneration ||
+          !_focusNode.hasFocus) return;
       _warnBillingIfNeeded(error);
       setState(() {
         _suggestions = [];
@@ -175,15 +226,23 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
       });
       _removeOverlay();
     } catch (_) {
-      if (!mounted || generation != _generation) return;
+      if (!mounted ||
+          generation != _generation ||
+          searchGeneration != _searchGeneration ||
+          !_focusNode.hasFocus) return;
       setState(() {
         _suggestions = [];
         _showSuggestions = false;
       });
       _removeOverlay();
     } finally {
-      if (mounted && generation == _generation)
-        setState(() => _isLoading = false);
+      if (mounted &&
+          generation == _generation &&
+          searchGeneration == _searchGeneration)
+        setState(() {
+          _isLoading = false;
+          _isSearching = false;
+        });
     }
   }
 
@@ -200,6 +259,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
 
   void _selectPlace(PlaceResult place) {
     _generation++;
+    _searchGeneration++;
     _debounce?.cancel();
     _suppressListener = true;
     widget.controller.text = place.description;
@@ -207,6 +267,8 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
     setState(() {
       _suggestions = [];
       _showSuggestions = false;
+      _isLoading = false;
+      _searchMessage = null;
     });
     _hideOverlay();
     widget.onPlaceSelected?.call(place);
@@ -259,6 +321,11 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
   /// texte affiché n'est qu'une représentation, jamais un remplacement.
   Future<void> _geolocate() async {
     final generation = ++_generation;
+    _isSearching = false;
+    _searchGeneration++;
+    _suggestions = [];
+    _showSuggestions = false;
+    _searchMessage = null;
     _debounce?.cancel();
     _removeOverlay();
     widget.onResolving?.call(true);
@@ -408,6 +475,7 @@ class _LocationAutocompleteState extends State<LocationAutocomplete> {
         enabled: widget.enabled,
         controller: widget.controller,
         focusNode: _focusNode,
+        onChanged: _onUserInput,
         autofocus: widget.autofocus,
         decoration: InputDecoration(
           labelText: widget.label,

@@ -1,3 +1,4 @@
+import '../../../widgets/live_journeys_map.dart';
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -9,7 +10,7 @@ import 'package:procolis/models/parcel.dart';
 import 'package:procolis/providers/auth_provider.dart';
 import 'package:procolis/providers/parcel_provider.dart';
 import 'package:procolis/screens/parcel/ads/advertisement_detail_screen.dart';
-import 'package:procolis/screens/parcel/create_colis_sheet.dart';
+import 'package:procolis/screens/parcel/new_parcel_wizard_screen.dart';
 import 'package:procolis/services/api_service.dart';
 import 'package:procolis/theme/app_theme.dart';
 import 'package:procolis/utils/parcel_access_policy.dart';
@@ -44,6 +45,9 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
   List<Advertisement> _trips = const [];
   final _tripSearchController = TextEditingController();
   String _tripQuery = '';
+  String? _tripService;
+  Parcel? _tripParcel;
+  int _tripGeneration = 0;
 
   /// Voyages limites a la zone de l'utilisateur, ou tous. Par defaut on ouvre
   /// large : la liste des trajets a peu d'interet amputee d'entree.
@@ -72,21 +76,34 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
 
   Future<void> _loadLibreService() async {
     if (!mounted) return;
+    final generation = ++_tripGeneration;
+    final params = <String, dynamic>{
+      'status': 'open',
+      'limit': 100,
+      if (_tripService != null) 'serviceType': _tripService,
+      if (_tripParcel != null) ...{
+        'pickupZoneId': _tripParcel!.departureZoneId,
+        'dropoffZoneId': _tripParcel!.arrivalZoneId,
+        'weight': _tripParcel!.weight
+      }
+    };
     setState(() => _isLoading = true);
     try {
       await ref.read(parcelProvider.notifier).loadMyParcels();
       await ref.read(parcelProvider.notifier).loadFreeParcels();
-      final rawTrips =
-          await _apiService.getAdvertisements(params: {'status': 'open'});
+      final rawTrips = await _apiService.getAdvertisements(params: params);
       final trips = rawTrips.map(Advertisement.fromJson).toList();
-      if (mounted) setState(() => _trips = trips);
+      if (mounted && generation == _tripGeneration)
+        setState(() => _trips = trips);
     } catch (e) {
       debugPrint('Erreur chargement libre service: $e');
-      if (mounted) {
+      if (mounted && generation == _tripGeneration) {
+        setState(() => _trips = []);
         _showSnack('Impossible de charger le libre service', isError: true);
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && generation == _tripGeneration)
+        setState(() => _isLoading = false);
     }
   }
 
@@ -151,9 +168,11 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
         trip.departureCity ?? '',
         trip.arrivalCity ?? '',
         trip.driverName,
+        trip.serviceLabel,
+        ...trip.stops.map((s) => s['name']?.toString() ?? ''),
         trip.description ?? '',
       ].join(' ').toLowerCase();
-      return haystack.contains(query);
+      return query.split(RegExp(r'\s+')).every(haystack.contains);
     }).toList();
   }
 
@@ -223,6 +242,58 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
     return Column(
       children: [
         _buildTripSearchField(),
+        TextButton.icon(
+            icon: const Icon(Icons.gps_fixed),
+            label: const Text('Voir les véhicules en direct'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => LiveJourneysMap(
+                    pickupZoneId: _tripParcel?.departureZoneId,
+                    dropoffZoneId: _tripParcel?.arrivalZoneId,
+                    lineNumber: RegExp(r'^\d+$').hasMatch(_tripQuery.trim())
+                        ? _tripQuery.trim()
+                        : null)))),
+        Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Wrap(spacing: 6, children: [
+              for (final item in const <String, String>{
+                'all': 'Tous',
+                'trip': 'Voyages',
+                'gp': 'GP',
+                'shuttle': 'Navettes'
+              }.entries)
+                ChoiceChip(
+                    label: Text(item.value),
+                    selected: (_tripService ?? 'all') == item.key,
+                    onSelected: (_) {
+                      setState(() =>
+                          _tripService = item.key == 'all' ? null : item.key);
+                      _loadLibreService();
+                    }),
+              PopupMenuButton<String>(
+                  tooltip: 'Chercher pour un colis',
+                  onSelected: (id) {
+                    setState(() => _tripParcel = ref
+                        .read(parcelProvider)
+                        .parcels
+                        .where((p) => p.id == id)
+                        .firstOrNull);
+                    _loadLibreService();
+                  },
+                  itemBuilder: (_) => [
+                        const PopupMenuItem(
+                            value: '', child: Text('Tous mes trajets')),
+                        ...ref
+                            .read(parcelProvider)
+                            .parcels
+                            .where((p) => p.arrivalZoneId != null)
+                            .map((p) => PopupMenuItem(
+                                value: p.id, child: Text(p.trackingNumber)))
+                      ],
+                  child: Chip(
+                      avatar: const Icon(Icons.inventory_2_outlined, size: 18),
+                      label: Text(
+                          _tripParcel?.trackingNumber ?? 'Pour mon colis'))),
+            ])),
         _buildTripZoneFilter(),
         Expanded(child: listArea),
       ],
@@ -277,8 +348,8 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
             fontWeight: FontWeight.w500,
             color: AppTheme.slate400,
           ),
-          prefixIcon: Icon(Icons.search_rounded,
-              size: 20, color: AppTheme.slate400),
+          prefixIcon:
+              Icon(Icons.search_rounded, size: 20, color: AppTheme.slate400),
           suffixIcon: _tripQuery.isEmpty
               ? null
               : IconButton(
@@ -456,7 +527,7 @@ class _AdvertisementsScreenState extends ConsumerState<AdvertisementsScreen>
   }
 
   void _openNewParcel() {
-    showCreateColisSheet(context).then((_) {
+    showDeliveryCreation(context).then((_) {
       if (mounted) _loadLibreService();
     });
   }
@@ -549,8 +620,7 @@ class _LibreParcelCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.qr_code_2_rounded,
-                  size: 20, color: AppTheme.slate400),
+              Icon(Icons.qr_code_2_rounded, size: 20, color: AppTheme.slate400),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -1201,6 +1271,13 @@ class _TripCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              _chip(Icons.route_outlined, trip.serviceLabel),
+              if (trip.vehicleReference.isNotEmpty)
+                _chip(Icons.directions_bus_outlined,
+                    'Véhicule ${trip.vehicleReference}'),
+              if (trip.stops.length > 2)
+                _chip(Icons.place_outlined,
+                    '${trip.stops.length - 2} arrêts intermédiaires'),
               if (tripDate != null)
                 _chip(Icons.event_rounded, formatTripDate(tripDate)),
               _chip(Icons.scale_rounded, trip.formattedWeight, mono: true),
@@ -1263,7 +1340,6 @@ class _TripCard extends StatelessWidget {
     );
   }
 }
-
 
 /// Puce de filtre de zone pour l'onglet Voyages, alignee sur les puces du pool
 /// chauffeur.

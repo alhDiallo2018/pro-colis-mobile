@@ -12,6 +12,18 @@ import 'package:procolis/widgets/voice_note_field.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers/mock_http.dart';
+import 'package:procolis/services/api_service.dart';
+import 'package:procolis/models/garage.dart';
+
+// Le véhicule est une condition réelle de publication ; la note vocale
+// est testée avec un profil complet, sans authentification réseau.
+class _AnnonceApi extends ApiService {
+  @override
+  Future<Map<String, dynamic>?> getDriverVehicle() async => {'id': 'vehicle-test', 'type': 'car', 'capacity': 50};
+  @override
+  Future<List<Garage>> getAllZones() async => [];
+}
+
 
 class _Paths extends PathProviderPlatform {
   final String path;
@@ -50,7 +62,7 @@ Future<void> _open(WidgetTester tester, _Advertisements notifier,
                   body: TextButton(
                       onPressed: () {
                         if (existing == null) {
-                          showCreateAnnonceSheet(context);
+                          showCreateAnnonceSheet(context, api: _AnnonceApi());
                         } else {
                           showEditAnnonceSheet(context, existing);
                         }

@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'auth_session_test.dart' show transport, jsonBody;
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,6 +53,83 @@ void main() {
     expect(
         await const FlutterSecureStorage().read(key: 'challengeToken'), isNull);
     await AuthSessionManager.instance.clear();
+  });
+
+  test(
+      'iOS initialise son client natif et transmet seulement le jeton vérifiable au serveur',
+      () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final requests = <RequestOptions>[];
+    final dio = transport((o) {
+      requests.add(o);
+      return jsonBody(o.path.endsWith('/config')
+          ? {
+              'success': true,
+              'enabled': true,
+              'serverClientId': 'web.apps.googleusercontent.com'
+            }
+          : {'success': true, ...challenge});
+    });
+    final service = GoogleAuthService(
+        client: ApiClient(dioOverride: dio),
+        nativeConfiguration: () async => {
+              'clientId': 'ios.apps.googleusercontent.com',
+              'urlSchemeConfigured': true
+            },
+        authenticate: (server, client) async {
+          expect(server, 'web.apps.googleusercontent.com');
+          expect(client, 'ios.apps.googleusercontent.com');
+          return 'google-id-token';
+        });
+    expect(service.supported, true);
+    expect((await service.signIn())!['status'], 'profile_required');
+    expect(requests.last.data, {'idToken': 'google-id-token'});
+    dio.close();
+  });
+  test('iOS non configuré échoue proprement avant le SDK natif', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final dio = transport((_) => jsonBody({
+          'success': true,
+          'enabled': true,
+          'serverClientId': 'web.apps.googleusercontent.com'
+        }));
+    var called = false;
+    final service = GoogleAuthService(
+        client: ApiClient(dioOverride: dio),
+        nativeConfiguration: () async => {},
+        authenticate: (_, __) async {
+          called = true;
+          return 'token';
+        });
+    await expectLater(
+        service.signIn(),
+        throwsA(isA<GoogleAuthException>().having(
+            (e) => e.code, 'configuration', 'GOOGLE_IOS_NOT_CONFIGURED')));
+    expect(called, false);
+    dio.close();
+  });
+  test('Android utilise le client Web comme audience, sans client iOS',
+      () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final dio = transport((o) => jsonBody(o.path.endsWith('/config')
+        ? {
+            'success': true,
+            'enabled': true,
+            'serverClientId': 'web.apps.googleusercontent.com'
+          }
+        : {'success': true, ...challenge}));
+    final service = GoogleAuthService(
+        client: ApiClient(dioOverride: dio),
+        authenticate: (server, client) async {
+          expect(client, isNull);
+          expect(server, 'web.apps.googleusercontent.com');
+          return 'token';
+        });
+    expect((await service.signIn())!['status'], 'profile_required');
+    dio.close();
   });
 
   test(

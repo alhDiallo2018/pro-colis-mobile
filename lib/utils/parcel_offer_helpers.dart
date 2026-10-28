@@ -51,9 +51,9 @@ bool parcelMatchesUserZone(Parcel parcel, User? user) {
   );
 }
 
-/// Annonce de trajet rattachee a la zone de l'utilisateur. Les annonces ne
-/// portent que des villes, pas de nom de zone.
+/// Un arrêt intermédiaire compte aussi dans la zone desservie par le voyage.
 bool advertisementMatchesUserZone(Advertisement advertisement, User? user) {
+  if (advertisement.stops.any((stop) => _routeMatchesUserZone(user, departureZoneName: stop['name']?.toString()))) return true;
   return _routeMatchesUserZone(
     user,
     departureCity: advertisement.departureCity,

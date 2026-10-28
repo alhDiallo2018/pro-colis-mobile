@@ -9,6 +9,7 @@ import 'package:procolis/theme/fonts.dart';
 
 import '../../models/parcel.dart';
 import '../../services/api_service.dart';
+import '../../services/offline_access.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pc_components.dart';
 
@@ -25,11 +26,26 @@ class _DriverHistoriqueScreenState
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
   List<Parcel> _history = [];
+  String? _error;
+  bool _wasOffline = OfflineAccess.instance.value.disconnected;
 
   @override
   void initState() {
     super.initState();
+    OfflineAccess.instance.addListener(_onConnectionChanged);
     _load();
+  }
+
+  void _onConnectionChanged() {
+    final offline = OfflineAccess.instance.value.disconnected;
+    if (_wasOffline && !offline) _load();
+    _wasOffline = offline;
+  }
+
+  @override
+  void dispose() {
+    OfflineAccess.instance.removeListener(_onConnectionChanged);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -45,9 +61,17 @@ class _DriverHistoriqueScreenState
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         _isLoading = false;
+        _error = null;
       });
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (error, stack) {
+      debugPrint('[Historique] Chargement impossible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      if (mounted)
+        setState(() {
+          _isLoading = false;
+          _error =
+              'Historique indisponible. Hors ligne, seules les courses déjà chargées sur cet appareil sont consultables.';
+        });
     }
   }
 
@@ -68,26 +92,35 @@ class _DriverHistoriqueScreenState
         onRefresh: _load,
         child: _isLoading
             ? Center(child: CircularProgressIndicator(color: AppTheme.primary))
-            : _history.isEmpty
-                ? ListView(
-                    children: const [
-                      SizedBox(height: 80),
-                      PcEmptyState(
-                        icon: Icons.history_rounded,
-                        tone: PcTone.primary,
-                        title: 'Aucune course terminée',
-                        message:
-                            'Vos livraisons terminées ou annulées apparaîtront ici.',
+            : _error != null
+                ? ListView(children: [
+                    const SizedBox(height: 40),
+                    Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(_error!)),
+                    TextButton(
+                        onPressed: _load, child: const Text('Réessayer')),
+                  ])
+                : _history.isEmpty
+                    ? ListView(
+                        children: const [
+                          SizedBox(height: 80),
+                          PcEmptyState(
+                            icon: Icons.history_rounded,
+                            tone: PcTone.primary,
+                            title: 'Aucune course terminée',
+                            message:
+                                'Vos livraisons terminées ou annulées apparaîtront ici.',
+                          ),
+                        ],
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        itemCount: _history.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) =>
+                            _HistoryRow(parcel: _history[index]),
                       ),
-                    ],
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    itemCount: _history.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) =>
-                        _HistoryRow(parcel: _history[index]),
-                  ),
       ),
     );
   }
@@ -99,8 +132,18 @@ class _HistoryRow extends StatelessWidget {
 
   String _formatDate(DateTime d) {
     const months = [
-      'jan', 'fév', 'mar', 'avr', 'mai', 'juin',
-      'juil', 'août', 'sep', 'oct', 'nov', 'déc'
+      'jan',
+      'fév',
+      'mar',
+      'avr',
+      'mai',
+      'juin',
+      'juil',
+      'août',
+      'sep',
+      'oct',
+      'nov',
+      'déc'
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
@@ -176,8 +219,7 @@ class _HistoryRow extends StatelessWidget {
                         color: AppTheme.teal600)),
               const SizedBox(height: 4),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: status.background,
                   borderRadius: BorderRadius.circular(999),

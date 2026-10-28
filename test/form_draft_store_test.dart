@@ -10,8 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// fournit un dossier documents factice pour que `clear`/`clearAll` n'émettent
 /// pas de `MissingPluginException` et restent déterministes.
 class _FakePathProviderPlatform extends PathProviderPlatform {
-  final String _docs =
-      '${Directory.systemTemp.path}/procolis_form_draft_test_'
+  final String _docs = '${Directory.systemTemp.path}/procolis_form_draft_test_'
       '${DateTime.now().microsecondsSinceEpoch}';
 
   @override
@@ -28,6 +27,54 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('FormDraftStore', () {
+    test('une demande envoyée conserve sa clé après expiration des brouillons',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'form_draft.parcel-outbox.u1': jsonEncode({
+          'savedAt': DateTime.now()
+              .subtract(const Duration(days: 30))
+              .toIso8601String(),
+          'data': {
+            'requestId': 'same-request',
+            'media': [
+              {'id': 'same-media', 'sent': false}
+            ]
+          }
+        })
+      });
+      final store = FormDraftStore(
+          slot: 'parcel-outbox', ownerId: 'u1', allowExpired: true);
+      final pending = await store.load();
+      expect(pending!.data['requestId'], 'same-request');
+      await store.saveOrThrow({
+        ...pending.data,
+        'parcel': {'id': 'same-parcel'}
+      });
+      final restarted = FormDraftStore(
+          slot: 'parcel-outbox', ownerId: 'u1', allowExpired: true);
+      expect((await restarted.load())!.data['parcel']['id'], 'same-parcel');
+      expect(
+          await FormDraftStore(
+                  slot: 'parcel-outbox', ownerId: 'u2', allowExpired: true)
+              .load(),
+          isNull);
+      await FormDraftStore.clearAll();
+      expect(await restarted.load(), isNull);
+    });
+    test(
+        'une demande illisible ne peut pas être effacée puis republiée par erreur',
+        () async {
+      SharedPreferences.setMockInitialValues(
+          {'form_draft.parcel-outbox.u1': 'invalid'});
+      final store = FormDraftStore(
+          slot: 'parcel-outbox', ownerId: 'u1', allowExpired: true);
+      await expectLater(store.load(), throwsFormatException);
+      expect(
+          (await SharedPreferences.getInstance())
+              .getString('form_draft.parcel-outbox.u1'),
+          'invalid');
+    });
+
     test('relit ce qui a été écrit', () async {
       final store = FormDraftStore(slot: 'colis', ownerId: 'u1');
       await store.save({'receiverName': 'Awa', 'weight': '3'});

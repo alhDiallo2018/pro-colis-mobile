@@ -162,7 +162,10 @@ void main() {
     expect(find.text('Reprendre votre saisie ?'), findsNothing);
     expect(find.text('reprise attendue'), findsOneWidget);
     expect(find.text('40'), findsOneWidget);
-    expect(find.text('9000'), findsOneWidget);
+    // Le tarif d’une nouvelle annonce se négocie désormais après l’offre ;
+    // un ancien prix de brouillon ne doit pas réapparaître comme prix imposé.
+    expect(find.text('9000'), findsNothing);
+    expect(find.text('Prix à négocier'), findsOneWidget);
   });
 
   testWidgets('« Repartir à zéro » efface le brouillon proposé',

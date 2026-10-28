@@ -6,6 +6,32 @@
 import 'payment.dart';
 
 class Advertisement {
+  final Map<String, dynamic>? transport;
+  String get vehicleReference => transport?['reference']?.toString() ?? '';
+  final Map<String, dynamic>? itinerary;
+  List<Map<String, dynamic>> get stops => (itinerary?['stops'] as List? ?? [])
+      .whereType<Map>()
+      .map((s) => Map<String, dynamic>.from(s))
+      .toList();
+  String get serviceLabel => switch (itinerary?['serviceType']) {
+        'gp' => 'GP',
+        'shuttle' => 'Navette · ligne ${itinerary?['lineNumber'] ?? ''}',
+        _ => 'Voyage'
+      };
+  bool serves(String from, String? to, {num? weight}) {
+    if (itinerary == null) return true;
+    final start = stops.indexWhere((s) => s['zoneId'] == from);
+    final end = stops.indexWhere((s) => s['zoneId'] == to);
+    if (start < 0 || end <= start) return false;
+    final time =
+        DateTime.tryParse(stops[start]['scheduledAt']?.toString() ?? '');
+    return time != null &&
+        time.isAfter(DateTime.now()) &&
+        (weight == null ||
+            availableWeight == null ||
+            weight <= availableWeight!);
+  }
+
   final String id;
   final String driverId;
   final String driverName;
@@ -29,6 +55,8 @@ class Advertisement {
 
   const Advertisement({
     required this.id,
+    this.itinerary,
+    this.transport,
     required this.driverId,
     required this.driverName,
     this.driverPhone,
@@ -64,8 +92,12 @@ class Advertisement {
     // Un champ vide ne doit pas masquer un nom de zone présent. Les réponses
     // récentes exposent le nom du lieu ; les anciennes ne portent que la ville.
     String? location(String side) {
-      for (final key in ['${side}Name', '${side}ZoneName',
-        '${side}GarageName', '${side}City']) {
+      for (final key in [
+        '${side}Name',
+        '${side}ZoneName',
+        '${side}GarageName',
+        '${side}City'
+      ]) {
         final value = asString(json[key])?.trim();
         if (value != null && value.isNotEmpty) return value;
       }
@@ -75,13 +107,20 @@ class Advertisement {
     final offers = json['offers'];
 
     return Advertisement(
+      transport: json['transport'] is Map
+          ? Map<String, dynamic>.from(json['transport'])
+          : null,
+      itinerary: json['itinerary'] is Map
+          ? Map<String, dynamic>.from(json['itinerary'])
+          : null,
       id: asString(json['id']) ?? '',
       driverId: asString(json['driverId']) ?? asString(driver?['id']) ?? '',
       driverName: asString(json['driverName']) ??
           asString(driver?['fullName']) ??
           'Chauffeur',
       driverPhone: asString(json['driverPhone']) ?? asString(driver?['phone']),
-      driverProfilePhoto: asString(json['driverProfilePhoto']) ?? asString(driver?['profilePhoto']),
+      driverProfilePhoto: asString(json['driverProfilePhoto']) ??
+          asString(driver?['profilePhoto']),
       departureCity: location('departure'),
       arrivalCity: location('arrival'),
       departureAt: asDate(json['departureAt']),
@@ -109,8 +148,7 @@ class Advertisement {
   bool get acceptsPlatform =>
       resolvedPaymentChannels.contains(PaymentChannel.platform);
 
-  String get route =>
-      '${departureCity ?? '—'}  →  ${arrivalCity ?? '—'}';
+  String get route => '${departureCity ?? '—'}  →  ${arrivalCity ?? '—'}';
 
   String get formattedWeight =>
       availableWeight != null ? '${availableWeight!.round()} kg' : '—';

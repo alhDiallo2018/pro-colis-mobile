@@ -25,13 +25,16 @@ class FormDraft {
 }
 
 class FormDraftStore {
-  FormDraftStore({required this.slot, String? ownerId})
+  FormDraftStore(
+      {required this.slot, String? ownerId, this.allowExpired = false})
       : _owner = (ownerId == null || ownerId.trim().isEmpty)
             ? 'anon'
             : ownerId.trim();
 
   /// Identifie le formulaire : `colis`, `annonce`…
   final String slot;
+  // Une demande déjà envoyée ne doit pas expirer et être recréée en double.
+  final bool allowExpired;
   final String _owner;
 
   static const String _prefix = 'form_draft';
@@ -54,6 +57,8 @@ class FormDraftStore {
 
       final decoded = jsonDecode(raw);
       if (decoded is! Map) {
+        if (allowExpired)
+          throw const FormatException('Demande locale illisible');
         await clear();
         return null;
       }
@@ -61,10 +66,12 @@ class FormDraftStore {
       final savedAt = DateTime.tryParse(map['savedAt']?.toString() ?? '');
       final data = map['data'];
       if (savedAt == null || data is! Map) {
+        if (allowExpired)
+          throw const FormatException('Demande locale illisible');
         await clear();
         return null;
       }
-      if (DateTime.now().difference(savedAt) > maxAge) {
+      if (!allowExpired && DateTime.now().difference(savedAt) > maxAge) {
         await clear();
         return null;
       }
@@ -73,6 +80,8 @@ class FormDraftStore {
         savedAt: savedAt,
       );
     } catch (error) {
+      // Une reprise de publication doit échouer sans effacer sa clé durable.
+      if (allowExpired) rethrow;
       // Une entrée illisible ne doit pas rester en travers : sans purge, elle
       // ferait échouer toutes les lectures suivantes de ce formulaire.
       debugPrint(
@@ -80,6 +89,17 @@ class FormDraftStore {
       await clear();
       return null;
     }
+  }
+
+  Future<void> saveOrThrow(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = await prefs.setString(
+        _prefsKey,
+        jsonEncode({
+          'savedAt': DateTime.now().toIso8601String(),
+          'data': data,
+        }));
+    if (!saved) throw StateError('Espace de stockage indisponible');
   }
 
   Future<void> save(Map<String, dynamic> data) async {

@@ -41,6 +41,7 @@ class AuthSessionManager {
 
   static final instance = AuthSessionManager();
   static const storageKey = 'auth_session_v2';
+  static const offlineCacheKey = 'offline_responses_v1';
   final FlutterSecureStorage _storage;
   final Dio _refreshDio;
   VoidCallback? onExpired;
@@ -98,6 +99,114 @@ class AuthSessionManager {
   Future<SessionTokens?> read() => _serialized(_read);
   Future<String?> accessToken() async => (await read())?.accessToken;
 
+  /// Le cache et les jetons partagent la même file : un logout ou un changement
+  /// de compte ne peut pas être suivi d'une écriture issue de l'ancienne session.
+  /// Le contenu reste dans le Keystore/Keychain, jamais dans les préférences.
+  Future<Map<String, dynamic>?> readCachedResponse(
+          String generation, String key) =>
+      _serialized(() async {
+        try {
+          if ((await _read())?.generation != generation) return null;
+          final raw = await _readValue(offlineCacheKey);
+          if (raw == null) return null;
+          final cache = jsonDecode(raw) as Map<String, dynamic>;
+          if (cache['generation'] != generation) return null;
+          final entry = (cache['entries'] as Map)[key];
+          if (entry is! Map) return null;
+          final savedAt = DateTime.parse(entry['savedAt'] as String);
+          if (DateTime.now().difference(savedAt) > const Duration(days: 30)) {
+            return null;
+          }
+          return Map<String, dynamic>.from(entry);
+        } catch (error, stack) {
+          debugPrint(
+              '[OfflineCache] Lecture impossible (${error.runtimeType})');
+          debugPrintStack(stackTrace: stack);
+          return null;
+        }
+      });
+
+  Future<void> saveCachedResponse(
+          String generation, String key, dynamic data) =>
+      _serialized(() async {
+        try {
+          if ((await _read())?.generation != generation) return;
+          final raw = await _readValue(offlineCacheKey);
+          final cache = raw == null
+              ? <String, dynamic>{}
+              : jsonDecode(raw) as Map<String, dynamic>;
+          final entries = cache['generation'] == generation
+              ? Map<String, dynamic>.from(cache['entries'] as Map)
+              : <String, dynamic>{};
+          entries.remove(key);
+          entries[key] = {
+            'savedAt': DateTime.now().toUtc().toIso8601String(),
+            'data': _withoutSecrets(data),
+          };
+          // Borne le volume et évince les réponses les plus anciennes. Aucun
+          // fichier média n'est téléchargé pour la consultation hors ligne.
+          while (entries.length > 40 ||
+              utf8.encode(jsonEncode(entries)).length > 2 * 1024 * 1024) {
+            // Le profil permet de rouvrir la session : les pages d'historique
+            // sont évincées en priorité pour ne pas le perdre en paginant.
+            entries.remove(entries.keys.firstWhere((key) => key != '/auth/me',
+                orElse: () => entries.keys.first));
+          }
+          await _storage.write(
+            key: offlineCacheKey,
+            value: jsonEncode({'generation': generation, 'entries': entries}),
+          );
+        } catch (error, stack) {
+          // Le stockage local est un confort : son échec n'annule jamais une
+          // réponse valide du serveur. Ne pas journaliser le corps ou le jeton.
+          debugPrint(
+              '[OfflineCache] Écriture impossible (${error.runtimeType})');
+          debugPrintStack(stackTrace: stack);
+        }
+      });
+
+  static dynamic _withoutSecrets(dynamic value) {
+    if (value is List) return value.map(_withoutSecrets).toList();
+    if (value is! Map) return value;
+    return <String, dynamic>{
+      for (final entry in value.entries)
+        if (!RegExp(
+                r'pin|password|token|otp|deliverycode|verificationcode|secret',
+                caseSensitive: false)
+            .hasMatch(entry.key.toString().replaceAll('_', '')))
+          entry.key.toString(): _withoutSecrets(entry.value),
+    };
+  }
+
+  Future<void> _clearOfflineCache() async {
+    try {
+      await _storage.delete(key: offlineCacheKey);
+    } catch (error, stack) {
+      // La génération des jetons invalide également un cache non supprimable.
+      debugPrint('[OfflineCache] Nettoyage impossible (${error.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+    }
+  }
+
+  /// Un refus explicite retire aussi l'ancienne copie, pour qu'une prochaine
+  /// coupure ne réaffiche pas une ressource dont l'accès vient d'être retiré.
+  Future<void> discardCachedResponse(String generation, String key) =>
+      _serialized(() async {
+        try {
+          if ((await _read())?.generation != generation) return;
+          final raw = await _readValue(offlineCacheKey);
+          if (raw == null) return;
+          final cache = jsonDecode(raw) as Map<String, dynamic>;
+          if (cache['generation'] != generation) return;
+          (cache['entries'] as Map).remove(key);
+          await _storage.write(key: offlineCacheKey, value: jsonEncode(cache));
+        } catch (error, stack) {
+          debugPrint(
+              '[OfflineCache] Retrait impossible (${error.runtimeType})');
+          debugPrintStack(stackTrace: stack);
+        }
+      });
+
   Future<void> establish(Map<String, dynamic> data) => _serialized(() async {
         final access = data['accessToken']?.toString();
         final refresh = data['refreshToken']?.toString();
@@ -107,7 +216,47 @@ class AuthSessionManager {
             refresh.isEmpty) {
           throw const FormatException('Reponse de connexion incomplete');
         }
-        await _write(SessionTokens(access, refresh, _newGeneration()));
+        final previous = await _read();
+        final generation = _newGeneration();
+        Map<String, dynamic>? retained;
+        final nextUser = data['user'];
+        if (previous != null && nextUser is Map && nextUser['id'] != null) {
+          try {
+            final raw = await _readValue(offlineCacheKey);
+            final cache = raw == null ? null : jsonDecode(raw);
+            final profile = cache?['entries']?['/auth/me']?['data']?['user'];
+            // Une authentification serveur du même compte renouvelle les
+            // jetons sans effacer les vrais colis déjà synchronisés. La nouvelle
+            // génération interdit toujours aux anciennes requêtes d'écrire.
+            if (cache?['generation'] == previous.generation &&
+                profile is Map &&
+                profile['id'] == nextUser['id'] &&
+                profile['role'] == nextUser['role']) {
+              retained = Map<String, dynamic>.from(cache);
+              retained['generation'] = generation;
+              retained['entries']['/auth/me'] = {
+                'savedAt': DateTime.now().toUtc().toIso8601String(),
+                'data': {'success': true, 'user': _withoutSecrets(nextUser)}
+              };
+            }
+          } catch (error) {
+            debugPrint(
+                '[Session] Copie locale non transférable (${error.runtimeType})');
+          }
+        }
+        await _write(SessionTokens(access, refresh, generation));
+        if (retained != null) {
+          try {
+            await _storage.write(
+                key: offlineCacheKey, value: jsonEncode(retained));
+          } catch (error) {
+            debugPrint(
+                '[Session] Conservation locale impossible (${error.runtimeType})');
+            await _clearOfflineCache();
+          }
+        } else {
+          await _clearOfflineCache();
+        }
       });
 
   Future<void> setAccessToken(String access) => _serialized(() async {
@@ -119,6 +268,7 @@ class AuthSessionManager {
   Future<SessionTokens?> clear() => _serialized(() async {
         final previous = await _read();
         await _write(null);
+        await _clearOfflineCache();
         return previous;
       });
 
@@ -127,6 +277,7 @@ class AuthSessionManager {
         if (current?.generation != expected.generation ||
             current?.refreshToken != expected.refreshToken) return false;
         await _write(null);
+        await _clearOfflineCache();
         onExpired?.call();
         return true;
       });
@@ -228,7 +379,15 @@ class SessionAuthInterceptor extends Interceptor {
   DioException _failure(
           Object error, StackTrace stack, RequestOptions options) =>
       error is DioException
-          ? error
+          // Un refresh hors ligne doit conserver le contexte de la lecture
+          // initiale, afin que son cache puisse servir malgré un access expiré.
+          ? (error.response == null && error.requestOptions != options
+              ? DioException(
+                  requestOptions: options,
+                  type: error.type,
+                  error: error.error,
+                  stackTrace: stack)
+              : error)
           : DioException(
               requestOptions: options, error: error, stackTrace: stack);
 
@@ -239,7 +398,10 @@ class SessionAuthInterceptor extends Interceptor {
       if (!_public(options.path)) {
         final session = await sessions.read();
         final previous = options.extra['authSession'] as SessionTokens?;
-        if (options.extra['sessionRetried'] == true &&
+        // Un envoi GPS est lié au compte de son acquisition, sans être
+        // considéré comme déjà renouvelé : un 401 peut encore rafraîchir le JWT.
+        if ((options.extra['sessionRetried'] == true ||
+                options.extra['authSessionPinned'] == true) &&
             previous?.generation != session?.generation) {
           throw SessionChangedException();
         }
@@ -275,9 +437,10 @@ class SessionAuthInterceptor extends Interceptor {
   void onResponse(
       Response<dynamic> response, ResponseInterceptorHandler handler) async {
     try {
-      handler.resolve(await _recover(response));
+      // Laisse les intercepteurs de lecture enregistrer la réponse vérifiée.
+      handler.next(await _recover(response));
     } catch (error, stack) {
-      handler.reject(_failure(error, stack, response.requestOptions));
+      handler.reject(_failure(error, stack, response.requestOptions), true);
     }
   }
 

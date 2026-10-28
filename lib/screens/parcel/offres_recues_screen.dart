@@ -58,6 +58,8 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
   final _apiService = ApiService();
   StreamSubscription<void>? _audioCompleteSubscription;
 
+  String? _parcelFilter;
+  String _sort = 'recent';
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _playingAudioUrl;
@@ -153,8 +155,7 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
   @override
   Widget build(BuildContext context) {
     final content = _isLoading
-        ? Center(
-            child: CircularProgressIndicator(color: AppTheme.primary))
+        ? Center(child: CircularProgressIndicator(color: AppTheme.primary))
         : _buildBody();
 
     if (widget.embedded) {
@@ -175,7 +176,18 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
   }
 
   Widget _buildBody() {
-    final offers = _collectOffers();
+    final allOffers = _collectOffers();
+    final offers = allOffers
+        .where((o) => _parcelFilter == null || o.parcel.id == _parcelFilter)
+        .toList()
+      ..sort((a, b) => _sort == 'price'
+          ? a.bid.currentPrice.compareTo(b.bid.currentPrice)
+          : (b.bid.lastMessageAt ?? b.bid.respondedAt ?? b.bid.createdAt)
+              .compareTo(
+                  a.bid.lastMessageAt ?? a.bid.respondedAt ?? a.bid.createdAt));
+    final comparisonParcels = {
+      for (final o in allOffers) o.parcel.id: o.parcel.trackingNumber
+    };
     final proposals = _collectProposals();
     final isEmpty = offers.isEmpty && proposals.isEmpty;
 
@@ -209,7 +221,32 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          PcSectionHeader('$totalCount offre${totalCount > 1 ? 's' : ''} reçue${totalCount > 1 ? 's' : ''}'),
+          DropdownButtonFormField<String>(
+              initialValue: _parcelFilter ?? '',
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Colis à comparer'),
+              items: [
+                const DropdownMenuItem(
+                    value: '', child: Text('Tous mes colis')),
+                ...comparisonParcels.entries.map(
+                    (e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+              ],
+              onChanged: (v) =>
+                  setState(() => _parcelFilter = v == '' ? null : v)),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+              initialValue: _sort,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Trier les offres'),
+              items: const [
+                DropdownMenuItem(
+                    value: 'recent', child: Text('Dernière réponse')),
+                DropdownMenuItem(value: 'price', child: Text('Prix croissant'))
+              ],
+              onChanged: (v) => setState(() => _sort = v!)),
+          const SizedBox(height: 16),
+          PcSectionHeader(
+              '$totalCount offre${totalCount > 1 ? 's' : ''} reçue${totalCount > 1 ? 's' : ''}'),
           const SizedBox(height: 4),
           for (final offer in offers)
             Padding(
@@ -314,8 +351,7 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
       );
       if (!mounted) return;
       if (result['success'] == false) {
-        _showSnack(
-            result['message']?.toString() ?? 'Échec de l\'acceptation',
+        _showSnack(result['message']?.toString() ?? 'Échec de l\'acceptation',
             isError: true);
       } else {
         _showSnack('Proposition acceptée. Le chauffeur va confirmer.');
@@ -359,8 +395,7 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
       );
       if (!mounted) return;
       if (result['success'] == false) {
-        _showSnack(
-            result['message']?.toString() ?? 'Impossible de refuser',
+        _showSnack(result['message']?.toString() ?? 'Impossible de refuser',
             isError: true);
       } else {
         _showSnack('Proposition refusée');
@@ -398,7 +433,8 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: AppTheme.slate300,
                     borderRadius: BorderRadius.circular(2),
@@ -465,10 +501,12 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
                 onPressed: () {
                   final price = double.tryParse(priceCtrl.text.trim());
                   if (price == null || price <= 0) return;
-                  Navigator.pop(ctx, _CounterArgs(
-                    price: price.toInt(),
-                    message: msgCtrl.text.trim(),
-                  ));
+                  Navigator.pop(
+                      ctx,
+                      _CounterArgs(
+                        price: price.toInt(),
+                        message: msgCtrl.text.trim(),
+                      ));
                 },
                 icon: Icons.send_rounded,
                 size: PcButtonSize.lg,
@@ -511,10 +549,9 @@ class _OffresRecuesScreenState extends ConsumerState<OffresRecuesScreen> {
 
   void _openProposalChat(Parcel parcel) {
     final driverId = parcel.proposedDriverId ?? parcel.senderId;
-    final driverName =
-        parcel.proposedDriverName?.isNotEmpty == true
-            ? parcel.proposedDriverName!
-            : 'Chauffeur';
+    final driverName = parcel.proposedDriverName?.isNotEmpty == true
+        ? parcel.proposedDriverName!
+        : 'Chauffeur';
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -588,8 +625,8 @@ class _ReceivedOfferCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final driverName = bid.driverName.isEmpty ? 'Chauffeur' : bid.driverName;
     final isPlaying = bid.audioUrl != null && playingAudioUrl == bid.audioUrl;
-    final hasMessage = bid.message?.trim().isNotEmpty == true;
-    final hasResponse = bid.responseMessage?.trim().isNotEmpty == true;
+    final latestMessage = bid.lastMessage ?? bid.responseMessage ?? bid.message;
+    final clientSpokeLast = bid.lastProposedBy == 'client';
     final audioUrl = bid.audioUrl;
 
     return Container(
@@ -609,7 +646,11 @@ class _ReceivedOfferCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              PcAvatar(driverName, size: 46, status: PcAvatarStatus.online),
+              PcAvatar(driverName,
+                  size: 46,
+                  status: bid.driverAvailability == 'available'
+                      ? PcAvatarStatus.online
+                      : PcAvatarStatus.offline),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -660,7 +701,7 @@ class _ReceivedOfferCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'Proposition',
+                'Dernier prix',
                 style: AppFonts.manrope(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -669,7 +710,7 @@ class _ReceivedOfferCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '${_formatMoney(bid.price)} FCFA',
+                '${_formatMoney(bid.currentPrice)} FCFA',
                 style: AppTheme.mono(
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
@@ -678,20 +719,20 @@ class _ReceivedOfferCard extends StatelessWidget {
               ),
             ],
           ),
-          if (hasMessage || hasResponse) ...[
+          Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                  'Véhicule : ${bid.driverVehicleType ?? 'à confirmer'} · Disponibilité actuelle : ${{
+                        'available': 'disponible',
+                        'busy': 'occupé',
+                        'offline': 'hors ligne'
+                      }[bid.driverAvailability] ?? 'à confirmer'}')),
+          if (latestMessage?.trim().isNotEmpty == true) ...[
             const SizedBox(height: 10),
-            if (hasResponse)
-              _Bubble(
-                side: _BubbleSide.right,
-                who: 'Vous (contre-proposition)',
-                text: bid.responseMessage!.trim(),
-              )
-            else if (hasMessage)
-              _Bubble(
-                side: _BubbleSide.left,
-                who: driverName,
-                text: bid.message!.trim(),
-              ),
+            _Bubble(
+                side: clientSpokeLast ? _BubbleSide.right : _BubbleSide.left,
+                who: clientSpokeLast ? 'Vous (contre-proposition)' : driverName,
+                text: latestMessage!.trim()),
           ],
           if (audioUrl != null && audioUrl.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -705,7 +746,7 @@ class _ReceivedOfferCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  _formatWhen(bid.createdAt),
+                  'Dernière réponse : ${_formatWhen(bid.lastMessageAt ?? bid.respondedAt ?? bid.createdAt)}',
                   style: AppFonts.manrope(
                     fontSize: 11.5,
                     color: AppTheme.slate400,
@@ -821,10 +862,9 @@ class _ReceivedProposalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final driverName =
-        parcel.proposedDriverName?.isNotEmpty == true
-            ? parcel.proposedDriverName!
-            : 'Chauffeur';
+    final driverName = parcel.proposedDriverName?.isNotEmpty == true
+        ? parcel.proposedDriverName!
+        : 'Chauffeur';
     final price = parcel.currentProposalPrice ?? 0;
     final lastOfferBy = parcel.proposalLastOfferBy;
     final lastMsg = parcel.proposalLastMessage;
@@ -845,7 +885,7 @@ class _ReceivedProposalCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              PcAvatar(driverName, size: 46, status: PcAvatarStatus.online),
+              PcAvatar(driverName, size: 46, status: PcAvatarStatus.none),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -941,7 +981,8 @@ class _ReceivedProposalCard extends StatelessWidget {
               GestureDetector(
                 onTap: onOpenChat,
                 child: Container(
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: AppTheme.slate100,
                     borderRadius: BorderRadius.circular(99),

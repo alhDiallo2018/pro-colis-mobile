@@ -4,7 +4,8 @@ import 'messages_screen.dart';
 
 /// Le serveur choisit l'agent ; aucun identifiant de compte support n'est embarque.
 class SupportChatScreen extends StatefulWidget {
-  const SupportChatScreen({super.key});
+  final String? ticketId;
+  const SupportChatScreen({super.key, this.ticketId});
   @override
   State<SupportChatScreen> createState() => _SupportChatScreenState();
 }
@@ -35,6 +36,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
           initialPeerId: chat['userId'] as String,
           initialPeerName: 'Support SENDPROCOLIS',
           supportConversationId: chat['id'] as String,
+          supportTicketId: widget.ticketId,
         ),
       ));
 

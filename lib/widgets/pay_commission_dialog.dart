@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:procolis/theme/fonts.dart';
 import 'package:intl/intl.dart';
 
-import '../../services/api_service.dart';
-import '../../services/commission_service.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/pc_components.dart';
+import '../services/api_service.dart';
+import '../services/commission_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/pc_components.dart';
 
 class PayCommissionDialog extends ConsumerStatefulWidget {
   final String parcelId;

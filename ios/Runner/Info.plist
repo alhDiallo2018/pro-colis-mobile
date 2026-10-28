@@ -39,6 +39,10 @@
 	<string>SendProcolis accède à vos photos pour joindre des images à vos colis et messages.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>SendProcolis enregistre les reçus et images de colis dans votre galerie.</string>
+	<key>UIBackgroundModes</key>
+	<array><string>location</string></array>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Pendant un départ dont vous activez le suivi, ProColis partage la position du véhicule avec les clients même en arrière-plan. Vous pouvez arrêter ce suivi à tout moment.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SendProcolis utilise votre position pour afficher les trajets et suivre les livraisons.</string>
 	<key>NSContactsUsageDescription</key>

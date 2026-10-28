@@ -1,3 +1,4 @@
+import '../experience/help_guides.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,6 +97,9 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
           children: [
+            HelpGuides(
+                guides:
+                    ref.watch(publicConfigProvider)?.helpGuides ?? const []),
             if (_loading) const LinearProgressIndicator(),
             if (_loadError)
               Padding(

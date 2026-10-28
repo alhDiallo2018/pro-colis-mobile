@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../providers/auth_provider.dart';
-import '../../services/api_service.dart';
 import '../../services/biometric_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../screens/help/help_screen.dart';
@@ -64,7 +63,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return;
       }
 
-      // L'empreinte d'abord : inutile de réclamer le PIN si le capteur refuse.
+      // Vérifier localement l'identité avant d'activer le verrou pour ce compte.
       final approved = await BiometricService.authenticate(
         'Confirmez votre empreinte pour activer le déverrouillage',
       );
@@ -73,28 +72,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return;
       }
 
-      final pin = await _askPin();
-      if (pin == null) return;
-
-      final identifier =
-          await ref.read(authProvider.notifier).getSavedIdentifier();
-      if (identifier == null || identifier.isEmpty) {
+      final user = ref.read(authProvider).user;
+      if (user == null) {
         _notify('Reconnectez-vous une fois pour activer cette option');
         return;
       }
-
-      // Le PIN est vérifié par l'API avant d'être mémorisé : sans ce contrôle,
-      // une faute de frappe serait enregistrée et l'empreinte échouerait
-      // ensuite sans que la cause soit compréhensible. La vérification passe
-      // par ApiService et non par le provider : un PIN erroné y basculerait
-      // l'état d'authentification en erreur et déconnecterait l'utilisateur.
-      final result = await ApiService().loginWithPin(pin, identifier);
-      if (result['accessToken'] == null && result['success'] != true) {
-        _notify(result['message']?.toString() ?? 'Code PIN incorrect');
-        return;
-      }
-
-      await BiometricService.enable(pin);
+      await BiometricService.enableForSession(user.id);
       if (!mounted) return;
       setState(() => _biometricEnabled = true);
       _notify('Déverrouillage biométrique activé');
@@ -114,43 +97,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<String?> _askPin() async {
-    // Appelé après l'attente du capteur : l'écran a pu être quitté entre-temps.
-    if (!mounted) return null;
-    final controller = TextEditingController();
-    final pin = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirmez votre code PIN'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          obscureText: true,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(
-            hintText: '6 chiffres',
-            counterText: '',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('Confirmer'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (pin == null || pin.length != 6) return null;
-    return pin;
   }
 
   Future<void> _loadNotificationPreferences() async {

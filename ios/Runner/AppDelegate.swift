@@ -32,6 +32,17 @@ import UserNotifications
     // implicite n'expose que le registre de plugins.
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "SendProColisBadge") {
       registerBadgeChannel(with: registrar.messenger())
+      // Vérifier le client iOS et son retour URL avant de lancer le SDK :
+      // une configuration absente peut provoquer une exception native.
+      let googleConfiguration = FlutterMethodChannel(name: "sendprocolis/google-auth-config", binaryMessenger: registrar.messenger())
+      googleConfiguration.setMethodCallHandler { call, result in
+        guard call.method == "read" else { result(FlutterMethodNotImplemented); return }
+        let clientId = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String ?? ""
+        let types = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]] ?? []
+        let schemes = types.flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }
+        let expected = clientId.components(separatedBy: ".").reversed().joined(separator: ".")
+        result(["clientId": clientId, "urlSchemeConfigured": !clientId.isEmpty && schemes.contains(expected)])
+      }
     }
   }
 

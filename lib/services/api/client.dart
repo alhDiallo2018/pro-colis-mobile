@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 
 import '../../config/app_config.dart';
 import '../auth_session.dart';
+import '../offline_access.dart';
 
 class ApiClient {
   static const String baseUrl = AppConfig.apiBaseUrl;
@@ -33,6 +34,7 @@ class ApiClient {
 
   void _setupInterceptors() {
     dio.interceptors.add(SessionAuthInterceptor(dio));
+    dio.interceptors.add(OfflineAccessInterceptor());
   }
 
   double toDouble(dynamic v) {

@@ -1,3 +1,6 @@
+import 'route_templates_screen.dart';
+import '../../services/journey_live_service.dart';
+import '../../widgets/journey_live_tile.dart';
 // mobile/lib/screens/driver/mes_annonces_screen.dart
 // Liste et gestion des annonces du chauffeur - aligné Web (MesAnnoncesScreen.tsx)
 
@@ -160,8 +163,9 @@ class _DriverMesAnnoncesScreenState
   }
 
   Future<void> _createAd() async {
-    // Le provider recharge déjà la liste après une création réussie.
-    await showCreateAnnonceSheet(context);
+    final created = await showCreateAnnonceSheet(context);
+    if (created == true && mounted)
+      await ref.read(advertisementProvider.notifier).loadMyAdvertisements();
   }
 
   Future<void> _editAd(Map<String, dynamic> ad) async {
@@ -181,6 +185,9 @@ class _DriverMesAnnoncesScreenState
     if (!confirmed) return;
     final result =
         await ref.read(advertisementProvider.notifier).closeAdvertisement(adId);
+    if (result['success'] == true &&
+        JourneyLiveService.instance.advertisementId == adId)
+      await JourneyLiveService.instance.stop();
     _showResult(result, 'Annonce fermée');
   }
 
@@ -194,16 +201,21 @@ class _DriverMesAnnoncesScreenState
       confirmLabel: 'Supprimer',
     );
     if (!confirmed) return;
-    final result =
-        await ref.read(advertisementProvider.notifier).deleteAdvertisement(adId);
+    final result = await ref
+        .read(advertisementProvider.notifier)
+        .deleteAdvertisement(adId);
+    if (result['success'] == true &&
+        JourneyLiveService.instance.advertisementId == adId)
+      await JourneyLiveService.instance.stop();
     _showResult(result, 'Annonce supprimée');
   }
 
   Future<void> _acceptOffer(String adId, String offerId) async {
     setState(() => _busyOfferId = offerId);
     try {
-      final result =
-          await ref.read(advertisementProvider.notifier).acceptOffer(adId, offerId);
+      final result = await ref
+          .read(advertisementProvider.notifier)
+          .acceptOffer(adId, offerId);
       if (result['success'] == true) {
         ref.read(parcelProvider.notifier).loadDriverParcels();
       }
@@ -216,8 +228,9 @@ class _DriverMesAnnoncesScreenState
   Future<void> _rejectOffer(String adId, String offerId) async {
     setState(() => _busyOfferId = offerId);
     try {
-      final result =
-          await ref.read(advertisementProvider.notifier).rejectOffer(adId, offerId);
+      final result = await ref
+          .read(advertisementProvider.notifier)
+          .rejectOffer(adId, offerId);
       _showResult(result, 'Offre refusée');
     } finally {
       if (mounted) setState(() => _busyOfferId = null);
@@ -366,6 +379,25 @@ class _DriverMesAnnoncesScreenState
                 ],
               ),
             ),
+            if (_tabController.index == 0)
+              Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextButton.icon(
+                          icon: const Icon(Icons.bookmarks_outlined),
+                          label:
+                              const Text('Trajets habituels · planning rapide'),
+                          onPressed: () async {
+                            final created = await Navigator.of(context)
+                                .push<bool>(MaterialPageRoute(
+                                    builder: (_) =>
+                                        const RouteTemplatesScreen()));
+                            if (created == true && mounted)
+                              await ref
+                                  .read(advertisementProvider.notifier)
+                                  .loadMyAdvertisements();
+                          }))),
             TabBar(
               controller: _tabController,
               labelColor: AppTheme.primary,
@@ -1454,6 +1486,20 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   children: [
+                    if (ad['itinerary'] is Map)
+                      OutlinedButton.icon(
+                          icon: const Icon(Icons.copy_outlined),
+                          label: const Text('Réutiliser ce trajet'),
+                          onPressed: () async {
+                            final created = await Navigator.of(context)
+                                .push<bool>(MaterialPageRoute(
+                                    builder: (_) => RouteTemplatesScreen(
+                                        sourceAdvertisementId:
+                                            ad['id'].toString())));
+                            if (created == true && mounted) widget.onRefresh();
+                          }),
+                    JourneyLiveTile(
+                        advertisementId: ad['id'].toString(), enabled: isOpen),
                     Container(
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
@@ -1628,6 +1674,12 @@ class _VoyageDetailScreenState extends State<_VoyageDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (offer['journeySegment'] is Map)
+            Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                    "Retrait : ${offer['journeySegment']['pickup']?['name'] ?? 'À confirmer'} → Remise : ${offer['journeySegment']['dropoff']?['name'] ?? 'À confirmer'}",
+                    style: const TextStyle(fontWeight: FontWeight.w700))),
           Row(
             children: [
               PcAvatar(clientName, size: 44),

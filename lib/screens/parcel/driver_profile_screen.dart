@@ -49,8 +49,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     setState(() => _ratings = ratings);
   }
 
-  bool get _selectable =>
-      _driver?.driverStatus != DriverStatus.offline;
+  bool get _selectable => _driver?.driverStatus == DriverStatus.available;
 
   void _choose() {
     final driver = _driver;
@@ -306,7 +305,8 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
           ),
           icon: const Icon(Icons.local_shipping_rounded),
-          label: Text(selectable ? 'Choisir ce chauffeur' : 'Chauffeur hors ligne'),
+          label: Text(
+              selectable ? 'Choisir ce chauffeur' : 'Chauffeur hors ligne'),
         ),
         if (!selectable)
           Padding(
@@ -335,7 +335,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.star_rounded, color: AppTheme.amber500, size:20),
+              Icon(Icons.star_rounded, color: AppTheme.amber500, size: 20),
               const SizedBox(width: 8),
               Text('Avis clients',
                   style: TextStyle(

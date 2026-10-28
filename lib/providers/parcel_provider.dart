@@ -9,9 +9,12 @@ import '../models/user.dart';
 import '../models/cancellation.dart';
 import '../services/api_service.dart';
 import '../utils/parcel_access_policy.dart';
+import 'auth_provider.dart';
 
 final parcelProvider =
     StateNotifierProvider<ParcelNotifier, ParcelState>((ref) {
+  // Les listes en mémoire, comme le cache disque, appartiennent à un compte.
+  ref.watch(authProvider.select((state) => state.user?.id));
   return ParcelNotifier();
 });
 
@@ -29,8 +32,12 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getMyParcels(status: status);
+      if (!mounted) return;
       state = state.copyWith(parcels: parcels, isLoading: false, error: null);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[ParcelNotifier] Chargement indisponible (${e.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      if (!mounted) return;
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
@@ -39,9 +46,13 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getSentParcels(status: status);
+      if (!mounted) return;
       state =
           state.copyWith(sentParcels: parcels, isLoading: false, error: null);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[ParcelNotifier] Chargement indisponible (${e.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      if (!mounted) return;
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
@@ -50,9 +61,13 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getReceivedParcels(status: status);
+      if (!mounted) return;
       state = state.copyWith(
           receivedParcels: parcels, isLoading: false, error: null);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[ParcelNotifier] Chargement indisponible (${e.runtimeType})');
+      debugPrintStack(stackTrace: stack);
+      if (!mounted) return;
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
@@ -92,14 +107,18 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
         if (receivedByClient) received.add(parcel);
       }
 
+      if (!mounted) return;
       state = state.copyWith(
         sentParcels: sent,
         receivedParcels: received,
         isLoading: false,
         error: null,
       );
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[ParcelNotifier] Chargement indisponible (${e.runtimeType})');
+      debugPrintStack(stackTrace: stack);
       debugPrint('❌ Erreur classement des colis client: $e');
+      if (!mounted) return;
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
@@ -109,9 +128,13 @@ class ParcelNotifier extends StateNotifier<ParcelState> {
     state = state.copyWith(isLoading: true);
     try {
       final parcels = await _apiService.getDriverParcels();
+      if (!mounted) return;
       state = state.copyWith(parcels: parcels, isLoading: false, error: null);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[ParcelNotifier] Chargement indisponible (${e.runtimeType})');
+      debugPrintStack(stackTrace: stack);
       debugPrint('❌ [ParcelProvider] loadDriverParcels failed: $e');
+      if (!mounted) return;
       state = state.copyWith(
         error: 'Impossible de charger les colis du chauffeur',
         isLoading: false,
@@ -505,7 +528,7 @@ class ParcelState {
       receivedParcels: receivedParcels ?? this.receivedParcels,
       freeParcels: freeParcels ?? this.freeParcels,
       trackedParcel: trackedParcel ?? this.trackedParcel,
-      error: error ?? this.error,
+      error: error,
       isSuccess: isSuccess ?? this.isSuccess,
       isLoadingFreeParcels: isLoadingFreeParcels ?? this.isLoadingFreeParcels,
     );

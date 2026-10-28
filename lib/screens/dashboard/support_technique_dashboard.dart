@@ -1,3 +1,4 @@
+import '../experience/quality_screen.dart';
 // lib/screens/dashboard/support_technique_dashboard.dart
 //
 // Espace du support technique : file de tickets, incidents plateforme et
@@ -165,6 +166,13 @@ class _SupportTechniqueHome extends ConsumerWidget {
           ),
           // Les annonces super-admin s'affichent sous le hero du rôle.
           const BroadcastBanner(),
+          Padding(
+              padding: const EdgeInsets.all(16),
+              child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const QualityScreen())),
+                  icon: const Icon(Icons.monitor_heart_outlined),
+                  label: const Text('Qualité de service'))),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 100),
             child: statsAsync.when(

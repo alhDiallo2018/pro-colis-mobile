@@ -1,11 +1,16 @@
+import 'dart:io';
+import 'package:uuid/uuid.dart';
+import '../../services/api/experience_api.dart';
+import '../../services/form_draft_store.dart';
+import '../../models/driver_discovery.dart';
+import '../../widgets/delivery_discovery_view.dart';
 // 4-step parcel creation wizard matching the web app
-// Step 0: Destinataire → Step 1: Livraison → Step 2: Colis → Step 3: Recapitulatif
+// Trajet et disponibilité → Colis et prix proposé → Destinataire → Confirmation
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -22,22 +27,36 @@ import '../../services/api/parcels_api.dart';
 import '../../services/api/zones_api.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/driver_visibility.dart';
 import '../../utils/debt_block.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/phone_contact_picker.dart';
 import '../../widgets/procolis_design_system.dart';
-import '../../widgets/route_picker.dart';
 import '../../widgets/location_autocomplete.dart';
 
 final _apiService = ApiService();
 
+// Tous les accès à la création utilisent le même parcours cartographique.
+Future<bool?> showDeliveryCreation(BuildContext context) async {
+  final result = await Navigator.of(context).push<Parcel>(
+    MaterialPageRoute(builder: (_) => const NewParcelWizardScreen()),
+  );
+  return result != null;
+}
+
 class NewParcelWizardScreen extends ConsumerStatefulWidget {
   /// Chauffeur pré-sélectionné depuis une fiche (accès direct `/parcel/new?driver=`).
   final String? preselectedDriverId;
+  final String? sourceParcelId;
+  final String? sourceDraftId;
+  final String? recipientId;
 
-  const NewParcelWizardScreen({super.key, this.preselectedDriverId});
+  const NewParcelWizardScreen(
+      {super.key,
+      this.preselectedDriverId,
+      this.sourceParcelId,
+      this.sourceDraftId,
+      this.recipientId});
 
   @override
   ConsumerState<NewParcelWizardScreen> createState() =>
@@ -45,6 +64,150 @@ class NewParcelWizardScreen extends ConsumerStatefulWidget {
 }
 
 class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
+  late final FormDraftStore _draftStore;
+  Timer? _draftTimer;
+  Map<String, dynamic>? _pendingData;
+  String? _restoreError;
+  bool _draftReady = false;
+  bool _sourceApplied = false;
+  Parcel? _createdParcel;
+  late final FormDraftStore _outbox;
+  Map<String, dynamic>? _pendingRequest;
+  final String _attemptId = const Uuid().v4();
+  bool _started = false;
+  void _event(String event) {
+    unawaited(ExperienceApi().request('/events', method: 'POST', data: {
+      'attemptId': _pendingRequest?['requestId'] ?? _attemptId,
+      'event': event,
+      'platform': 'mobile'
+    }).catchError((_) => <String, dynamic>{}));
+  }
+
+  List<TextEditingController> get _draftControllers => [
+        _receiverNameCtrl,
+        _receiverPhoneCtrl,
+        _receiverEmailCtrl,
+        _receiverAddressCtrl,
+        _descriptionCtrl,
+        _weightCtrl,
+        _proposedPriceCtrl
+      ];
+
+  Map<String, dynamic> _draftData() => {
+        'receiverName': _receiverNameCtrl.text,
+        'receiverPhone': _receiverPhoneCtrl.text,
+        'receiverEmail': _receiverEmailCtrl.text,
+        'receiverAddress': _receiverAddressCtrl.text,
+        'description': _descriptionCtrl.text,
+        'weight': _weightCtrl.text,
+        'price': _proposedPriceCtrl.text,
+        'departureZoneId': _departureZoneId,
+        'arrivalZoneId': _arrivalZoneId,
+        'type': _parcelType.value,
+        'isUrgent': _isUrgent,
+        'isInsured': _isInsured,
+        'photos': _photos.map((f) => f.path).toList(),
+        'videos': _videos.map((f) => f.path).toList(),
+        'voices': _voiceMessages
+            .map((v) => {'path': v.path, 'duration': v.duration})
+            .toList(),
+      };
+  Future<void> _saveDraft() async {
+    if (!_draftReady ||
+        _pendingData != null ||
+        _pendingRequest != null ||
+        _isPublishing) return;
+    final data = _draftData();
+    if (_draftControllers.any((c) => c.text.isNotEmpty))
+      await _draftStore.save(data);
+  }
+
+  void _draftChanged() {
+    if (!_started) {
+      _started = true;
+      _event('creation_started');
+    }
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 600), _saveDraft);
+  }
+
+  Future<void> _loadDraft() async {
+    try {
+      final pending = (await _outbox.load())?.data;
+      if (pending != null && mounted) {
+        setState(() {
+          _pendingRequest = pending;
+          _draftReady = true;
+        });
+        return;
+      }
+      final external = widget.sourceParcelId != null ||
+          widget.sourceDraftId != null ||
+          widget.recipientId != null;
+      final data = external
+          ? await ExperienceApi().prefill(
+              source: widget.sourceParcelId,
+              draft: widget.sourceDraftId,
+              recipient: widget.recipientId)
+          : (await _draftStore.load())?.data;
+      if (mounted)
+        setState(() {
+          _pendingData = data;
+          _draftReady = true;
+        });
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _draftReady = true;
+          _restoreError =
+              'Impossible de reprendre cet envoi. Réessayez avec une connexion.';
+        });
+    }
+  }
+
+  void _restore() {
+    final data = _pendingData;
+    if (data == null) return;
+    setState(() {
+      _receiverNameCtrl.text = data['receiverName']?.toString() ?? '';
+      _receiverPhoneCtrl.text = data['receiverPhone']?.toString() ?? '';
+      _receiverEmailCtrl.text = data['receiverEmail']?.toString() ?? '';
+      _receiverAddressCtrl.text = data['receiverAddress']?.toString() ?? '';
+      _descriptionCtrl.text = data['description']?.toString() ?? '';
+      _weightCtrl.text = data['weight']?.toString() ?? '';
+      _proposedPriceCtrl.text = data['price']?.toString() ?? '';
+      _departureZoneId = data['departureZoneId'] as String?;
+      _arrivalZoneId = data['arrivalZoneId'] as String?;
+      _parcelType =
+          ParcelType.values.where((v) => v.value == data['type']).firstOrNull ??
+              ParcelType.package;
+      _isUrgent = data['isUrgent'] == true;
+      _isInsured = data['isInsured'] == true;
+      _isFreeMode = true;
+      _selectedDriver = null;
+      _currentStep = 0;
+      _sourceApplied = widget.sourceDraftId != null;
+      _photos = (data['photos'] as List? ?? [])
+          .cast<String>()
+          .where((p) => File(p).existsSync())
+          .map(XFile.new)
+          .toList();
+      _videos = (data['videos'] as List? ?? [])
+          .cast<String>()
+          .where((p) => File(p).existsSync())
+          .map(XFile.new)
+          .toList();
+      _voiceMessages = (data['voices'] as List? ?? [])
+          .where((v) => File(v['path']).existsSync())
+          .map(
+              (v) => VoiceMessageData(path: v['path'], duration: v['duration']))
+          .toList();
+      _pendingData = null;
+    });
+    _showSnack(
+        'Informations reprises. Vérifiez les étapes, le chauffeur, le prix et les pièces jointes avant de publier.');
+  }
+
   int _currentStep = 0;
   bool _isPublishing = false;
 
@@ -64,11 +227,9 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   String? _departureZoneId;
   String? _arrivalZoneId;
 
-  bool _isFreeMode = true;
-  List<User> _drivers = [];
+  bool _isFreeMode = false;
   User? _selectedDriver;
-  bool _loadingDrivers = false;
-  bool _verifiedDriversOnly = false;
+  String? _vehicleFilter;
 
   // Step 2 - Colis
   ParcelType _parcelType = ParcelType.package;
@@ -103,8 +264,17 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   @override
   void initState() {
     super.initState();
+    _draftStore = FormDraftStore(
+        slot: 'parcel-wizard', ownerId: ref.read(authProvider).user?.id);
+    _outbox = FormDraftStore(
+        slot: 'parcel-outbox',
+        ownerId: ref.read(authProvider).user?.id,
+        allowExpired: true);
+    _loadDraft();
+    for (final controller in _draftControllers) {
+      controller.addListener(_draftChanged);
+    }
     _loadZones();
-    _loadDriversForZone();
     _applyPreselectedDriver();
     _weightCtrl.addListener(_scheduleEstimate);
   }
@@ -116,7 +286,9 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     _isFreeMode = false;
     try {
       final driver = await _apiService.getPublicDriver(id);
-      if (mounted && driver != null) {
+      if (mounted &&
+          driver != null &&
+          driver.driverStatus == DriverStatus.available) {
         setState(() => _selectedDriver = driver);
       }
     } catch (error, stackTrace) {
@@ -128,6 +300,10 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
+    // Capturer le texte avant de libérer les contrôleurs. Ne jamais sauvegarder
+    // de nouveau le formulaire une fois que le serveur a créé le colis.
+    unawaited(_saveDraft());
     _receiverNameCtrl.dispose();
     _receiverPhoneCtrl.dispose();
     _receiverEmailCtrl.dispose();
@@ -164,33 +340,6 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       debugPrint(
         '[NewParcelWizard] Échec chargement zones: $error\n$stackTrace',
       );
-    }
-  }
-
-  Future<void> _loadDriversForZone({String? zoneId}) async {
-    final gid = zoneId ?? _departureZoneId;
-    if (gid == null) return;
-    setState(() => _loadingDrivers = true);
-    try {
-      final drivers = await _apiService.getZoneDrivers(gid);
-      if (mounted) setState(() => _drivers = drivers);
-    } catch (error, stackTrace) {
-      debugPrint(
-        '[NewParcelWizard] Échec chargement chauffeurs: $error\n$stackTrace',
-      );
-    }
-    if (mounted) setState(() => _loadingDrivers = false);
-  }
-
-  /// Ouvre la fiche chauffeur ; si le client y choisit ce chauffeur, le
-  /// formulaire récupère la sélection et poursuit le flux de proposition directe.
-  Future<void> _openDriverProfile(User driver) async {
-    final chosen = await context.push<User>('/client/driver/${driver.id}');
-    if (mounted && chosen != null) {
-      setState(() {
-        _selectedDriver = chosen;
-        _isFreeMode = false;
-      });
     }
   }
 
@@ -258,19 +407,6 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     }
   }
 
-  /// Zone ajoutée à la volée depuis le sélecteur de trajet : absente de la
-  /// liste publique tant qu'elle n'est pas validée, on l'injecte localement
-  /// pour qu'elle reste sélectionnable.
-  void _addResolvedZone(Garage zone) {
-    setState(() {
-      _zones = [..._zones.where((z) => z.id != zone.id), zone];
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text('« ${zone.name} » ajoutée — validation en attente.')),
-    );
-  }
-
   Garage? _zoneById(String? id) {
     if (id == null) return null;
     try {
@@ -280,36 +416,21 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     }
   }
 
-  List<User> get _visibleDrivers => visibleDrivers(
-        _drivers,
-        verifiedOnly: _verifiedDriversOnly,
-      );
-
-  void _setVerifiedDriversOnly(bool value) {
-    setState(() {
-      _verifiedDriversOnly = value;
-      // Ne pas conserver silencieusement un chauffeur désormais masqué.
-      if (value && !(_selectedDriver?.isVerified ?? false)) {
-        _selectedDriver = null;
-      }
-    });
-  }
-
   void _goToStep(int step) {
     setState(() => _currentStep = step);
   }
 
   bool _canProceed(int step) {
     switch (step) {
-      case 0:
+      case 2:
         return _receiverNameCtrl.text.trim().isNotEmpty &&
             _receiverPhoneCtrl.text.trim().isNotEmpty;
-      case 1:
+      case 0:
         return _departureZoneId != null &&
             _arrivalZoneId != null &&
             _departureZoneId != _arrivalZoneId &&
             (_isFreeMode || _selectedDriver != null);
-      case 2:
+      case 1:
         final weight = double.tryParse(
           _weightCtrl.text.trim().replaceAll(',', '.'),
         );
@@ -348,17 +469,35 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
 
   Future<void> _pickPhotos() async {
     final picker = ImagePicker();
-    final files = await picker.pickMultiImage();
+    final files = await picker.pickMultiImage(
+        maxWidth: 1600, maxHeight: 1600, imageQuality: 80);
     if (files.isNotEmpty) {
-      setState(() => _photos = [..._photos, ...files]);
+      final paths = await _draftStore.adoptAll(files.map((f) => f.path));
+      if (!mounted) return;
+      setState(() => _photos = [..._photos, ...paths.map(XFile.new)]);
+      if (paths.length != files.length)
+        _showSnack(
+            'Certaines photos n’ont pas pu être conservées. Ajoutez-les à nouveau.');
+      _draftChanged();
     }
   }
 
   Future<void> _takePhoto() async {
     final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.camera);
+    final file = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 80);
     if (file != null) {
-      setState(() => _photos = [..._photos, file]);
+      final path = await _draftStore.adoptMedia(file.path);
+      if (!mounted) return;
+      if (path == null) {
+        _showSnack('Photo non enregistrée. Réessayez.');
+        return;
+      }
+      setState(() => _photos = [..._photos, XFile(path)]);
+      _draftChanged();
     }
   }
 
@@ -366,13 +505,23 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     final picker = ImagePicker();
     final file = await picker.pickVideo(source: ImageSource.gallery);
     if (file != null) {
-      setState(() => _videos = [..._videos, file]);
+      final path = await _draftStore.adoptMedia(file.path);
+      if (!mounted) return;
+      if (path == null) {
+        _showSnack('Vidéo non enregistrée. Réessayez.');
+        return;
+      }
+      setState(() => _videos = [..._videos, XFile(path)]);
+      _draftChanged();
     }
   }
 
   Future<void> _toggleRecording() async {
     if (_isRecording) {
-      final path = await _recorder.stop();
+      final recorded = await _recorder.stop();
+      final path =
+          recorded == null ? null : await _draftStore.adoptMedia(recorded);
+      if (!mounted) return;
       _isRecording = false;
       if (path != null) {
         setState(() {
@@ -380,6 +529,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               .add(VoiceMessageData(path: path, duration: _recordDuration));
           _recordDuration = 0;
         });
+        _draftChanged();
       }
     } else {
       if (await _recorder.hasPermission()) {
@@ -394,6 +544,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           _isRecording = true;
           _recordDuration = 0;
         });
+        _draftChanged();
         _startTimer();
       }
     }
@@ -417,6 +568,25 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   }
 
   Future<void> _publishParcel() async {
+    if (_isPublishing) return;
+    if (!_draftReady || _restoreError != null) {
+      _showSnack(
+          'Rouvrez ce formulaire pour vérifier la reprise de votre envoi.');
+      return;
+    }
+    if (_pendingRequest != null) {
+      await _resumePending();
+      return;
+    }
+    final capacity = _selectedDriver?.vehicleCapacity ?? 0;
+    final capacityWeight =
+        double.tryParse(_weightCtrl.text.replaceAll(',', '.')) ?? 0;
+    if (!_isFreeMode && capacity > 0 && capacityWeight > capacity) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Le poids dépasse la capacité du véhicule. Choisissez un autre chauffeur.')));
+      return;
+    }
     final user = ref.read(authProvider).user;
     if (user == null) return;
 
@@ -431,6 +601,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
 
     try {
       final parcelData = {
+        if (_sourceApplied && widget.sourceDraftId != null)
+          'sourceDraftId': widget.sourceDraftId,
         'senderId': user.id,
         'senderName': user.fullName,
         'senderPhone': user.phone,
@@ -459,56 +631,124 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           'cashCollectionPoint': _cashCollectionPoint.value,
         if (!_isFreeMode && _selectedDriver != null)
           'driverId': _selectedDriver!.id,
+        if (!_isFreeMode && _vehicleFilter != null)
+          'vehicleType': _vehicleFilter,
       };
 
-      final parcelNotifier = ref.read(parcelProvider.notifier);
-      final result = await parcelNotifier.createParcel(parcelData);
-
-      if (result != null && mounted) {
-        for (final photo in _photos) {
-          await _apiService.uploadFile(
-              file: photo, mediaType: 'photo', parcelId: result.id);
-        }
-        for (final video in _videos) {
-          await _apiService.uploadFile(
-              file: video, mediaType: 'video', parcelId: result.id);
-        }
-        for (final voice in _voiceMessages) {
-          await _apiService.uploadFile(
-              file: XFile(voice.path), mediaType: 'audio', parcelId: result.id);
-        }
-
-        await ref.read(parcelProvider.notifier).loadSentParcels();
-        _showSnack(_isFreeMode
-            ? 'Colis publié en libre service'
-            : 'Offre envoyée au chauffeur — en attente de réponse');
-        if (mounted) Navigator.pop(context, result);
-      } else if (mounted) {
-        final failure = parcelNotifier.lastCreationError;
-        _showSnack(
-          failure?.message ?? 'Erreur lors de la création du colis',
-        );
-        final debt = payableClientDebtFrom(failure);
-        if (debt != null) {
-          await showPayClientDebtSheet(
-            context,
-            debt: debt,
-            onRefresh: () async {},
-          );
-        }
+      // Le contenu et les identifiants restent figés jusqu'à confirmation : une
+      // fermeture de l'app après commit serveur rejoue la même demande.
+      final media = <Map<String, dynamic>>[];
+      for (final entry in [
+        ..._photos.map((f) => {'path': f.path, 'kind': 'photo'}),
+        ..._videos.map((f) => {'path': f.path, 'kind': 'video'}),
+        ..._voiceMessages.map((v) => {'path': v.path, 'kind': 'audio'}),
+      ]) {
+        final path = await _outbox.adoptMedia(entry['path']!);
+        if (path == null) throw StateError('Pièce jointe non enregistrée');
+        media.add(
+            {...entry, 'path': path, 'id': const Uuid().v4(), 'sent': false});
       }
+      final pending = {
+        'requestId': _attemptId,
+        'payload': parcelData,
+        'media': media
+      };
+      await _outbox.saveOrThrow(pending);
+      _pendingRequest = pending;
+      await _sendPending();
     } catch (e, stackTrace) {
       debugPrint(
         '[NewParcelWizard] Échec publication colis: $e\n$stackTrace',
       );
-      if (mounted) _showSnack('Erreur: $e');
+      if (mounted)
+        _showSnack(_createdParcel != null
+            ? 'Colis créé. Certaines pièces jointes restent à envoyer ; vous pouvez réessayer.'
+            : 'Création non confirmée. Vérifiez la connexion et vos colis avant de réessayer.');
     } finally {
       if (mounted) setState(() => _isPublishing = false);
     }
   }
 
+  Future<void> _resumePending() async {
+    if (_isPublishing) return;
+    setState(() => _isPublishing = true);
+    try {
+      await _sendPending();
+    } catch (_) {
+      if (mounted)
+        _showSnack(
+            'Envoi non confirmé. Votre demande est conservée ; vous pouvez réessayer.');
+    } finally {
+      if (mounted) setState(() => _isPublishing = false);
+    }
+  }
+
+  Future<void> _sendPending() async {
+    final pending = _pendingRequest!;
+    final notifier = ref.read(parcelProvider.notifier);
+    final ownerId = ref.read(authProvider).user?.id;
+    void checkAccount() {
+      if (!mounted || ref.read(authProvider).user?.id != ownerId)
+        throw StateError('Session interrompue');
+    }
+
+    if (pending['parcel'] == null) {
+      _event('creation_submitted');
+      final result = await notifier.createParcel({
+        ...Map<String, dynamic>.from(pending['payload']),
+        'requestId': pending['requestId']
+      });
+      if (result == null) {
+        _event('creation_failed');
+        final failure = notifier.lastCreationError;
+        // Seuls les refus explicites avant création libèrent la demande.
+        // Une erreur réseau garde la clé et le contenu pour une reprise sûre.
+        if (failure != null && [400, 422].contains(failure.statusCode)) {
+          await _outbox.clear();
+          _pendingRequest = null;
+        }
+        final debt = payableClientDebtFrom(failure);
+        if (mounted)
+          _showSnack(failure?.message ?? 'Création non confirmée. Réessayez.');
+        if (debt != null && mounted)
+          await showPayClientDebtSheet(context,
+              debt: debt, onRefresh: () async {});
+        return;
+      }
+      checkAccount();
+      pending['parcel'] = result.toJson();
+      await _outbox.saveOrThrow(pending);
+      _event('creation_completed');
+    }
+    final parcel =
+        Parcel.fromJson(Map<String, dynamic>.from(pending['parcel']));
+    _createdParcel = parcel;
+    for (final item in pending['media'] as List) {
+      checkAccount();
+      if (item['sent'] == true) continue;
+      final url = await _apiService.uploadFile(
+          file: XFile(item['path']),
+          mediaType: item['kind'],
+          parcelId: parcel.id,
+          requestId: item['id']);
+      if (url == null) throw StateError('Pièce jointe non envoyée');
+      checkAccount();
+      item['sent'] = true;
+      await _outbox.saveOrThrow(pending);
+    }
+    _draftTimer?.cancel();
+    await _draftStore.clear();
+    await _outbox.clear();
+    _pendingRequest = null;
+    await notifier.loadSentParcels();
+    if (mounted) {
+      _showSnack('Envoi confirmé. Retrouvez son suivi dans vos colis.');
+      Navigator.pop(context, parcel);
+    }
+  }
+
   String get _modeLabel =>
-      _isFreeMode ? 'Publier une annonce' : 'Assigner un chauffeur';
+      _isFreeMode ? 'Publier une annonce' : 'Proposer à un chauffeur';
 
   @override
   Widget build(BuildContext context) {
@@ -520,6 +760,48 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       ),
       body: Column(
         children: [
+          if (_restoreError != null)
+            Padding(
+                padding: const EdgeInsets.all(12), child: Text(_restoreError!)),
+          if (_pendingData != null)
+            Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text('Des informations sont disponibles.'),
+                      TextButton(
+                          onPressed: _restore, child: const Text('Reprendre')),
+                      TextButton(
+                          onPressed: () {
+                            setState(() => _pendingData = null);
+                            _draftStore.clear();
+                          },
+                          child: const Text('Ignorer')),
+                    ])),
+          if (_createdParcel != null)
+            Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(children: [
+                  const Text(
+                      'Le colis est créé. Vous pouvez réessayer les pièces jointes ou ouvrir son récapitulatif.'),
+                  TextButton(
+                      onPressed: _isPublishing
+                          ? null
+                          : () => Navigator.pop(context, _createdParcel),
+                      child: const Text(
+                          'Terminer sans les pièces jointes restantes')),
+                ])),
+          if (_pendingRequest != null)
+            MaterialBanner(
+                content: const Text(
+                    'Un envoi reste à confirmer. Reprenez-le pour retrouver le même colis et terminer ses pièces jointes.'),
+                actions: [
+                  TextButton(
+                      onPressed: _isPublishing ? null : _resumePending,
+                      child: const Text('Reprendre l’envoi')),
+                ]),
           _buildStepper(),
           Expanded(
             child: _buildStepContent(),
@@ -531,7 +813,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   }
 
   Widget _buildStepper() {
-    final steps = ['Destinataire', 'Livraison', 'Colis', 'Récapitulatif'];
+    final steps = ['Trajet', 'Colis', 'Destinataire', 'Confirmation'];
     return Container(
       color: AppTheme.cardColor,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -615,11 +897,11 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
 
   Widget _buildStepContent() {
     switch (_currentStep) {
-      case 0:
-        return _buildDestinataire();
-      case 1:
-        return _buildLivraison();
       case 2:
+        return _buildDestinataire();
+      case 0:
+        return _buildLivraison();
+      case 1:
         return _buildColis();
       case 3:
         return _buildRecap();
@@ -728,258 +1010,33 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
     );
   }
 
-  Widget _buildLivraison() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _sectionHeader('Trajet', Icons.route_rounded),
-        const SizedBox(height: 12),
-        RoutePicker(
-          garages: _zones,
-          initialDeparture: _zoneById(_departureZoneId),
-          initialArrival: _zoneById(_arrivalZoneId),
-          departureLabel: 'Zone de départ',
-          arrivalLabel: "Zone d'arrivée",
-          onDepartureChanged: (g) {
-            setState(() {
-              _departureZoneId = g?.id;
-              _selectedDriver = null;
-            });
-            if (g != null) _loadDriversForZone(zoneId: g.id);
-          },
-          onArrivalChanged: (g) {
-            setState(() => _arrivalZoneId = g?.id);
-          },
-          // L'ajout d'un lieu absent se fait désormais depuis le sélecteur
-          // lui-même (recherche Google Places + pointage sur carte).
-          onZoneAdded: _addResolvedZone,
-        ),
-        const SizedBox(height: 20),
-        _sectionHeader('Mode de livraison', Icons.settings_rounded),
-        const SizedBox(height: 12),
-        _modeTile(
-          Icons.campaign_rounded,
-          'Publier une annonce',
-          'Les chauffeurs pourront faire des offres',
-          _isFreeMode,
-          () => setState(() => _isFreeMode = true),
-        ),
-        const SizedBox(height: 8),
-        _modeTile(
-          Icons.person_search_rounded,
-          'Assigner un chauffeur',
-          'Choisissez un chauffeur directement',
-          !_isFreeMode,
-          () => setState(() => _isFreeMode = false),
-        ),
-        if (!_isFreeMode) ...[
-          const SizedBox(height: 16),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            value: _verifiedDriversOnly,
-            onChanged: _setVerifiedDriversOnly,
-            title: const Text(
-              'Uniquement les chauffeurs vérifiés',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-            ),
-            subtitle: const Text(
-              'Les chauffeurs vérifiés sont toujours affichés en premier.',
-            ),
-          ),
-          if (_loadingDrivers)
-            const Center(
-                child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator()))
-          else if (_visibleDrivers.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Aucun chauffeur correspondant pour cette zone',
-                    textAlign: TextAlign.center),
-              ),
-            )
-          else
-            SizedBox(
-              height: 150,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _visibleDrivers.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, i) {
-                  final d = _visibleDrivers[i];
-                  return _driverCard(d);
-                },
-              ),
-            ),
-        ],
-      ],
-    );
-  }
-
-  /// Carte d'un chauffeur de la zone : statut réel, note, livraisons, et accès
-  /// à sa fiche. Un chauffeur « hors ligne » n'est pas sélectionnable.
-  Widget _driverCard(User d) {
-    final selected = _selectedDriver?.id == d.id;
-    final status = d.driverStatus ?? DriverStatus.offline;
-    final offline = status == DriverStatus.offline;
-    final rating = d.rating ?? 0;
-    final statusColor = switch (status) {
-      DriverStatus.available => AppTheme.green600,
-      DriverStatus.busy => AppTheme.amber500,
-      DriverStatus.offline => AppTheme.slate400,
-    };
-
-    return GestureDetector(
-      onTap: offline ? null : () => setState(() => _selectedDriver = d),
-      child: Opacity(
-        opacity: offline ? 0.55 : 1,
-        child: Container(
-          width: 120,
-          decoration: BoxDecoration(
-            color: selected ? AppTheme.primaryLight : AppTheme.cardColor,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(
-              color: selected ? AppTheme.primary : AppTheme.slate200,
-              width: selected ? 2 : 1,
-            ),
-          ),
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppTheme.primaryLight,
-                    child: Text(
-                      d.fullName.isNotEmpty ? d.fullName[0].toUpperCase() : '?',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.primary,
-                          fontSize: 13),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (d.isVerified) ...[
-                    Icon(
-                      Icons.verified_rounded,
-                      size: 17,
-                      color: AppTheme.primary,
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                        color: statusColor, shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () => _openDriverProfile(d),
-                    child: Icon(Icons.info_outline_rounded,
-                        size: 18, color: AppTheme.slate400),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                d.fullName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style:
-                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-              ),
-              Text(
-                [d.city, d.region]
-                    .where((e) => e != null && e.isNotEmpty)
-                    .join(', '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 9.5, color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(Icons.star_rounded, size: 12, color: AppTheme.amber500),
-                  const SizedBox(width: 2),
-                  Text(
-                    rating > 0 ? rating.toStringAsFixed(1) : '—',
-                    style: const TextStyle(
-                        fontSize: 10.5, fontWeight: FontWeight.w700),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${d.completedDeliveries ?? 0} liv.',
-                    style:
-                        TextStyle(fontSize: 9.5, color: AppTheme.textSecondary),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                status.label,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _modeTile(IconData icon, String title, String subtitle, bool selected,
-      VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.primaryLight : AppTheme.slate50,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border.all(
-            color: selected ? AppTheme.primary : AppTheme.slate200,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon,
-                color: selected ? AppTheme.primary : AppTheme.slate400,
-                size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: selected
-                              ? AppTheme.primary
-                              : AppTheme.textPrimary)),
-                  Text(subtitle,
-                      style: TextStyle(
-                          fontSize: 12,
-                          color:
-                              selected ? AppTheme.teal600 : AppTheme.slate500)),
-                ],
-              ),
-            ),
-            if (selected)
-              Icon(Icons.check_circle, color: AppTheme.primary, size: 22),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildLivraison() => DeliveryDiscoveryView(
+        zones: _zones,
+        initial: DeliveryDiscoverySelection(
+            pickup: _zoneById(_departureZoneId),
+            destination: _zoneById(_arrivalZoneId),
+            driver: _selectedDriver,
+            vehicleType: _vehicleFilter,
+            weight: double.tryParse(_weightCtrl.text.replaceAll(',', '.')),
+            openForOffers: _isFreeMode),
+        onChanged: (selection) {
+          // Les points précis créés sur carte ne sont pas toujours dans la liste
+          // publique : les conserver localement préserve le trajet au récapitulatif.
+          setState(() {
+            for (final place in [selection.pickup, selection.destination]
+                .whereType<Garage>()) {
+              _zones = [..._zones.where((zone) => zone.id != place.id), place];
+            }
+            _departureZoneId = selection.pickup?.id;
+            _arrivalZoneId = selection.destination?.id;
+            _selectedDriver = selection.driver;
+            _vehicleFilter = selection.vehicleType;
+            _isFreeMode = selection.openForOffers;
+            final weight = selection.weight?.toString() ?? '';
+            if (_weightCtrl.text != weight) _weightCtrl.text = weight;
+          });
+        },
+      );
 
   Widget _buildColis() {
     final types = [
@@ -1206,7 +1263,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               if (_receiverAddressCtrl.text.trim().isNotEmpty)
                 _recapRow('Adresse', _receiverAddressCtrl.text.trim()),
             ],
-            onEdit: () => _goToStep(0)),
+            onEdit: () => _goToStep(2)),
         const SizedBox(height: 12),
         _recapSection(
             'Livraison',
@@ -1218,7 +1275,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               if (!_isFreeMode && _selectedDriver != null)
                 _recapRow('Chauffeur', _selectedDriver!.fullName),
             ],
-            onEdit: () => _goToStep(1)),
+            onEdit: () => _goToStep(0)),
         const SizedBox(height: 12),
         _recapSection(
             'Colis',
@@ -1246,7 +1303,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
               ),
               _recapBadgeRow('Assurance', _isInsured, 'Oui', 'Non'),
             ],
-            onEdit: () => _goToStep(2)),
+            onEdit: () => _goToStep(1)),
         if (_photos.isNotEmpty || _voiceMessages.isNotEmpty) ...[
           const SizedBox(height: 12),
           _recapSection('Médias', Icons.perm_media_rounded, [
@@ -1388,7 +1445,8 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
           const Spacer(),
           if (_currentStep < 3)
             ElevatedButton(
-              onPressed: _nextStep,
+              onPressed:
+                  _currentStep == 0 && !_canProceed(0) ? null : _nextStep,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -1397,7 +1455,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
               ),
-              child: const Text('Suivant'),
+              child: Text(_currentStep == 0 ? 'Continuer' : 'Suivant'),
             )
           else
             ElevatedButton(
@@ -1416,7 +1474,11 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
                       width: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Text('Publier le colis'),
+                  : Text(_createdParcel != null
+                      ? 'Réessayer les pièces jointes'
+                      : _isFreeMode
+                          ? 'Publier mon annonce'
+                          : 'Envoyer ma proposition'),
             ),
         ],
       ),
