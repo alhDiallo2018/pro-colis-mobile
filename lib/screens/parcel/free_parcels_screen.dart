@@ -25,6 +25,7 @@ import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/pc_components.dart';
+import '../../widgets/voice_recording_controls.dart';
 import '../driver/itinerary_map_screen.dart';
 import 'parcel_detail_screen.dart';
 
@@ -211,6 +212,8 @@ class _FreeParcelDetailsScreenState
   String? _playingPath;
   String? _createdBidId;
   bool _isRecording = false;
+  bool _isRecordingPaused = false;
+  bool _recordingBusy = false;
   bool _isSending = false;
   bool _sent = false;
   int _recordingDuration = 0;
@@ -240,6 +243,8 @@ class _FreeParcelDetailsScreenState
 
   Future<void> _startRecording() async {
     if (kIsWeb) return;
+    if (_recordingBusy || _isRecording) return;
+    setState(() => _recordingBusy = true);
     try {
       final hasPermission = await _audioRecorder.hasPermission();
       if (!hasPermission) {
@@ -254,31 +259,36 @@ class _FreeParcelDetailsScreenState
       final path =
           '${directory.path}/bid_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
+        path: path,
+      );
+      if (!mounted) return;
       setState(() {
         _isRecording = true;
+        _isRecordingPaused = false;
         _recordingDuration = 0;
       });
 
       _recordingTimer?.cancel();
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() => _recordingDuration++);
+        if (mounted && !_isRecordingPaused)
+          setState(() => _recordingDuration++);
       });
-
-      await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
-        path: path,
-      );
     } catch (error) {
       debugPrint('Erreur enregistrement offre: $error');
       _recordingTimer?.cancel();
       if (mounted) setState(() => _isRecording = false);
+    } finally {
+      if (mounted) setState(() => _recordingBusy = false);
     }
   }
 
   Future<void> _stopRecording() async {
     try {
-      _recordingTimer?.cancel();
       final path = await _audioRecorder.stop();
+      _recordingTimer?.cancel();
+      if (!mounted) return;
       if (path == null) {
         if (mounted) setState(() => _isRecording = false);
         return;
@@ -293,9 +303,10 @@ class _FreeParcelDetailsScreenState
         );
         _isRecording = false;
       });
-    } catch (error) {
-      debugPrint('Erreur arrêt enregistrement offre: $error');
-      if (mounted) setState(() => _isRecording = false);
+    } catch (error, stackTrace) {
+      debugPrint('[VoiceRecording] Arrêt impossible : $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
     }
   }
 
@@ -478,7 +489,21 @@ class _FreeParcelDetailsScreenState
               isRecording: _isRecording,
               recordingDuration: _recordingDuration,
               isPlaying: _playingPath == _voiceMessage?.path,
-              onRecordTap: _isRecording ? _stopRecording : _startRecording,
+              recordingControls: _isRecording
+                  ? VoiceRecordingControls(
+                      recorder: _audioRecorder,
+                      seconds: _recordingDuration,
+                      paused: _isRecordingPaused,
+                      onPausedChanged: (value) {
+                        if (mounted) setState(() => _isRecordingPaused = value);
+                      },
+                      onBusyChanged: (value) {
+                        if (mounted) setState(() => _recordingBusy = value);
+                      },
+                      onFinish: _stopRecording,
+                    )
+                  : null,
+              onRecordTap: _startRecording,
               onPlay: _playVoice,
               onRemove: _removeVoice,
             ),
@@ -489,7 +514,9 @@ class _FreeParcelDetailsScreenState
               block: true,
               size: PcButtonSize.lg,
               loading: _isSending,
-              onPressed: _isRecording || _isSending ? null : _submitOffer,
+              onPressed: _isRecording || _recordingBusy || _isSending
+                  ? null
+                  : _submitOffer,
             ),
           ],
         ),
@@ -530,8 +557,7 @@ class _PoolHeader extends StatelessWidget {
               color: AppTheme.teal50,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: Icon(Icons.sell_rounded,
-                color: AppTheme.primary, size: 23),
+            child: Icon(Icons.sell_rounded, color: AppTheme.primary, size: 23),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -929,6 +955,7 @@ class _OfferMessageField extends StatelessWidget {
 }
 
 class _OfferVoiceField extends StatelessWidget {
+  final Widget? recordingControls;
   final VoiceMessage? voiceMessage;
   final bool isRecording;
   final int recordingDuration;
@@ -938,6 +965,7 @@ class _OfferVoiceField extends StatelessWidget {
   final VoidCallback onRemove;
 
   const _OfferVoiceField({
+    this.recordingControls,
     required this.voiceMessage,
     required this.isRecording,
     required this.recordingDuration,
@@ -963,7 +991,9 @@ class _OfferVoiceField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        if (voice != null)
+        if (recordingControls != null)
+          recordingControls!
+        else if (voice != null)
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(

@@ -75,11 +75,11 @@ class DriverLocation {
   }
 
   /// Une position trop ancienne ne doit plus être présentée comme « temps
-  /// réel ». Le seuil par défaut est de 5 minutes.
+  /// réel ». Le seuil par défaut est de 2 minutes.
   bool isStale(DateTime now,
-      {Duration threshold = const Duration(minutes: 5)}) {
+      {Duration threshold = const Duration(minutes: 2)}) {
     final a = age(now);
     if (a == null) return true;
-    return a > threshold;
+    return a < const Duration(seconds: -5) || a > threshold;
   }
 }

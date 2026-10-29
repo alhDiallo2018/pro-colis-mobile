@@ -634,35 +634,13 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: PcButton(
-                    'Contre-proposer',
-                    variant: PcButtonVariant.secondary,
-                    size: PcButtonSize.sm,
-                    icon: Icons.swap_horiz_rounded,
-                    onPressed: _handleCounter,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: PcButton(
-                    'Accepter',
-                    icon: Icons.check_rounded,
-                    size: PcButtonSize.sm,
-                    loading: _accepting,
-                    onPressed: _handleAccept,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          PcActionButtons(children: [
+            PcButton('Contre-proposer', variant: PcButtonVariant.secondary,
+              size: PcButtonSize.sm, icon: Icons.swap_horiz_rounded,
+              onPressed: _handleCounter),
+            PcButton('Accepter', icon: Icons.check_rounded,
+              size: PcButtonSize.sm, loading: _accepting, onPressed: _handleAccept),
+          ]),
           const SizedBox(height: 6),
           Text(
             _lastProposedBy == 'driver'

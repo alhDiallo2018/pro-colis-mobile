@@ -2042,30 +2042,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
             ],
             if (showActions) ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: PcButton(
-                      'Contre-proposer',
-                      variant: PcButtonVariant.secondary,
-                      size: PcButtonSize.sm,
-                      block: true,
-                      onPressed: () =>
-                          _showCounterOfferInline(bidId, amount ?? 0),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: PcButton(
-                      'Accepter',
-                      icon: Icons.check_rounded,
-                      size: PcButtonSize.sm,
-                      block: true,
-                      onPressed: () => _acceptPrice(bidId, amount ?? 0),
-                    ),
-                  ),
-                ],
-              ),
+              PcActionButtons(children: [
+                PcButton('Contre-proposer', variant: PcButtonVariant.secondary,
+                  size: PcButtonSize.sm,
+                  onPressed: () => _showCounterOfferInline(bidId, amount ?? 0)),
+                PcButton('Accepter', icon: Icons.check_rounded,
+                  size: PcButtonSize.sm, onPressed: () => _acceptPrice(bidId, amount ?? 0)),
+              ]),
+
             ],
           ],
         ),

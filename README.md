@@ -176,8 +176,8 @@ par le compte Play `6193041811945265589` :
 
 Avant chaque publication, incrémenter le code de version de `pubspec.yaml`
 au-delà du dernier code utilisé dans Play Console. La version préparée ici est
-`1.1.2+11`, après vérification dans Play Console de la version publiée
-`1.1.1` (code 10), sur le compte développeur `6193041811945265589`.
+`1.1.5+14`, après vérification dans Play Console de la version publiée
+`1.1.4` (code 13), sur le compte développeur `6193041811945265589`.
 
 La clé Maps doit être fournie via `GOOGLE_MAPS_API_KEY` dans l'environnement :
 elle sera transmise à la compilation Dart et à Gradle pour le SDK natif.
@@ -197,5 +197,5 @@ resigne l'application avec une clé différente de la clé locale de téléverse
 
 Les sorties brutes se trouvent dans `build/app/outputs/bundle/release/` (AAB)
 et `build/app/outputs/flutter-apk/` (APK). Les livrables vérifiés de cette
-préparation sont conservés sous `releases/android/1.1.2+11/`, avec leurs sommes
+préparation sont conservés sous `releases/android/1.1.5+14/`, avec leurs sommes
 SHA-256 et leur rapport de vérification.

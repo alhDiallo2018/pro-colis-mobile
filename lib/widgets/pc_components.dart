@@ -152,14 +152,21 @@ class PcButton extends StatelessWidget {
             SizedBox(width: s.gap),
           ],
           Flexible(
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: _display(
-                  size: s.fs,
-                  weight: FontWeight.w700,
-                  color: fg,
-                  letterSpacing: 0.1),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                // Les actions restent sur une ligne : aucune lettre isolée.
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: _display(
+                    size: s.fs,
+                    weight: FontWeight.w700,
+                    color: fg,
+                    letterSpacing: 0.1),
+              ),
             ),
           ),
           if (iconTrailing != null) ...[
@@ -187,7 +194,11 @@ class PcButton extends StatelessWidget {
             // Une hauteur minimale laisse le libellé grandir avec le texte système.
             constraints: BoxConstraints(minHeight: s.h),
             width: block ? double.infinity : null,
-            padding: EdgeInsets.symmetric(horizontal: s.px, vertical: 12),
+            padding: EdgeInsets.symmetric(
+                // Les grands caractères gardent de l’espace sans réduire la police.
+                horizontal:
+                    MediaQuery.textScalerOf(context).scale(1) >= 1.5 ? 8 : s.px,
+                vertical: 12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               border: border != null ? Border.all(color: border) : null,
@@ -200,6 +211,57 @@ class PcButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Mesure le texte avec le grossissement système et adapte le groupe avant
+/// que Flutter ne comprime les mots. Les cibles gardent au moins 48 pixels.
+class PcActionButtons extends StatelessWidget {
+  const PcActionButtons({super.key, required this.children});
+  final List<PcButton> children;
+  @override
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, constraints) {
+        double requiredWidth = (children.length - 1) * 8;
+        for (final button in children) {
+          final fontSize = switch (button.size) {
+            PcButtonSize.sm => 13.0,
+            PcButtonSize.md => 15.0,
+            PcButtonSize.lg => 16.0,
+          };
+          final painter = TextPainter(
+              text: TextSpan(
+                  text: button.label,
+                  style: _display(
+                      size: fontSize,
+                      weight: FontWeight.w700,
+                      letterSpacing: 0.1)),
+              textDirection: Directionality.of(context),
+              textScaler: MediaQuery.textScalerOf(context),
+              maxLines: 1)
+            ..layout();
+          requiredWidth += painter.width +
+              44 +
+              (button.icon == null ? 0 : 30) +
+              (button.iconTrailing == null ? 0 : 30);
+          painter.dispose();
+        }
+        if (constraints.maxWidth < requiredWidth) {
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  children[i],
+                ],
+              ]);
+        }
+        return Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(child: children[i]),
+          ],
+        ]);
+      });
 }
 
 // ============================================================
@@ -333,6 +395,7 @@ class PcCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final Color? accent;
+
   /// `null` : couleur de carte par défaut, résolue selon le thème courant.
   final Color? color;
   final double radius;
@@ -446,7 +509,9 @@ class PcStatBox extends StatelessWidget {
           const SizedBox(height: 3),
           Text(label,
               style: _body(
-                  size: 11.5, weight: FontWeight.w500, color: AppTheme.slate500)),
+                  size: 11.5,
+                  weight: FontWeight.w500,
+                  color: AppTheme.slate500)),
         ],
       ),
     );

@@ -17,7 +17,9 @@ class _DiscoverySharingTileState extends ConsumerState<DiscoverySharingTile> {
     try {
       final sharing = DriverDiscoveryService.instance;
       if (enabled) {
-        await sharing.start();
+        final userId = ref.read(authProvider).user?.id;
+        if (userId == null) return;
+        await sharing.start(userId: userId);
       } else {
         await sharing.stop();
       }
@@ -42,7 +44,7 @@ class _DiscoverySharingTileState extends ConsumerState<DiscoverySharingTile> {
         title: Text(_busy ? 'Localisation…' : 'Être visible à proximité'),
         subtitle: Text(DriverDiscoveryService.instance.error ??
             (available
-                ? 'Partagez votre distance approximative avec les clients. Le partage s’arrête quand l’application passe en arrière-plan.'
+                ? 'Partagez votre distance approximative avec les clients. Le partage reste activé, même après réouverture, jusqu’à votre désactivation.'
                 : 'Passez disponible pour partager votre position avec les clients.')),
       ),
     );

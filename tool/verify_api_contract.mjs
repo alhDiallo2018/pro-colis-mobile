@@ -66,6 +66,10 @@ const routerPrefixes = new Map([
   ['zoneRouter', ''],
   ['supportRouter', ''],
   ['mobileRouter', ''],
+  ['experienceRouter', '/experience'],
+  ['qualityRouter', '/quality'],
+  ['supportChatRouter', '/support/chat'],
+  ['tripImportRouter', '/driver/route-templates/import'],
 ]);
 
 const backendContracts = new Set();
@@ -87,7 +91,8 @@ for (const file of walk(path.join(apiRoot, 'src'), (item) =>
 
 const mobileContracts = new Map();
 const directCallPattern =
-  /(?:_dio|client\.dio|\bdio)\.(get|post|put|patch|delete)\(\s*(['"])(.*?)\2/gs;
+  // Une interpolation Dart peut contenir ses propres guillemets (ternaire).
+  /(?:_dio|client\.dio|\bdio)\.(get|post|put|patch|delete)\(\s*(['"])((?:\$\{[^}]*\}|(?!\2)[\s\S])*?)\2/gs;
 
 for (const file of walk(path.join(mobileRoot, 'lib'), (item) =>
   item.endsWith('.dart'),
@@ -129,6 +134,46 @@ const indirectContracts = [
   ['PATCH', '/support-commercial/leads/:leadId'],
   ['GET', '/support-commercial/coverage'],
 ];
+
+// Les wrappers concatènent un chemin : développer leurs destinations réelles,
+// sans demander au serveur une route littérale « /experience:param ».
+for (const method of ['GET', 'POST', 'DELETE']) {
+  mobileContracts.delete(contract(method, '/experience$path'));
+}
+for (const method of ['GET', 'POST']) {
+  mobileContracts.delete(contract(method, '/support/chat$path'));
+}
+mobileContracts.delete(contract('POST', '/driver/route-templates/import:param'));
+indirectContracts.push(
+  ['POST', '/driver/route-templates/import'],
+  ['POST', '/driver/route-templates/import/preview'],
+  ['GET', '/experience/workspace'],
+  ['GET', '/experience/parcels/:id'],
+  ['GET', '/experience/parcels/:id/repeat'],
+  ['POST', '/experience/parcels/:id/complaints'],
+  ['GET', '/experience/recipients'],
+  ['GET', '/experience/recipients/:id'],
+  ['POST', '/experience/recipients'],
+  ['DELETE', '/experience/recipients/:id'],
+  ['GET', '/experience/drafts/:id'],
+  ['POST', '/experience/drafts'],
+  ['DELETE', '/experience/drafts/:id'],
+  ['POST', '/experience/alerts'],
+  ['DELETE', '/experience/alerts/:id'],
+  ['GET', '/experience/requests/:id'],
+  ['POST', '/experience/events'],
+  ['GET', '/support/chat/mine'],
+  ['GET', '/support/chat/agents'],
+  ['GET', '/support/chat/users'],
+  ['POST', '/support/chat/presence'],
+  ['GET', '/support/chat/conversations'],
+  ['POST', '/support/chat/conversations'],
+  ['GET', '/support/chat/conversations/:id'],
+  ['POST', '/support/chat/conversations/:id/messages'],
+  ['POST', '/support/chat/conversations/:id/claim'],
+  ['POST', '/support/chat/conversations/:id/transfer'],
+  ['POST', '/support/chat/conversations/:id/close'],
+);
 
 for (const scope of [
   'client',

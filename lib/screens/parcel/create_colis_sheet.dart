@@ -35,6 +35,7 @@ import '../../widgets/location_autocomplete.dart';
 import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
+import '../../widgets/voice_recording_controls.dart';
 import '../../widgets/phone_contact_picker.dart';
 import '../../widgets/route_picker.dart';
 
@@ -68,6 +69,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   Timer? _recordingTimer;
   StreamSubscription<void>? _audioCompleteSubscription;
   bool _isRecording = false;
+  bool _isRecordingPaused = false;
+  bool _recordingBusy = false;
   int _recordingDuration = 0;
   String? _playingPath;
   String? _mediaNote;
@@ -621,11 +624,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
   }
 
   Future<void> _toggleRecording() async {
-    if (_isRecording) {
-      await _stopRecording();
-    } else {
-      await _startRecording();
-    }
+    if (_recordingBusy || _isRecording) return;
+    await _startRecording();
   }
 
   Future<void> _startRecording() async {
@@ -633,6 +633,8 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       _showMediaNote('Enregistrement non disponible sur le web');
       return;
     }
+    if (_recordingBusy || _isRecording) return;
+    setState(() => _recordingBusy = true);
     try {
       if (!await _audioRecorder.hasPermission()) {
         _showMediaNote('Permission micro refusée');
@@ -642,34 +644,39 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       final path =
           '${directory.path}/parcel_note_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
+        path: path,
+      );
+      if (!mounted) return;
       setState(() {
         _isRecording = true;
+        _isRecordingPaused = false;
         _recordingDuration = 0;
         _mediaNote = null;
       });
 
       _recordingTimer?.cancel();
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() => _recordingDuration++);
+        if (mounted && !_isRecordingPaused)
+          setState(() => _recordingDuration++);
       });
-
-      await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
-        path: path,
-      );
     } catch (error) {
       debugPrint('Erreur enregistrement audio colis: $error');
       _recordingTimer?.cancel();
       if (mounted) setState(() => _isRecording = false);
       _showMediaNote('Enregistrement impossible');
+    } finally {
+      if (mounted) setState(() => _recordingBusy = false);
     }
   }
 
   Future<void> _stopRecording() async {
     try {
-      _recordingTimer?.cancel();
       final path = await _audioRecorder.stop();
-      if (path == null || !mounted) {
+      _recordingTimer?.cancel();
+      if (!mounted) return;
+      if (path == null) {
         setState(() => _isRecording = false);
         return;
       }
@@ -684,9 +691,10 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         );
       });
       _scheduleDraftSave();
-    } catch (error) {
-      debugPrint('Erreur arrêt audio colis: $error');
-      if (mounted) setState(() => _isRecording = false);
+    } catch (error, stackTrace) {
+      debugPrint('[VoiceRecording] Arrêt impossible : $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
     }
   }
 
@@ -892,10 +900,11 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
 
   /// Le prix peut venir de l'estimation API ou d'une saisie manuelle, mais il
   /// doit être explicite et positif avant d'ouvrir le récapitulatif.
-  bool get _step2Valid => _enteredPrice > 0;
+  // Ne pas quitter les pièces jointes tant que le vocal n’est pas finalisé.
+  bool get _step2Valid => _enteredPrice > 0 && !_isRecording && !_recordingBusy;
 
   Future<void> _submit() async {
-    if (_submitting) return;
+    if (_submitting || _isRecording || _recordingBusy) return;
     final dep = _zoneById(_departureZoneId);
     final arr = _zoneById(_arrivalZoneId);
     if (dep == null || arr == null) return;
@@ -1934,7 +1943,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             const SizedBox(width: 10),
             Expanded(
               child: _mediaTile(
-                icon: _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                icon: _isRecording ? Icons.mic_rounded : Icons.mic_none_rounded,
                 label: _isRecording
                     ? _formatDuration(_recordingDuration)
                     : 'Vocal',
@@ -1944,6 +1953,21 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             ),
           ],
         ),
+        if (_isRecording) ...[
+          const SizedBox(height: 12),
+          VoiceRecordingControls(
+            recorder: _audioRecorder,
+            seconds: _recordingDuration,
+            paused: _isRecordingPaused,
+            onPausedChanged: (value) {
+              if (mounted) setState(() => _isRecordingPaused = value);
+            },
+            onBusyChanged: (value) {
+              if (mounted) setState(() => _recordingBusy = value);
+            },
+            onFinish: _stopRecording,
+          ),
+        ],
         if (_mediaNote != null) ...[
           const SizedBox(height: 8),
           Text(_mediaNote!,

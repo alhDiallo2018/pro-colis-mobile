@@ -29,6 +29,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/parcel_access_policy.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/parcel_live_tracking_card.dart';
 import '../../widgets/cancellation_result_sheet.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
 import '../../widgets/pay_client_debt_sheet.dart';
@@ -229,13 +230,13 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   /// réellement le colis, et coupé dès la livraison ou l'annulation.
   void _syncLocationTracking() {
     if (!_isAssignedDriver) {
-      _locationService.stopLocationTracking();
+      _locationService.stopLocationTracking(parcelId: _parcel.id);
       return;
     }
     if (_parcel.isBeingTransported) {
       unawaited(_startLocationTracking());
     } else {
-      _locationService.stopLocationTracking();
+      _locationService.stopLocationTracking(parcelId: _parcel.id);
     }
   }
 
@@ -1918,6 +1919,13 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               price: _price,
             ),
             const SizedBox(height: 12),
+            if (!_viewerIsDriver) ...[
+              ParcelLiveTrackingCard(key: ValueKey('gps-${_parcel.id}'), parcel: _parcel,
+                onUpdated: (tracked) {
+                  if (mounted && tracked.status != _parcel.status) unawaited(_loadDetailData());
+                }),
+              const SizedBox(height: 12),
+            ],
             _TagsRow(parcel: _parcel),
             if (_parcel.senderId == ref.watch(authProvider).user?.id ||
                 _parcel.assignedDriverId == ref.watch(authProvider).user?.id)
@@ -2285,8 +2293,7 @@ class _ClientBidCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          PcActionButtons(
             children: [
               PcButton(
                 'Refuser',
@@ -2294,14 +2301,12 @@ class _ClientBidCard extends StatelessWidget {
                 size: PcButtonSize.sm,
                 onPressed: isUpdating ? null : onReject,
               ),
-              const SizedBox(width: 8),
               PcButton(
                 'Négocier',
                 variant: PcButtonVariant.secondary,
                 size: PcButtonSize.sm,
                 onPressed: isUpdating ? null : onNegotiate,
               ),
-              const SizedBox(width: 8),
               PcButton(
                 'Accepter',
                 icon: Icons.check_rounded,
@@ -3229,16 +3234,14 @@ class _ClientProposalSection extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
+              PcActionButtons(
+                    children: [
                   PcButton(
                     'Refuser',
                     variant: PcButtonVariant.danger,
                     size: PcButtonSize.sm,
                     onPressed: isUpdating ? null : onReject,
                   ),
-                  const SizedBox(width: 8),
                   PcButton(
                     'Contre-proposer',
                     variant: PcButtonVariant.secondary,
@@ -3246,7 +3249,6 @@ class _ClientProposalSection extends StatelessWidget {
                     onPressed: isUpdating ? null : onCounter,
                   ),
                   if (canAccept) ...[
-                    const SizedBox(width: 8),
                     PcButton(
                       'Accepter',
                       icon: Icons.check_rounded,

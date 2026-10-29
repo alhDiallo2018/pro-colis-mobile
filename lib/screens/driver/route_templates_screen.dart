@@ -1,3 +1,4 @@
+import 'route_import_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -149,6 +150,17 @@ class _RouteTemplatesScreenState extends ConsumerState<RouteTemplatesScreen> {
                                   pending: Map<String, dynamic>.from(
                                       _pending!['payload'])))),
                     const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final imported = await showModalBottomSheet<bool>(
+                          context: context, isScrollControlled: true, useSafeArea: true,
+                          isDismissible: false, enableDrag: false,
+                          builder: (_) => const RouteImportSheet());
+                        if (imported == true && mounted) await _load();
+                      },
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Importer des itinéraires CSV'),
+                    ),
                     if (_templates.isEmpty && _error == null)
                       const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),

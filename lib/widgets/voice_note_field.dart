@@ -47,6 +47,7 @@ class _VoiceNoteFieldState extends State<VoiceNoteField> {
   bool _paused = false;
   bool _working = false;
   bool _playing = false;
+  String? _pausedPlaybackUrl;
   int _seconds = 0;
 
   AudioRecorder get _audioRecorder =>
@@ -56,7 +57,11 @@ class _VoiceNoteFieldState extends State<VoiceNoteField> {
     if (_player == null) {
       _player = widget.player ?? AudioPlayer();
       _completion = _player!.onPlayerComplete.listen((_) {
-        if (mounted) setState(() => _playing = false);
+        if (mounted)
+          setState(() {
+            _playing = false;
+            _pausedPlaybackUrl = null;
+          });
       });
     }
     return _player!;
@@ -186,6 +191,7 @@ class _VoiceNoteFieldState extends State<VoiceNoteField> {
         _recording = false;
         _paused = false;
         _playing = false;
+        _pausedPlaybackUrl = null;
         _error = null;
       });
       widget.onChanged(null);
@@ -207,13 +213,21 @@ class _VoiceNoteFieldState extends State<VoiceNoteField> {
       _error = null;
     });
     try {
-      if (_playing) {
+      final url = ApiService.resolveMediaUrl(widget.value!);
+      final pause = _playing;
+      if (pause) {
         await _audioPlayer.pause();
+      } else if (_pausedPlaybackUrl == url) {
+        // Reprendre le même audio à sa position actuelle sans le recharger.
+        await _audioPlayer.resume();
       } else {
-        await _audioPlayer
-            .play(UrlSource(ApiService.resolveMediaUrl(widget.value!)));
+        await _audioPlayer.play(UrlSource(url));
       }
-      if (mounted) setState(() => _playing = !_playing);
+      if (mounted)
+        setState(() {
+          _playing = !pause;
+          _pausedPlaybackUrl = pause ? url : null;
+        });
     } catch (error, stackTrace) {
       _reportError('Lecture audio impossible.', error, stackTrace);
     } finally {
@@ -294,7 +308,12 @@ class _VoiceNoteFieldState extends State<VoiceNoteField> {
                 onPressed: disabled ? null : _togglePlayback,
                 icon: Icon(
                     _playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
-                label: Text(_playing ? 'Pause' : 'Écouter'),
+                label: Text(_playing
+                    ? 'Pause'
+                    : _pausedPlaybackUrl ==
+                            ApiService.resolveMediaUrl(widget.value!)
+                        ? 'Reprendre'
+                        : 'Écouter'),
               ),
             ] else
               OutlinedButton.icon(

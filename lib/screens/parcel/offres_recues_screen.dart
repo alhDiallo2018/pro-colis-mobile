@@ -742,68 +742,70 @@ class _ReceivedOfferCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Dernière réponse : ${_formatWhen(bid.lastMessageAt ?? bid.respondedAt ?? bid.createdAt)}',
-                  style: AppFonts.manrope(
-                    fontSize: 11.5,
-                    color: AppTheme.slate400,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(
+              'Dernière réponse : ${_formatWhen(bid.lastMessageAt ?? bid.respondedAt ?? bid.createdAt)}',
+              style: AppFonts.manrope(
+                fontSize: 11.5,
+                color: AppTheme.slate400,
+                fontWeight: FontWeight.w600,
               ),
-              if (bid.isAccepted)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle_rounded,
-                        size: 18, color: AppTheme.green500),
-                    const SizedBox(width: 6),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (bid.isAccepted)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            size: 18, color: AppTheme.green500),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Offre acceptée',
+                          style: AppFonts.manrope(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.green500,
+                          ),
+                        ),
+                      ],
+                    )
+                  else if (bid.isRejected)
                     Text(
-                      'Offre acceptée',
+                      'Offre refusée',
                       style: AppFonts.manrope(
                         fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.green500,
+                        fontStyle: FontStyle.italic,
+                        color: AppTheme.slate400,
                       ),
+                    )
+                  else if (bid.isPending) ...[
+                    PcButton(
+                      'Négocier',
+                      variant: PcButtonVariant.secondary,
+                      size: PcButtonSize.sm,
+                      onPressed: isSubmitting ? null : onNegotiate,
                     ),
-                  ],
-                )
-              else if (bid.isRejected)
-                Text(
-                  'Offre refusée',
-                  style: AppFonts.manrope(
-                    fontSize: 12.5,
-                    fontStyle: FontStyle.italic,
-                    color: AppTheme.slate400,
-                  ),
-                )
-              else if (bid.isPending) ...[
-                PcButton(
-                  'Négocier',
-                  variant: PcButtonVariant.secondary,
-                  size: PcButtonSize.sm,
-                  onPressed: isSubmitting ? null : onNegotiate,
-                ),
-                const SizedBox(width: 8),
-                PcButton(
-                  'Accepter',
-                  icon: Icons.check_rounded,
-                  size: PcButtonSize.sm,
-                  onPressed: isSubmitting ? null : onAccept,
-                ),
-              ] else ...[
-                PcButton(
-                  'Négocier',
-                  variant: PcButtonVariant.secondary,
-                  size: PcButtonSize.sm,
-                  onPressed: isSubmitting ? null : onNegotiate,
-                ),
-              ],
-            ],
-          ),
+                    PcButton(
+                      'Accepter',
+                      icon: Icons.check_rounded,
+                      size: PcButtonSize.sm,
+                      onPressed: isSubmitting ? null : onAccept,
+                    ),
+                  ] else ...[
+                    PcButton(
+                      'Négocier',
+                      variant: PcButtonVariant.secondary,
+                      size: PcButtonSize.sm,
+                      onPressed: isSubmitting ? null : onNegotiate,
+                    ),
+                  ]
+                ]),
+          ]),
         ],
       ),
     );
@@ -976,7 +978,10 @@ class _ReceivedProposalCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               GestureDetector(
                 onTap: onOpenChat,
@@ -991,14 +996,12 @@ class _ReceivedProposalCard extends StatelessWidget {
                       size: 18, color: AppTheme.textSecondary),
                 ),
               ),
-              const Spacer(),
               PcButton(
                 'Refuser',
                 variant: PcButtonVariant.danger,
                 size: PcButtonSize.sm,
                 onPressed: isSubmitting ? null : onReject,
               ),
-              const SizedBox(width: 8),
               PcButton(
                 'Contre-proposer',
                 variant: PcButtonVariant.secondary,
@@ -1006,7 +1009,6 @@ class _ReceivedProposalCard extends StatelessWidget {
                 onPressed: isSubmitting ? null : onCounter,
               ),
               if (canAccept) ...[
-                const SizedBox(width: 8),
                 PcButton(
                   'Accepter',
                   icon: Icons.check_rounded,

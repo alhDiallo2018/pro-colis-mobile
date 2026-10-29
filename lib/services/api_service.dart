@@ -4,6 +4,7 @@ import '../models/driver_discovery.dart';
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -27,7 +28,7 @@ class ApiService {
   static String resolveMediaUrl(String url) => AppConfig.resolveMediaUrl(url);
 
   String mediaUrl(String url) => ApiService.resolveMediaUrl(url);
-  final Dio _dio = Dio();
+  final Dio _dio;
 
   static VoidCallback? get onSessionExpired =>
       AuthSessionManager.instance.onExpired;
@@ -47,7 +48,7 @@ class ApiService {
   CashPaymentsApi get _modularCash =>
       _cashPaymentsApi ??= CashPaymentsApi(_client);
 
-  ApiService() {
+  ApiService({Dio? dioOverride}) : _dio = dioOverride ?? Dio() {
     _dio.options.baseUrl = baseUrl;
     _dio.options.headers['Content-Type'] = 'application/json';
     _dio.options.connectTimeout = const Duration(seconds: 30);
@@ -460,6 +461,25 @@ class ApiService {
     throw Exception(responseData['message'] ?? 'Colis non trouvé');
   }
 
+  /// Rafraîchissement léger : conserver les détails déjà affichés et ne lire
+  /// que la position et le statut. Aucune donnée du téléphone client n’est envoyée.
+  Future<Parcel> trackParcelPosition(Parcel parcel) async {
+    final number = Uri.encodeComponent(parcel.trackingNumber);
+    final response = await _dio.get('/public/parcels/track/$number/location',
+      options: Options(extra: {OfflineAccessInterceptor.onlineOnly: true}));
+    final body = _handleResponse(response);
+    if ((response.statusCode ?? 500) >= 400 || body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    final data = body['data'] is Map ? Map<String, dynamic>.from(body['data']) : body;
+    if (data['trackingNumber'] != parcel.trackingNumber || data['status'] is! String)
+      throw const FormatException('Réponse de suivi GPS invalide');
+    final values = parcel.toJson()
+      ..['status'] = data['status']
+      ..['updatedAt'] = data['updatedAt']
+      ..['driverLocation'] = data['driverLocation'];
+    return Parcel.fromJson(values);
+  }
+
   /// Enregistre une coordonnée GPS réelle pour le colis transporté.
   ///
   /// Le backend déduit le chauffeur du jeton, valide l'assignation et refuse
@@ -470,6 +490,7 @@ class ApiService {
     required double latitude,
     required double longitude,
     double? accuracy,
+    DateTime? capturedAt,
   }) async {
     try {
       final response = await _dio.post('/driver/location', data: {
@@ -477,7 +498,8 @@ class ApiService {
         'latitude': latitude,
         'longitude': longitude,
         if (accuracy != null) 'accuracy': accuracy,
-      });
+        if (capturedAt != null) 'capturedAt': capturedAt.toUtc().toIso8601String(),
+      }, options: Options(extra: {OfflineAccessInterceptor.onlineOnly: true}));
       final body = _handleResponse(response);
       final status = response.statusCode ?? 0;
       if (status >= 400 || body['success'] == false) {
@@ -739,7 +761,7 @@ class ApiService {
     final response = await _dio.post('/advertisements/$id/live',
         data: {'enabled': true, ...fix},
         options:
-            Options(extra: {'authSession': auth, 'authSessionPinned': true}));
+            Options(extra: {'authSession': auth, 'authSessionPinned': true, OfflineAccessInterceptor.onlineOnly: true}));
     final body = _handleResponse(response);
     if (body['success'] != true || body['sessionId'] == null)
       throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
@@ -751,7 +773,7 @@ class ApiService {
     final response = await _dio.patch('/advertisements/$id/live',
         data: {'sessionId': session, ...fix},
         options:
-            Options(extra: {'authSession': auth, 'authSessionPinned': true}));
+            Options(extra: {'authSession': auth, 'authSessionPinned': true, OfflineAccessInterceptor.onlineOnly: true}));
     final body = _handleResponse(response);
     if (body['success'] != true)
       throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
@@ -762,7 +784,7 @@ class ApiService {
     final response = await _dio.delete('/advertisements/$id/live',
         data: {'sessionId': session},
         options:
-            Options(extra: {'authSession': auth, 'authSessionPinned': true}));
+            Options(extra: {'authSession': auth, 'authSessionPinned': true, OfflineAccessInterceptor.onlineOnly: true}));
     final body = _handleResponse(response);
     if (body['success'] != true)
       throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
@@ -788,6 +810,21 @@ class ApiService {
     return (body['templates'] as List? ?? [])
         .map((v) => Map<String, dynamic>.from(v as Map))
         .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> importRouteCsv(Uint8List bytes,
+      String filename, {bool preview = false}) async {
+    // Recréer le multipart à chaque tentative : un FormData envoyé est consommé.
+    final response = await _dio.post(
+      '/driver/route-templates/import${preview ? '/preview' : ''}',
+      data: FormData.fromMap({'file': MultipartFile.fromBytes(bytes,
+        filename: filename, contentType: MediaType('text', 'csv'))}),
+    );
+    final body = _handleResponse(response);
+    if ((response.statusCode ?? 500) >= 400 || body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    return (body['templates'] as List? ?? [])
+      .map((value) => Map<String, dynamic>.from(value as Map)).toList();
   }
 
   Future<Map<String, dynamic>> rememberRoute(String advertisementId) async {
@@ -1095,6 +1132,16 @@ class ApiService {
   // ==================== DRIVER ====================
 
   /// ✅ MODIFIÉ : Utilise assignedDriverId pour filtrer les missions assignées
+  /// Liste métier complète, indépendante de la pagination des écrans.
+  Future<List<String>> getActiveTrackingParcelIds() async {
+    final response = await _dio.get('/driver/tracking-parcels',
+      options: Options(extra: {OfflineAccessInterceptor.onlineOnly: true}));
+    final body = _handleResponse(response);
+    if ((response.statusCode ?? 500) >= 400 || body['success'] != true)
+      throw _apiExceptionFromResponse(body, response.statusCode ?? 500);
+    return (body['parcelIds'] as List? ?? []).map((id) => id.toString()).toList();
+  }
+
   Future<List<Parcel>> getDriverParcels() async {
     try {
       final response = await _dio.get(
@@ -1977,7 +2024,7 @@ class ApiService {
           if (enabled) 'longitude': longitude,
         },
         options: Options(
-            extra: {'authSession': session, 'authSessionPinned': true}));
+            extra: {'authSession': session, 'authSessionPinned': true, OfflineAccessInterceptor.onlineOnly: true}));
     final body = _handleResponse(response);
     if ((response.statusCode ?? 500) >= 400 || body['success'] != true) {
       throw _apiExceptionFromResponse(body, response.statusCode ?? 500);

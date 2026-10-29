@@ -38,6 +38,7 @@ import '../../widgets/broadcast_banner.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
 import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/pc_components.dart';
+import '../../widgets/voice_recording_controls.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../driver/create_annonce_sheet.dart';
 import '../driver/garage_screen.dart';
@@ -95,6 +96,8 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final List<VoiceMessage> _voiceMessages = [];
   bool _isRecording = false;
+  bool _isRecordingPaused = false;
+  bool _recordingBusy = false;
   Timer? _recordingTimer;
   int _recordingDuration = 0;
   String? _currentlyPlayingPath;
@@ -250,6 +253,8 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   }
 
   Future<void> _startRecording() async {
+    if (_recordingBusy || _isRecording) return;
+    setState(() => _recordingBusy = true);
     try {
       final isRecording = await _audioRecorder.isRecording();
       if (isRecording) return;
@@ -272,24 +277,25 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
         throw Exception('Impossible de créer le fichier audio');
       }
 
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
+        path: path,
+      );
+      if (!mounted) return;
       setState(() {
         _isRecording = true;
+        _isRecordingPaused = false;
         _recordingDuration = 0;
       });
 
       _recordingTimer?.cancel();
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (mounted) {
+        if (mounted && !_isRecordingPaused) {
           setState(() {
             _recordingDuration++;
           });
         }
       });
-
-      await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100),
-        path: path,
-      );
     } catch (e) {
       debugPrint('❌ Erreur lors de l\'enregistrement: $e');
       _recordingTimer?.cancel();
@@ -304,15 +310,18 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _recordingBusy = false);
     }
   }
 
   Future<void> _stopRecording() async {
     try {
-      final isRecording = await _audioRecorder.isRecording();
-      if (isRecording) {
-        _recordingTimer?.cancel();
+      // L’état local reste actif pendant une pause native.
+      if (_isRecording) {
         final path = await _audioRecorder.stop();
+        _recordingTimer?.cancel();
+        if (!mounted) return;
 
         if (path != null && mounted) {
           final voiceMessage = VoiceMessage(
@@ -361,11 +370,10 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
           _isRecording = false;
         });
       }
-    } catch (e) {
-      debugPrint('Erreur lors de l\'arrêt: $e');
-      setState(() {
-        _isRecording = false;
-      });
+    } catch (error, stackTrace) {
+      debugPrint('[VoiceRecording] Arrêt impossible : $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
     }
   }
 
@@ -480,6 +488,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   }
 
   Future<void> _createAd() async {
+    if (_isRecording || _recordingBusy || _isLoading) return;
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1125,78 +1134,25 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
                   }),
                 Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _isRecording
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: Colors.red.shade200),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 12,
-                                      height: 12,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Enregistrement... ${_formatDuration(_recordingDuration)}',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation(Colors.red),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ElevatedButton.icon(
-                                onPressed: _startRecording,
-                                icon: const Icon(Icons.mic, size: 20),
-                                label:
-                                    const Text('Enregistrer un message vocal'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryBlue,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                      ),
-                      if (_isRecording) const SizedBox(width: 12),
-                      if (_isRecording)
-                        ElevatedButton(
-                          onPressed: _stopRecording,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('Arrêter'),
+                  child: _isRecording
+                      ? VoiceRecordingControls(
+                          recorder: _audioRecorder,
+                          seconds: _recordingDuration,
+                          paused: _isRecordingPaused,
+                          onPausedChanged: (value) {
+                            if (mounted)
+                              setState(() => _isRecordingPaused = value);
+                          },
+                          onBusyChanged: (value) {
+                            if (mounted) setState(() => _recordingBusy = value);
+                          },
+                          onFinish: _stopRecording,
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: _recordingBusy ? null : _startRecording,
+                          icon: const Icon(Icons.mic),
+                          label: const Text('Enregistrer un message vocal'),
                         ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -1415,7 +1371,7 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _createAd,
+        onPressed: _isRecording || _recordingBusy ? null : _createAd,
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryBlue,
           foregroundColor: Colors.white,
@@ -1569,10 +1525,8 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
-    // Le dashboard représente la session chauffeur. Lorsqu'il disparaît
-    // réellement (déconnexion/changement de rôle), aucune position ne doit
-    // continuer à être envoyée avec l'ancienne session.
-    _locationService.stopLocationTracking();
+    // Le GPS appartient à la session applicative et survit à cette vue.
+    // ProColisApp l’arrête lors de la déconnexion ou du changement de compte.
     super.dispose();
   }
 
@@ -1605,25 +1559,16 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
     List<Parcel> parcels,
     String? driverId,
   ) async {
-    Parcel? activeMission;
-    for (final parcel in parcels) {
-      final assignedToCurrentDriver = driverId != null &&
-          (parcel.assignedDriverId == driverId || parcel.driverId == driverId);
-      if (assignedToCurrentDriver && parcel.isBeingTransported) {
-        activeMission = parcel;
-        break;
-      }
-    }
-
-    if (activeMission == null) {
+    if (driverId == null) {
       _locationService.stopLocationTracking();
       return;
     }
-
     try {
-      await _locationService.startLocationTracking(
-        parcelId: activeMission.id,
-      );
+      // Les vingt missions de la page ne représentent pas tous les colis en
+      // transit. La liste dédiée évite d’en oublier lors des longues tournées.
+      final activeIds = await _dashApi.getActiveTrackingParcelIds();
+      if (!mounted || ref.read(authProvider).user?.id != driverId) return;
+      await _locationService.syncLocationTracking(parcelIds: activeIds);
     } catch (error, stackTrace) {
       debugPrint(
         '[DriverDashboard] Suivi GPS indisponible: $error\n$stackTrace',
@@ -1980,7 +1925,11 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
       });
     } catch (e, stackTrace) {
       debugPrint('❌ [Dashboard] _loadDashboardData failed: $e\n$stackTrace');
-      if (mounted) setState(() { _dashboardFailed = true; _dashboardLoading = false; });
+      if (mounted)
+        setState(() {
+          _dashboardFailed = true;
+          _dashboardLoading = false;
+        });
     }
   }
 
@@ -2169,14 +2118,23 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
               padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
               children: [
                 if (_dashboardLoading && _walletBalance == null)
-                  const Padding(padding: EdgeInsets.only(bottom: 16), child: LinearProgressIndicator(semanticsLabel: 'Chargement de votre activité')),
+                  const Padding(
+                      padding: EdgeInsets.only(bottom: 16),
+                      child: LinearProgressIndicator(
+                          semanticsLabel: 'Chargement de votre activité')),
                 if (_dashboardFailed) ...[
                   Semantics(
                     liveRegion: true,
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Certaines données n’ont pas pu être actualisées. Vérifiez votre connexion.'),
-                      TextButton.icon(onPressed: _dashboardLoading ? null : _refreshAll, icon: const Icon(Icons.refresh), label: const Text('Réessayer')),
-                    ]),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                              'Certaines données n’ont pas pu être actualisées. Vérifiez votre connexion.'),
+                          TextButton.icon(
+                              onPressed: _dashboardLoading ? null : _refreshAll,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Réessayer')),
+                        ]),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -2194,9 +2152,12 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                 // La hauteur suit le contenu, même avec les grands caractères
                 // ou un montant long ; aucune statistique n’est tronquée.
                 LayoutBuilder(builder: (context, constraints) {
-                  final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
-                  final columns = constraints.maxWidth < 300 || largeText ? 1 : 2;
-                  final tileWidth = (constraints.maxWidth - 16 * (columns - 1)) / columns;
+                  final largeText =
+                      MediaQuery.textScalerOf(context).scale(14) > 20;
+                  final columns =
+                      constraints.maxWidth < 300 || largeText ? 1 : 2;
+                  final tileWidth =
+                      (constraints.maxWidth - 16 * (columns - 1)) / columns;
                   final tiles = <Widget>[
                     GestureDetector(
                       onTap: () => Navigator.push(
@@ -2232,7 +2193,9 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                   return Wrap(
                     spacing: 16,
                     runSpacing: 16,
-                    children: tiles.map((tile) => SizedBox(width: tileWidth, child: tile)).toList(),
+                    children: tiles
+                        .map((tile) => SizedBox(width: tileWidth, child: tile))
+                        .toList(),
                   );
                 }),
                 const SizedBox(height: 14),

@@ -54,7 +54,13 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
     if (oldWidget.driverLatitude != widget.driverLatitude ||
         oldWidget.driverLongitude != widget.driverLongitude) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _fitBounds();
+        if (!mounted) return;
+        final driver = _driver;
+        if (driver != null) {
+          _moveCamera(CameraUpdate.newLatLng(driver));
+        } else {
+          _fitBounds();
+        }
       });
     }
   }
@@ -119,7 +125,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
           position: _driver!,
           icon:
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          infoWindow: const InfoWindow(title: 'Position du chauffeur'),
+          infoWindow: const InfoWindow(title: 'Position du colis'),
         ),
     };
   }
@@ -190,13 +196,22 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
     final points = _points;
     if (points.isEmpty) return;
     if (points.length == 1) {
-      controller.animateCamera(
-        CameraUpdate.newLatLngZoom(points.first, 16),
-      );
+      _moveCamera(CameraUpdate.newLatLngZoom(points.first, 16));
       return;
     }
-    controller
-        .animateCamera(CameraUpdate.newLatLngBounds(_boundsFor(points), 80));
+    _moveCamera(CameraUpdate.newLatLngBounds(_boundsFor(points), 80));
+  }
+
+  /// Une fermeture de l’écran pendant une animation native ne doit jamais
+  /// propager une erreur de plateforme au rafraîchissement du suivi.
+  Future<void> _moveCamera(CameraUpdate update) async {
+    final controller = _mapController;
+    if (controller == null || !mounted) return;
+    try {
+      await controller.animateCamera(update);
+    } catch (error) {
+      debugPrint('[ParcelMap] Caméra indisponible (${error.runtimeType})');
+    }
   }
 
   @override
@@ -218,14 +233,18 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
       );
     }
 
-    final initialTarget = _points.first;
+    final initialTarget = _driver ?? _points.first;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: GoogleMap(
         initialCameraPosition: CameraPosition(
           target: initialTarget,
-          zoom: _points.length == 1 ? 16 : 7,
+          zoom: _driver != null
+              ? 14
+              : _points.length == 1
+                  ? 16
+                  : 7,
         ),
         markers: _buildMarkers(),
         circles: _buildAccuracyCircle(),
@@ -237,7 +256,8 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
         onMapCreated: (controller) {
           _mapController = controller;
           Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted) _fitBounds();
+            if (!mounted) return;
+            if (_driver == null) _fitBounds();
           });
         },
       ),

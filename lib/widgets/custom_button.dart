@@ -77,6 +77,9 @@ class CustomButton extends StatelessWidget {
           const SizedBox(width: 8),
           Flexible(child: Text(
             text,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: fontSize ?? 16,
@@ -88,6 +91,9 @@ class CustomButton extends StatelessWidget {
     } else {
       buttonChild = Text(
         text,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: fontSize ?? 16,
           fontWeight: FontWeight.w800,

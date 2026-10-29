@@ -48,10 +48,26 @@ class _Recorder implements AudioRecorder {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+// Ce double sans IO garde le chronomètre dans l’horloge simulée du test.
+class _MemoryRecorder extends _Recorder {
+  @override
+  Future<void> start(RecordConfig config, {required String path}) async {
+    starts++;
+    this.path = path;
+  }
+}
+
 class _Player implements AudioPlayer {
   final completion = StreamController<void>.broadcast();
   Source? source;
   int pauses = 0;
+  int resumes = 0;
+  int plays = 0;
+  @override
+  Future<void> resume() async {
+    resumes++;
+  }
+
   @override
   Stream<void> get onPlayerComplete => completion.stream;
   @override
@@ -61,6 +77,7 @@ class _Player implements AudioPlayer {
       AudioContext? ctx,
       Duration? position,
       PlayerMode? mode}) async {
+    plays++;
     this.source = source;
   }
 
@@ -91,6 +108,43 @@ Future<void> _tap(WidgetTester tester, Finder target) async {
 }
 
 void main() {
+  testWidgets('la pause exclut sa durée et peut être finalisée sans reprise',
+      (tester) async {
+    final recorder = _MemoryRecorder();
+    String? saved;
+    String? uploadedPath;
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: VoiceNoteField(
+      recorder: recorder,
+      onChanged: (value) => saved = value,
+      onBusyChanged: (_) {},
+      upload: (file) async {
+        uploadedPath = file.path;
+        return '/uploads/vocal.m4a';
+      },
+    ))));
+    await tester.tap(find.text('Enregistrer une note vocale'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Enregistrement · 00:02'), findsOneWidget);
+    await tester.tap(find.text('Pause'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 8));
+    expect(find.text('En pause · 00:02'), findsOneWidget);
+    await tester.tap(find.text('Reprendre'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Enregistrement · 00:04'), findsOneWidget);
+    await tester.tap(find.text('Pause'));
+    await tester.pump();
+    await _tap(tester, find.text('Terminer'));
+    expect(saved, '/uploads/vocal.m4a');
+    expect(uploadedPath, recorder.path);
+    expect(recorder.starts, 1);
+    expect(recorder.resumes, 1);
+  });
+
   testWidgets('micro refusé : message explicite sans bloquer le formulaire',
       (tester) async {
     final recorder = _Recorder()..permitted = false;
@@ -159,6 +213,9 @@ void main() {
         (player.source as UrlSource).url, endsWith('/uploads/note-voyage.m4a'));
     await _tap(tester, find.text('Pause'));
     expect(player.pauses, 1);
+    await _tap(tester, find.text('Reprendre'));
+    expect(player.resumes, 1);
+    expect(player.plays, 1, reason: 'La reprise ne recharge pas le fichier');
     await _tap(tester, find.byTooltip('Supprimer la note vocale'));
     expect(value, isNull);
     expect(find.text('Enregistrer une note vocale'), findsOneWidget);

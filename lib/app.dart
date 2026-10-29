@@ -1,4 +1,5 @@
 import 'services/journey_live_service.dart';
+import 'services/location_service.dart';
 import 'services/driver_discovery_service.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -111,12 +112,15 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
     if (state == AppLifecycleState.resumed) {
       unawaited(ref.read(authProvider.notifier).retrySessionRestoration());
       NotificationBadgeService.refresh();
+      unawaited(DriverDiscoveryService.instance.resume());
       ref.read(sessionLockProvider.notifier).evaluateOnResume();
       return;
     }
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      unawaited(DriverDiscoveryService.instance.stop());
+    // Le partage consenti garde son flux natif lorsque l’écran se verrouille.
+    // Seule la fin de session ou l’arrêt explicite coupe le GPS.
+    if (state == AppLifecycleState.detached) {
+      unawaited(DriverDiscoveryService.instance.suspend());
+      LocationService().stopLocationTracking();
     }
     if (state == AppLifecycleState.detached)
       unawaited(JourneyLiveService.instance.stop());
@@ -136,10 +140,13 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
       }
       if (prev?.user?.id != next.user?.id || next.user?.role.name != 'driver') {
         unawaited(JourneyLiveService.instance.stop());
+        LocationService().stopLocationTracking();
       }
       if (prev?.user?.id != next.user?.id ||
-          next.user?.isDriverAvailable != true) {
-        unawaited(DriverDiscoveryService.instance.stop());
+          prev?.user?.isDriverAvailable != next.user?.isDriverAvailable) {
+        unawaited(DriverDiscoveryService.instance.restoreForUser(
+          next.user?.role.name == 'driver' ? next.user?.id : null,
+          available: next.user?.isDriverAvailable == true));
       }
       // Connexion / restauration de session : enregistre le token FCM et
       // resynchronise le badge des non-lus.

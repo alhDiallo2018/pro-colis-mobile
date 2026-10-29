@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'api_service.dart';
 import 'auth_session.dart';
 import 'location_fix.dart';
+import 'background_location.dart';
 
 /// Consentement distinct de la découverte approximative : ce flux précis est
 /// attaché à un départ, continue en arrière-plan et se termine explicitement.
@@ -60,37 +61,18 @@ class JourneyLiveService extends ChangeNotifier {
       advertisementId = departureId;
       sessionId = session;
       _lastSent = position.timestamp;
-      final LocationSettings settings;
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        settings = AndroidSettings(
-            accuracy: LocationAccuracy.bestForNavigation,
-            distanceFilter: 0,
-            intervalDuration: const Duration(seconds: 10),
-            foregroundNotificationConfig: const ForegroundNotificationConfig(
-                notificationTitle: 'ProColis · trajet en cours',
-                notificationText:
-                    'Votre position est partagée pour ce départ. Arrêtez le suivi depuis le voyage.',
-                enableWakeLock: true));
-      } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-        settings = AppleSettings(
-            accuracy: LocationAccuracy.bestForNavigation,
-            distanceFilter: 0,
-            activityType: ActivityType.automotiveNavigation,
-            pauseLocationUpdatesAutomatically: false,
-            showBackgroundLocationIndicator: true,
-            allowBackgroundLocationUpdates: true);
-      } else {
-        settings = const LocationSettings(
-            accuracy: LocationAccuracy.high, distanceFilter: 0);
-      }
+      final settings = backgroundLocationSettings(
+        title: 'ProColis · trajet en cours',
+        text: 'Votre position reste partagée pour ce départ jusqu’à l’arrêt du suivi.');
       _watchdog = Timer.periodic(const Duration(seconds: 15), (_) async {
         if (generation == _generation &&
             _lastSent != null &&
             DateTime.now().difference(_lastSent!).inSeconds > 60) {
-          await _failed(
-              const LocationFailure(LocationFailureKind.timeout,
-                  'Aucune mesure GPS récente. Le suivi a été arrêté ; réactivez-le après vérification du GPS.'),
-              StackTrace.current);
+          // La fraîcheur reste contrôlée côté serveur. Une absence temporaire
+          // de GPS n’annule pas le consentement ni le flux natif : il reprendra
+          // dès qu’une vraie mesure récente redeviendra disponible.
+          error = 'Signal GPS indisponible. En attente d’une nouvelle position.';
+          notifyListeners();
         }
       });
       _positions = Geolocator.getPositionStream(locationSettings: settings)
@@ -105,8 +87,22 @@ class JourneyLiveService extends ChangeNotifier {
             if (generation != _generation) return;
             await _api.updateJourneyLive(departureId, session, _fix(p), auth);
           });
+          if (generation == _generation && error != null) {
+            error = null;
+            notifyListeners();
+          }
         } catch (failure, stack) {
-          if (generation == _generation) await _failed(failure, stack);
+          if (generation != _generation) return;
+          final temporary = failure is ApiException
+              ? failure.statusCode == 429 || failure.statusCode >= 500
+              : failure is! LocationFailure;
+          if (temporary) {
+            debugPrint('[JourneyLive] Envoi différé (${failure.runtimeType})');
+            error = 'Connexion indisponible. Le suivi réessaiera automatiquement.';
+            notifyListeners();
+          } else {
+            await _failed(failure, stack);
+          }
         }
       }, onError: (Object failure, StackTrace stack) async {
         if (generation == _generation) await _failed(failure, stack);
