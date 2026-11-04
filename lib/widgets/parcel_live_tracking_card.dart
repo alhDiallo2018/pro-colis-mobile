@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'live_tracking_map.dart';
 import 'pc_components.dart';
+import 'transit/data_quality_tag.dart';
 
 const kParcelTrackingRefreshInterval = Duration(seconds: 5);
 
@@ -165,10 +166,24 @@ class _ParcelLiveTrackingCardState extends State<ParcelLiveTrackingCard> {
                   icon: const Icon(Icons.refresh_rounded)),
             ]),
             const SizedBox(height: 8),
-            Wrap(children: [
-              PcBadge(label,
-                  tone: _offline || !isLive ? PcTone.amber : PcTone.green)
+            Row(children: [
+              DataQualityTag(
+                quality: _offline || _finished
+                    ? DataQuality.unavailable
+                    : isLive
+                        ? DataQuality.live
+                        : location != null
+                            ? DataQuality.estimated
+                            : DataQuality.unavailable,
+                label: label,
+                freshnessSeconds: isLive ? location.age(_now)?.inSeconds : null,
+              ),
+              const SizedBox(width: 8),
+              Flexible(child: PcBadge(label,
+                tone: _offline || !isLive ? PcTone.amber : PcTone.green)),
             ]),
+            const SizedBox(height: 10),
+            _ProgressBar(parcel: _parcel, location: location),
             const SizedBox(height: 8),
             Text(description,
                 style: TextStyle(
@@ -221,6 +236,80 @@ class _ParcelLiveTrackingCardState extends State<ParcelLiveTrackingCard> {
     );
   }
 
+}
+
+/// Barre de progression Citymapper-style : estimation à vol d'oiseau entre
+/// départ et arrivée. Toujours accompagnée de son DataQualityTag pour éviter
+/// de laisser croire qu'elle est précise au mètre.
+class _ProgressBar extends StatelessWidget {
+  final Parcel parcel;
+  final DriverLocation? location;
+  const _ProgressBar({required this.parcel, required this.location});
+
+  double get _progress {
+    final dep = _coord(parcel.departureLatitude, parcel.departureLongitude);
+    final arr = _coord(parcel.arrivalLatitude, parcel.arrivalLongitude);
+    final drv = location != null && location!.hasCoordinates
+        ? _coord(location!.latitude, location!.longitude)
+        : null;
+    if (dep == null || arr == null || drv == null) return 0;
+    final total = _distance(dep, arr);
+    if (total == 0) return 0;
+    final done = _distance(dep, drv);
+    return (done / total).clamp(0, 1).toDouble();
+  }
+
+  static (double, double)? _coord(double? lat, double? lng) =>
+      lat == null || lng == null ? null : (lat, lng);
+  static double _distance((double, double) a, (double, double) b) {
+    final dx = a.$1 - b.$1, dy = a.$2 - b.$2;
+    return dx * dx + dy * dy;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _progress;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        Expanded(child: Text(
+          parcel.departureCity ?? 'Départ',
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, letterSpacing: 0.04),
+        )),
+        Text(
+          parcel.arrivalCity ?? 'Arrivée',
+          maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right,
+          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, letterSpacing: 0.04),
+        ),
+      ]),
+      const SizedBox(height: 4),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Stack(children: [
+          Container(height: 8, color: AppTheme.backgroundColor),
+          FractionallySizedBox(
+            widthFactor: p,
+            child: Container(
+              height: 8,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [AppTheme.teal500, AppTheme.green500]),
+              ),
+            ),
+          ),
+        ]),
+      ),
+      if (p > 0) Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          p >= 1 ? 'Colis arrivé' : '~ ${(p * 100).round()}% du trajet (estimation à vol d\'oiseau)',
+          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+        ),
+      ),
+    ]);
+  }
+}
+
+extension on _ParcelLiveTrackingCardState {
   String _age(DriverLocation location) {
     final age = location.age(_now);
     if (age == null) return 'Heure de mesure inconnue · position non confirmée';

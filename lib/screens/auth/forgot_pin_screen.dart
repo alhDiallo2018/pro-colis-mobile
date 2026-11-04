@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../services/pin_recovery_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/auth_shell.dart';
 import '../../widgets/custom_button.dart';
 
 class ForgotPinScreen extends ConsumerStatefulWidget {
@@ -162,54 +163,28 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
   @override
   Widget build(BuildContext context) {
     final codeSent = _sentIdentifier != null;
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Code PIN oublié'),
-        leading: IconButton(
-          tooltip: 'Retour à la connexion',
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _busy ? null : () => context.go('/login'),
-        ),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                        _success
-                            ? Icons.check_circle_outline
-                            : Icons.lock_reset,
-                        size: 56,
-                        color: AppTheme.primary),
-                    const SizedBox(height: 24),
-                    Text(
-                      _success
-                          ? 'Votre code PIN a été réinitialisé'
-                          : codeSent
-                              ? 'Choisissez votre nouveau PIN'
-                              : 'Retrouvez l’accès à votre compte',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _success
-                          ? 'Connectez-vous avec votre nouveau code PIN à six chiffres.'
-                          : codeSent
-                              ? 'Saisissez le code de vérification envoyé aux coordonnées associées à $_sentIdentifier.'
-                              : 'Indiquez l’email ou le numéro de téléphone de votre compte pour recevoir un code de vérification.',
-                      style:
-                          TextStyle(color: AppTheme.textSecondary, height: 1.5),
-                    ),
-                    const SizedBox(height: 28),
+    final leadText = _success
+        ? 'Connectez-vous avec votre nouveau code PIN à six chiffres.'
+        : codeSent
+            ? 'Saisissez le code de vérification envoyé aux coordonnées associées à $_sentIdentifier.'
+            : 'Indiquez l’email ou le numéro de téléphone de votre compte pour recevoir un code de vérification.';
+    final title = _success
+        ? 'Votre code PIN a été réinitialisé'
+        : codeSent
+            ? 'Choisissez votre nouveau PIN'
+            : 'Retrouvez l’accès à votre compte';
+    return AuthShell(
+      eyebrow: 'Récupération',
+      heroIcon: _success ? Icons.check_circle_outline : Icons.lock_reset,
+      title: title,
+      lead: leadText,
+      onBrandTap: _busy ? null : () => context.go('/login'),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
                     if (_success)
                       CustomButton(
                           text: 'Retour à la connexion',
@@ -286,11 +261,7 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
                         ),
                       ],
                     ],
-                  ],
-                ),
-              ),
-            ),
-          ),
+          ],
         ),
       ),
     );

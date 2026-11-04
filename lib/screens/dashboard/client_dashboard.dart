@@ -18,6 +18,7 @@ import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/citymapper.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/broadcast_banner.dart';
@@ -1523,45 +1524,46 @@ class _ClientQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Grille 2x2 de tuiles colorées Citymapper.
     return Row(
       children: [
         Expanded(
-          child: ProcolisQuickAction(
+          child: CmActionTile(
+            color: CmTileColor.emerald,
             icon: Icons.add_box_rounded,
-            iconColor: AppTheme.green700,
-            backgroundColor: AppTheme.green50,
-            label: 'Nouveau',
+            label: 'Envoyer',
+            sub: 'Créer un colis',
             onTap: onNew,
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: ProcolisQuickAction(
-            icon: Icons.campaign_rounded,
-            iconColor: AppTheme.amber700,
-            backgroundColor: AppTheme.amber50,
-            label: 'Annonces',
-            onTap: onLibre,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: ProcolisQuickAction(
-            icon: Icons.route_rounded,
-            iconColor: AppTheme.deep500,
-            backgroundColor: AppTheme.infoSoft,
-            label: 'Suivre',
+          child: CmActionTile(
+            color: CmTileColor.indigo,
+            icon: Icons.qr_code_scanner_rounded,
+            label: 'Scanner',
+            sub: 'Suivre un code',
             onTap: onTrack,
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: ProcolisQuickAction(
+          child: CmActionTile(
+            color: CmTileColor.amber,
             icon: Icons.handshake_rounded,
-            iconColor: AppTheme.teal700,
-            backgroundColor: AppTheme.teal50,
             label: 'Offres',
+            sub: 'Chauffeurs',
             onTap: onOffers,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: CmActionTile(
+            color: CmTileColor.cyan,
+            icon: Icons.campaign_rounded,
+            label: 'Annonces',
+            sub: 'Trajets',
+            onTap: onLibre,
           ),
         ),
       ],

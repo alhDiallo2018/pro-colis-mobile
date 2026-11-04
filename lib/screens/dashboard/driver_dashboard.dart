@@ -33,6 +33,7 @@ import '../../providers/nav_provider.dart';
 import '../../providers/parcel_provider.dart';
 import '../../utils/parcel_offer_helpers.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/citymapper.dart';
 import '../../widgets/bar_chart.dart';
 import '../../widgets/broadcast_banner.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
@@ -1399,34 +1400,64 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        showSearch(
-          context: context,
-          delegate: _DriverSearchDelegate(onSearch: onSearch),
-        );
-      },
-      child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border.all(color: AppTheme.slate200),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.search, size: 20, color: AppTheme.slate400),
-            const SizedBox(width: 10),
-            Text(
-              'Rechercher un colis, un chauffeur…',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.slate400,
-                fontWeight: FontWeight.w500,
+    // Search button Citymapper-flavoured : pill arrondie, icône amber accent, flèche à droite.
+    return Material(
+      color: AppTheme.cardColor,
+      borderRadius: BorderRadius.circular(CmTokens.radiusCard),
+      child: InkWell(
+        onTap: () {
+          showSearch(
+            context: context,
+            delegate: _DriverSearchDelegate(onSearch: onSearch),
+          );
+        },
+        borderRadius: BorderRadius.circular(CmTokens.radiusCard),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(CmTokens.radiusCard),
+            border: Border.all(color: AppTheme.slate200),
+            boxShadow: CmTokens.shadowRaise(),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.amber50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.search, size: 20, color: AppTheme.amber600),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Rechercher un colis, un chauffeur…',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Numéro de suivi, nom ou téléphone',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward, size: 20, color: AppTheme.textSecondary),
+            ],
+          ),
         ),
       ),
     );

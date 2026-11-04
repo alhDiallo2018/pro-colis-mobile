@@ -4,6 +4,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/live_journey.dart';
 import '../services/api_service.dart';
 import '../screens/parcel/ads/advertisement_detail_screen.dart';
+import '../theme/app_theme.dart';
+import 'transit/data_quality_tag.dart';
 
 /// Les repères ont pour clé le départ, pas la ligne. Deux « 45 » ne fusionnent
 /// donc jamais, même quand ils se trouvent au même arrêt ou vont en sens inverse.
@@ -236,30 +238,28 @@ class _LiveJourneysMapState extends State<LiveJourneysMap>
                       child: Text(
                           'GPS partagé volontairement · positions de moins d’une minute',
                           textAlign: TextAlign.center))
-                  : ListView(children: [
-                      for (final j in [...journeys]
-                        ..sort((a, b) => a.id == _selected
-                            ? -1
-                            : b.id == _selected
-                                ? 1
-                                : 0))
-                        ListTile(
-                            selected: j.id == _selected,
-                            leading: const Icon(Icons.directions_bus_outlined),
-                            title: Text('${j.label} · ${j.vehicleReference}'),
-                            subtitle: Text(
-                                '${j.from} → ${j.to}\n${j.driverName} · départ ${_time(j.departureAt)}\nGPS il y a ${DateTime.now().difference(j.capturedAt).inSeconds.clamp(0, 60)} s · précision ±${j.accuracy.round()} m'),
-                            isThreeLine: true,
-                            onTap: () => _select(j),
-                            trailing: IconButton(
-                                tooltip: 'Voir ce départ',
-                                icon: const Icon(Icons.chevron_right),
-                                onPressed: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            AdvertisementDetailScreen(
-                                                adId: j.id)))))
-                    ])),
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemCount: journeys.length,
+                      itemBuilder: (_, i) {
+                        final sorted = [...journeys]
+                          ..sort((a, b) => a.id == _selected
+                              ? -1
+                              : b.id == _selected ? 1 : 0);
+                        final j = sorted[i];
+                        final age = DateTime.now().difference(j.capturedAt).inSeconds.clamp(0, 999);
+                        return _JourneyCard(
+                          journey: j,
+                          age: age,
+                          isSelected: j.id == _selected,
+                          onTap: () => _select(j),
+                          onOpen: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => AdvertisementDetailScreen(adId: j.id))),
+                          formattedDeparture: _time(j.departureAt),
+                        );
+                      },
+                    )),
         ]));
   }
 
@@ -268,5 +268,71 @@ class _LiveJourneysMapState extends State<LiveJourneysMap>
     return d == null
         ? 'à confirmer'
         : '${d.day}/${d.month} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Carte comparative d'un voyage concurrent (une ligne peut porter N véhicules
+/// au même moment). Ligne en évidence via sa propre couleur, DataQualityTag
+/// pour la fraîcheur GPS, info dispo et départ en gros caractères.
+class _JourneyCard extends StatelessWidget {
+  final LiveJourney journey;
+  final int age;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final VoidCallback onOpen;
+  final String formattedDeparture;
+  const _JourneyCard({
+    required this.journey, required this.age, required this.isSelected,
+    required this.onTap, required this.onOpen, required this.formattedDeparture,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          border: Border.all(
+            color: isSelected ? Colors.black : AppTheme.slate300,
+            width: isSelected ? 1.5 : 1),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+              child: Text('${journey.label} · ${journey.vehicleReference}',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.textPrimary, fontSize: 15)),
+            ),
+            DataQualityTag(
+              quality: age < 60 ? DataQuality.live : DataQuality.estimated,
+              freshnessSeconds: age < 60 ? age : null,
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Text('${journey.from} → ${journey.to}',
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+          const SizedBox(height: 4),
+          Row(children: [
+            Expanded(child: Text('${journey.driverName} · départ $formattedDeparture',
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary))),
+            Text('±${journey.accuracy.round()} m',
+              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          ]),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: onOpen,
+              icon: const Icon(Icons.chevron_right, size: 18),
+              label: const Text('Voir ce départ'),
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 }

@@ -8,8 +8,8 @@ import '../../services/biometric_service.dart';
 import '../../services/google_auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/fonts.dart';
-import '../../widgets/app_logo.dart';
 import '../../widgets/auth_fields.dart';
+import '../../widgets/auth_shell.dart';
 import '../../widgets/pc_components.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -49,8 +49,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       final saved = prefs.getString('saved_identifier') ?? '';
       _remember = prefs.getBool('remember_me') ?? true;
-      // Migration des préférences de l'ancien champ mixte sans perdre les
-      // identifiants mémorisés. Le PIN n'est jamais stocké ici.
       _emailMode = prefs.getString('login_mode') == 'email' ||
           (prefs.getString('login_mode') == null &&
               _remember &&
@@ -91,8 +89,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _savePreferences({bool google = false}) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        'login_mode', google || _emailMode ? 'email' : 'phone');
+    await prefs.setString('login_mode', google || _emailMode ? 'email' : 'phone');
     await prefs.setBool('remember_me', _remember);
     if (_remember) {
       if (!google) await prefs.setString('saved_identifier', _identifier);
@@ -115,8 +112,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) setState(() => _error = error.message);
     } catch (error) {
       debugPrint('[Login] Connexion : ${error.runtimeType}');
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Connexion impossible. Veuillez réessayer.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -125,8 +123,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _login() async {
     if (!(_form.currentState?.validate() ?? false)) return;
     await _run(() async {
-      // Enregistrer avant l'authentification : le provider peut déclencher la
-      // navigation immédiatement après succès et disposer cet écran.
       await _savePreferences();
       final result = await ref
           .read(authProvider.notifier)
@@ -157,7 +153,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       });
 
-  void _switchMode(bool email) {
+  void _switchMode(int index) {
+    final email = index == 1;
     if (_busy || _restoring || email == _emailMode) return;
     FocusScope.of(context).unfocus();
     _pin.clear();
@@ -181,194 +178,201 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (next.isAuthenticated && mounted) context.go('/dashboard');
     });
     final disabled = _busy || _restoring;
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: SafeArea(
-          child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                  child: AutofillGroup(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                        Align(
-                            alignment: Alignment.centerLeft,
-                            child: AppBrandLink(
-                                isWhite: false,
-                                onTap: () {
-                                  if (!disabled) context.go('/landing');
-                                })),
-                        const SizedBox(height: 28),
-                        Text('Connexion',
-                            style: AppFonts.plusJakartaSans(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.textPrimary)),
-                        const SizedBox(height: 8),
-                        Text('Retrouvez vos colis et vos livraisons.',
-                            style: TextStyle(
-                                color: AppTheme.textSecondary, height: 1.5)),
-                        const SizedBox(height: 24),
-                        SegmentedButton<bool>(
-                          segments: const [
-                            ButtonSegment(
-                                value: false,
-                                label: Text('Téléphone'),
-                                icon: Icon(Icons.phone_outlined)),
-                            ButtonSegment(
-                                value: true,
-                                label: Text('Email'),
-                                icon: Icon(Icons.mail_outline_rounded)),
-                          ],
-                          selected: {_emailMode},
-                          showSelectedIcon: false,
-                          onSelectionChanged: disabled
-                              ? null
-                              : (values) => _switchMode(values.first),
-                          style: ButtonStyle(
-                              padding: WidgetStateProperty.all(
-                                  const EdgeInsets.symmetric(vertical: 16))),
-                        ),
-                        const SizedBox(height: 28),
-                        if (_emailMode &&
-                            ref.read(googleAuthServiceProvider).supported) ...[
-                          OutlinedButton.icon(
-                            onPressed: disabled ? null : _google,
-                            style: OutlinedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: const Color(0xFF1F1F1F),
-                                minimumSize: const Size(double.infinity, 52),
-                                side:
-                                    const BorderSide(color: Color(0xFF747775)),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12))),
-                            icon: Image.asset('assets/icons/google_g.png',
-                                width: 20, height: 20),
-                            label: const Text('Se connecter avec Google',
-                                textAlign: TextAlign.center),
-                          ),
-                          const SizedBox(height: 24),
-                          Row(children: [
-                            Expanded(child: Divider(color: AppTheme.slate200)),
-                            Expanded(
-                                flex: 4,
-                                child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12),
-                                    child: Text('ou avec votre email',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: AppTheme.textSecondary)))),
-                            Expanded(child: Divider(color: AppTheme.slate200))
-                          ]),
-                          const SizedBox(height: 24),
-                        ],
-                        // Une nouvelle clé retire les erreurs de l'autre mode sans effacer
-                        // sa saisie : les contrôleurs email/téléphone restent indépendants.
-                        Form(
-                            key: _form,
-                            child: Column(children: [
-                              if (_emailMode)
-                                TextFormField(
-                                    key: const ValueKey('email-input'),
-                                    controller: _email,
-                                    enabled: !disabled,
-                                    keyboardType: TextInputType.emailAddress,
-                                    autofillHints: const [AutofillHints.email],
-                                    autocorrect: false,
-                                    textInputAction: TextInputAction.next,
-                                    decoration: const InputDecoration(
-                                        labelText: 'Adresse email',
-                                        hintText: 'vous@exemple.com',
-                                        prefixIcon:
-                                            Icon(Icons.alternate_email)),
-                                    validator: (value) => RegExp(
-                                                r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                                            .hasMatch(value?.trim() ?? '')
-                                        ? null
-                                        : 'Saisissez une adresse email valide')
-                              else
-                                AuthPhoneField(
-                                    controller: _phone,
-                                    country: _country,
-                                    enabled: !disabled,
-                                    onCountryChanged: (country) =>
-                                        setState(() => _country = country)),
-                              const SizedBox(height: 18),
-                              AuthPinField(
-                                  key: ValueKey('pin-$_emailMode'),
-                                  controller: _pin,
-                                  enabled: !disabled,
-                                  onSubmitted: _login),
-                            ])),
-                        Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                                onPressed: disabled
-                                    ? null
-                                    : () => context.push('/forgot-pin',
-                                        extra: _identifier),
-                                child: const Text('Code PIN oublié ?'))),
-                        CheckboxListTile(
-                            value: _remember,
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            title: const Text('Mémoriser mon identifiant'),
-                            onChanged: disabled
-                                ? null
-                                : (value) async {
-                                    setState(() => _remember = value ?? false);
-                                    await _savePreferences();
-                                  }),
-                        if (_error != null)
-                          Padding(
-                              padding:
-                                  const EdgeInsets.only(top: 8, bottom: 12),
-                              child: Semantics(
-                                  liveRegion: true,
-                                  child: Text(_error!,
-                                      style: TextStyle(
-                                          color: AppTheme.errorColor,
-                                          height: 1.4)))),
-                        const SizedBox(height: 12),
-                        PcButton('Se connecter',
-                            block: true,
-                            size: PcButtonSize.lg,
-                            loading: _busy,
-                            onPressed: disabled ? null : _login,
-                            iconTrailing: Icons.arrow_forward_rounded),
-                        if (_biometricReady) ...[
-                          const SizedBox(height: 12),
-                          TextButton.icon(
-                              icon: const Icon(Icons.fingerprint_rounded),
-                              label: const Text('Utiliser mon empreinte'),
-                              onPressed: disabled
-                                  ? null
-                                  : () => _run(() async {
-                                        final unlocked = await ref
-                                            .read(authProvider.notifier)
-                                            .unlockWithBiometrics();
-                                        if (!unlocked && mounted)
-                                          setState(() => _error =
-                                              'Déverrouillage impossible. Saisissez votre PIN.');
-                                      })),
-                        ],
-                        const SizedBox(height: 20),
-                        TextButton(
-                            onPressed: disabled
-                                ? null
-                                : () => context.push('/register'),
-                            child: const Text(
-                                'Pas encore de compte ? Créer un compte',
-                                textAlign: TextAlign.center)),
-                      ])),
+    final googleSupported = ref.read(googleAuthServiceProvider).supported;
+
+    return AuthShell(
+      eyebrow: 'Connexion',
+      heroIcon: Icons.local_shipping_rounded,
+      title: 'Bon retour 👋',
+      lead: 'Retrouvez vos colis, vos messages et vos livraisons.',
+      onBrandTap: disabled ? null : () => context.go('/landing'),
+      child: AutofillGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AuthSegment(
+              value: _emailMode ? 1 : 0,
+              enabled: !disabled,
+              onChanged: _switchMode,
+              options: const [
+                AuthSegmentOption(icon: Icons.phone_outlined, label: 'Téléphone'),
+                AuthSegmentOption(icon: Icons.mail_outline_rounded, label: 'Email'),
+              ],
+            ),
+            const SizedBox(height: 24),
+            if (_emailMode && googleSupported) ...[
+              OutlinedButton.icon(
+                onPressed: disabled ? null : _google,
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF1F1F1F),
+                  minimumSize: const Size(double.infinity, 52),
+                  side: BorderSide(color: AppTheme.slate200),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-              ))),
+                icon: Image.asset('assets/icons/google_g.png', width: 20, height: 20),
+                label: Text(
+                  'Se connecter avec Google',
+                  style: AppFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(children: [
+                Expanded(child: Divider(color: AppTheme.slate200)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'ou avec votre email',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                ),
+                Expanded(child: Divider(color: AppTheme.slate200)),
+              ]),
+              const SizedBox(height: 20),
+            ],
+            Form(
+              key: _form,
+              child: Column(children: [
+                if (_emailMode)
+                  TextFormField(
+                    key: const ValueKey('email-input'),
+                    controller: _email,
+                    enabled: !disabled,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    autocorrect: false,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Adresse email',
+                      hintText: 'vous@exemple.com',
+                      prefixIcon: Icon(Icons.alternate_email),
+                    ),
+                    validator: (value) =>
+                        RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value?.trim() ?? '')
+                            ? null
+                            : 'Saisissez une adresse email valide',
+                  )
+                else
+                  AuthPhoneField(
+                    controller: _phone,
+                    country: _country,
+                    enabled: !disabled,
+                    onCountryChanged: (country) => setState(() => _country = country),
+                  ),
+                const SizedBox(height: 16),
+                AuthPinField(
+                  key: ValueKey('pin-$_emailMode'),
+                  controller: _pin,
+                  enabled: !disabled,
+                  onSubmitted: _login,
+                ),
+              ]),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: disabled
+                    ? null
+                    : () => context.push('/forgot-pin', extra: _identifier),
+                child: const Text('Code PIN oublié ?'),
+              ),
+            ),
+            CheckboxListTile(
+              value: _remember,
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: const Text('Mémoriser mon identifiant'),
+              onChanged: disabled
+                  ? null
+                  : (value) async {
+                      setState(() => _remember = value ?? false);
+                      await _savePreferences();
+                    },
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 4),
+              Semantics(
+                liveRegion: true,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.red50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.red100),
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.error_outline_rounded, color: AppTheme.red500, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: TextStyle(color: AppTheme.red500, height: 1.4, fontSize: 13.5),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            PcButton(
+              'Se connecter',
+              block: true,
+              size: PcButtonSize.lg,
+              loading: _busy,
+              onPressed: disabled ? null : _login,
+              iconTrailing: Icons.arrow_forward_rounded,
+            ),
+            if (_biometricReady) ...[
+              const SizedBox(height: 10),
+              TextButton.icon(
+                icon: const Icon(Icons.fingerprint_rounded),
+                label: const Text('Utiliser mon empreinte'),
+                onPressed: disabled
+                    ? null
+                    : () => _run(() async {
+                          final unlocked = await ref
+                              .read(authProvider.notifier)
+                              .unlockWithBiometrics();
+                          if (!unlocked && mounted) {
+                            setState(() =>
+                                _error = 'Déverrouillage impossible. Saisissez votre PIN.');
+                          }
+                        }),
+              ),
+            ],
+          ],
+        ),
+      ),
+      footer: Column(
+        children: [
+          Divider(color: AppTheme.slate200, height: 1),
+          const SizedBox(height: 16),
+          Text.rich(
+            TextSpan(
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+              children: [
+                const TextSpan(text: 'Pas encore de compte ? '),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: GestureDetector(
+                    onTap: disabled ? null : () => context.push('/register'),
+                    child: Text(
+                      'Créer un compte',
+                      style: AppFonts.plusJakartaSans(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

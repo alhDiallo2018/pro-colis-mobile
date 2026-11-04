@@ -13,5 +13,6 @@ export 'stats_api.dart';
 export 'support_api.dart';
 export 'support_roles_api.dart';
 export 'system_api.dart';
+export 'transit_api.dart';
 export 'zones_api.dart';
 

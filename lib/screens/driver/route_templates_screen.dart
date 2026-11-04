@@ -1,4 +1,5 @@
 import 'route_import_sheet.dart';
+import 'transit_line_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -7,7 +8,10 @@ import '../../models/route_schedule.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/advertisement_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/api/client.dart';
+import '../../services/api/transit_api.dart';
 import '../../services/route_schedule_store.dart';
+import '../../widgets/transit/line_badge.dart' as ui;
 
 class RouteTemplatesScreen extends ConsumerStatefulWidget {
   const RouteTemplatesScreen({super.key, this.sourceAdvertisementId});
@@ -91,6 +95,45 @@ class _RouteTemplatesScreenState extends ConsumerState<RouteTemplatesScreen> {
     if (mounted) _load();
   }
 
+  // Ouvre le picker DDD/AFTU, matérialise la ligne choisie en template jetable
+  // (compatible avec _schedule) et lance la planification des départs.
+  Future<void> _pickTransitLine() async {
+    final line = await TransitLinePickerSheet.show(context);
+    if (line == null || !mounted) return;
+    try {
+      final api = TransitApi(ApiClient());
+      final (draft, detail) = await (api.getDraft(line.id), api.getLine(line.id)).wait;
+      final stops = [
+        for (var i = 0; i < draft.itineraryStops.length; i++)
+          {
+            'zoneId': draft.itineraryStops[i]['zoneId'],
+            'name': i < detail.stops.length ? detail.stops[i].label : '',
+            'offsetMinutes': draft.itineraryStops[i]['offsetMinutes'],
+          },
+      ];
+      final template = <String, dynamic>{
+        'id': 'transit:${line.id}',
+        'transitLineId': line.id,
+        'name': '${operatorToString(line.operator).toUpperCase()} ${line.number} · ${line.origin} → ${line.destination}',
+        'data': {
+          'availableWeight': 0,
+          'proposedPrice': null,
+          'itinerary': {
+            'serviceType': 'shuttle',
+            'lineNumber': line.number,
+            'stops': stops,
+          },
+        },
+      };
+      if (mounted) await _schedule(template, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Catalogue indisponible. Choisis un trajet habituel ou importe un CSV.')));
+      }
+    }
+  }
+
   Future<void> _reuse(Map<String, dynamic> ad) async {
     try {
       final template = await _api.rememberRoute(ad['id'].toString());
@@ -150,6 +193,9 @@ class _RouteTemplatesScreenState extends ConsumerState<RouteTemplatesScreen> {
                                   pending: Map<String, dynamic>.from(
                                       _pending!['payload'])))),
                     const SizedBox(height: 16),
+                    // Nouveau : catalogue officiel DDD / AFTU (Citymapper-style).
+                    _TransitLineCta(onTap: _pickTransitLine),
+                    const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: () async {
                         final imported = await showModalBottomSheet<bool>(
@@ -557,5 +603,46 @@ class RouteScheduleSheetState extends State<RouteScheduleSheet> {
                                           ? 'Vérifier / réessayer'
                                           : 'Publier ${preview.length} départ${preview.length > 1 ? 's' : ''}')))))
                 ]))));
+  }
+}
+
+class _TransitLineCta extends StatelessWidget {
+  final VoidCallback onTap;
+  const _TransitLineCta({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFE85D04), Color(0xFF1D4ED8)],
+            begin: Alignment.centerLeft, end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(children: [
+          Row(mainAxisSize: MainAxisSize.min, children: const [
+            ui.LineBadge(operator: ui.TransitOperator.ddd, number: 'DDD', size: ui.LineBadgeSize.sm),
+            SizedBox(width: 6),
+            ui.LineBadge(operator: ui.TransitOperator.aftu, number: 'AFTU', size: ui.LineBadgeSize.sm),
+          ]),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Choisir une ligne officielle',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
+              SizedBox(height: 2),
+              Text('96 lignes DDD + AFTU, arrêts pré-remplis',
+                style: TextStyle(color: Color(0xDEFFFFFF), fontSize: 12)),
+            ]),
+          ),
+          const Icon(Icons.arrow_forward, color: Colors.white),
+        ]),
+      ),
+    );
   }
 }

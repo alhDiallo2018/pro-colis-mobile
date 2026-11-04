@@ -34,6 +34,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void _handleSessionExpired() {
     if (!mounted) return;
     OfflineAccess.instance.useSession(null);
+    // Les services actifs (livraison en cours, partage GPS, disponibilite)
+    // doivent continuer a tourner : seul l'utilisateur peut les desactiver.
+    // Conserver l'identite empeche le listener d'app.dart d'enclencher les
+    // stop/suspend en cascade sur un simple renouvellement de jeton.
+    final preservedUser = state.user;
+    if (preservedUser != null) {
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: false,
+        hasPendingSession: true,
+        error: 'Votre session a expire. Reconnectez-vous pour reprendre vos services.',
+      );
+      return;
+    }
     state = AuthState.unauthenticated();
   }
 
@@ -169,7 +183,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         await _rememberProfile(user);
         if (biometricEnabled) {
-          if (previousOwner == user.id)
+          // Un cache /auth/me absent rend previousOwner null (session renouvelee,
+          // cache purge). Ne desactiver le verrou que sur un vrai changement de
+          // compte ; sinon, le simple fait de se reconnecter effacerait le reglage.
+          if (previousOwner == null || previousOwner == user.id)
             await BiometricService.enableForSession(user.id);
           else
             await BiometricService.disable();

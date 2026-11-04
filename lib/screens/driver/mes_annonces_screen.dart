@@ -18,6 +18,7 @@ import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../widgets/citymapper.dart';
 import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/pc_components.dart';
@@ -360,18 +361,18 @@ class _DriverMesAnnoncesScreenState
                     const SizedBox(width: 8),
                   ],
                   Expanded(
-                    child: Text(
-                      'Mes annonces',
-                      style: AppFonts.plusJakartaSans(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textPrimary,
+                    child: CmPageHead(
+                      title: 'Mes annonces',
+                      subtitle: Text(
+                        _ads.isEmpty
+                            ? 'Publiez un trajet pour recevoir des offres'
+                            : '${_ads.length} annonce${_ads.length > 1 ? 's' : ''}',
                       ),
                     ),
                   ),
                   if (_tabController.index == 0)
                     PcButton(
-                      'Créer une annonce',
+                      'Créer',
                       icon: Icons.add_rounded,
                       size: PcButtonSize.sm,
                       onPressed: _createAd,

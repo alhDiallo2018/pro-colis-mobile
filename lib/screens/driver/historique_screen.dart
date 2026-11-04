@@ -11,6 +11,7 @@ import '../../models/parcel.dart';
 import '../../services/api_service.dart';
 import '../../services/offline_access.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/citymapper.dart';
 import '../../widgets/pc_components.dart';
 
 class DriverHistoriqueScreen extends ConsumerStatefulWidget {
@@ -80,7 +81,7 @@ class _DriverHistoriqueScreenState
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Historique des courses'),
+        title: const Text('Historique'),
         backgroundColor: AppTheme.cardColor,
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
@@ -114,12 +115,21 @@ class _DriverHistoriqueScreenState
                           ),
                         ],
                       )
-                    : ListView.separated(
+                    : ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                        itemCount: _history.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) =>
-                            _HistoryRow(parcel: _history[index]),
+                        children: [
+                          CmPageHead(
+                            title: 'Historique des courses',
+                            subtitle: Text(
+                              'Livraisons terminées et annulées · ${_history.length}',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          for (int i = 0; i < _history.length; i++) ...[
+                            if (i > 0) const SizedBox(height: 10),
+                            _HistoryRow(parcel: _history[i]),
+                          ],
+                        ],
                       ),
       ),
     );

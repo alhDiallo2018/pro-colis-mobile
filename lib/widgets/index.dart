@@ -1,4 +1,6 @@
 export 'app_logo.dart';
+export 'auth_shell.dart';
+export 'delivery_van.dart';
 export 'bar_chart.dart';
 export 'broadcast_banner.dart';
 export 'custom_button.dart';

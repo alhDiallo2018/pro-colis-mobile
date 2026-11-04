@@ -9,7 +9,7 @@ import 'package:procolis/theme/fonts.dart';
 import '../../data/country_data.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_logo.dart';
+import '../../widgets/auth_shell.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/location_autocomplete.dart';
 import '../../widgets/pc_components.dart';
@@ -145,71 +145,24 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return AuthShell(
+      eyebrow: 'Inscription',
+      heroIcon: Icons.group_add_rounded,
+      title: 'Créer un compte',
+      lead: 'Quelques informations et vous êtes prêt à envoyer ou à livrer.',
+      onBrandTap: _isLoading ? null : () => context.go('/landing'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bandeau brand
-          PcGradientHeader(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _TranslucentBackButton(
-                      onTap: () => context.go('/landing'),
-                    ),
-                    const Spacer(),
-                    AppBrandLink(
-                      onTap: () => context.go('/landing'),
-                      logoSize: 24,
-                      fontSize: 15,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Créer un compte',
-                  style: AppFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Quelques informations et vous êtes prêt.',
-                  style: AppFonts.manrope(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          // Rôle
+          Text(
+            'Je suis…',
+            style: AppFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.slate600,
             ),
           ),
-
-          // Corps
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Rôle
-                      Text(
-                        'Je suis…',
-                        style: AppFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.slate600,
-                        ),
-                      ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -365,72 +318,38 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Soumettre
-                      PcButton(
-                        'Créer mon compte',
-                        icon: Icons.person_add_alt_1,
-                        block: true,
-                        size: PcButtonSize.lg,
-                        loading: _isLoading,
-                        onPressed: _canSubmit ? _register : null,
-                      ),
-                      const SizedBox(height: 20),
-
-                      Center(
-                        child: TextButton(
-                          onPressed: () => context.go('/login'),
-                          child: RichText(
-                            text: TextSpan(
-                              style: AppFonts.manrope(
-                                fontSize: 14,
-                                color: AppTheme.slate500,
-                              ),
-                              children: [
-                                const TextSpan(text: 'Déjà un compte ? '),
-                                TextSpan(
-                                  text: 'Se connecter',
-                                  style: AppFonts.plusJakartaSans(
-                                    color: AppTheme.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          // Soumettre
+          PcButton(
+            'Créer mon compte',
+            icon: Icons.person_add_alt_1,
+            block: true,
+            size: PcButtonSize.lg,
+            loading: _isLoading,
+            onPressed: _canSubmit ? _register : null,
           ),
         ],
       ),
-    );
-  }
-}
-
-// ============================================================
-// Bouton retour translucide (sur bandeau brand)
-// ============================================================
-
-class _TranslucentBackButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _TranslucentBackButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.16),
-      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        child: const SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(Icons.arrow_back, size: 22, color: Colors.white),
+      footer: Center(
+        child: TextButton(
+          onPressed: _isLoading ? null : () => context.go('/login'),
+          child: RichText(
+            text: TextSpan(
+              style: AppFonts.manrope(
+                fontSize: 14,
+                color: AppTheme.slate500,
+              ),
+              children: [
+                const TextSpan(text: 'Déjà un compte ? '),
+                TextSpan(
+                  text: 'Se connecter',
+                  style: AppFonts.plusJakartaSans(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

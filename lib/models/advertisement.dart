@@ -13,6 +13,11 @@ class Advertisement {
       .whereType<Map>()
       .map((s) => Map<String, dynamic>.from(s))
       .toList();
+  String? get lineNumber => itinerary?['lineNumber']?.toString();
+  /// Métadonnée de ligne officielle (DDD/AFTU) si le trajet y est rattaché.
+  /// Peut être null pour les trajets libres ou habituels.
+  Map<String, dynamic>? get transitLine =>
+      itinerary?['transitLine'] is Map ? Map<String, dynamic>.from(itinerary!['transitLine']) : null;
   String get serviceLabel => switch (itinerary?['serviceType']) {
         'gp' => 'GP',
         'shuttle' => 'Navette · ligne ${itinerary?['lineNumber'] ?? ''}',

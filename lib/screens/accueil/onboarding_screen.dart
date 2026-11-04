@@ -509,23 +509,65 @@ class _OnboardingTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 68,
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border(bottom: BorderSide(color: AppTheme.slate200)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.teal700,
+            AppTheme.deep700,
+            AppTheme.teal800,
+          ],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 920),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Positioned(
+            right: -60,
+            top: -40,
+            child: IgnorePointer(
+              child: Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppTheme.amber400.withValues(alpha: 0.28),
+                      AppTheme.amber400.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -30,
+            bottom: -40,
+            child: IgnorePointer(
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppTheme.green500.withValues(alpha: 0.22),
+                      AppTheme.green500.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 16, 18),
             child: Row(
               children: [
-                const AppLogo(size: 38),
+                const AppLogo(size: 36, isWhite: true),
                 const SizedBox(width: 10),
-                // La marque absorbe l'espace libre plutôt qu'un `Spacer` :
-                // sur un téléphone, un `Spacer` se partage la place restante
-                // avec le bouton de droite et le réduit à « Drive… ».
                 Expanded(
                   child: RichText(
                     maxLines: 1,
@@ -535,21 +577,19 @@ class _OnboardingTopBar extends StatelessWidget {
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.2,
-                        color: AppTheme.slate900,
+                        color: Colors.white,
                       ),
                       children: [
-                        TextSpan(text: 'Send '),
+                        const TextSpan(text: 'Send '),
                         TextSpan(
                           text: 'ProColis',
-                          style: TextStyle(color: AppTheme.amber500),
+                          style: TextStyle(color: AppTheme.amber200),
                         ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Connecté : « Se connecter » laisse la place au nom de
-                // l'utilisateur, ou à « Mon compte » si le nom est inconnu.
                 if (isLoggedIn)
                   _buildAccountButton(context)
                 else
@@ -557,50 +597,75 @@ class _OnboardingTopBar extends StatelessWidget {
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildLoginButton(BuildContext context) {
-    return TextButton(
-      onPressed: () => context.go('/login'),
-      child: const Text('Se connecter'),
+    return Material(
+      color: Colors.white.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: () => context.go('/login'),
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.login_rounded, size: 16, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                'Connexion',
+                style: AppFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  /// Sur un écran de téléphone la barre est étroite : on ne garde que le
-  /// prénom quand le nom complet est long, et le libellé s'ellipse au lieu
-  /// de faire déborder la Row.
   Widget _buildAccountButton(BuildContext context) {
     final trimmed = userName.trim();
     final label = trimmed.isEmpty
         ? 'Mon compte'
         : (trimmed.length > 16 ? trimmed.split(' ').first : trimmed);
 
-    return TextButton(
-      onPressed: () => context.go('/profile'),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.account_circle_rounded,
-            color: AppTheme.primary,
-            size: 20,
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.plusJakartaSans(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+    return Material(
+      color: Colors.white.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: () => context.go('/profile'),
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.account_circle_rounded,
+                  size: 18, color: Colors.white),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
