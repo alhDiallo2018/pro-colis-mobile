@@ -107,11 +107,15 @@ class _AuthTopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AppBrandLink(
-            isWhite: false,
-            onTap: onBrandTap ?? () {},
+          // Flexible + ellipsis dans la marque : sur petit écran avec police
+          // agrandie (accessibilité), on évite le débordement horizontal.
+          Flexible(
+            child: AppBrandLink(
+              isWhite: false,
+              onTap: onBrandTap ?? () {},
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           if (actions != null) ...actions!,
         ],
       ),

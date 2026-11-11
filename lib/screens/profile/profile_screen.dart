@@ -24,6 +24,7 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
 import 'role_profile_sections.dart';
 import 'address_book_cards.dart';
+import '../../widgets/referral_card.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -407,6 +408,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           RoleProfileSectionCard(user: _user),
           const SizedBox(height: 16),
           const AddressBookCard(),
+          const SizedBox(height: 16),
+          const ReferralCard(),
           const SizedBox(height: 16),
           const FavoriteGaragesCard(),
           const SizedBox(height: 16),

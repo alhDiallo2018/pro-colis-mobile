@@ -1,0 +1,45 @@
+{
+  "@@locale": "fr",
+  "brandName": "SendProColis",
+  "@brandName": {
+    "description": "Nom commercial de la plateforme"
+  },
+
+  "navHome": "Accueil",
+  "navSend": "Envoyer",
+  "navTrack": "Suivre",
+  "navProfile": "Profil",
+
+  "trackingEtaLive": "Arrive dans ~{minutes} min ({min}–{max})",
+  "@trackingEtaLive": {
+    "description": "Badge ETA dynamique",
+    "placeholders": {
+      "minutes": { "type": "int" },
+      "min": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  },
+  "trackingEtaArriving": "Arrivée imminente",
+  "trackingDriverStopped": "Chauffeur à l'arrêt",
+  "trackingPositionStale": "Position ancienne",
+  "trackingAnomalyTitle": "Vérification trajet recommandée",
+  "trackingAnomalyCritical": "Alerte trajet",
+
+  "ocrScanLabel": "Scanner une étiquette",
+  "ocrNoFieldsDetected": "Aucun texte exploitable détecté.",
+  "ocrPreviewTitle": "Champs détectés",
+  "ocrPreviewHint": "Vérifiez avant de pré-remplir.",
+  "ocrActionUse": "Utiliser",
+  "ocrActionCancel": "Annuler",
+
+  "aiAssistantTitle": "Assistant",
+  "aiAssistantHint": "Décrivez votre expédition…",
+  "aiAssistantFillForm": "Remplir le formulaire avec ces infos",
+
+  "promiseSlotMorning": "Matin",
+  "promiseSlotAfternoon": "Après-midi",
+  "promiseSlotEvening": "Soir",
+
+  "errorNetwork": "Connexion interrompue",
+  "errorRetry": "Réessayer"
+}

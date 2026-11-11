@@ -456,6 +456,25 @@ class ApiService {
       if (driverLocation is Map && !parcelMap.containsKey('driverLocation')) {
         parcelMap['driverLocation'] = driverLocation;
       }
+      // Même règle pour l'ETA dynamique : champ frère à la racine (ou dans
+      // `data`), à fusionner dans le parcelMap avant parsing. `null` accepté.
+      final etaSibling = responseData.containsKey('eta')
+          ? responseData['eta']
+          : (responseData['data'] is Map
+              ? (responseData['data'] as Map<String, dynamic>)['eta']
+              : null);
+      if (!parcelMap.containsKey('eta')) {
+        parcelMap['eta'] = etaSibling;
+      }
+      // Idem pour les anomalies trajet : tableau frère ou imbriqué.
+      final anomaliesSibling = responseData.containsKey('anomalies')
+          ? responseData['anomalies']
+          : (responseData['data'] is Map
+              ? (responseData['data'] as Map<String, dynamic>)['anomalies']
+              : null);
+      if (!parcelMap.containsKey('anomalies') && anomaliesSibling != null) {
+        parcelMap['anomalies'] = anomaliesSibling;
+      }
       return Parcel.fromJson(parcelMap);
     }
     throw Exception(responseData['message'] ?? 'Colis non trouvé');
@@ -476,7 +495,13 @@ class ApiService {
     final values = parcel.toJson()
       ..['status'] = data['status']
       ..['updatedAt'] = data['updatedAt']
-      ..['driverLocation'] = data['driverLocation'];
+      ..['driverLocation'] = data['driverLocation']
+      // ETA dynamique : `null` quand le backend ne la calcule pas (statut
+      // non actif, position stale, zone sans coord). Jamais d'héritage de
+      // l'ETA précédente — la fraîcheur est aussi importante que la valeur.
+      ..['eta'] = data['eta']
+      // Idem pour les anomalies : tableau frais à chaque refresh.
+      ..['anomalies'] = data['anomalies'] ?? const [];
     return Parcel.fromJson(values);
   }
 

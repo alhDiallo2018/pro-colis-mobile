@@ -166,23 +166,23 @@ class _ParcelLiveTrackingCardState extends State<ParcelLiveTrackingCard> {
                   icon: const Icon(Icons.refresh_rounded)),
             ]),
             const SizedBox(height: 8),
-            Row(children: [
-              DataQualityTag(
-                quality: _offline || _finished
-                    ? DataQuality.unavailable
-                    : isLive
-                        ? DataQuality.live
-                        : location != null
-                            ? DataQuality.estimated
-                            : DataQuality.unavailable,
-                label: label,
-                freshnessSeconds: isLive ? location.age(_now)?.inSeconds : null,
-              ),
-              const SizedBox(width: 8),
-              Flexible(child: PcBadge(label,
-                tone: _offline || !isLive ? PcTone.amber : PcTone.green)),
-            ]),
+            DataQualityTag(
+              // Suffisant à lui seul : la pastille colorée + le texte d'état
+              // transmettent déjà la qualité de la donnée. Un second badge
+              // dupliquait le libellé et débordait sur petit écran.
+              quality: _offline || _finished
+                  ? DataQuality.unavailable
+                  : isLive
+                      ? DataQuality.live
+                      : location != null
+                          ? DataQuality.estimated
+                          : DataQuality.unavailable,
+              label: label,
+              freshnessSeconds: isLive ? location.age(_now)?.inSeconds : null,
+            ),
             const SizedBox(height: 10),
+            _AnomalyBanner(anomalies: _parcel.anomalies),
+            _EtaBanner(eta: _parcel.eta, now: _now),
             _ProgressBar(parcel: _parcel, location: location),
             const SizedBox(height: 8),
             Text(description,
@@ -306,6 +306,155 @@ class _ProgressBar extends StatelessWidget {
         ),
       ),
     ]);
+  }
+}
+
+/// Bannière rouge/orange qui liste les anomalies trajet détectées par le
+/// backend. Un seul widget condensé : titre résumé + liste compacte des
+/// types. Masqué quand la liste est vide (pas d'anomalie = pas de bruit).
+class _AnomalyBanner extends StatelessWidget {
+  final List<ParcelAnomaly> anomalies;
+  const _AnomalyBanner({required this.anomalies});
+
+  @override
+  Widget build(BuildContext context) {
+    if (anomalies.isEmpty) return const SizedBox.shrink();
+    final hasCritical = anomalies.any(
+      (a) => a.severity == AnomalySeverity.critical,
+    );
+    final color = hasCritical ? Colors.red.shade700 : Colors.orange.shade800;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              hasCritical ? Icons.error_outline : Icons.warning_amber_rounded,
+              size: 18,
+              color: color,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    hasCritical
+                        ? 'Alerte trajet'
+                        : 'Vérification trajet recommandée',
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    anomalies.map((a) => a.label).join(' · '),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bannière d'ETA dynamique. Se rend uniquement quand `eta != null` — sinon
+/// renvoie un SizedBox.shrink() (le fallback `estimatedDeliveryDate` statique
+/// reste visible ailleurs dans la fiche colis). Couleurs selon confidence,
+/// mention « à l'arrêt » quand le chauffeur ne bouge plus.
+class _EtaBanner extends StatelessWidget {
+  final ParcelEta? eta;
+  final DateTime now;
+  const _EtaBanner({required this.eta, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final current = eta;
+    if (current == null) return const SizedBox.shrink();
+
+    // Préférer arrivalAt absolu à etaMinutes figé côté serveur : si l'écran
+    // reste ouvert, le compteur local baisse naturellement.
+    final remaining = current.remainingMinutesFrom(now);
+    final minDisplay = (current.minMinutes - (current.etaMinutes - remaining))
+        .clamp(1, 24 * 60);
+    final maxDisplay = (current.maxMinutes - (current.etaMinutes - remaining))
+        .clamp(remaining <= 0 ? 1 : remaining, 24 * 60);
+
+    final (bg, fg) = switch (current.confidence) {
+      EtaConfidence.high => (AppTheme.green500.withValues(alpha: 0.12), AppTheme.green500),
+      EtaConfidence.medium => (AppTheme.teal500.withValues(alpha: 0.12), AppTheme.teal500),
+      EtaConfidence.low => (Colors.grey.withValues(alpha: 0.15), AppTheme.textSecondary),
+    };
+
+    final mainLabel = remaining <= 0
+        ? 'Arrivée imminente'
+        : 'Arrive dans ~$remaining min ($minDisplay–$maxDisplay)';
+
+    final tail = switch (current.movingState) {
+      EtaMovingState.stopped => ' · Chauffeur à l\'arrêt',
+      EtaMovingState.unknown => current.confidence == EtaConfidence.low
+          ? ' · Position ancienne'
+          : '',
+      EtaMovingState.moving => '',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: fg.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.access_time_rounded, size: 18, color: fg),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    mainLabel,
+                    style: TextStyle(
+                      color: fg,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (tail.isNotEmpty || current.distanceRemainingKm > 0)
+                    Text(
+                      '~${current.distanceRemainingKm.toStringAsFixed(1)} km restants$tail',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

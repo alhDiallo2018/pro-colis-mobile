@@ -37,6 +37,16 @@ Parcel parcel(
     );
 
 void main() {
+  // pumpAndSettle est inutilisable ici : la carte lance un Timer.periodic de
+  // suivi (5 s) et DataQualityTag anime la pastille Live en boucle. On fait
+  // tourner les microtâches avec deux pump() courts — assez pour exécuter
+  // initState + postFrame + un refresh sync, sans jamais rentrer dans la
+  // boucle du timer.
+  Future<void> flush(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+
   Future<void> mount(
     WidgetTester tester, {
     required Future<Parcel> Function(String) load,
@@ -60,12 +70,12 @@ void main() {
               location == null ? 'aucun GPS' : 'marqueur ${location.latitude}',
               key: const ValueKey('marker')),
         )))));
-    await tester.pumpAndSettle();
+    await flush(tester);
   }
 
   Future<void> close(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox());
-    await tester.pumpAndSettle();
+    await tester.pump();
   }
 
   testWidgets('la carte suit les nouvelles coordonnées puis affiche l’arrivée',
@@ -83,7 +93,7 @@ void main() {
     expect(find.text('marqueur 14.71'), findsOneWidget);
     expect(find.text('En direct'), findsOneWidget);
     await tester.pump(kParcelTrackingRefreshInterval);
-    await tester.pumpAndSettle();
+    await flush(tester);
     expect(find.text('marqueur 14.8'), findsOneWidget);
     expect(find.text('Colis arrivé'), findsOneWidget);
     expect(updates, [ParcelStatus.inTransit, ParcelStatus.arrived]);
@@ -116,7 +126,7 @@ void main() {
     expect(find.text('marqueur 14.7'), findsOneWidget);
     online = true;
     await tester.pump(kParcelTrackingRefreshInterval);
-    await tester.pumpAndSettle();
+    await flush(tester);
     expect(find.text('En direct'), findsOneWidget);
     expect(find.text('marqueur 14.9'), findsOneWidget);
     await close(tester);
@@ -144,9 +154,9 @@ void main() {
     await tester.pump(const Duration(seconds: 20));
     expect(calls, 1);
     pending.complete(parcel());
-    await tester.pumpAndSettle();
+    await flush(tester);
     await tester.pump(kParcelTrackingRefreshInterval);
-    await tester.pumpAndSettle();
+    await flush(tester);
     expect(calls, 2);
     await close(tester);
   });
@@ -164,9 +174,9 @@ void main() {
           load: (_) async => parcel(number: 'PC-GPS-B', latitude: 14.96),
           mapBuilder: (_, location) => Text('nouveau ${location?.latitude}'),
         )))));
-    await tester.pumpAndSettle();
+    await flush(tester);
     pending.complete(parcel(latitude: 14.1));
-    await tester.pumpAndSettle();
+    await flush(tester);
     expect(find.text('nouveau 14.96'), findsOneWidget);
     expect(find.text('marqueur 14.1'), findsNothing);
     await close(tester);
@@ -195,11 +205,11 @@ void main() {
           load: (_) => pending.future,
           mapBuilder: (_, location) => const SizedBox(),
         )))));
-    await tester.pumpAndSettle();
+    await flush(tester);
     expect(find.text('En direct'), findsOneWidget);
     clock = now.add(const Duration(minutes: 3));
     await tester.pump(kParcelTrackingRefreshInterval);
-    await tester.pumpAndSettle();
+    await flush(tester);
     expect(find.text('En direct'), findsNothing);
     expect(find.text('Dernière position connue'), findsOneWidget);
     await close(tester);

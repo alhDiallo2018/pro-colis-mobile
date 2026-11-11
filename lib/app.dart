@@ -5,9 +5,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'providers/auth_provider.dart';
+import 'providers/locale_provider.dart';
 import 'providers/public_config_provider.dart';
 import 'providers/session_lock_provider.dart';
 import 'providers/theme_provider.dart';
@@ -168,6 +171,7 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
     final lockStatus = ref.watch(sessionLockProvider);
 
     final themeMode = ref.watch(themeModeProvider);
+    final preferredLocale = ref.watch(localeProvider);
     final platformBrightness = MediaQuery.platformBrightnessOf(context);
     final brightness = switch (themeMode) {
       ThemeMode.light => Brightness.light,
@@ -186,6 +190,27 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
       darkTheme: AppTheme.themeFor(Brightness.dark),
       themeMode: themeMode,
       routerConfig: _router,
+      // AppLocalizations : expose les strings traduites fr/en/wo.
+      // Les delegates Global* ne couvrent pas le wolof → on les force
+      // à résoudre sur le français pour les composants Material/Cupertino
+      // tandis que notre AppLocalizations respecte la locale choisie.
+      // `preferredLocale` vient de la préférence utilisateur persistée ;
+      // null → l'app suit la langue du système (localeResolutionCallback).
+      locale: preferredLocale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      localeResolutionCallback: (locale, supported) {
+        if (locale == null) return const Locale('fr');
+        for (final s in supported) {
+          if (s.languageCode == locale.languageCode) return s;
+        }
+        return const Locale('fr');
+      },
       // La plupart des écrans lisent les couleurs statiquement, sans dépendre
       // de `Theme.of` : changer la clé force la reconstruction complète de
       // l'arbre au changement de mode (les écrans sont reconstruits depuis

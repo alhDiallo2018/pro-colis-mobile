@@ -1,0 +1,34 @@
+{
+  "@@locale": "en",
+  "brandName": "SendProColis",
+
+  "navHome": "Home",
+  "navSend": "Send",
+  "navTrack": "Track",
+  "navProfile": "Profile",
+
+  "trackingEtaLive": "Arrives in ~{minutes} min ({min}–{max})",
+  "trackingEtaArriving": "Arriving soon",
+  "trackingDriverStopped": "Driver stopped",
+  "trackingPositionStale": "Stale position",
+  "trackingAnomalyTitle": "Trajectory check recommended",
+  "trackingAnomalyCritical": "Trajectory alert",
+
+  "ocrScanLabel": "Scan a label",
+  "ocrNoFieldsDetected": "No readable text detected.",
+  "ocrPreviewTitle": "Detected fields",
+  "ocrPreviewHint": "Review before applying.",
+  "ocrActionUse": "Apply",
+  "ocrActionCancel": "Cancel",
+
+  "aiAssistantTitle": "Assistant",
+  "aiAssistantHint": "Describe your shipment…",
+  "aiAssistantFillForm": "Fill the form with these details",
+
+  "promiseSlotMorning": "Morning",
+  "promiseSlotAfternoon": "Afternoon",
+  "promiseSlotEvening": "Evening",
+
+  "errorNetwork": "Connection lost",
+  "errorRetry": "Retry"
+}

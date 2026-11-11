@@ -8,8 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:procolis/theme/fonts.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/session_timeout_provider.dart';
 import '../../services/biometric_service.dart';
+import '../../services/session_timeout_preference.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../screens/help/help_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../theme/app_theme.dart';
@@ -123,6 +126,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('pref_notifications_email', value);
     } catch (_) {}
+  }
+
+  String _localeLabel(Locale? locale) {
+    if (locale == null) return 'Automatique';
+    switch (locale.languageCode) {
+      case 'fr':
+        return 'Français';
+      case 'en':
+        return 'English';
+      case 'wo':
+        return 'Wolof';
+      default:
+        return locale.languageCode;
+    }
+  }
+
+  Future<void> _pickLanguage(WidgetRef ref, String? currentCode) async {
+    final choices = <(String?, String)>[
+      (null, 'Automatique (système)'),
+      ('fr', 'Français'),
+      ('en', 'English'),
+      ('wo', 'Wolof'),
+    ];
+    final picked = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: choices
+              .map(
+                (c) => ListTile(
+                  leading: Icon(
+                    c.$1 == currentCode
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                  ),
+                  title: Text(c.$2),
+                  onTap: () => Navigator.pop(ctx, c.$1),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await ref.read(localeProvider.notifier).set(
+          picked == null ? null : Locale(picked),
+        );
   }
 
   Future<void> _changePin() async {
@@ -250,6 +301,124 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<void> _pickSessionTimeout() async {
+    final current = ref.read(sessionTimeoutProvider);
+    final picked = await showModalBottomSheet<SessionTimeoutOption>(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.slate300,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Durée de session',
+                  style: AppFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Nous vous redemanderons de vous connecter après cette durée d’inactivité.',
+                  style: AppFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                for (final option in SessionTimeoutOption.values)
+                  _timeoutOptionTile(ctx, option, option == current),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (picked == null || !mounted) return;
+    await ref.read(sessionTimeoutProvider.notifier).setOption(picked);
+    if (!mounted) return;
+    _notify('Durée de session mise à jour : ${picked.label}');
+  }
+
+  Widget _timeoutOptionTile(
+      BuildContext ctx, SessionTimeoutOption option, bool selected) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        onTap: () => Navigator.of(ctx).pop(option),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppTheme.primary.withValues(alpha: .08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            border: Border.all(
+              color: selected ? AppTheme.primary : AppTheme.slate200,
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: selected ? AppTheme.primary : AppTheme.slate400,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      option.label,
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      option.description,
+                      style: AppFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     await ref.read(authProvider.notifier).logout();
     if (!mounted) return;
@@ -298,21 +467,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: _changePin,
                 ),
                 const PcDivider(),
-                PcListRow(
-                  icon: Icons.language_rounded,
-                  iconTone: PcTone.neutral,
-                  title: 'Langue',
-                  subtitle: 'Langue de l\'application',
-                  trailing: Text(
-                    'Français',
-                    style: AppFonts.plusJakartaSans(
-                      color: AppTheme.slate500,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  chevron: true,
-                  onTap: () {},
+                Consumer(
+                  builder: (context, ref, _) {
+                    final locale = ref.watch(localeProvider);
+                    final label = _localeLabel(locale);
+                    return PcListRow(
+                      icon: Icons.language_rounded,
+                      iconTone: PcTone.neutral,
+                      title: 'Langue',
+                      subtitle: "Langue de l'application",
+                      trailing: Text(
+                        label,
+                        style: AppFonts.plusJakartaSans(
+                          color: AppTheme.slate500,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      chevron: true,
+                      onTap: () => _pickLanguage(ref, locale?.languageCode),
+                    );
+                  },
                 ),
               ],
             ),
@@ -402,6 +577,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onChanged: _biometricAvailable && !_biometricBusy
                       ? _toggleBiometric
                       : null,
+                ),
+                const PcDivider(),
+                PcListRow(
+                  icon: Icons.timer_rounded,
+                  iconTone: PcTone.primary,
+                  title: 'Durée de session',
+                  subtitle: ref.watch(sessionTimeoutProvider).description,
+                  trailing: Text(
+                    ref.watch(sessionTimeoutProvider).label,
+                    style: AppFonts.plusJakartaSans(
+                      color: AppTheme.slate500,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  chevron: true,
+                  onTap: _pickSessionTimeout,
                 ),
                 const PcDivider(),
                 PcListRow(

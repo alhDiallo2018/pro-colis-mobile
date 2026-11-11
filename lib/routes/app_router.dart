@@ -84,7 +84,10 @@ import '../screens/super-admin/payment_notifications_screen.dart';
 import '../screens/super-admin/payments_screen.dart';
 import '../screens/super-admin/reputation_dashboard_screen.dart';
 import '../screens/super-admin/score_detail_screen.dart';
+import '../screens/super-admin/api_keys_screen.dart';
+import '../screens/super-admin/pilot_metrics_screen.dart';
 import '../screens/super-admin/systeme_screen.dart';
+import '../screens/client/business_shipper_dashboard_screen.dart';
 import '../screens/super-admin/scores_screen.dart';
 import '../screens/super-admin/stats_screen.dart';
 import '../screens/super-admin/users_management_screen.dart';
@@ -817,6 +820,22 @@ class AppRouter {
           path: '/admin/systeme',
           name: 'admin-systeme',
           builder: (context, state) => const SystemeScreen(),
+        ),
+        GoRoute(
+          path: '/admin/api-keys',
+          name: 'admin-api-keys',
+          builder: (context, state) => const ApiKeysScreen(),
+        ),
+        GoRoute(
+          path: '/admin/pilot-metrics',
+          name: 'admin-pilot-metrics',
+          builder: (context, state) => const PilotMetricsScreen(),
+        ),
+        GoRoute(
+          path: '/business/dashboard',
+          name: 'business-dashboard',
+          builder: (context, state) =>
+              const BusinessShipperDashboardScreen(),
         ),
         GoRoute(
           path: '/admin/zone/drivers',

@@ -1,0 +1,34 @@
+{
+  "@@locale": "wo",
+  "brandName": "SendProColis",
+
+  "navHome": "Kër",
+  "navSend": "Yónnee",
+  "navTrack": "Toppatoo",
+  "navProfile": "Sama xabaar",
+
+  "trackingEtaLive": "Dina agsi ci ~{minutes} simili ({min}–{max})",
+  "trackingEtaArriving": "Dina agsi léegi",
+  "trackingDriverStopped": "Awtokat bi dafa taxaw",
+  "trackingPositionStale": "Barab bu yagg",
+  "trackingAnomalyTitle": "Xoolal yoonu mbindum bi",
+  "trackingAnomalyCritical": "Yëngu-yëngu ci yoon wi",
+
+  "ocrScanLabel": "Scanne palanka bi",
+  "ocrNoFieldsDetected": "Benn làkk dañu gis.",
+  "ocrPreviewTitle": "Dëgg yi feeñ",
+  "ocrPreviewHint": "Toppatoo bi la masu jëfandikoo.",
+  "ocrActionUse": "Jëfandikoo",
+  "ocrActionCancel": "Bañ",
+
+  "aiAssistantTitle": "Jàngalekat",
+  "aiAssistantHint": "Wax nga sa yónnent…",
+  "aiAssistantFillForm": "Def ko ci formulaire bi",
+
+  "promiseSlotMorning": "Suba",
+  "promiseSlotAfternoon": "Bëccëg",
+  "promiseSlotEvening": "Ngoon",
+
+  "errorNetwork": "Internet jàll",
+  "errorRetry": "Jéemaat"
+}

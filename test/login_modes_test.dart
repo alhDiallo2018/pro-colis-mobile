@@ -79,8 +79,14 @@ Future<GoRouter> mount(WidgetTester tester, CaptureAuth auth, FakeGoogle google,
       child: MaterialApp.router(
           theme: AppTheme.lightTheme,
           routerConfig: router,
+          // L'écran d'auth contient une illustration animée infinie
+          // (DeliveryVan) et un timer de renvoi de code. On désactive les
+          // animations via MediaQuery : DeliveryVan la respecte et stoppe sa
+          // boucle, ce qui rend pumpAndSettle utilisable ici.
           builder: (_, child) => MediaQuery(
-              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+              data: MediaQueryData(
+                  textScaler: TextScaler.linear(scale),
+                  disableAnimations: true),
               child: child!))));
   await tester.pumpAndSettle();
   if (challenge != null) {

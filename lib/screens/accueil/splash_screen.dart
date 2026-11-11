@@ -76,6 +76,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                               .read(authProvider.notifier)
                               .retrySessionRestoration(),
                           child: const Text('Réessayer')),
+                      // Issue de secours quand la restauration echoue en boucle
+                      // (jeton illisible apres restauration de sauvegarde, cle
+                      // Keystore perdue). Sans ce bouton, l'utilisateur devait
+                      // reinstaller l'application pour pouvoir se reconnecter.
+                      TextButton(
+                          onPressed: () => ref
+                              .read(authProvider.notifier)
+                              .logout(forgetBiometrics: false),
+                          child: const Text('Se déconnecter')),
                     ])
                   : AnimatedOpacity(
                       opacity: _showIndicator ? 1 : 0,

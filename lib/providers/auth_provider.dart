@@ -20,13 +20,18 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier();
 });
 
+/// Message affiche une fois sur l'ecran de connexion apres un retour automatique
+/// (expiration de session serveur ou duree d'inactivite depassee). L'ecran de
+/// login lit la valeur, affiche un SnackBar puis la remet a null.
+final ValueNotifier<String?> sessionExpiredNotice = ValueNotifier<String?>(null);
+
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier({ApiService? apiService})
       : _apiService = apiService ?? ApiService(),
         super(AuthState.initial()) {
-    // Un 401 définitif (jeton expiré, rafraîchissement refusé) doit ramener à
-    // l'écran de connexion : sinon l'application reste sur un écran authentifié
-    // dont chaque requête échoue, qui tourne sans jamais rien afficher.
+    // Un 401 definitif (jeton expire, rafraichissement refuse) ramene
+    // directement a l'ecran de connexion : le routeur redirige quand l'etat
+    // passe a `unauthenticated`, sans ecran intermediaire ni bouton manuel.
     ApiService.onSessionExpired = _handleSessionExpired;
     _sessionRestoration = _loadUser();
   }
@@ -34,20 +39,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void _handleSessionExpired() {
     if (!mounted) return;
     OfflineAccess.instance.useSession(null);
-    // Les services actifs (livraison en cours, partage GPS, disponibilite)
-    // doivent continuer a tourner : seul l'utilisateur peut les desactiver.
-    // Conserver l'identite empeche le listener d'app.dart d'enclencher les
-    // stop/suspend en cascade sur un simple renouvellement de jeton.
-    final preservedUser = state.user;
-    if (preservedUser != null) {
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: false,
-        hasPendingSession: true,
-        error: 'Votre session a expire. Reconnectez-vous pour reprendre vos services.',
-      );
-      return;
-    }
+    sessionExpiredNotice.value =
+        'Votre session a expire. Reconnectez-vous pour continuer.';
     state = AuthState.unauthenticated();
   }
 

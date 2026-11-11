@@ -402,6 +402,240 @@ class Bid {
   }
 }
 
+// ==================== ENUM ETA CONFIDENCE ====================
+/// Niveau de confiance de l'ETA calculé par le backend. Déterminé par
+/// l'ancienneté de la dernière position GPS et le nombre de points mesurés.
+enum EtaConfidence {
+  high('high'),
+  medium('medium'),
+  low('low');
+
+  final String value;
+  const EtaConfidence(this.value);
+
+  static EtaConfidence fromString(String? raw) {
+    switch (raw) {
+      case 'high':
+        return EtaConfidence.high;
+      case 'low':
+        return EtaConfidence.low;
+      case 'medium':
+      default:
+        return EtaConfidence.medium;
+    }
+  }
+}
+
+// ==================== ENUM ETA MOVING STATE ====================
+/// État de mouvement du chauffeur au moment du calcul ETA.
+enum EtaMovingState {
+  moving('moving'),
+  stopped('stopped'),
+  unknown('unknown');
+
+  final String value;
+  const EtaMovingState(this.value);
+
+  static EtaMovingState fromString(String? raw) {
+    switch (raw) {
+      case 'moving':
+        return EtaMovingState.moving;
+      case 'stopped':
+        return EtaMovingState.stopped;
+      case 'unknown':
+      default:
+        return EtaMovingState.unknown;
+    }
+  }
+}
+
+// ==================== CLASSE PARCEL ETA ====================
+/// Prédiction d'arrivée dynamique renvoyée par le backend.
+///
+/// Toujours préférer `arrivalAt` (absolu) à `etaMinutes` pour l'affichage :
+/// le serveur fournit l'heure exacte ; le mobile convertit avec son horloge
+/// locale et évite la dérive si l'utilisateur garde l'écran ouvert.
+class ParcelEta {
+  final int etaMinutes;
+  final DateTime arrivalAt;
+  final int minMinutes;
+  final int maxMinutes;
+  final double distanceRemainingKm;
+  final EtaConfidence confidence;
+  final EtaMovingState movingState;
+  final DateTime computedAt;
+
+  const ParcelEta({
+    required this.etaMinutes,
+    required this.arrivalAt,
+    required this.minMinutes,
+    required this.maxMinutes,
+    required this.distanceRemainingKm,
+    required this.confidence,
+    required this.movingState,
+    required this.computedAt,
+  });
+
+  /// Parsing tolérant. Retourne `null` si le JSON est invalide ou absent —
+  /// jamais d'exception ne doit remonter jusqu'à l'affichage de tracking.
+  static ParcelEta? fromJson(dynamic raw) {
+    if (raw is! Map) return null;
+    final json = Map<String, dynamic>.from(raw);
+    final etaMin = _asInt(json['etaMinutes']);
+    final arrival = _parseDate(json['arrivalAt']);
+    final minMin = _asInt(json['minMinutes']);
+    final maxMin = _asInt(json['maxMinutes']);
+    final dist = _asDouble(json['distanceRemainingKm']);
+    final computed = _parseDate(json['computedAt']);
+    if (etaMin == null ||
+        arrival == null ||
+        minMin == null ||
+        maxMin == null ||
+        dist == null ||
+        computed == null) {
+      return null;
+    }
+    return ParcelEta(
+      etaMinutes: etaMin,
+      arrivalAt: arrival,
+      minMinutes: minMin,
+      maxMinutes: maxMin,
+      distanceRemainingKm: dist,
+      confidence: EtaConfidence.fromString(json['confidence'] as String?),
+      movingState: EtaMovingState.fromString(json['movingState'] as String?),
+      computedAt: computed,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'etaMinutes': etaMinutes,
+        'arrivalAt': arrivalAt.toUtc().toIso8601String(),
+        'minMinutes': minMinutes,
+        'maxMinutes': maxMinutes,
+        'distanceRemainingKm': distanceRemainingKm,
+        'confidence': confidence.value,
+        'movingState': movingState.value,
+        'computedAt': computedAt.toUtc().toIso8601String(),
+      };
+
+  /// Minutes restantes d'ici `now` basées sur `arrivalAt` (absolu). Clampé
+  /// à 0 si l'ETA est dépassée. Valeur à préférer pour l'affichage temps réel.
+  int remainingMinutesFrom(DateTime now) {
+    final diff = arrivalAt.difference(now);
+    if (diff.isNegative) return 0;
+    return diff.inMinutes;
+  }
+
+  static int? _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+
+  static double? _asDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v);
+    return null;
+  }
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v is DateTime) return v;
+    if (v is String && v.isNotEmpty) {
+      return DateTime.tryParse(v)?.toLocal();
+    }
+    return null;
+  }
+}
+
+// ==================== ENUM ANOMALY SEVERITY ====================
+enum AnomalySeverity {
+  info('info'),
+  warning('warning'),
+  critical('critical');
+
+  final String value;
+  const AnomalySeverity(this.value);
+
+  static AnomalySeverity fromString(String? raw) {
+    switch (raw) {
+      case 'critical':
+        return AnomalySeverity.critical;
+      case 'info':
+        return AnomalySeverity.info;
+      case 'warning':
+      default:
+        return AnomalySeverity.warning;
+    }
+  }
+}
+
+// ==================== CLASSE PARCEL ANOMALY ====================
+/// Anomalie trajet détectée par le backend (gps_silence, prolonged_stop,
+/// route_deviation). Toujours accompagnée d'un `detectedAt` ISO et d'un
+/// `details` libre (varie selon `type`).
+class ParcelAnomaly {
+  final String type;
+  final AnomalySeverity severity;
+  final DateTime detectedAt;
+  final Map<String, dynamic> details;
+
+  const ParcelAnomaly({
+    required this.type,
+    required this.severity,
+    required this.detectedAt,
+    this.details = const {},
+  });
+
+  /// Libellé court français pour affichage. Inconnu → type brut.
+  String get label {
+    switch (type) {
+      case 'gps_silence':
+        return 'Position perdue';
+      case 'prolonged_stop':
+        return 'Arrêt prolongé';
+      case 'route_deviation':
+        return "Écart d'itinéraire";
+      default:
+        return type;
+    }
+  }
+
+  static ParcelAnomaly? fromJson(dynamic raw) {
+    if (raw is! Map) return null;
+    final json = Map<String, dynamic>.from(raw);
+    final type = json['type']?.toString();
+    final detectedAtRaw = json['detectedAt']?.toString();
+    if (type == null || type.isEmpty || detectedAtRaw == null) return null;
+    final detectedAt = DateTime.tryParse(detectedAtRaw);
+    if (detectedAt == null) return null;
+    final details = json['details'] is Map
+        ? Map<String, dynamic>.from(json['details'] as Map)
+        : const <String, dynamic>{};
+    return ParcelAnomaly(
+      type: type,
+      severity: AnomalySeverity.fromString(json['severity']?.toString()),
+      detectedAt: detectedAt.toLocal(),
+      details: details,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'severity': severity.value,
+        'detectedAt': detectedAt.toUtc().toIso8601String(),
+        'details': details,
+      };
+
+  static List<ParcelAnomaly> listFromJson(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .map(ParcelAnomaly.fromJson)
+        .whereType<ParcelAnomaly>()
+        .toList(growable: false);
+  }
+}
+
 // ==================== CLASSE PARCEL ====================
 class Parcel {
   final String id;
@@ -546,6 +780,15 @@ class Parcel {
   /// transmise (ou que l'API ne la fournit pas).
   final DriverLocation? driverLocation;
 
+  /// ETA prédictive dynamique calculée côté backend. `null` quand le trajet
+  /// n'est pas en cours, la position est trop ancienne, ou les coordonnées
+  /// d'arrivée manquent — le mobile retombe alors sur `estimatedDeliveryDate`.
+  final ParcelEta? eta;
+
+  /// Anomalies trajet détectées par le backend (gps_silence, prolonged_stop,
+  /// route_deviation). Tableau vide quand aucune — valeur par défaut sûre.
+  final List<ParcelAnomaly> anomalies;
+
   Parcel({
     required this.id,
     required this.trackingNumber,
@@ -630,6 +873,8 @@ class Parcel {
     this.cancellation,
     this.events = const [],
     this.driverLocation,
+    this.eta,
+    this.anomalies = const [],
   });
 
   // ==================== FACTORY CONSTRUCTORS ====================
@@ -858,6 +1103,8 @@ class Parcel {
       driverLocation: parseDriverLocation(
         json['driverLocation'] ?? json['driver_location'],
       ),
+      eta: ParcelEta.fromJson(json['eta']),
+      anomalies: ParcelAnomaly.listFromJson(json['anomalies']),
     );
   }
 
@@ -1322,6 +1569,8 @@ class Parcel {
     CancellationResult? cancellation,
     List<ParcelEvent>? events,
     DriverLocation? driverLocation,
+    ParcelEta? eta,
+    List<ParcelAnomaly>? anomalies,
   }) {
     return Parcel(
       id: id ?? this.id,
@@ -1412,6 +1661,8 @@ class Parcel {
       cancellation: cancellation ?? this.cancellation,
       events: events ?? this.events,
       driverLocation: driverLocation ?? this.driverLocation,
+      eta: eta ?? this.eta,
+      anomalies: anomalies ?? this.anomalies,
     );
   }
 

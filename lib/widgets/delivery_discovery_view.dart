@@ -577,223 +577,373 @@ class _DeliveryDiscoveryViewState extends State<DeliveryDiscoveryView>
                   : const Icon(Icons.my_location, size: 20))
           : const Icon(Icons.chevron_right_rounded, size: 20));
 
-  List<Widget> _panelContent() => [
-        Row(children: [
-          Expanded(
-              child: Text(
-                  _offers
-                      ? 'Recevez des offres'
-                      : 'Un véhicule pour votre colis',
-                  style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -.4))),
-          if (!_offers)
-            IconButton(
-                onPressed: _loading ? null : _search,
-                tooltip: 'Actualiser la disponibilité',
-                icon: const Icon(Icons.refresh_rounded))
-        ]),
-        Text(
-            _offers
-                ? 'Les chauffeurs pourront répondre à votre annonce.'
-                : _point(_pickup) == null
-                    ? 'Choisissez le retrait pour trouver les chauffeurs autour.'
-                    : 'Disponibles à moins de ${_radius.toInt()} km du retrait',
-            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-        const SizedBox(height: 14),
-        if (!_offers) ...[
-          SizedBox(
-              height: 96 +
-                  math.max(0, MediaQuery.textScalerOf(context).scale(1) - 1) *
-                      70,
-              child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: vehicleTypes.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final type = index == 0
-                        ? null
-                        : vehicleTypes.keys.elementAt(index - 1);
-                    final selected = type == _vehicleType;
-                    final count = _result == null
-                        ? null
-                        : type == null
-                            ? _result!.counts.values
-                                .fold<int>(0, (a, b) => a + b)
-                            : _result!.counts[type] ?? 0;
-                    final label = type == null
-                        ? 'Tous'
-                        : type == 'motorcycle'
-                            ? 'Moto'
-                            : type == 'bus'
-                                ? 'Bus'
-                                : vehicleTypes[type]!;
-                    return Semantics(
-                        selected: selected,
-                        button: true,
-                        label:
-                            '$label, ${count == null ? 'disponibilité à vérifier' : '$count disponibles'}',
-                        child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () {
-                              setState(() {
-                                _vehicleType = type;
-                                _selected = null;
-                              });
-                              _emit();
-                              _search();
-                            },
-                            child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                width: 106 *
-                                    math.max(
-                                        1,
-                                        MediaQuery.textScalerOf(context)
-                                            .scale(1)),
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                    color: selected
-                                        ? AppTheme.primary
-                                        : AppTheme.slate100,
-                                    borderRadius: BorderRadius.circular(16)),
-                                child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(_icon(type),
-                                          size: 27,
-                                          color: selected
-                                              ? Colors.white
-                                              : AppTheme.textPrimary),
-                                      const SizedBox(height: 5),
-                                      Text(label,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                              color: selected
-                                                  ? Colors.white
-                                                  : AppTheme.textPrimary)),
-                                      Text(
-                                          count == null
-                                              ? '—'
-                                              : '$count disponibles',
-                                          style: TextStyle(
-                                              fontSize: 10,
-                                              color: selected
-                                                  ? Colors.white70
-                                                  : AppTheme.textSecondary)),
-                                    ]))));
-                  })),
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 4, children: [
-            ActionChip(
-                avatar: const Icon(Icons.scale_outlined, size: 16),
-                label: Text(_weight == null
-                    ? 'Poids du colis'
-                    : '${_weight! % 1 == 0 ? _weight!.toInt() : _weight} kg'),
-                onPressed: _setWeight),
-            PopupMenuButton<double>(
-                tooltip: 'Rayon de recherche',
-                initialValue: _radius,
-                onSelected: (value) {
-                  setState(() {
-                    _radius = value;
-                    _selected = null;
-                  });
-                  _center();
-                  _search();
-                },
-                itemBuilder: (_) => [3.0, 10.0, 25.0, 50.0, 100.0]
-                    .map((r) => PopupMenuItem(
-                        value: r,
-                        child: Text('Dans un rayon de ${r.toInt()} km')))
-                    .toList(),
-                child: Chip(
-                    avatar: const Icon(Icons.radar_rounded, size: 16),
-                    label: Text('${_radius.toInt()} km ▾'))),
-            FilterChip(
-                label: const Text('Vérifiés'),
-                selected: _verified,
-                onSelected: (value) {
-                  setState(() => _verified = value);
-                  _search();
-                }),
-          ]),
-          if (_loading)
-            const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: LinearProgressIndicator(minHeight: 3)),
-          if (_error != null)
-            _notice(Icons.wifi_off_rounded, _error!,
-                action: 'Réessayer', onTap: _search)
-          else if (!_loading && _point(_pickup) != null && _drivers.isEmpty)
-            _notice(Icons.travel_explore,
-                'Aucun chauffeur disponible ici pour ce besoin.',
-                action: _radius < 100
-                    ? 'Élargir à ${math.min(100, _radius < 25 ? 25 : _radius * 2).toInt()} km'
-                    : 'Voir tous les véhicules', onTap: () {
-              setState(() {
-                if (_radius < 100)
-                  _radius =
-                      math.min(100, _radius < 25 ? 25 : _radius * 2).toDouble();
-                else {
-                  _vehicleType = null;
-                  _weight = null;
-                  _verified = false;
-                }
-              });
-              _center();
-              _search();
-            }),
-          if (_selected case final selected?) ...[
-            _selectedCard(selected),
-            const SizedBox(height: 8),
-          ],
-          for (final driver
-              in _drivers.where((d) => d.user.id != _selected?.user.id))
-            Material(color: Colors.transparent, child: _driverRow(driver)),
-          if (_drivers.isNotEmpty)
-            Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Text(
-                    'Positions approximatives · distances à vol d’oiseau. La prise en charge et le prix seront confirmés avec le chauffeur.',
+  List<Widget> _panelContent() {
+    final pickupSet = _point(_pickup) != null;
+    return [
+      _modeSelector(),
+      const SizedBox(height: 10),
+      Center(child: _liveJourneysLink()),
+      const SizedBox(height: 8),
+      if (_offers)
+        ..._offerModeContent()
+      else
+        ..._directModeContent(pickupSet),
+    ];
+  }
+
+  void _setOffers(bool value) {
+    setState(() {
+      _offers = value;
+      _selected = null;
+    });
+    _emit();
+    _search();
+  }
+
+  Widget _modeSelector() => Row(children: [
+        Expanded(
+            child: _modeCard(
+                icon: Icons.near_me_rounded,
+                tone: AppTheme.primary,
+                title: 'Direct',
+                subtitle: 'Chauffeurs autour',
+                selected: !_offers,
+                onTap: _offers ? () => _setOffers(false) : null)),
+        const SizedBox(width: 8),
+        Expanded(
+            child: _modeCard(
+                icon: Icons.route_rounded,
+                tone: AppTheme.amber500,
+                title: 'Annoncés',
+                subtitle: 'Voyages planifiés',
+                selected: false,
+                onTap: () => context.push('/advertisements'))),
+        const SizedBox(width: 8),
+        Expanded(
+            child: _modeCard(
+                icon: Icons.campaign_rounded,
+                tone: AppTheme.green500,
+                title: 'Libre',
+                subtitle: 'Recevoir des offres',
+                selected: _offers,
+                onTap: _offers ? null : () => _setOffers(true))),
+      ]);
+
+  Widget _modeCard({
+    required IconData icon,
+    required Color tone,
+    required String title,
+    required String subtitle,
+    required bool selected,
+    VoidCallback? onTap,
+  }) =>
+      Semantics(
+        selected: selected,
+        button: true,
+        label: '$title, $subtitle',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+              decoration: BoxDecoration(
+                color: selected ? tone.withValues(alpha: .10) : AppTheme.slate50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected ? tone : AppTheme.slate200,
+                  width: selected ? 1.6 : 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: tone.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, size: 18, color: tone),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          height: 1.25,
+                          color: AppTheme.textSecondary)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+  Widget _liveJourneysLink() => TextButton.icon(
+        onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const LiveJourneysMap())),
+        icon: const Icon(Icons.gps_fixed, size: 15),
+        label: const Text('Voir aussi les navettes en direct'),
+        style: TextButton.styleFrom(
+          foregroundColor: AppTheme.textSecondary,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: const Size(0, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle:
+              const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      );
+
+  List<Widget> _offerModeContent() => [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppTheme.green500.withValues(alpha: .08),
+            border: Border.all(color: AppTheme.green500.withValues(alpha: .5)),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.campaign_rounded,
+                    color: AppTheme.green500, size: 20),
+                const SizedBox(width: 8),
+                Text('Annonce ouverte',
                     style: TextStyle(
-                        fontSize: 11,
-                        height: 1.4,
-                        color: AppTheme.textSecondary))),
-        ],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary)),
+              ]),
+              const SizedBox(height: 6),
+              Text(
+                  'Décrivez votre colis à l\'étape suivante : les chauffeurs vous proposeront leurs prix et vous choisirez le meilleur.',
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.4,
+                      color: AppTheme.textSecondary)),
+            ],
+          ),
+        ),
+      ];
+
+  List<Widget> _directModeContent(bool pickupSet) {
+    final driversWidget = <Widget>[];
+    if (_loading) {
+      driversWidget.add(const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: LinearProgressIndicator(minHeight: 3)));
+    }
+    if (_error != null) {
+      driversWidget.add(_notice(Icons.wifi_off_rounded, _error!,
+          action: 'Réessayer', onTap: _search));
+    } else if (!_loading && pickupSet && _drivers.isEmpty) {
+      driversWidget.add(_notice(Icons.travel_explore,
+          'Aucun chauffeur disponible ici pour ce besoin.',
+          action: _radius < 100
+              ? 'Élargir à ${math.min(100, _radius < 25 ? 25 : _radius * 2).toInt()} km'
+              : 'Voir tous les véhicules', onTap: () {
+        setState(() {
+          if (_radius < 100)
+            _radius =
+                math.min(100, _radius < 25 ? 25 : _radius * 2).toDouble();
+          else {
+            _vehicleType = null;
+            _weight = null;
+            _verified = false;
+          }
+        });
+        _center();
+        _search();
+      }));
+    }
+    if (_selected case final selected?) {
+      driversWidget.addAll([
+        _selectedCard(selected),
         const SizedBox(height: 8),
-        TextButton.icon(
-            onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const LiveJourneysMap())),
-            icon: const Icon(Icons.gps_fixed),
-            label: const Text('Navettes et véhicules en direct')),
-        TextButton.icon(
-            onPressed: () => context.push('/advertisements'),
-            icon: const Icon(Icons.route_outlined),
-            label: const Text('Voyages, GP et navettes annoncés')),
-        TextButton.icon(
-            onPressed: () {
+      ]);
+    }
+    for (final driver
+        in _drivers.where((d) => d.user.id != _selected?.user.id)) {
+      driversWidget.add(
+          Material(color: Colors.transparent, child: _driverRow(driver)));
+    }
+    if (_drivers.isNotEmpty) {
+      driversWidget.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(
+              'Positions approximatives · distances à vol d\'oiseau. La prise en charge et le prix seront confirmés avec le chauffeur.',
+              style: TextStyle(
+                  fontSize: 11,
+                  height: 1.4,
+                  color: AppTheme.textSecondary))));
+    }
+    return [
+      Row(children: [
+        Expanded(
+            child: Text('Un véhicule pour votre colis',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.3,
+                    color: AppTheme.textPrimary))),
+        IconButton(
+            onPressed: _loading ? null : _search,
+            tooltip: 'Actualiser',
+            icon: const Icon(Icons.refresh_rounded))
+      ]),
+      Text(
+          pickupSet
+              ? 'Disponibles à moins de ${_radius.toInt()} km du retrait'
+              : 'Choisissez le retrait pour trouver les chauffeurs autour.',
+          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+      const SizedBox(height: 12),
+      SizedBox(
+          // +6 px de marge : la Column intérieure (icône + 2 lignes de texte)
+          // tenait au pixel près selon le rendu de police et débordait de 2 px
+          // sur certaines configurations.
+          height: 98 +
+              math.max(0, MediaQuery.textScalerOf(context).scale(1) - 1) * 70,
+          child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: vehicleTypes.length + 1,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: _buildVehicleChip)),
+      const SizedBox(height: 10),
+      _filterChipsRow(),
+      ...driversWidget,
+      if (pickupSet)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text('Appui long sur la carte pour préciser un lieu.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+        ),
+    ];
+  }
+
+  Widget _buildVehicleChip(BuildContext context, int index) {
+    final type = index == 0 ? null : vehicleTypes.keys.elementAt(index - 1);
+    final selected = type == _vehicleType;
+    final count = _result == null
+        ? null
+        : type == null
+            ? _result!.counts.values.fold<int>(0, (a, b) => a + b)
+            : _result!.counts[type] ?? 0;
+    final label = type == null
+        ? 'Tous'
+        : type == 'motorcycle'
+            ? 'Moto'
+            : type == 'bus'
+                ? 'Bus'
+                : vehicleTypes[type]!;
+    return Semantics(
+        selected: selected,
+        button: true,
+        label:
+            '$label, ${count == null ? 'disponibilité à vérifier' : '$count disponibles'}',
+        child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
               setState(() {
-                _offers = !_offers;
+                _vehicleType = type;
                 _selected = null;
               });
               _emit();
               _search();
             },
-            icon: Icon(
-                _offers ? Icons.near_me_outlined : Icons.campaign_outlined,
-                size: 18),
-            label: Text(_offers
-                ? 'Choisir un chauffeur sur la carte'
-                : 'Préférer une annonce ouverte aux chauffeurs')),
-        if (!_offers && _point(_pickup) != null)
-          Text('Appui long sur la carte pour préciser un lieu.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
-      ];
+            child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 100 *
+                    math.max(1, MediaQuery.textScalerOf(context).scale(1)),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                    color:
+                        selected ? AppTheme.primary : AppTheme.slate100,
+                    borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(_icon(type),
+                          size: 26,
+                          color: selected
+                              ? Colors.white
+                              : AppTheme.textPrimary),
+                      const SizedBox(height: 4),
+                      Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: selected
+                                  ? Colors.white
+                                  : AppTheme.textPrimary)),
+                      Text(count == null ? '—' : '$count dispo.',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: selected
+                                  ? Colors.white70
+                                  : AppTheme.textSecondary)),
+                    ]))));
+  }
+
+  Widget _filterChipsRow() {
+    final weightActive = _weight != null;
+    return Wrap(spacing: 8, runSpacing: 4, children: [
+      ActionChip(
+          avatar: Icon(Icons.scale_outlined,
+              size: 16, color: weightActive ? AppTheme.primary : null),
+          label: Text(_weight == null
+              ? 'Poids du colis'
+              : '${_weight! % 1 == 0 ? _weight!.toInt() : _weight} kg'),
+          backgroundColor: weightActive
+              ? AppTheme.primary.withValues(alpha: .08)
+              : null,
+          shape: StadiumBorder(
+              side: BorderSide(
+                  color: weightActive
+                      ? AppTheme.primary
+                      : AppTheme.slate300)),
+          onPressed: _setWeight),
+      PopupMenuButton<double>(
+          tooltip: 'Rayon de recherche',
+          initialValue: _radius,
+          onSelected: (value) {
+            setState(() {
+              _radius = value;
+              _selected = null;
+            });
+            _center();
+            _search();
+          },
+          itemBuilder: (_) => [3.0, 10.0, 25.0, 50.0, 100.0]
+              .map((r) => PopupMenuItem(
+                  value: r,
+                  child: Text('Dans un rayon de ${r.toInt()} km')))
+              .toList(),
+          child: Chip(
+              avatar: const Icon(Icons.radar_rounded, size: 16),
+              label: Text('${_radius.toInt()} km ▾'))),
+      FilterChip(
+          label: const Text('Vérifiés'),
+          selected: _verified,
+          onSelected: (value) {
+            setState(() => _verified = value);
+            _search();
+          }),
+    ]);
+  }
 
   Widget _notice(IconData icon, String text,
           {required String action, required VoidCallback onTap}) =>

@@ -31,10 +31,27 @@ class DataQualityTag extends StatefulWidget {
 class _DataQualityTagState extends State<DataQualityTag> with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
+  bool get _isLive => widget.quality == DataQuality.live;
+
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+    if (_isLive) _ctrl.repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant DataQualityTag oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // La pulsation n'a de sens qu'en Direct : hors live on arrête le contrôleur
+    // pour éviter de garder une frame planifiée en permanence (coûteux en CPU
+    // et bloque pumpAndSettle dans les tests widgets).
+    if (_isLive && !_ctrl.isAnimating) {
+      _ctrl.repeat();
+    } else if (!_isLive && _ctrl.isAnimating) {
+      _ctrl.stop();
+      _ctrl.value = 0;
+    }
   }
 
   @override

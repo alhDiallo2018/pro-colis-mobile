@@ -50,6 +50,12 @@ PinRecoveryService service(RecoveryAdapter adapter,
 
 Future<void> mountRecovery(WidgetTester tester, PinRecoveryService recovery,
     {String identifier = '+221771234567'}) async {
+  // Vue par défaut (800×600) trop courte : le bouton principal tombe
+  // sous le fold et `tap()` rate la cible. On force un écran mobile usuel.
+  tester.view.physicalSize = const Size(400, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
   final router = GoRouter(initialLocation: '/forgot-pin', routes: [
     GoRoute(
         path: '/forgot-pin',
@@ -65,7 +71,17 @@ Future<void> mountRecovery(WidgetTester tester, PinRecoveryService recovery,
   addTearDown(router.dispose);
   await tester.pumpWidget(ProviderScope(
     overrides: [pinRecoveryServiceProvider.overrideWithValue(recovery)],
-    child: MaterialApp.router(theme: AppTheme.lightTheme, routerConfig: router),
+    child: MaterialApp.router(
+      theme: AppTheme.lightTheme,
+      routerConfig: router,
+      // ForgotPinScreen hérite d'AuthShell → DeliveryVan anime en boucle.
+      // On désactive les animations (la Van les respecte) pour laisser
+      // pumpAndSettle converger.
+      builder: (_, child) => MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: child!,
+      ),
+    ),
   ));
   await tester.pumpAndSettle();
 }
@@ -87,8 +103,16 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child:
-          MaterialApp.router(theme: AppTheme.lightTheme, routerConfig: router),
+      child: MaterialApp.router(
+        theme: AppTheme.lightTheme,
+        routerConfig: router,
+        // AuthShell → DeliveryVan anime en boucle : désactiver les animations
+        // laisse pumpAndSettle se terminer après chaque navigation.
+        builder: (_, child) => MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: child!,
+        ),
+      ),
     ));
     router.go('/login');
     await tester.pumpAndSettle();
@@ -267,8 +291,16 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child:
-          MaterialApp.router(theme: AppTheme.lightTheme, routerConfig: router),
+      child: MaterialApp.router(
+        theme: AppTheme.lightTheme,
+        routerConfig: router,
+        // AuthShell → DeliveryVan anime en boucle : désactiver les animations
+        // laisse pumpAndSettle se terminer après chaque navigation.
+        builder: (_, child) => MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: child!,
+        ),
+      ),
     ));
     router.go('/login');
     await tester.pumpAndSettle();

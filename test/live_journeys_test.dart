@@ -75,14 +75,16 @@ void main() {
                         DateTime.now().subtract(const Duration(minutes: 2)))
               ];
             })));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Ligne 45 · BUS-A'), findsOneWidget);
     expect(find.text('Ligne 45 · BUS-B'), findsOneWidget);
     expect(find.text('Ligne 45 · OLD'), findsNothing);
     expect(tester.takeException(), isNull);
     online = false;
     await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Ligne 45 · BUS-A'), findsNothing);
     expect(
         find.text(

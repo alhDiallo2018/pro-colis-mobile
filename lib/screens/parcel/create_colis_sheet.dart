@@ -26,6 +26,8 @@ import '../../services/api/client.dart';
 import '../../services/api/parcels_api.dart';
 import '../../services/api_service.dart';
 import '../../services/form_draft_store.dart';
+import '../../services/ocr_label_parser.dart';
+import '../../services/ocr_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/driver_visibility.dart';
 import '../../utils/debt_block.dart';
@@ -543,6 +545,72 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
       _receiverName.text = contact.contactName;
       _receiverPhone.text = contact.phoneNumber;
     });
+  }
+
+  /// Scanne une étiquette papier (photo caméra) via Google ML Kit, parse les
+  /// champs sénégalais usuels, et laisse l'utilisateur confirmer avant
+  /// pré-remplissage. Jamais de setState silencieux sur une donnée OCR :
+  /// l'utilisateur doit toujours valider le preview.
+  Future<void> _scanLabelFromCamera() async {
+    XFile? file;
+    try {
+      file = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+        maxWidth: 2200,
+      );
+    } catch (error) {
+      debugPrint('Erreur caméra OCR: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Caméra indisponible (permission refusée ?)'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+    if (file == null || !mounted) return;
+
+    final result = await OcrService.instance.scanLabel(file.path);
+    if (!mounted) return;
+
+    if (!result.hasAnyField) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Aucun texte exploitable détecté. Réessayez avec un meilleur éclairage.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final apply = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.backgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _OcrPreviewSheet(result: result),
+    );
+
+    if (!mounted || apply != true) return;
+    setState(() {
+      if (result.receiverName != null) _receiverName.text = result.receiverName!;
+      if (result.receiverPhone != null) _receiverPhone.text = result.receiverPhone!;
+      if (result.receiverAddress != null) {
+        _receiverAddress.text = result.receiverAddress!;
+      }
+      if (result.weightKg != null) {
+        _weight.text = result.weightKg!.toStringAsFixed(
+          result.weightKg! == result.weightKg!.roundToDouble() ? 0 : 1,
+        );
+      }
+    });
+    _scheduleDraftSave();
   }
 
   // ---- Pièces jointes : capture / enregistrement ----
@@ -1164,6 +1232,14 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
           onPressed: _importReceiverFromContacts,
           variant: PcButtonVariant.secondary,
           icon: Icons.contact_phone_rounded,
+          block: true,
+        ),
+        const SizedBox(height: 10),
+        PcButton(
+          'Scanner une étiquette',
+          onPressed: _scanLabelFromCamera,
+          variant: PcButtonVariant.secondary,
+          icon: Icons.document_scanner_rounded,
           block: true,
         ),
         const SizedBox(height: 16),
@@ -2353,6 +2429,121 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
                     fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Preview des champs extraits par l'OCR. L'utilisateur valide ou annule —
+/// il ne voit JAMAIS ses champs écrasés silencieusement.
+class _OcrPreviewSheet extends StatelessWidget {
+  final OcrLabelResult result;
+  const _OcrPreviewSheet({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    void addRow(IconData icon, String label, String? value) {
+      if (value == null) return;
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18, color: AppTheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: AppFonts.manrope(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary,
+                        )),
+                    Text(value,
+                        style: AppFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        )),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    addRow(Icons.badge_rounded, 'Nom détecté', result.receiverName);
+    addRow(Icons.call_rounded, 'Téléphone détecté', result.receiverPhone);
+    addRow(Icons.home_rounded, 'Adresse détectée', result.receiverAddress);
+    addRow(
+      Icons.scale_rounded,
+      'Poids détecté',
+      result.weightKg != null ? '${result.weightKg} kg' : null,
+    );
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.slate300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Champs détectés',
+              style: AppFonts.manrope(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Vérifiez avant de pré-remplir. Les champs vides ne seront pas modifiés.',
+              style: AppFonts.manrope(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...rows,
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: PcButton(
+                    'Annuler',
+                    onPressed: () => Navigator.pop(context, false),
+                    variant: PcButtonVariant.secondary,
+                    block: true,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: PcButton(
+                    'Utiliser',
+                    onPressed: () => Navigator.pop(context, true),
+                    icon: Icons.check_rounded,
+                    block: true,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

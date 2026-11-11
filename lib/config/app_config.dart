@@ -5,11 +5,14 @@
 abstract final class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    // Une application installée ne peut pas joindre le backend via
-    // `localhost` (qui désigne le téléphone lui-même). Le domaine public est
-    // donc le seul repli sûr ; les environnements locaux doivent continuer à
-    // injecter explicitement API_BASE_URL avec --dart-define.
-    defaultValue: 'https://sendprocolis.com/api/v1',
+    // Mode TEST LOCAL — cible le backend démarré sur l'hôte (port 18081 du
+    // docker-compose). Rappels par cible :
+    //   - Flutter web / macOS / iOS Simulator → `http://localhost:18081`
+    //   - Android Emulator (AVD)             → `http://10.0.2.2:18081`
+    //   - Device physique                    → `http://<IP_LAN_de_votre_mac>:18081`
+    // Pour un build de prod, injecter explicitement :
+    //   flutter build apk --dart-define=API_BASE_URL=https://sendprocolis.com/api/v1
+    defaultValue: 'http://localhost:18081/api/v1',
   );
 
   /// Verrou LOCAL uniquement : la biometrie protege l'ecran sans fermer la
@@ -50,7 +53,7 @@ abstract final class AppConfig {
       return apiUri.origin;
     }
 
-    return 'https://sendprocolis.com';
+    return 'http://localhost:18081';
   }
 
   static String get mediaBaseUrl {
@@ -79,7 +82,7 @@ abstract final class AppConfig {
   /// Hôte public affichable (sans schéma), dérivé de l'origine configurée.
   static String get publicHost {
     final uri = Uri.tryParse(publicAppUrl);
-    return uri?.host.isNotEmpty == true ? uri!.host : 'sendprocolis.com';
+    return uri?.host.isNotEmpty == true ? uri!.host : 'localhost';
   }
 
   static String _withoutTrailingSlash(String value) {

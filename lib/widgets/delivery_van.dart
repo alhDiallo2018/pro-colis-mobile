@@ -28,6 +28,7 @@ class DeliveryVan extends StatefulWidget {
 class _DeliveryVanState extends State<DeliveryVan>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool _animating = false;
 
   @override
   void initState() {
@@ -35,7 +36,23 @@ class _DeliveryVanState extends State<DeliveryVan>
     _controller = AnimationController(
       vsync: this,
       duration: Duration(seconds: widget.loopSeconds),
-    )..repeat(reverse: true);
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Respecte le réglage système « réduire les animations » (accessibilité) —
+    // également vrai dans les tests widgets, ce qui permet à pumpAndSettle de
+    // converger sur les écrans d'auth où cette illustration est présente.
+    final disabled = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (!disabled && !_animating) {
+      _controller.repeat(reverse: true);
+      _animating = true;
+    } else if (disabled && _animating) {
+      _controller.stop();
+      _animating = false;
+    }
   }
 
   @override

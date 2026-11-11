@@ -38,6 +38,25 @@ DriverMapResult result([String id = 'Awa']) => DriverMapResult(
     total: 1);
 
 void main() {
+  // La liste des chauffeurs vit dans un ListView paresseux (DraggableScrollableSheet
+  // ou panneau compact selon la hauteur). On fait défiler jusqu'au driver au
+  // lieu d'`ensureVisible`, qui ne peut rien contre une entrée pas encore bâtie.
+  Future<void> revealDriver(WidgetTester tester, String name) async {
+    final scrollable = find
+        .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    try {
+      await tester.scrollUntilVisible(find.text(name), 120,
+          scrollable: scrollable);
+    } catch (_) {
+      // Déjà visible ou pas dans cette liste : laisser le test lever lui-même.
+    }
+    // Laisse le scrollable libérer son hold avant la prochaine interaction :
+    // sans ces frames, un tap/rebuild immédiat déclenche l'assert `_hold == null`.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+  }
+
   Future<void> mount(WidgetTester tester,
       {Garage? pickup,
       required Future<DriverMapResult> Function(DriverDiscoveryQuery) load,
@@ -61,7 +80,11 @@ void main() {
               loadDrivers: load,
               mapBuilder: (_) => const ColoredBox(color: Color(0xffe7eeeb)),
             )))));
-    await tester.pumpAndSettle();
+    // Timer.periodic(30s) empêche pumpAndSettle : on fait tourner les
+    // microtâches et la première recherche sans jamais atteindre les 30s.
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
   }
 
   testWidgets('aucune position inventée, aucun appel avant le choix du retrait',
@@ -91,10 +114,10 @@ void main() {
         onChanged: (v) => selection = v);
     expect(query!.latitude, 14.7);
     expect(query!.radiusKm, 10);
-    await tester.ensureVisible(find.text('Awa'));
-    await tester.pumpAndSettle();
+    await revealDriver(tester, 'Awa');
     await tester.tap(find.text('Awa'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(selection!.driver!.id, 'Awa');
     expect(selection!.openForOffers, false);
     expect(find.text('Votre chauffeur'), findsOneWidget);
@@ -117,10 +140,13 @@ void main() {
     await tester.tap(find.text('Moto'));
     await tester.pump();
     moto.complete(result('Nouveau'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     truck.complete(result('Ancien'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(calls, 3);
+    await revealDriver(tester, 'Nouveau');
     expect(find.text('Nouveau'), findsOneWidget);
     expect(find.text('Ancien'), findsNothing);
     await tester.pumpWidget(const SizedBox());
@@ -137,13 +163,14 @@ void main() {
           return result();
         },
         onChanged: (v) => selection = v);
-    await tester.ensureVisible(find.text('Awa'));
-    await tester.pumpAndSettle();
+    await revealDriver(tester, 'Awa');
     await tester.tap(find.text('Awa'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     online = false;
     await tester.pump(const Duration(seconds: 31));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(selection!.driver, isNull);
     expect(find.text('Awa'), findsNothing);
     expect(

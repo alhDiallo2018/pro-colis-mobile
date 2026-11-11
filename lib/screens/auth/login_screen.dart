@@ -40,6 +40,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.initState();
     _country = allCountries.firstWhere((c) => c.dialCode == '+221');
     _restore();
+    // Expiration automatique : afficher le message une seule fois, puis le
+    // consommer pour qu'il ne reapparaisse pas apres une rotation ou un retour.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notice = sessionExpiredNotice.value;
+      if (notice == null || !mounted) return;
+      sessionExpiredNotice.value = null;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(notice),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4)));
+    });
   }
 
   Future<void> _restore() async {
@@ -348,28 +359,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: [
           Divider(color: AppTheme.slate200, height: 1),
           const SizedBox(height: 16),
-          Text.rich(
-            TextSpan(
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
-              children: [
-                const TextSpan(text: 'Pas encore de compte ? '),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: GestureDetector(
-                    onTap: disabled ? null : () => context.push('/register'),
-                    child: Text(
-                      'Créer un compte',
-                      style: AppFonts.plusJakartaSans(
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
+          // TextButton englobant : la zone tappable couvre toute la ligne
+          // (plus permissif que `TapGestureRecognizer` sur un span) et le
+          // texte reste trouvable via `find.text(..., findRichText: true)`.
+          TextButton(
+            onPressed: disabled ? null : () => context.push('/register'),
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                children: [
+                  const TextSpan(text: 'Pas encore de compte ? '),
+                  TextSpan(
+                    text: 'Créer un compte',
+                    style: AppFonts.plusJakartaSans(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31+) : regles de sauvegarde cloud et de transfert D2D.
+  On exclut TOUT par defaut : les jetons de session sont chiffres par
+  flutter_secure_storage via une cle stockee dans l'Android Keystore, qui
+  n'est jamais sauvegardee. Restaurer le blob chiffre sans la cle rendait le
+  token illisible et piegeait l'application sur "Connexion indisponible".
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" />
+        <exclude domain="database" />
+        <exclude domain="file" />
+        <exclude domain="root" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" />
+        <exclude domain="database" />
+        <exclude domain="file" />
+        <exclude domain="root" />
+    </device-transfer>
+</data-extraction-rules>
