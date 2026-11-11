@@ -11,6 +11,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api/business_shipper_api.dart';
@@ -100,6 +101,19 @@ class _BusinessShipperDashboardScreenState
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
+        // Fallback explicite : si la pile de navigation est vide (deep link
+        // ou context.go), on retombe sur /dashboard plutôt que de bloquer.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Retour',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
+        ),
         title: const Text('Tableau de bord expéditeur'),
         actions: [
           IconButton(

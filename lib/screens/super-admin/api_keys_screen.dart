@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api/admin_api_keys_api.dart';
@@ -182,6 +183,20 @@ class _ApiKeysScreenState extends ConsumerState<ApiKeysScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
+        // Retour robuste : pop si la pile existe, sinon on redirige
+        // explicitement vers le dashboard — évite une impasse quand
+        // l'écran est atteint via `context.go`.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Retour',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
+        ),
         title: const Text('Clés API partenaires'),
         actions: [
           IconButton(

@@ -957,7 +957,9 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 icon: Icons.vpn_key_rounded,
                 label: 'Clés API partenaires',
                 tone: PcTone.primary,
-                onTap: () => context.go('/admin/api-keys'),
+                // push plutôt que go : conserve la pile pour que l'AppBar
+                // affiche le bouton retour automatique.
+                onTap: () => context.push('/admin/api-keys'),
               ),
             ),
             const SizedBox(width: 12),
@@ -966,7 +968,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                 icon: Icons.insights_rounded,
                 label: 'Métriques pilote',
                 tone: PcTone.amber,
-                onTap: () => context.go('/admin/pilot-metrics'),
+                onTap: () => context.push('/admin/pilot-metrics'),
               ),
             ),
           ],
