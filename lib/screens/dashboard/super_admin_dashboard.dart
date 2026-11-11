@@ -954,6 +954,28 @@ class _SuperAdminHomeScreen extends StatelessWidget {
           children: [
             Expanded(
               child: _ActionCard(
+                icon: Icons.vpn_key_rounded,
+                label: 'Clés API partenaires',
+                tone: PcTone.primary,
+                onTap: () => context.go('/admin/api-keys'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.insights_rounded,
+                label: 'Métriques pilote',
+                tone: PcTone.amber,
+                onTap: () => context.go('/admin/pilot-metrics'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
                 icon: Icons.email_rounded,
                 label: 'Configuration Brevo',
                 tone: PcTone.primary,

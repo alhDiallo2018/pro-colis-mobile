@@ -1,4 +1,6 @@
 import '../experience/workspace_screen.dart';
+import '../client/business_shipper_dashboard_screen.dart';
+import '../shared/ai_assistant_screen.dart';
 // lib/screens/dashboard/client_dashboard.dart
 // ignore_for_file: prefer_const_literals_to_create_immutables, prefer_const_constructors, deprecated_member_use, unnecessary_this, unused_element
 
@@ -1262,6 +1264,33 @@ class HomeScreen extends StatelessWidget {
                     icon: const Icon(Icons.business_center_outlined),
                     label: const Text(
                         'Outils d’envoi · brouillons, alertes et reçus')),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const BusinessShipperDashboardScreen())),
+                        icon: const Icon(Icons.insights_outlined),
+                        label: const Text('Dashboard B2B'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const AiAssistantScreen())),
+                        icon: const Icon(Icons.auto_awesome_outlined),
+                        label: const Text('Assistant IA'),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 _ClientQuickActions(
                   onNew: () => showDeliveryCreation(context),
