@@ -54,7 +54,6 @@ import '../help/help_screen.dart';
 import '../parcel/confirm_delivery_screen.dart';
 import '../parcel/free_parcels_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
-import '../parcel/track_parcel_screen.dart';
 import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
 import '../shared/messages_screen.dart';
@@ -1393,126 +1392,6 @@ class _DriverCreateAdScreenState extends ConsumerState<DriverCreateAdScreen> {
   }
 }
 
-class _SearchBar extends StatelessWidget {
-  final void Function(String query) onSearch;
-
-  const _SearchBar({required this.onSearch});
-
-  @override
-  Widget build(BuildContext context) {
-    // Search button Citymapper-flavoured : pill arrondie, icône amber accent, flèche à droite.
-    return Material(
-      color: AppTheme.cardColor,
-      borderRadius: BorderRadius.circular(CmTokens.radiusCard),
-      child: InkWell(
-        onTap: () {
-          showSearch(
-            context: context,
-            delegate: _DriverSearchDelegate(onSearch: onSearch),
-          );
-        },
-        borderRadius: BorderRadius.circular(CmTokens.radiusCard),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(CmTokens.radiusCard),
-            border: Border.all(color: AppTheme.slate200),
-            boxShadow: CmTokens.shadowRaise(),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppTheme.amber50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.search, size: 20, color: AppTheme.amber600),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Rechercher un colis, un chauffeur…',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Numéro de suivi, nom ou téléphone',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward, size: 20, color: AppTheme.textSecondary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DriverSearchDelegate extends SearchDelegate<String> {
-  final void Function(String query) onSearch;
-
-  _DriverSearchDelegate({required this.onSearch})
-      : super(
-          searchFieldLabel: 'Rechercher un colis, un chauffeur…',
-        );
-
-  @override
-  List<Widget>? buildActions(BuildContext context) {
-    if (query.isNotEmpty) {
-      return [
-        IconButton(
-          icon: const Icon(Icons.clear),
-          onPressed: () => query = '',
-        ),
-      ];
-    }
-    return null;
-  }
-
-  @override
-  Widget? buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () => close(context, ''),
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    if (query.trim().isNotEmpty) {
-      onSearch(query.trim());
-      close(context, query.trim());
-    }
-    return const SizedBox.shrink();
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return Center(
-      child: Text(
-        'Entrez un numéro de suivi de colis.',
-        style: TextStyle(color: AppTheme.slate500),
-      ),
-    );
-  }
-}
-
 // ==================== DRIVER DASHBOARD ====================
 
 class DriverDashboard extends ConsumerStatefulWidget {
@@ -2127,19 +2006,6 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
       children: [
         _buildHero(user),
         const BroadcastBanner(),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: _SearchBar(onSearch: (query) {
-            if (query.trim().isNotEmpty) {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        TrackParcelScreen(trackingNumber: query.trim()),
-                  ));
-            }
-          }),
-        ),
         Expanded(
           child: RefreshIndicator(
             color: AppTheme.primary,
