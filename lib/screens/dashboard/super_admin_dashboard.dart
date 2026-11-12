@@ -1000,6 +1000,21 @@ class _SuperAdminHomeScreen extends StatelessWidget {
           children: [
             Expanded(
               child: _ActionCard(
+                icon: Icons.backup_rounded,
+                label: 'Sauvegardes',
+                tone: PcTone.neutral,
+                onTap: () => context.push('/admin/backups'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox()),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
                 icon: Icons.email_rounded,
                 label: 'Configuration Brevo',
                 tone: PcTone.primary,

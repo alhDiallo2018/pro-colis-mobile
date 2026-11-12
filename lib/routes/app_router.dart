@@ -76,6 +76,7 @@ import '../screens/super-admin/admin_parametres_screen.dart';
 import '../screens/super-admin/admin_user_role_screen.dart';
 import '../screens/super-admin/assistances_screen.dart';
 import '../screens/super-admin/audit_logs_screen.dart';
+import '../screens/super-admin/backups_screen.dart';
 import '../screens/super-admin/brevo_config_screen.dart';
 import '../screens/super-admin/broadcasts_page.dart';
 import '../screens/super-admin/cash_declarations_screen.dart';
@@ -923,6 +924,11 @@ class AppRouter {
           path: '/admin/api-keys',
           name: 'admin-api-keys',
           builder: (context, state) => const ApiKeysScreen(),
+        ),
+        GoRoute(
+          path: '/admin/backups',
+          name: 'admin-backups',
+          builder: (context, state) => const BackupsScreen(),
         ),
         GoRoute(
           path: '/admin/pilot-metrics',
