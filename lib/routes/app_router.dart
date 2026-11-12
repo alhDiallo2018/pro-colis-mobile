@@ -22,6 +22,9 @@ import '../screens/dashboard/notifications/notifications_screen.dart';
 import '../screens/dashboard/support_admin_dashboard.dart';
 import '../screens/dashboard/support_commercial_dashboard.dart';
 import '../screens/dashboard/support_technique_dashboard.dart';
+import '../screens/driver/advertisement_manifest_screen.dart';
+import '../screens/driver/advertisement_optimize_route_screen.dart';
+import '../screens/driver/advertisement_reached_stops_screen.dart';
 import '../screens/driver/garage_screen.dart';
 import '../screens/driver/historique_screen.dart';
 import '../screens/driver/itinerary_map_screen.dart';
@@ -30,6 +33,12 @@ import '../screens/driver/parametres_screen.dart';
 import '../screens/driver/points_screen.dart';
 import '../screens/driver/revenus_screen.dart';
 import '../screens/driver/vehicle_documents_screen.dart';
+import '../screens/parcel/handover_confirm_screen.dart';
+import '../screens/parcel/handover_initiate_screen.dart';
+import '../screens/parcel/international_offers_screen.dart';
+import '../screens/parcel/parcel_customs_screen.dart';
+import '../screens/shipper/shipment_batch_detail_screen.dart';
+import '../screens/shipper/shipment_batches_screen.dart';
 import '../screens/garage_admin/garage_admin_drivers_screen.dart';
 import '../screens/garage_admin/garage_admin_parcel_detail.dart';
 import '../screens/garage_admin/garage_colis_screen.dart';
@@ -62,7 +71,9 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/shared/admin_support_screen.dart';
 import '../screens/shared/messages_screen.dart';
 import '../screens/shared/support_chat_screen.dart';
+import '../screens/super-admin/admin_operations_hub_screen.dart';
 import '../screens/super-admin/admin_parametres_screen.dart';
+import '../screens/super-admin/admin_user_role_screen.dart';
 import '../screens/super-admin/assistances_screen.dart';
 import '../screens/super-admin/audit_logs_screen.dart';
 import '../screens/super-admin/brevo_config_screen.dart';
@@ -508,6 +519,93 @@ class AppRouter {
           path: '/driver/documents',
           name: 'driver-documents',
           builder: (context, state) => const VehicleDocumentsScreen(),
+        ),
+
+        // Phase 1 — Manifeste navette (driver).
+        GoRoute(
+          path: '/driver/advertisements/:adId/manifest',
+          name: 'driver-advertisement-manifest',
+          builder: (context, state) => AdvertisementManifestScreen(
+            advertisementId: state.pathParameters['adId'] ?? '',
+          ),
+        ),
+        // Phase 1 — Arrêts atteints (driver + client).
+        GoRoute(
+          path: '/advertisements/:adId/reached-stops',
+          name: 'advertisement-reached-stops',
+          builder: (context, state) => AdvertisementReachedStopsScreen(
+            advertisementId: state.pathParameters['adId'] ?? '',
+          ),
+        ),
+        // Phase 6 — Tournée optimisée (driver).
+        GoRoute(
+          path: '/driver/advertisements/:adId/optimize-route',
+          name: 'driver-advertisement-optimize-route',
+          builder: (context, state) => AdvertisementOptimizeRouteScreen(
+            advertisementId: state.pathParameters['adId'] ?? '',
+          ),
+        ),
+        // Phase 2 — Handover sortant (driver actuel).
+        GoRoute(
+          path: '/parcels/:parcelId/handovers/new',
+          name: 'parcel-handover-initiate',
+          builder: (context, state) => HandoverInitiateScreen(
+            parcelId: state.pathParameters['parcelId'] ?? '',
+          ),
+        ),
+        // Phase 2 — Handover entrant (driver cible).
+        GoRoute(
+          path: '/parcels/:parcelId/handovers/confirm',
+          name: 'parcel-handover-confirm',
+          builder: (context, state) => HandoverConfirmScreen(
+            parcelId: state.pathParameters['parcelId'] ?? '',
+          ),
+        ),
+        // Phase 5 — Déclaration douanière + devis carriers internationaux.
+        GoRoute(
+          path: '/parcels/:parcelId/customs',
+          name: 'parcel-customs',
+          builder: (context, state) => ParcelCustomsScreen(
+            parcelId: state.pathParameters['parcelId'] ?? '',
+          ),
+        ),
+        GoRoute(
+          path: '/parcels/:parcelId/international-offers',
+          name: 'parcel-international-offers',
+          builder: (context, state) => InternationalOffersScreen(
+            parcelId: state.pathParameters['parcelId'] ?? '',
+          ),
+        ),
+        // ADM-1 + OPS-2 + OPS-3 + OPS-4 — Écrans super_admin.
+        GoRoute(
+          path: '/super-admin/operations',
+          name: 'super-admin-operations',
+          builder: (context, state) => const AdminOperationsHubScreen(),
+        ),
+        // Alias défensif : liens historiques tapant /operators pointent sur
+        // le même hub (évite un 404 côté utilisateur).
+        GoRoute(
+          path: '/super-admin/operators',
+          redirect: (_, __) => '/super-admin/operations',
+        ),
+        GoRoute(
+          path: '/super-admin/users-role',
+          name: 'super-admin-users-role',
+          builder: (context, state) => const AdminUserRoleScreen(),
+        ),
+
+        // Phase 4 — Lots d'expédition B2B.
+        GoRoute(
+          path: '/shipment-batches',
+          name: 'shipment-batches',
+          builder: (context, state) => const ShipmentBatchesScreen(),
+        ),
+        GoRoute(
+          path: '/shipment-batches/:batchId',
+          name: 'shipment-batch-detail',
+          builder: (context, state) => ShipmentBatchDetailScreen(
+            batchId: state.pathParameters['batchId'] ?? '',
+          ),
         ),
 
         GoRoute(

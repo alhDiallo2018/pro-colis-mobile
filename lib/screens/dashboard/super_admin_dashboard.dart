@@ -978,6 +978,28 @@ class _SuperAdminHomeScreen extends StatelessWidget {
           children: [
             Expanded(
               child: _ActionCard(
+                icon: Icons.dashboard_customize_rounded,
+                label: 'Opérations (webhooks, arrêts, handovers, 14j, santé)',
+                tone: PcTone.primary,
+                onTap: () => context.push('/super-admin/operations'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.manage_accounts_rounded,
+                label: 'Promouvoir un rôle',
+                tone: PcTone.green,
+                onTap: () => context.push('/super-admin/users-role'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
                 icon: Icons.email_rounded,
                 label: 'Configuration Brevo',
                 tone: PcTone.primary,
