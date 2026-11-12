@@ -1,7 +1,7 @@
-import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
+import 'package:web/web.dart' as web;
 
 /// Registre une factory de platform view par URL unique. Réenregistrer une
 /// factory à chaque rebuild fuiterait (le bandeau tourne toutes les 5 s) : on
@@ -17,7 +17,7 @@ Widget buildNetworkImage(
   final viewType = _viewTypes.putIfAbsent(url, () {
     final type = 'procolis_web_image_${_viewTypes.length}';
     ui_web.platformViewRegistry.registerViewFactory(type, (int viewId) {
-      final img = html.ImageElement()
+      final img = web.HTMLImageElement()
         ..src = url
         ..alt = '';
       img.style
