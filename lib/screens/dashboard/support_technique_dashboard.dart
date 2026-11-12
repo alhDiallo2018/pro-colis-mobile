@@ -23,6 +23,7 @@ import '../../utils/format.dart';
 import '../../widgets/broadcast_banner.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/procolis_design_system.dart';
+import '../../widgets/support_tech_edit_sheets.dart';
 import '../profile/profile_screen.dart';
 import 'notifications/notifications_screen.dart';
 import 'role_dashboard_widgets.dart';
@@ -485,6 +486,19 @@ class _TicketsTab extends ConsumerWidget {
     }
   }
 
+  Future<void> _editTicket(
+    BuildContext context,
+    WidgetRef ref,
+    SupportTicket ticket,
+  ) async {
+    final changed = await TicketEditSheet.show(context, ticket: ticket);
+    if (changed == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ticket mis à jour')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filter = ref.watch(ticketFilterProvider);
@@ -579,6 +593,8 @@ class _TicketsTab extends ConsumerWidget {
                             onResolve: ticket.status == TicketStatus.resolved
                                 ? null
                                 : () => _resolve(context, ref, ticket),
+                            onEdit: () =>
+                                _editTicket(context, ref, ticket),
                           ),
                           const SizedBox(height: 10),
                         ],
@@ -637,8 +653,14 @@ class _TicketCard extends StatelessWidget {
   final SupportTicket ticket;
   final VoidCallback? onTakeCharge;
   final VoidCallback? onResolve;
+  final VoidCallback? onEdit;
 
-  const _TicketCard({required this.ticket, this.onTakeCharge, this.onResolve});
+  const _TicketCard({
+    required this.ticket,
+    this.onTakeCharge,
+    this.onResolve,
+    this.onEdit,
+  });
 
   String get _slaLabel {
     final sla = ticket.slaRemaining;
@@ -727,7 +749,7 @@ class _TicketCard extends StatelessWidget {
               ),
             ],
           ),
-          if (onTakeCharge != null || onResolve != null) ...[
+          if (onTakeCharge != null || onResolve != null || onEdit != null) ...[
             const SizedBox(height: 14),
             Row(
               children: [
@@ -752,6 +774,14 @@ class _TicketCard extends StatelessWidget {
                       onPressed: onResolve,
                     ),
                   ),
+                if (onEdit != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Éditer',
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_rounded),
+                  ),
+                ],
               ],
             ),
           ],
@@ -837,6 +867,7 @@ class _IncidentsTab extends ConsumerWidget {
                         _IncidentCard(
                           incident: incident,
                           onResolve: () => _resolve(context, ref, incident),
+                          onEdit: () => _edit(context, ref, incident),
                         ),
                         const SizedBox(height: 12),
                       ],
@@ -878,13 +909,32 @@ class _IncidentsTab extends ConsumerWidget {
       );
     }
   }
+
+  Future<void> _edit(
+    BuildContext context,
+    WidgetRef ref,
+    PlatformIncident incident,
+  ) async {
+    final changed =
+        await IncidentEditSheet.show(context, incident: incident);
+    if (changed == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Incident mis à jour')),
+      );
+    }
+  }
 }
 
 class _IncidentCard extends StatelessWidget {
   final PlatformIncident incident;
   final VoidCallback? onResolve;
+  final VoidCallback? onEdit;
 
-  const _IncidentCard({required this.incident, this.onResolve});
+  const _IncidentCard({
+    required this.incident,
+    this.onResolve,
+    this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -944,6 +994,14 @@ class _IncidentCard extends StatelessWidget {
             children: [
               PcMeta(Icons.group_rounded,
                   '${formatAmount(incident.impactedUsers)} utilisateurs touchés'),
+              if (onEdit != null)
+                PcButton(
+                  'Éditer',
+                  icon: Icons.edit_rounded,
+                  size: PcButtonSize.sm,
+                  variant: PcButtonVariant.ghost,
+                  onPressed: onEdit,
+                ),
               if (onResolve != null)
                 PcButton(
                   'Clôturer',

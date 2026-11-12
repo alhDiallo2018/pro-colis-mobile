@@ -95,6 +95,95 @@ class _SupportInboxScreenState extends ConsumerState<SupportInboxScreen> {
     }
   }
 
+  /// Ouvre la liste des agents disponibles pour transférer une conversation
+  /// à un autre agent. `expectedAssignedToId` est renvoyé au serveur pour
+  /// détecter une réaffectation concurrente (un collègue qui aurait repris
+  /// la demande entre-temps).
+  Future<void> _transfer(Map<String, dynamic> chat) async {
+    final chatId = chat['id'] as String;
+    final currentAssignee = chat['assignedTo']?['id'] as String?;
+
+    List<Map<String, dynamic>> agents = const [];
+    try {
+      final result = await _api.supportChatRequest('/agents');
+      agents = List<Map<String, dynamic>>.from(result['agents'] as List);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Chargement des agents impossible : $error')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    final me = ref.read(authProvider).user?.id;
+    final targets =
+        agents.where((agent) => agent['id'] != me).toList(growable: false);
+
+    if (targets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun autre agent disponible pour l\'instant.'),
+        ),
+      );
+      return;
+    }
+
+    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Transférer à',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ),
+            for (final agent in targets)
+              ListTile(
+                leading: const CircleAvatar(
+                    child: Icon(Icons.support_agent_rounded)),
+                title: Text(agent['fullName']?.toString() ?? 'Agent'),
+                subtitle: Text(
+                  '${agent['activeCases'] ?? 0} dossier(s) en cours',
+                ),
+                onTap: () => Navigator.pop(ctx, agent),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null) return;
+
+    try {
+      await _api.supportChatRequest(
+        '/conversations/$chatId/transfer',
+        data: {
+          'agentId': selected['id'],
+          'expectedAssignedToId': currentAssignee,
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Transféré à ${selected['fullName']?.toString() ?? 'l\'agent'}',
+          ),
+        ),
+      );
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Transfert impossible : $error')),
+      );
+    }
+  }
+
   Future<void> _contact(Map<String, dynamic> user) async {
     try {
       final result = await _api
@@ -164,10 +253,14 @@ class _SupportInboxScreenState extends ConsumerState<SupportInboxScreen> {
                             : null,
                         child: const Text('Prendre en charge')),
                   if (chat['assignedTo']?['id'] == userId &&
-                      chat['status'] == 'open')
+                      chat['status'] == 'open') ...[
+                    TextButton(
+                        onPressed: () => _transfer(chat),
+                        child: const Text('Transférer')),
                     TextButton(
                         onPressed: () => _action(chat['id'] as String, 'close'),
                         child: const Text('Clôturer')),
+                  ],
                 ]),
               ])),
           ])),

@@ -36,6 +36,7 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/live_tracking_map.dart';
 import '../../widgets/parcel_tracking_summary.dart';
 import '../../widgets/parcel_live_tracking_card.dart';
+import '../../widgets/status_timeline.dart';
 
 class TrackParcelScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -2029,6 +2030,30 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
             const Divider(),
             const SizedBox(height: 20),
             _buildStatusTimeline(parcel),
+            if (parcel.events.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.history_rounded, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Événements du colis',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: primaryBlue,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              StatusTimeline.fromEvents(
+                parcel.events,
+                currentStatus: parcel.status,
+              ),
+            ],
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 20),

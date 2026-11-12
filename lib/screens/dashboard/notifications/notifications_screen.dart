@@ -96,6 +96,95 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
+  /// Suppression optimiste : on retire la carte de la liste avant l'appel
+  /// réseau. En cas d'échec, on restaure l'état précédent et on affiche
+  /// un snackbar — pas de reload complet qui ferait sauter le défilement.
+  Future<void> _deleteOne(_NotificationItem notification) async {
+    final previous = List<_NotificationItem>.from(_notifications);
+    setState(() {
+      _notifications = [
+        for (final item in _notifications)
+          if (item.id != notification.id) item,
+      ];
+    });
+    NotificationBadgeService.refresh();
+    try {
+      final success = await _apiService.deleteNotification(notification.id);
+      if (!success && mounted) {
+        setState(() => _notifications = previous);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Suppression impossible'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Erreur deleteNotification: $error\n$stackTrace');
+      if (mounted) {
+        setState(() => _notifications = previous);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Suppression impossible'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAll() async {
+    if (_notifications.isEmpty) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tout effacer ?'),
+        content: const Text(
+          'Toutes vos notifications seront supprimées. Cette action est '
+          'irréversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.red400),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Effacer'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    final previous = List<_NotificationItem>.from(_notifications);
+    setState(() => _notifications = []);
+    NotificationBadgeService.refresh();
+    try {
+      final success = await _apiService.deleteAllNotifications();
+      if (!success && mounted) {
+        setState(() => _notifications = previous);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Purge impossible'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Erreur deleteAllNotifications: $error\n$stackTrace');
+      if (mounted) {
+        setState(() => _notifications = previous);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Purge impossible'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _markAsRead(_NotificationItem notification) async {
     if (notification.isRead) return;
 
@@ -177,6 +266,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             icon: const Icon(Icons.done_all_rounded),
             tooltip: 'Tout marquer comme lu',
           ),
+          IconButton(
+            onPressed: _notifications.isEmpty ? null : _deleteAll,
+            icon: const Icon(Icons.delete_sweep_rounded),
+            tooltip: 'Tout effacer',
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -210,9 +304,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final notification = _notifications[index];
-                          return _NotificationTile(
-                            notification: notification,
-                            onTap: () => _openNotification(notification),
+                          return Dismissible(
+                            key: ValueKey('notif_${notification.id}'),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: AppTheme.red50,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(Icons.delete_outline_rounded,
+                                  color: AppTheme.red500),
+                            ),
+                            onDismissed: (_) => _deleteOne(notification),
+                            child: _NotificationTile(
+                              notification: notification,
+                              onTap: () => _openNotification(notification),
+                            ),
                           );
                         },
                       ),

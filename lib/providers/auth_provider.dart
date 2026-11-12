@@ -401,6 +401,50 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Termine toutes les sessions distantes du compte (téléphone perdu /
+  /// changement de PIN forcé). Tombe sur le même chemin de nettoyage que
+  /// `logout` en local, mais via `/auth/logout-all` qui révoque aussi les
+  /// autres appareils. Retourne `true` si la révocation serveur a réussi.
+  Future<bool> logoutAllSessions() async {
+    bool remoteSucceeded = false;
+    try {
+      await _sessionRestoration;
+      await BiometricService.disable();
+      remoteSucceeded = await _apiService.logoutAllSessions();
+    } catch (error, stackTrace) {
+      debugPrint('[AuthNotifier] Déconnexion globale incomplète : $error');
+      debugPrintStack(
+        label: '[AuthNotifier] Trace logout-all',
+        stackTrace: stackTrace,
+      );
+      try {
+        await _apiService.clearToken();
+      } catch (clearError, clearStackTrace) {
+        debugPrint(
+          '[AuthNotifier] Suppression locale des jetons impossible : '
+          '$clearError',
+        );
+        debugPrintStack(
+          label: '[AuthNotifier] Trace de suppression des jetons',
+          stackTrace: clearStackTrace,
+        );
+      }
+    } finally {
+      try {
+        await FormDraftStore.clearAll();
+      } catch (error, stackTrace) {
+        debugPrint(
+            '[AuthNotifier] Nettoyage des brouillons impossible : $error');
+        debugPrintStack(
+          label: '[AuthNotifier] Trace de nettoyage des brouillons',
+          stackTrace: stackTrace,
+        );
+      }
+      if (mounted) state = AuthState.unauthenticated();
+    }
+    return remoteSucceeded;
+  }
+
   Future<void> refreshUser() async {
     try {
       final user = await _apiService.getCurrentUser();

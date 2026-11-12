@@ -425,6 +425,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     GoRouter.of(context).go('/login');
   }
 
+  /// Confirmation forte : la révocation de toutes les sessions est
+  /// irréversible et affecte les autres appareils (téléphone perdu).
+  Future<void> _logoutAll() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Déconnecter tous les appareils ?'),
+        content: const Text(
+          'Toutes vos sessions seront terminées, y compris sur vos autres '
+          'appareils. Vous devrez vous reconnecter partout.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.red400),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Tout déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final ok = await ref.read(authProvider.notifier).logoutAllSessions();
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Déconnexion globale impossible — réessayez plus tard.'),
+        ),
+      );
+      return;
+    }
+    GoRouter.of(context).go('/login');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -655,6 +693,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             variant: PcButtonVariant.danger,
             block: true,
             onPressed: _logout,
+          ),
+          const SizedBox(height: 10),
+          PcButton(
+            'Déconnecter tous les appareils',
+            icon: Icons.devices_other_rounded,
+            variant: PcButtonVariant.ghost,
+            block: true,
+            onPressed: _logoutAll,
           ),
           const SizedBox(height: 18),
           Center(

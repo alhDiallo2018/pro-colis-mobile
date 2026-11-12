@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/pc_components.dart';
+import 'refund_points_dialog.dart';
 
 class ScoreDetailScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -125,6 +126,22 @@ class _ScoreDetailScreenState extends ConsumerState<ScoreDetailScreen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Rembourser des points'),
+                        onPressed: () async {
+                          final ok = await RefundPointsDialog.show(
+                            context,
+                            widget.userId,
+                          );
+                          if (ok == true) _load();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.teal500,
+                          side: BorderSide(color: AppTheme.teal500),
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Text('Historique', style: AppFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),

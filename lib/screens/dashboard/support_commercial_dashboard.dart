@@ -381,6 +381,26 @@ class _CommercialQuickActions extends StatelessWidget {
 class _LeadsTab extends ConsumerWidget {
   const _LeadsTab();
 
+  Future<void> _openCreateLeadSheet(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final created = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _CreateLeadSheet(),
+    );
+    if (created == true) {
+      invalidateSupportCommercial(ref);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Prospect ajouté au pipeline')),
+        );
+      }
+    }
+  }
+
   Future<void> _advance(
     BuildContext context,
     WidgetRef ref,
@@ -433,13 +453,25 @@ class _LeadsTab extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Pipeline commercial',
-                    style: AppFonts.plusJakartaSans(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Pipeline commercial',
+                          style: AppFonts.plusJakartaSans(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () =>
+                            _openCreateLeadSheet(context, ref),
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Nouveau'),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -822,6 +854,198 @@ class _CoverageTab extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Feuille « Nouveau prospect »
+// ============================================================
+
+class _CreateLeadSheet extends ConsumerStatefulWidget {
+  const _CreateLeadSheet();
+
+  @override
+  ConsumerState<_CreateLeadSheet> createState() => _CreateLeadSheetState();
+}
+
+class _CreateLeadSheetState extends ConsumerState<_CreateLeadSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
+  final _contactNameCtrl = TextEditingController();
+  final _contactPhoneCtrl = TextEditingController();
+  final _monthlyValueCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+
+  LeadKind _kind = LeadKind.businessClient;
+  LeadStage _stage = LeadStage.contacted;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _cityCtrl.dispose();
+    _contactNameCtrl.dispose();
+    _contactPhoneCtrl.dispose();
+    _monthlyValueCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _submitting = true);
+    try {
+      await ref.read(supportRolesApiProvider).createLead(
+            name: _nameCtrl.text.trim(),
+            city: _cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim(),
+            kind: _kind,
+            stage: _stage,
+            monthlyValue: _monthlyValueCtrl.text.trim().isEmpty
+                ? null
+                : double.tryParse(
+                    _monthlyValueCtrl.text.replaceAll(',', '.').trim(),
+                  ),
+            contactName: _contactNameCtrl.text.trim().isEmpty
+                ? null
+                : _contactNameCtrl.text.trim(),
+            contactPhone: _contactPhoneCtrl.text.trim().isEmpty
+                ? null
+                : _contactPhoneCtrl.text.trim(),
+            notes: _notesCtrl.text.trim().isEmpty
+                ? null
+                : _notesCtrl.text.trim(),
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (error, stackTrace) {
+      debugPrint('Création prospect échouée: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Échec : $error'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.slate300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Nouveau prospect',
+                  style: AppFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Nom *'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Nom requis' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _cityCtrl,
+                  decoration: const InputDecoration(labelText: 'Ville'),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<LeadKind>(
+                  initialValue: _kind,
+                  decoration: const InputDecoration(labelText: 'Type'),
+                  items: [
+                    for (final k in LeadKind.values)
+                      DropdownMenuItem(value: k, child: Text(k.label)),
+                  ],
+                  onChanged: (v) => setState(() => _kind = v ?? _kind),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<LeadStage>(
+                  initialValue: _stage,
+                  decoration: const InputDecoration(labelText: 'Étape'),
+                  items: [
+                    for (final s in LeadStage.values)
+                      DropdownMenuItem(value: s, child: Text(s.label)),
+                  ],
+                  onChanged: (v) => setState(() => _stage = v ?? _stage),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _contactNameCtrl,
+                  decoration:
+                      const InputDecoration(labelText: 'Nom du contact'),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _contactPhoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Téléphone'),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _monthlyValueCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Valeur mensuelle estimée (FCFA)',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                ),
+                const SizedBox(height: 16),
+                PcButton(
+                  'Créer le prospect',
+                  onPressed: _submitting ? null : _submit,
+                  loading: _submitting,
+                  icon: Icons.handshake_rounded,
+                  size: PcButtonSize.lg,
+                  block: true,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

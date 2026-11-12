@@ -73,4 +73,24 @@ class NotificationsApi {
       return false;
     }
   }
+
+  Future<bool> deleteOne(String id) async {
+    try {
+      final res = await client.dio.delete('/notifications/$id');
+      return client.handle(res)['success'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Purge complète de l'inbox. Le serveur route explicitement `/all` avant
+  /// `/:notificationId` pour éviter de consommer le mot « all » comme id.
+  Future<bool> deleteAll() async {
+    try {
+      final res = await client.dio.delete('/notifications/all');
+      return client.handle(res)['success'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
 }

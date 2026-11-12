@@ -111,6 +111,26 @@ class ApiService {
     }
   }
 
+  /// Termine toutes les sessions distantes du compte (tous appareils). Utile
+  /// en cas de téléphone perdu : le refresh token local est également purgé
+  /// pour forcer une ré-authentification sur cet appareil. L'appel serveur
+  /// requiert une session active : on le fait AVANT d'effacer le token local.
+  Future<bool> logoutAllSessions() async {
+    try {
+      await _dio.post('/auth/logout-all');
+    } catch (error) {
+      debugPrint(
+          '[API] Logout-all serveur indisponible (${error.runtimeType})');
+      // On n'invalide pas localement si le serveur n'a pas reçu la demande :
+      // sinon l'utilisateur croit avoir révoqué ses autres sessions alors
+      // qu'elles restent actives.
+      return false;
+    }
+    await AuthSessionManager.instance.clear();
+    OfflineAccess.instance.useSession(null);
+    return true;
+  }
+
   // ==================== AUTH ====================
 
   Future<Map<String, dynamic>> loginWithPin(
@@ -1766,6 +1786,26 @@ class ApiService {
     }
   }
 
+  Future<bool> deleteNotification(String notificationId) async {
+    try {
+      final response = await _dio.delete('/notifications/$notificationId');
+      return _handleResponse(response)['success'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Purge totale. Le serveur route `/all` avant `/:id` : on n'a pas à
+  /// filtrer côté client.
+  Future<bool> deleteAllNotifications() async {
+    try {
+      final response = await _dio.delete('/notifications/all');
+      return _handleResponse(response)['success'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getNotificationPreferences() async {
     try {
       final response = await _dio.get('/notifications/preferences');
@@ -2929,16 +2969,61 @@ class ApiService {
     }
   }
 
+  /// Legacy : renvoie uniquement la liste sans méta pagination. Conservé pour
+  /// les appelants qui n'ont pas besoin du total/pages.
   Future<List<Map<String, dynamic>>> adminScores(
       {Map<String, dynamic>? params}) async {
     try {
       final response =
           await _dio.get('/super-admin/scores', queryParameters: params);
       final responseData = _handleResponse(response);
-      final list = responseData['scores'] ?? responseData['data'] ?? [];
+      final list = responseData['scores'] ??
+          (responseData['data'] is Map
+              ? (responseData['data'] as Map)['scores']
+              : null) ??
+          responseData['data'] ??
+          [];
       return List<Map<String, dynamic>>.from(list);
     } catch (e) {
       return [];
+    }
+  }
+
+  /// Variante paginée : renvoie liste + total/totalPages pour exposer les
+  /// contrôles de pagination dans l'UI. Les filtres optionnels mappent 1-1
+  /// sur les query params acceptés par `listScores` côté serveur.
+  Future<({List<Map<String, dynamic>> scores, int total, int totalPages, int page})>
+      adminScoresPage({
+    int page = 1,
+    int limit = 20,
+    String? level,
+    String? garage,
+    String? region,
+    String? search,
+  }) async {
+    try {
+      final response = await _dio.get('/super-admin/scores', queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (level != null && level.isNotEmpty) 'level': level,
+        if (garage != null && garage.isNotEmpty) 'garage': garage,
+        if (region != null && region.isNotEmpty) 'region': region,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
+      final responseData = _handleResponse(response);
+      final data = (responseData['data'] as Map?)?.cast<String, dynamic>() ??
+          responseData;
+      final list = (data['scores'] as List?) ?? const [];
+      final meta = (responseData['meta'] as Map?)?.cast<String, dynamic>() ??
+          const <String, dynamic>{};
+      return (
+        scores: List<Map<String, dynamic>>.from(list),
+        total: (meta['total'] as num?)?.toInt() ?? list.length,
+        totalPages: (meta['totalPages'] as num?)?.toInt() ?? 1,
+        page: (meta['page'] as num?)?.toInt() ?? page,
+      );
+    } catch (e) {
+      return (scores: <Map<String, dynamic>>[], total: 0, totalPages: 1, page: page);
     }
   }
 
@@ -2981,6 +3066,26 @@ class ApiService {
     try {
       final response =
           await _dio.post('/super-admin/scores/$userId/remove', data: data);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Remboursement de points (support/super_admin). Le serveur impose
+  /// `direction=credit` et type='refund' : on ne fait que transporter le
+  /// motif, le montant et l'utilisateur ciblé.
+  Future<Map<String, dynamic>> adminRefundPoints({
+    required String userId,
+    required int amount,
+    required String reason,
+  }) async {
+    try {
+      final response = await _dio.post('/score/refund', data: {
+        'userId': userId,
+        'amount': amount,
+        'reason': reason,
+      });
       return _handleResponse(response);
     } catch (e) {
       return {'success': false, 'message': e.toString()};

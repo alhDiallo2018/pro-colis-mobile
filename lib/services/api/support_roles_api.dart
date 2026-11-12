@@ -91,6 +91,15 @@ class SupportRolesApi {
     return _list(data['tickets']).map(SupportTicket.fromJson).toList();
   }
 
+  /// Détail d'un ticket (messages + colis lié). L'écran liste n'en expose
+  /// qu'un résumé : la vue détaillée nécessite cet endpoint pour les champs
+  /// manquants (`description`, `messages`, `createdBy`…).
+  Future<SupportTicket> getTicket(String ticketId) async {
+    final data = await _get('/support-technique/tickets/$ticketId');
+    final raw = (data['ticket'] as Map?)?.cast<String, dynamic>() ?? {};
+    return SupportTicket.fromJson(raw);
+  }
+
   Future<SupportTicket> updateTicket(
     String ticketId, {
     TicketStatus? status,
@@ -148,6 +157,35 @@ class SupportRolesApi {
     );
   }
 
+  /// Mise à jour générique d'un incident. Seuls les champs fournis sont
+  /// envoyés, pour éviter d'écraser les autres valeurs côté serveur.
+  /// `resolveIncident` reste la voie pour marquer un incident résolu : on
+  /// évite de dupliquer la responsabilité.
+  Future<PlatformIncident> updateIncident(
+    String incidentId, {
+    String? title,
+    String? scope,
+    IncidentSeverity? severity,
+    int? impactedUsers,
+    bool? mitigated,
+  }) async {
+    final payload = <String, dynamic>{
+      if (title != null) 'title': title,
+      if (scope != null) 'scope': scope,
+      if (severity != null) 'severity': severity.value,
+      if (impactedUsers != null) 'impactedUsers': impactedUsers,
+      if (mitigated != null) 'mitigated': mitigated,
+    };
+    final data = await _send(
+      '/support-technique/incidents/$incidentId',
+      payload,
+      patch: true,
+    );
+    return PlatformIncident.fromJson(
+      (data['incident'] as Map?)?.cast<String, dynamic>() ?? {},
+    );
+  }
+
   // ---------------- Support commercial ----------------
 
   Future<SupportCommercialSummary> commercialStats() async {
@@ -162,6 +200,38 @@ class SupportRolesApi {
       'limit': limit,
     });
     return _list(data['leads']).map(CommercialLead.fromJson).toList();
+  }
+
+  /// Nouveau prospect dans le portefeuille de l'agent commercial. Le
+  /// serveur fixe le `ownerId` à partir du JWT : on n'a pas à le passer.
+  Future<CommercialLead> createLead({
+    required String name,
+    String? city,
+    LeadKind? kind,
+    LeadStage? stage,
+    double? monthlyValue,
+    String? contactName,
+    String? contactPhone,
+    DateTime? nextFollowUpAt,
+    String? notes,
+  }) async {
+    final data = await _send('/support-commercial/leads', {
+      'name': name,
+      if (city != null && city.isNotEmpty) 'city': city,
+      if (kind != null) 'kind': kind.value,
+      if (stage != null) 'stage': stage.value,
+      if (monthlyValue != null) 'monthlyValue': monthlyValue,
+      if (contactName != null && contactName.isNotEmpty)
+        'contactName': contactName,
+      if (contactPhone != null && contactPhone.isNotEmpty)
+        'contactPhone': contactPhone,
+      if (nextFollowUpAt != null)
+        'nextFollowUpAt': nextFollowUpAt.toIso8601String(),
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    });
+    return CommercialLead.fromJson(
+      (data['lead'] as Map?)?.cast<String, dynamic>() ?? {},
+    );
   }
 
   Future<CommercialLead> updateLead(
