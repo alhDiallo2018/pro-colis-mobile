@@ -2,9 +2,11 @@
 // La couche monolithe ApiService reste la voie principale ; ces quelques
 // services modulaires sont consommés par api_service.dart et 3 écrans.
 export 'addresses_api.dart';
+export 'backups_api.dart';
 export 'cash_payments_api.dart';
 export 'client.dart';
 export 'commission_api.dart';
+export 'insurance_api.dart';
 export 'notifications_api.dart';
 export 'observability_api.dart';
 export 'parcels_api.dart';

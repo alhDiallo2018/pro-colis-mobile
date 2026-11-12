@@ -1,8 +1,10 @@
 export 'addresses_api.dart';
 export 'api.dart';
+export 'backups_api.dart';
 export 'cash_payments_api.dart';
 export 'client.dart';
 export 'commission_api.dart';
+export 'insurance_api.dart';
 export 'notifications_api.dart';
 export 'observability_api.dart';
 export 'parcels_api.dart';
