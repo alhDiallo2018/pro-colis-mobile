@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../../services/api/experience_api.dart';
 import '../../services/api_service.dart';
 import '../../models/garage.dart';
+import '../../widgets/international_estimate_sheet.dart';
 
 List<Map<String, dynamic>> parseShipmentLines(String text) {
   final lines =
@@ -421,6 +422,17 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                                       }, 'Alerte désactivée.'),
                               child: const Text('Désactiver'))
                         ]),
+                ]),
+                _section('Simulateur international', [
+                  const Text(
+                      'Obtenez un pré-devis sous-régional (CEDEAO + Mauritanie) avant de créer votre colis.'),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        InternationalEstimateSheet.show(context),
+                    icon: const Icon(Icons.flight_takeoff_rounded),
+                    label: const Text('Lancer la simulation'),
+                  ),
                 ]),
                 _section('Historique et reçus', [
                   const Text(

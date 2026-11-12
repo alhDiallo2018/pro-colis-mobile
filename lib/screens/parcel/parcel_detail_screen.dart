@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:procolis/theme/fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -32,6 +33,7 @@ import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/parcel_live_tracking_card.dart';
 import '../../widgets/cancellation_result_sheet.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
+import '../../widgets/insurance_sheet.dart';
 import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
@@ -108,6 +110,7 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 
   // Notation du chauffeur (côté client, colis livré).
   bool _hasRated = false;
+  bool _hasSubscribedInsurance = false;
   double? _driverAvgRating;
   int? _driverRatingCount;
 
@@ -1691,6 +1694,18 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   bool get _canRateDriver =>
       _isClientOwner && _parcel.isDelivered && _parcel.hasDriver;
 
+  /// L'assurance formelle (InsuranceSubscription) ne doit être proposée que
+  /// tant que le colis est encore en cours : une fois livré ou annulé, la
+  /// couverture n'a plus d'objet. Le serveur reste la source de vérité et
+  /// refusera un second appel (unique index `parcel_id`) : la variable
+  /// locale `_hasSubscribedInsurance` n'est qu'un cache de session pour
+  /// masquer le bouton après succès.
+  bool get _canSubscribeInsurance =>
+      _isClientOwner &&
+      !_parcel.isFinished &&
+      !_hasSubscribedInsurance &&
+      !_isUpdating;
+
   /// Libellé de la note moyenne du chauffeur pour la carte (ex: "★ 4,6 · 12 avis").
   String? get _driverRatingLabel {
     final avg = _driverAvgRating;
@@ -1722,6 +1737,16 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
     } catch (_) {
       // Best-effort : on n'affiche simplement rien de plus.
     }
+  }
+
+  /// Ouvre la feuille de souscription d'assurance. Le sheet renvoie la
+  /// souscription créée en cas de succès ; on verrouille alors le bouton
+  /// pour la session.
+  Future<void> _openInsuranceSheet() async {
+    final sub = await InsuranceSheet.show(context, parcel: _parcel);
+    if (sub == null || !mounted) return;
+    setState(() => _hasSubscribedInsurance = true);
+    _showSnack('Colis assuré — prime ${sub.premiumXof} FCFA.');
   }
 
   /// Ouvre la feuille de notation du chauffeur (1–5 étoiles + commentaire).
@@ -1932,6 +1957,8 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               ParcelExperienceCard(
                   key: ValueKey('experience-${_parcel.id}-${_parcel.status}'),
                   parcelId: _parcel.id),
+            _ParcelHandoverActions(parcel: _parcel),
+            _ParcelInternationalActions(parcel: _parcel),
             const SizedBox(height: 16),
             _DriverCard(
               name: _driverName,
@@ -2074,6 +2101,17 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
               ),
               const SizedBox(height: 12),
             ],
+            if (_canSubscribeInsurance) ...[
+              PcButton(
+                'Souscrire une assurance',
+                onPressed: _openInsuranceSheet,
+                icon: Icons.shield_outlined,
+                variant: PcButtonVariant.secondary,
+                size: PcButtonSize.lg,
+                block: true,
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_isAssignedDriver && _driverStep != null) ...[
               PcButton(
                 _driverStep!.label,
@@ -2184,6 +2222,123 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
 // ============================================================
 // Carte d'une offre (bid) pour le client propriétaire du colis
 // ============================================================
+
+// Phase 2 — Actions handover (correspondance inter-véhicules).
+// Visible pour le driver actuellement assigné (initier un transfert) et pour
+// tout driver authentifié (confirmer une correspondance reçue). Non visible
+// pour le sender ni sur un colis non pris en charge (status pending/free).
+class _ParcelHandoverActions extends ConsumerWidget {
+  final Parcel parcel;
+
+  const _ParcelHandoverActions({required this.parcel});
+
+  static const _handoverableStatuses = ['picked_up', 'in_transit', 'arrived'];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).user;
+    if (user == null || user.role != 'driver') return const SizedBox.shrink();
+    final isCurrent = parcel.assignedDriverId == user.id;
+    final handoverable = _handoverableStatuses.contains(parcel.status);
+    if (!handoverable && !isCurrent) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Text(
+                  'Correspondance (changement de véhicule)',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (isCurrent && handoverable)
+                    FilledButton.icon(
+                      onPressed: () =>
+                          context.push('/parcels/${parcel.id}/handovers/new'),
+                      icon: const Icon(Icons.send_outlined),
+                      label: const Text('Transférer à un autre chauffeur'),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: () => context
+                        .push('/parcels/${parcel.id}/handovers/confirm'),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Confirmer une prise en charge'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Phase 5 — Entrée douane + devis internationaux. Visible pour le sender
+// et l'admin. Permet au client de préparer son expédition hors Sénégal.
+class _ParcelInternationalActions extends ConsumerWidget {
+  final Parcel parcel;
+
+  const _ParcelInternationalActions({required this.parcel});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).user;
+    if (user == null) return const SizedBox.shrink();
+    final isSender = parcel.senderId == user.id;
+    final isAdmin = user.role == 'super_admin' || user.role == 'admin';
+    if (!isSender && !isAdmin) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Text(
+                  'Expédition internationale',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        context.push('/parcels/${parcel.id}/customs'),
+                    icon: const Icon(Icons.description_outlined),
+                    label: const Text('Déclaration douanière'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => context
+                        .push('/parcels/${parcel.id}/international-offers'),
+                    icon: const Icon(Icons.local_shipping),
+                    label: const Text('Devis carriers'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _ClientBidCard extends StatelessWidget {
   final Bid bid;
