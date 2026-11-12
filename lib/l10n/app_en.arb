@@ -30,5 +30,54 @@
   "promiseSlotEvening": "Evening",
 
   "errorNetwork": "Connection lost",
-  "errorRetry": "Retry"
+  "errorRetry": "Retry",
+
+  "manifestTitle": "Shuttle manifest",
+  "manifestStopsCount": "Stops",
+  "manifestOffersCount": "Parcels",
+  "manifestPicked": "To pick up",
+  "manifestDropOffs": "To hand over",
+  "manifestEmpty": "No parcels assigned to this trip yet.",
+  "manifestUnassigned": "Parcels without assigned stop ({count})",
+
+  "reachedStopsTitle": "Reached stops",
+  "reachedStopsEmpty": "No stops reached on this trip yet.",
+  "reachedStopsLoadFailed": "Unable to load",
+
+  "optimizeRouteTitle": "Optimised tour",
+  "optimizeRouteEmpty": "No parcels to sort.",
+  "optimizeRouteDistance": "Distance",
+  "optimizeRouteImprovement": "2-opt gain",
+  "optimizeRouteSteps": "Steps",
+
+  "handoverInitiateTitle": "New handover",
+  "handoverInitiateExplain": "Transfer this parcel to another driver. A PIN and a QR code will be generated: show them to the incoming driver to validate the handover.",
+  "handoverInitiateDriverFieldLabel": "Incoming driver ID",
+  "handoverInitiateDriverFieldHelper": "Target driver UUID",
+  "handoverInitiateSubmit": "Generate PIN + QR",
+  "handoverInitiateWarning": "These codes will not be shown again. Share them immediately with the incoming driver.",
+  "handoverPinLabel": "PIN code",
+  "handoverQrLabel": "QR token (show or share)",
+  "handoverCopy": "Copy",
+  "handoverDone": "Done",
+
+  "handoverConfirmTitle": "Confirm a handover",
+  "handoverConfirmExplain": "Enter the information provided by the outgoing driver to take over this parcel.",
+  "handoverConfirmIdLabel": "Handover ID",
+  "handoverConfirmPinLabel": "PIN (6 digits)",
+  "handoverConfirmQrLabel": "QR token",
+  "handoverConfirmQrHelper": "Scan or paste the received token",
+  "handoverConfirmScanTooltip": "Scan the QR",
+  "handoverConfirmSubmit": "Confirm pickup",
+  "handoverConfirmSuccess": "Handover confirmed",
+  "handoverConfirmSuccessBody": "This parcel is now assigned to you. Continue the delivery.",
+
+  "shipmentBatchesTitle": "My shipment batches",
+  "shipmentBatchesEmpty": "No batches yet.",
+  "shipmentBatchesCreate": "New batch",
+  "shipmentBatchParcelCount": "{count} parcels",
+  "shipmentBatchDetailTitle": "Batch details",
+  "shipmentBatchAttach": "Attach a parcel",
+  "shipmentBatchClose": "Close",
+  "shipmentBatchParcelsHeader": "Parcels in batch ({count})"
 }

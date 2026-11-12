@@ -249,6 +249,264 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Réessayer'**
   String get errorRetry;
+
+  /// No description provided for @manifestTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Manifeste navette'**
+  String get manifestTitle;
+
+  /// No description provided for @manifestStopsCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'Arrêts'**
+  String get manifestStopsCount;
+
+  /// No description provided for @manifestOffersCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis'**
+  String get manifestOffersCount;
+
+  /// No description provided for @manifestPicked.
+  ///
+  /// In fr, this message translates to:
+  /// **'À embarquer'**
+  String get manifestPicked;
+
+  /// No description provided for @manifestDropOffs.
+  ///
+  /// In fr, this message translates to:
+  /// **'À remettre'**
+  String get manifestDropOffs;
+
+  /// No description provided for @manifestEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun colis assigné à ce trajet pour le moment.'**
+  String get manifestEmpty;
+
+  /// No description provided for @manifestUnassigned.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis sans arrêt affecté ({count})'**
+  String manifestUnassigned(int count);
+
+  /// No description provided for @reachedStopsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Arrêts atteints'**
+  String get reachedStopsTitle;
+
+  /// No description provided for @reachedStopsEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun arrêt encore atteint sur ce trajet.'**
+  String get reachedStopsEmpty;
+
+  /// No description provided for @reachedStopsLoadFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chargement impossible'**
+  String get reachedStopsLoadFailed;
+
+  /// No description provided for @optimizeRouteTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tournée optimisée'**
+  String get optimizeRouteTitle;
+
+  /// No description provided for @optimizeRouteEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun colis à ordonner.'**
+  String get optimizeRouteEmpty;
+
+  /// No description provided for @optimizeRouteDistance.
+  ///
+  /// In fr, this message translates to:
+  /// **'Distance'**
+  String get optimizeRouteDistance;
+
+  /// No description provided for @optimizeRouteImprovement.
+  ///
+  /// In fr, this message translates to:
+  /// **'Gain 2-opt'**
+  String get optimizeRouteImprovement;
+
+  /// No description provided for @optimizeRouteSteps.
+  ///
+  /// In fr, this message translates to:
+  /// **'Étapes'**
+  String get optimizeRouteSteps;
+
+  /// No description provided for @handoverInitiateTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvelle correspondance'**
+  String get handoverInitiateTitle;
+
+  /// No description provided for @handoverInitiateExplain.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transférer ce colis à un autre chauffeur. Un PIN et un code QR seront générés : montrez-les au chauffeur entrant pour valider la remise.'**
+  String get handoverInitiateExplain;
+
+  /// No description provided for @handoverInitiateDriverFieldLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Identifiant du chauffeur entrant'**
+  String get handoverInitiateDriverFieldLabel;
+
+  /// No description provided for @handoverInitiateDriverFieldHelper.
+  ///
+  /// In fr, this message translates to:
+  /// **'UUID du driver cible'**
+  String get handoverInitiateDriverFieldHelper;
+
+  /// No description provided for @handoverInitiateSubmit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Générer PIN + QR'**
+  String get handoverInitiateSubmit;
+
+  /// No description provided for @handoverInitiateWarning.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ces codes ne seront plus affichés. Communiquez-les immédiatement au chauffeur entrant.'**
+  String get handoverInitiateWarning;
+
+  /// No description provided for @handoverPinLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Code PIN'**
+  String get handoverPinLabel;
+
+  /// No description provided for @handoverQrLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jeton QR (à afficher ou partager)'**
+  String get handoverQrLabel;
+
+  /// No description provided for @handoverCopy.
+  ///
+  /// In fr, this message translates to:
+  /// **'Copier'**
+  String get handoverCopy;
+
+  /// No description provided for @handoverDone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Terminé'**
+  String get handoverDone;
+
+  /// No description provided for @handoverConfirmTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer une correspondance'**
+  String get handoverConfirmTitle;
+
+  /// No description provided for @handoverConfirmExplain.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisissez les informations communiquées par le chauffeur sortant pour prendre en charge ce colis.'**
+  String get handoverConfirmExplain;
+
+  /// No description provided for @handoverConfirmIdLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Identifiant de la correspondance'**
+  String get handoverConfirmIdLabel;
+
+  /// No description provided for @handoverConfirmPinLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'PIN (6 chiffres)'**
+  String get handoverConfirmPinLabel;
+
+  /// No description provided for @handoverConfirmQrLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jeton QR'**
+  String get handoverConfirmQrLabel;
+
+  /// No description provided for @handoverConfirmQrHelper.
+  ///
+  /// In fr, this message translates to:
+  /// **'Scannez ou collez le jeton reçu'**
+  String get handoverConfirmQrHelper;
+
+  /// No description provided for @handoverConfirmScanTooltip.
+  ///
+  /// In fr, this message translates to:
+  /// **'Scanner le QR'**
+  String get handoverConfirmScanTooltip;
+
+  /// No description provided for @handoverConfirmSubmit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer la prise en charge'**
+  String get handoverConfirmSubmit;
+
+  /// No description provided for @handoverConfirmSuccess.
+  ///
+  /// In fr, this message translates to:
+  /// **'Correspondance confirmée'**
+  String get handoverConfirmSuccess;
+
+  /// No description provided for @handoverConfirmSuccessBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce colis vous est maintenant assigné. Poursuivez la livraison.'**
+  String get handoverConfirmSuccessBody;
+
+  /// No description provided for @shipmentBatchesTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mes lots d\'expédition'**
+  String get shipmentBatchesTitle;
+
+  /// No description provided for @shipmentBatchesEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun lot pour le moment.'**
+  String get shipmentBatchesEmpty;
+
+  /// No description provided for @shipmentBatchesCreate.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau lot'**
+  String get shipmentBatchesCreate;
+
+  /// No description provided for @shipmentBatchParcelCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} colis'**
+  String shipmentBatchParcelCount(int count);
+
+  /// No description provided for @shipmentBatchDetailTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Détail du lot'**
+  String get shipmentBatchDetailTitle;
+
+  /// No description provided for @shipmentBatchAttach.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rattacher un colis'**
+  String get shipmentBatchAttach;
+
+  /// No description provided for @shipmentBatchClose.
+  ///
+  /// In fr, this message translates to:
+  /// **'Clôturer'**
+  String get shipmentBatchClose;
+
+  /// No description provided for @shipmentBatchParcelsHeader.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis du lot ({count})'**
+  String shipmentBatchParcelsHeader(int count);
 }
 
 class _AppLocalizationsDelegate

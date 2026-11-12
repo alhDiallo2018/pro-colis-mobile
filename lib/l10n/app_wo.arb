@@ -30,5 +30,54 @@
   "promiseSlotEvening": "Ngoon",
 
   "errorNetwork": "Internet jàll",
-  "errorRetry": "Jéemaat"
+  "errorRetry": "Jéemaat",
+
+  "manifestTitle": "Lëpp lu navette bi yor",
+  "manifestStopsCount": "Taxawaay yi",
+  "manifestOffersCount": "Mbind yi",
+  "manifestPicked": "Yëf yu nar a yónnee",
+  "manifestDropOffs": "Yëf yu nar a jox",
+  "manifestEmpty": "Amul mbind lu tax ci yoon wii leegi.",
+  "manifestUnassigned": "Mbind yu amul taxawaay ({count})",
+
+  "reachedStopsTitle": "Taxawaay yi am",
+  "reachedStopsEmpty": "Benn taxawaay amul ci yoon wii leegi.",
+  "reachedStopsLoadFailed": "Mënuma tudd",
+
+  "optimizeRouteTitle": "Yoon wu yombalu",
+  "optimizeRouteEmpty": "Amul mbind lu nar a toppatoo.",
+  "optimizeRouteDistance": "Rëyaay",
+  "optimizeRouteImprovement": "Njariñ 2-opt",
+  "optimizeRouteSteps": "Yoon yi",
+
+  "handoverInitiateTitle": "Yóbbu bees bu bees",
+  "handoverInitiateExplain": "Jox mbind mii beneen awtokat. Dañu nar a génne PIN ak QR : wonal ko awtokat bu dikk ba nga mën a wax ni lu baax.",
+  "handoverInitiateDriverFieldLabel": "ID awtokat bu dikk",
+  "handoverInitiateDriverFieldHelper": "UUID awtokat bi",
+  "handoverInitiateSubmit": "Génne PIN ak QR",
+  "handoverInitiateWarning": "Kod yii du bu yëg beneen yoon. Jox leen awtokat bu dikk léegi.",
+  "handoverPinLabel": "Kod PIN",
+  "handoverQrLabel": "QR (won ko walla yónnee ko)",
+  "handoverCopy": "Nangu ci",
+  "handoverDone": "Jëkk",
+
+  "handoverConfirmTitle": "Wax ni yóbbu bi baax na",
+  "handoverConfirmExplain": "Ñaawal lu awtokat bu génn wax la ndax nga nangu mbind mii.",
+  "handoverConfirmIdLabel": "ID yóbbu bi",
+  "handoverConfirmPinLabel": "PIN (6 lëmb)",
+  "handoverConfirmQrLabel": "QR",
+  "handoverConfirmQrHelper": "Scanne walla toggal QR bi",
+  "handoverConfirmScanTooltip": "Scanne QR bi",
+  "handoverConfirmSubmit": "Wax ni nangu nga ko",
+  "handoverConfirmSuccess": "Yóbbu baax na",
+  "handoverConfirmSuccessBody": "Mbind mii nekk na sa boor leegi. Topp jaloore bi.",
+
+  "shipmentBatchesTitle": "Sama mbooleem yónnent",
+  "shipmentBatchesEmpty": "Amul mbooloo leegi.",
+  "shipmentBatchesCreate": "Mbooloo bees",
+  "shipmentBatchParcelCount": "{count} mbind",
+  "shipmentBatchDetailTitle": "Ñaw mbooloo bi",
+  "shipmentBatchAttach": "Boole ab mbind",
+  "shipmentBatchClose": "Tëjl",
+  "shipmentBatchParcelsHeader": "Mbind yu nekk ci mbooloo ({count})"
 }

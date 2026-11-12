@@ -41,5 +41,63 @@
   "promiseSlotEvening": "Soir",
 
   "errorNetwork": "Connexion interrompue",
-  "errorRetry": "Réessayer"
+  "errorRetry": "Réessayer",
+
+  "manifestTitle": "Manifeste navette",
+  "manifestStopsCount": "Arrêts",
+  "manifestOffersCount": "Colis",
+  "manifestPicked": "À embarquer",
+  "manifestDropOffs": "À remettre",
+  "manifestEmpty": "Aucun colis assigné à ce trajet pour le moment.",
+  "manifestUnassigned": "Colis sans arrêt affecté ({count})",
+  "@manifestUnassigned": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "reachedStopsTitle": "Arrêts atteints",
+  "reachedStopsEmpty": "Aucun arrêt encore atteint sur ce trajet.",
+  "reachedStopsLoadFailed": "Chargement impossible",
+
+  "optimizeRouteTitle": "Tournée optimisée",
+  "optimizeRouteEmpty": "Aucun colis à ordonner.",
+  "optimizeRouteDistance": "Distance",
+  "optimizeRouteImprovement": "Gain 2-opt",
+  "optimizeRouteSteps": "Étapes",
+
+  "handoverInitiateTitle": "Nouvelle correspondance",
+  "handoverInitiateExplain": "Transférer ce colis à un autre chauffeur. Un PIN et un code QR seront générés : montrez-les au chauffeur entrant pour valider la remise.",
+  "handoverInitiateDriverFieldLabel": "Identifiant du chauffeur entrant",
+  "handoverInitiateDriverFieldHelper": "UUID du driver cible",
+  "handoverInitiateSubmit": "Générer PIN + QR",
+  "handoverInitiateWarning": "Ces codes ne seront plus affichés. Communiquez-les immédiatement au chauffeur entrant.",
+  "handoverPinLabel": "Code PIN",
+  "handoverQrLabel": "Jeton QR (à afficher ou partager)",
+  "handoverCopy": "Copier",
+  "handoverDone": "Terminé",
+
+  "handoverConfirmTitle": "Confirmer une correspondance",
+  "handoverConfirmExplain": "Saisissez les informations communiquées par le chauffeur sortant pour prendre en charge ce colis.",
+  "handoverConfirmIdLabel": "Identifiant de la correspondance",
+  "handoverConfirmPinLabel": "PIN (6 chiffres)",
+  "handoverConfirmQrLabel": "Jeton QR",
+  "handoverConfirmQrHelper": "Scannez ou collez le jeton reçu",
+  "handoverConfirmScanTooltip": "Scanner le QR",
+  "handoverConfirmSubmit": "Confirmer la prise en charge",
+  "handoverConfirmSuccess": "Correspondance confirmée",
+  "handoverConfirmSuccessBody": "Ce colis vous est maintenant assigné. Poursuivez la livraison.",
+
+  "shipmentBatchesTitle": "Mes lots d'expédition",
+  "shipmentBatchesEmpty": "Aucun lot pour le moment.",
+  "shipmentBatchesCreate": "Nouveau lot",
+  "shipmentBatchParcelCount": "{count} colis",
+  "@shipmentBatchParcelCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "shipmentBatchDetailTitle": "Détail du lot",
+  "shipmentBatchAttach": "Rattacher un colis",
+  "shipmentBatchClose": "Clôturer",
+  "shipmentBatchParcelsHeader": "Colis du lot ({count})",
+  "@shipmentBatchParcelsHeader": {
+    "placeholders": { "count": { "type": "int" } }
+  }
 }
