@@ -34,6 +34,7 @@ import '../../utils/debt_block.dart';
 import '../../utils/format.dart';
 import '../../widgets/form_draft_ui.dart';
 import '../../widgets/location_autocomplete.dart';
+import '../../widgets/parcel_templates_sheet.dart';
 import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
@@ -1154,11 +1155,66 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
             ),
           ),
           IconButton(
+            tooltip: 'Modèles de colis',
+            onPressed: _openTemplates,
+            icon: Icon(Icons.bookmarks_rounded, color: AppTheme.slate500),
+          ),
+          IconButton(
             onPressed: _handleClose,
             icon: Icon(Icons.close_rounded, color: AppTheme.slate500),
           ),
         ],
       ),
+    );
+  }
+
+  /// Ouvre le sélecteur de modèles. Le résultat est un snapshot JSON
+  /// (hors pièces jointes) qui préremplit les champs — on réutilise le
+  /// pipeline de restauration de brouillon via `_applyTemplateData`.
+  Future<void> _openTemplates() async {
+    final ownerId = ref.read(authProvider).user?.id ?? '';
+    final data = await ParcelTemplatesSheet.show(
+      context,
+      ownerId: ownerId,
+      currentDraft: _hasContent ? _draftPayload() : null,
+    );
+    if (data == null || !mounted) return;
+    _applyTemplateData(data);
+    _showSnack('Modèle appliqué');
+  }
+
+  /// Applique un modèle (snapshot JSON) aux champs du formulaire. Variante
+  /// sans pièces jointes de `_restoreDraft` — un modèle ne porte volontairement
+  /// ni fichiers ni ID de brouillon courant.
+  void _applyTemplateData(Map<String, dynamic> data) {
+    setState(() {
+      _departureZoneId =
+          data['departureZoneId']?.toString() ?? _departureZoneId;
+      _arrivalZoneId = data['arrivalZoneId']?.toString() ?? _arrivalZoneId;
+      _receiverName.text = data['receiverName']?.toString() ?? '';
+      _receiverPhone.text = data['receiverPhone']?.toString() ?? '';
+      _receiverEmail.text = data['receiverEmail']?.toString() ?? '';
+      _receiverAddress.text = data['receiverAddress']?.toString() ?? '';
+      _type = ParcelType.fromString(data['type']?.toString() ?? '');
+      _weight.text = data['weight']?.toString() ?? '';
+      _description.text = data['description']?.toString() ?? '';
+      _insurance = data['insurance'] as bool? ?? false;
+      _urgent = data['urgent'] as bool? ?? false;
+      _priceEdited = data['priceEdited'] as bool? ?? false;
+      _priceController.text = data['price']?.toString() ?? '';
+      _paymentChannel = PaymentChannel.fromString(data['paymentChannel']);
+      _cashCollectionPoint =
+          CashCollectionPoint.tryParse(data['cashCollectionPoint']) ??
+              CashCollectionPoint.receiverDelivery;
+      _mode = data['mode']?.toString() ?? 'free';
+      _driverId = data['driverId']?.toString();
+    });
+    if (_mode == 'driver') _loadDrivers();
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 

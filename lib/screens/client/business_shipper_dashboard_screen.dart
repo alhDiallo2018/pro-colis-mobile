@@ -20,6 +20,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/fonts.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/pc_components.dart';
+import 'csv_bulk_import_sheet.dart';
 
 class BusinessShipperDashboardScreen extends ConsumerStatefulWidget {
   const BusinessShipperDashboardScreen({super.key});
@@ -116,6 +117,16 @@ class _BusinessShipperDashboardScreenState
         ),
         title: const Text('Tableau de bord expéditeur'),
         actions: [
+          IconButton(
+            tooltip: 'Import CSV',
+            icon: const Icon(Icons.upload_file_rounded),
+            onPressed: () => CsvBulkImportSheet.show(context),
+          ),
+          IconButton(
+            tooltip: 'Mes lots',
+            icon: const Icon(Icons.inventory_2_outlined),
+            onPressed: () => context.push('/shipment-batches'),
+          ),
           IconButton(
             tooltip: 'Choisir la période',
             icon: const Icon(Icons.date_range_rounded),
