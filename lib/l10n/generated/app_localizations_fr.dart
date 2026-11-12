@@ -224,4 +224,122 @@ class AppLocalizationsFr extends AppLocalizations {
   String shipmentBatchParcelsHeader(int count) {
     return 'Colis du lot ($count)';
   }
+
+  @override
+  String get insuranceSheetTitle => 'Protéger ce colis';
+
+  @override
+  String get insuranceSheetSubtitle =>
+      'Déclarez la valeur du contenu pour obtenir un devis d\'assurance instantané.';
+
+  @override
+  String get insuranceDeclaredValueLabel => 'Valeur déclarée (FCFA)';
+
+  @override
+  String get insuranceCrossBorderToggle =>
+      'Envoi transfrontalier (+15% de prime)';
+
+  @override
+  String get insuranceQuoteCta => 'Obtenir le devis';
+
+  @override
+  String get insuranceConfirmCta => 'Confirmer';
+
+  @override
+  String insuranceSubscribedSnack(int amount) {
+    return 'Colis assuré — prime $amount FCFA.';
+  }
+
+  @override
+  String get internationalEstimateTitle => 'Simuler un envoi international';
+
+  @override
+  String get internationalEstimateCurrency => 'Devise';
+
+  @override
+  String get internationalEstimateDeclareValue =>
+      'Déclaration de valeur (CN22/CN23 requis)';
+
+  @override
+  String get internationalEstimateCta => 'Obtenir le devis';
+
+  @override
+  String get backupsTitle => 'Sauvegardes';
+
+  @override
+  String get backupsEmptyMessage =>
+      'Utilisez le bouton « Nouveau dump » pour en créer une.';
+
+  @override
+  String get backupsNewDumpCta => 'Nouveau dump';
+
+  @override
+  String get backupsDownloadCta => 'Télécharger';
+
+  @override
+  String get backupsRestoreCta => 'Restaurer';
+
+  @override
+  String get backupsRestoreConfirmTitle => 'Restaurer cette sauvegarde ?';
+
+  @override
+  String get notificationsDeleteAllCta => 'Tout effacer';
+
+  @override
+  String get notificationsDeleteAllConfirm =>
+      'Toutes vos notifications seront supprimées. Cette action est irréversible.';
+
+  @override
+  String get logoutAllCta => 'Déconnecter tous les appareils';
+
+  @override
+  String get logoutAllConfirmBody =>
+      'Toutes vos sessions seront terminées, y compris sur vos autres appareils. Vous devrez vous reconnecter partout.';
+
+  @override
+  String get scoreRefundCta => 'Rembourser des points';
+
+  @override
+  String get scoreRefundReasonLabel => 'Motif';
+
+  @override
+  String get supportTransferCta => 'Transférer';
+
+  @override
+  String get supportTransferSelectAgent => 'Transférer à';
+
+  @override
+  String get leadCreateTitle => 'Nouveau prospect';
+
+  @override
+  String get leadNameLabel => 'Nom *';
+
+  @override
+  String get ticketEditTitle => 'Éditer le ticket';
+
+  @override
+  String get incidentEditTitle => 'Éditer l\'incident';
+
+  @override
+  String get parcelEventsTitle => 'Événements du colis';
+
+  @override
+  String get parcelTemplatesTitle => 'Mes modèles de colis';
+
+  @override
+  String get parcelTemplatesEmpty => 'Aucun modèle enregistré.';
+
+  @override
+  String get parcelTemplatesSaveCta => 'Enregistrer';
+
+  @override
+  String get csvImportTitle => 'Import groupé CSV';
+
+  @override
+  String get csvImportPickFile => 'Choisir un fichier';
+
+  @override
+  String csvImportRunning(int done, int total) {
+    return 'Import en cours… $done/$total';
+  }
 }

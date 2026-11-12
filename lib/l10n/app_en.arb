@@ -79,5 +79,53 @@
   "shipmentBatchDetailTitle": "Batch details",
   "shipmentBatchAttach": "Attach a parcel",
   "shipmentBatchClose": "Close",
-  "shipmentBatchParcelsHeader": "Parcels in batch ({count})"
+  "shipmentBatchParcelsHeader": "Parcels in batch ({count})",
+
+  "insuranceSheetTitle": "Insure this parcel",
+  "insuranceSheetSubtitle": "Declare the contents' value to get an instant insurance quote.",
+  "insuranceDeclaredValueLabel": "Declared value (XOF)",
+  "insuranceCrossBorderToggle": "Cross-border shipment (+15% premium)",
+  "insuranceQuoteCta": "Get a quote",
+  "insuranceConfirmCta": "Confirm",
+  "insuranceSubscribedSnack": "Parcel insured — premium {amount} XOF.",
+
+  "internationalEstimateTitle": "Simulate an international shipment",
+  "internationalEstimateCurrency": "Currency",
+  "internationalEstimateDeclareValue": "Declare value (CN22/CN23 required)",
+  "internationalEstimateCta": "Get a quote",
+
+  "backupsTitle": "Backups",
+  "backupsEmptyMessage": "Use the \"New dump\" button to create one.",
+  "backupsNewDumpCta": "New dump",
+  "backupsDownloadCta": "Download",
+  "backupsRestoreCta": "Restore",
+  "backupsRestoreConfirmTitle": "Restore this backup?",
+
+  "notificationsDeleteAllCta": "Clear all",
+  "notificationsDeleteAllConfirm": "All your notifications will be deleted. This action cannot be undone.",
+
+  "logoutAllCta": "Sign out all devices",
+  "logoutAllConfirmBody": "All your sessions will end, including on other devices. You will need to sign in again everywhere.",
+
+  "scoreRefundCta": "Refund points",
+  "scoreRefundReasonLabel": "Reason",
+
+  "supportTransferCta": "Transfer",
+  "supportTransferSelectAgent": "Transfer to",
+
+  "leadCreateTitle": "New lead",
+  "leadNameLabel": "Name *",
+
+  "ticketEditTitle": "Edit ticket",
+  "incidentEditTitle": "Edit incident",
+
+  "parcelEventsTitle": "Parcel events",
+
+  "parcelTemplatesTitle": "My parcel templates",
+  "parcelTemplatesEmpty": "No templates saved.",
+  "parcelTemplatesSaveCta": "Save",
+
+  "csvImportTitle": "Bulk CSV import",
+  "csvImportPickFile": "Choose a file",
+  "csvImportRunning": "Importing… {done}/{total}"
 }

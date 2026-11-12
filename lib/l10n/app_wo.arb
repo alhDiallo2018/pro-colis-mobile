@@ -79,5 +79,53 @@
   "shipmentBatchDetailTitle": "Ñaw mbooloo bi",
   "shipmentBatchAttach": "Boole ab mbind",
   "shipmentBatchClose": "Tëjl",
-  "shipmentBatchParcelsHeader": "Mbind yu nekk ci mbooloo ({count})"
+  "shipmentBatchParcelsHeader": "Mbind yu nekk ci mbooloo ({count})",
+
+  "insuranceSheetTitle": "Aarool mbind mii",
+  "insuranceSheetSubtitle": "Xamle njëg lu nekk ci mbind mi ngir am devis assurance.",
+  "insuranceDeclaredValueLabel": "Njëg lu xamle (FCFA)",
+  "insuranceCrossBorderToggle": "Yónnent ci biir dëkk yu ñu wuute (+15%)",
+  "insuranceQuoteCta": "Jël devis bi",
+  "insuranceConfirmCta": "Dëgël",
+  "insuranceSubscribedSnack": "Mbind aaraa na — njëgam {amount} FCFA.",
+
+  "internationalEstimateTitle": "Jéem yónnent bu biir réew yi",
+  "internationalEstimateCurrency": "Xaalis",
+  "internationalEstimateDeclareValue": "Xamle njëg (CN22/CN23 soxla)",
+  "internationalEstimateCta": "Jël devis bi",
+
+  "backupsTitle": "Denkaane yi",
+  "backupsEmptyMessage": "Jëfandikoo bitóng « Denkaane bees » ngir sos benn.",
+  "backupsNewDumpCta": "Denkaane bees",
+  "backupsDownloadCta": "Télécharger",
+  "backupsRestoreCta": "Delloo",
+  "backupsRestoreConfirmTitle": "Ndax nga bëgg delloo denkaane bii ?",
+
+  "notificationsDeleteAllCta": "Fort lépp",
+  "notificationsDeleteAllConfirm": "Sa notification yi yépp dañu nar a far. Jëf jii du mën a soppi.",
+
+  "logoutAllCta": "Génn ci jumtukaay yépp",
+  "logoutAllConfirmBody": "Sa session yépp dañu nar a tëj, moom itam ci sa jumtukaay yu ci des. Soxla nga duggaat fu nekk.",
+
+  "scoreRefundCta": "Delloo puwaañ yi",
+  "scoreRefundReasonLabel": "Lu tax",
+
+  "supportTransferCta": "Yóbbu",
+  "supportTransferSelectAgent": "Yóbbu ci",
+
+  "leadCreateTitle": "Prospect bees",
+  "leadNameLabel": "Tur *",
+
+  "ticketEditTitle": "Soppi ticket bi",
+  "incidentEditTitle": "Soppi incident bi",
+
+  "parcelEventsTitle": "Xew-xew yu mbind mi",
+
+  "parcelTemplatesTitle": "Sama modèle mbind",
+  "parcelTemplatesEmpty": "Amul modèle bu bind.",
+  "parcelTemplatesSaveCta": "Denc",
+
+  "csvImportTitle": "Boole yóbbu CSV",
+  "csvImportPickFile": "Tànn benn fichier",
+  "csvImportRunning": "Yóbbu di jàll… {done}/{total}"
 }

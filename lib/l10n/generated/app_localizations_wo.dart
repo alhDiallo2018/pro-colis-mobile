@@ -223,4 +223,123 @@ class AppLocalizationsWo extends AppLocalizations {
   String shipmentBatchParcelsHeader(int count) {
     return 'Mbind yu nekk ci mbooloo ($count)';
   }
+
+  @override
+  String get insuranceSheetTitle => 'Aarool mbind mii';
+
+  @override
+  String get insuranceSheetSubtitle =>
+      'Xamle njëg lu nekk ci mbind mi ngir am devis assurance.';
+
+  @override
+  String get insuranceDeclaredValueLabel => 'Njëg lu xamle (FCFA)';
+
+  @override
+  String get insuranceCrossBorderToggle =>
+      'Yónnent ci biir dëkk yu ñu wuute (+15%)';
+
+  @override
+  String get insuranceQuoteCta => 'Jël devis bi';
+
+  @override
+  String get insuranceConfirmCta => 'Dëgël';
+
+  @override
+  String insuranceSubscribedSnack(int amount) {
+    return 'Mbind aaraa na — njëgam $amount FCFA.';
+  }
+
+  @override
+  String get internationalEstimateTitle => 'Jéem yónnent bu biir réew yi';
+
+  @override
+  String get internationalEstimateCurrency => 'Xaalis';
+
+  @override
+  String get internationalEstimateDeclareValue =>
+      'Xamle njëg (CN22/CN23 soxla)';
+
+  @override
+  String get internationalEstimateCta => 'Jël devis bi';
+
+  @override
+  String get backupsTitle => 'Denkaane yi';
+
+  @override
+  String get backupsEmptyMessage =>
+      'Jëfandikoo bitóng « Denkaane bees » ngir sos benn.';
+
+  @override
+  String get backupsNewDumpCta => 'Denkaane bees';
+
+  @override
+  String get backupsDownloadCta => 'Télécharger';
+
+  @override
+  String get backupsRestoreCta => 'Delloo';
+
+  @override
+  String get backupsRestoreConfirmTitle =>
+      'Ndax nga bëgg delloo denkaane bii ?';
+
+  @override
+  String get notificationsDeleteAllCta => 'Fort lépp';
+
+  @override
+  String get notificationsDeleteAllConfirm =>
+      'Sa notification yi yépp dañu nar a far. Jëf jii du mën a soppi.';
+
+  @override
+  String get logoutAllCta => 'Génn ci jumtukaay yépp';
+
+  @override
+  String get logoutAllConfirmBody =>
+      'Sa session yépp dañu nar a tëj, moom itam ci sa jumtukaay yu ci des. Soxla nga duggaat fu nekk.';
+
+  @override
+  String get scoreRefundCta => 'Delloo puwaañ yi';
+
+  @override
+  String get scoreRefundReasonLabel => 'Lu tax';
+
+  @override
+  String get supportTransferCta => 'Yóbbu';
+
+  @override
+  String get supportTransferSelectAgent => 'Yóbbu ci';
+
+  @override
+  String get leadCreateTitle => 'Prospect bees';
+
+  @override
+  String get leadNameLabel => 'Tur *';
+
+  @override
+  String get ticketEditTitle => 'Soppi ticket bi';
+
+  @override
+  String get incidentEditTitle => 'Soppi incident bi';
+
+  @override
+  String get parcelEventsTitle => 'Xew-xew yu mbind mi';
+
+  @override
+  String get parcelTemplatesTitle => 'Sama modèle mbind';
+
+  @override
+  String get parcelTemplatesEmpty => 'Amul modèle bu bind.';
+
+  @override
+  String get parcelTemplatesSaveCta => 'Denc';
+
+  @override
+  String get csvImportTitle => 'Boole yóbbu CSV';
+
+  @override
+  String get csvImportPickFile => 'Tànn benn fichier';
+
+  @override
+  String csvImportRunning(int done, int total) {
+    return 'Yóbbu di jàll… $done/$total';
+  }
 }

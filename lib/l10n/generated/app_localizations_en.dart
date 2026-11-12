@@ -223,4 +223,122 @@ class AppLocalizationsEn extends AppLocalizations {
   String shipmentBatchParcelsHeader(int count) {
     return 'Parcels in batch ($count)';
   }
+
+  @override
+  String get insuranceSheetTitle => 'Insure this parcel';
+
+  @override
+  String get insuranceSheetSubtitle =>
+      'Declare the contents\' value to get an instant insurance quote.';
+
+  @override
+  String get insuranceDeclaredValueLabel => 'Declared value (XOF)';
+
+  @override
+  String get insuranceCrossBorderToggle =>
+      'Cross-border shipment (+15% premium)';
+
+  @override
+  String get insuranceQuoteCta => 'Get a quote';
+
+  @override
+  String get insuranceConfirmCta => 'Confirm';
+
+  @override
+  String insuranceSubscribedSnack(int amount) {
+    return 'Parcel insured — premium $amount XOF.';
+  }
+
+  @override
+  String get internationalEstimateTitle => 'Simulate an international shipment';
+
+  @override
+  String get internationalEstimateCurrency => 'Currency';
+
+  @override
+  String get internationalEstimateDeclareValue =>
+      'Declare value (CN22/CN23 required)';
+
+  @override
+  String get internationalEstimateCta => 'Get a quote';
+
+  @override
+  String get backupsTitle => 'Backups';
+
+  @override
+  String get backupsEmptyMessage =>
+      'Use the \"New dump\" button to create one.';
+
+  @override
+  String get backupsNewDumpCta => 'New dump';
+
+  @override
+  String get backupsDownloadCta => 'Download';
+
+  @override
+  String get backupsRestoreCta => 'Restore';
+
+  @override
+  String get backupsRestoreConfirmTitle => 'Restore this backup?';
+
+  @override
+  String get notificationsDeleteAllCta => 'Clear all';
+
+  @override
+  String get notificationsDeleteAllConfirm =>
+      'All your notifications will be deleted. This action cannot be undone.';
+
+  @override
+  String get logoutAllCta => 'Sign out all devices';
+
+  @override
+  String get logoutAllConfirmBody =>
+      'All your sessions will end, including on other devices. You will need to sign in again everywhere.';
+
+  @override
+  String get scoreRefundCta => 'Refund points';
+
+  @override
+  String get scoreRefundReasonLabel => 'Reason';
+
+  @override
+  String get supportTransferCta => 'Transfer';
+
+  @override
+  String get supportTransferSelectAgent => 'Transfer to';
+
+  @override
+  String get leadCreateTitle => 'New lead';
+
+  @override
+  String get leadNameLabel => 'Name *';
+
+  @override
+  String get ticketEditTitle => 'Edit ticket';
+
+  @override
+  String get incidentEditTitle => 'Edit incident';
+
+  @override
+  String get parcelEventsTitle => 'Parcel events';
+
+  @override
+  String get parcelTemplatesTitle => 'My parcel templates';
+
+  @override
+  String get parcelTemplatesEmpty => 'No templates saved.';
+
+  @override
+  String get parcelTemplatesSaveCta => 'Save';
+
+  @override
+  String get csvImportTitle => 'Bulk CSV import';
+
+  @override
+  String get csvImportPickFile => 'Choose a file';
+
+  @override
+  String csvImportRunning(int done, int total) {
+    return 'Importing… $done/$total';
+  }
 }

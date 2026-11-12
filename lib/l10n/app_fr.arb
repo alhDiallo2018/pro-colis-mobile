@@ -99,5 +99,62 @@
   "shipmentBatchParcelsHeader": "Colis du lot ({count})",
   "@shipmentBatchParcelsHeader": {
     "placeholders": { "count": { "type": "int" } }
+  },
+
+  "insuranceSheetTitle": "Protéger ce colis",
+  "insuranceSheetSubtitle": "Déclarez la valeur du contenu pour obtenir un devis d'assurance instantané.",
+  "insuranceDeclaredValueLabel": "Valeur déclarée (FCFA)",
+  "insuranceCrossBorderToggle": "Envoi transfrontalier (+15% de prime)",
+  "insuranceQuoteCta": "Obtenir le devis",
+  "insuranceConfirmCta": "Confirmer",
+  "insuranceSubscribedSnack": "Colis assuré — prime {amount} FCFA.",
+  "@insuranceSubscribedSnack": {
+    "placeholders": { "amount": { "type": "int" } }
+  },
+
+  "internationalEstimateTitle": "Simuler un envoi international",
+  "internationalEstimateCurrency": "Devise",
+  "internationalEstimateDeclareValue": "Déclaration de valeur (CN22/CN23 requis)",
+  "internationalEstimateCta": "Obtenir le devis",
+
+  "backupsTitle": "Sauvegardes",
+  "backupsEmptyMessage": "Utilisez le bouton « Nouveau dump » pour en créer une.",
+  "backupsNewDumpCta": "Nouveau dump",
+  "backupsDownloadCta": "Télécharger",
+  "backupsRestoreCta": "Restaurer",
+  "backupsRestoreConfirmTitle": "Restaurer cette sauvegarde ?",
+
+  "notificationsDeleteAllCta": "Tout effacer",
+  "notificationsDeleteAllConfirm": "Toutes vos notifications seront supprimées. Cette action est irréversible.",
+
+  "logoutAllCta": "Déconnecter tous les appareils",
+  "logoutAllConfirmBody": "Toutes vos sessions seront terminées, y compris sur vos autres appareils. Vous devrez vous reconnecter partout.",
+
+  "scoreRefundCta": "Rembourser des points",
+  "scoreRefundReasonLabel": "Motif",
+
+  "supportTransferCta": "Transférer",
+  "supportTransferSelectAgent": "Transférer à",
+
+  "leadCreateTitle": "Nouveau prospect",
+  "leadNameLabel": "Nom *",
+
+  "ticketEditTitle": "Éditer le ticket",
+  "incidentEditTitle": "Éditer l'incident",
+
+  "parcelEventsTitle": "Événements du colis",
+
+  "parcelTemplatesTitle": "Mes modèles de colis",
+  "parcelTemplatesEmpty": "Aucun modèle enregistré.",
+  "parcelTemplatesSaveCta": "Enregistrer",
+
+  "csvImportTitle": "Import groupé CSV",
+  "csvImportPickFile": "Choisir un fichier",
+  "csvImportRunning": "Import en cours… {done}/{total}",
+  "@csvImportRunning": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
   }
 }

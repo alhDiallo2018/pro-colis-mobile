@@ -507,6 +507,222 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Colis du lot ({count})'**
   String shipmentBatchParcelsHeader(int count);
+
+  /// No description provided for @insuranceSheetTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Protéger ce colis'**
+  String get insuranceSheetTitle;
+
+  /// No description provided for @insuranceSheetSubtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déclarez la valeur du contenu pour obtenir un devis d\'assurance instantané.'**
+  String get insuranceSheetSubtitle;
+
+  /// No description provided for @insuranceDeclaredValueLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Valeur déclarée (FCFA)'**
+  String get insuranceDeclaredValueLabel;
+
+  /// No description provided for @insuranceCrossBorderToggle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoi transfrontalier (+15% de prime)'**
+  String get insuranceCrossBorderToggle;
+
+  /// No description provided for @insuranceQuoteCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Obtenir le devis'**
+  String get insuranceQuoteCta;
+
+  /// No description provided for @insuranceConfirmCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer'**
+  String get insuranceConfirmCta;
+
+  /// No description provided for @insuranceSubscribedSnack.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis assuré — prime {amount} FCFA.'**
+  String insuranceSubscribedSnack(int amount);
+
+  /// No description provided for @internationalEstimateTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Simuler un envoi international'**
+  String get internationalEstimateTitle;
+
+  /// No description provided for @internationalEstimateCurrency.
+  ///
+  /// In fr, this message translates to:
+  /// **'Devise'**
+  String get internationalEstimateCurrency;
+
+  /// No description provided for @internationalEstimateDeclareValue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déclaration de valeur (CN22/CN23 requis)'**
+  String get internationalEstimateDeclareValue;
+
+  /// No description provided for @internationalEstimateCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Obtenir le devis'**
+  String get internationalEstimateCta;
+
+  /// No description provided for @backupsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sauvegardes'**
+  String get backupsTitle;
+
+  /// No description provided for @backupsEmptyMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Utilisez le bouton « Nouveau dump » pour en créer une.'**
+  String get backupsEmptyMessage;
+
+  /// No description provided for @backupsNewDumpCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau dump'**
+  String get backupsNewDumpCta;
+
+  /// No description provided for @backupsDownloadCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Télécharger'**
+  String get backupsDownloadCta;
+
+  /// No description provided for @backupsRestoreCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Restaurer'**
+  String get backupsRestoreCta;
+
+  /// No description provided for @backupsRestoreConfirmTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Restaurer cette sauvegarde ?'**
+  String get backupsRestoreConfirmTitle;
+
+  /// No description provided for @notificationsDeleteAllCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout effacer'**
+  String get notificationsDeleteAllCta;
+
+  /// No description provided for @notificationsDeleteAllConfirm.
+  ///
+  /// In fr, this message translates to:
+  /// **'Toutes vos notifications seront supprimées. Cette action est irréversible.'**
+  String get notificationsDeleteAllConfirm;
+
+  /// No description provided for @logoutAllCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déconnecter tous les appareils'**
+  String get logoutAllCta;
+
+  /// No description provided for @logoutAllConfirmBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'Toutes vos sessions seront terminées, y compris sur vos autres appareils. Vous devrez vous reconnecter partout.'**
+  String get logoutAllConfirmBody;
+
+  /// No description provided for @scoreRefundCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rembourser des points'**
+  String get scoreRefundCta;
+
+  /// No description provided for @scoreRefundReasonLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Motif'**
+  String get scoreRefundReasonLabel;
+
+  /// No description provided for @supportTransferCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transférer'**
+  String get supportTransferCta;
+
+  /// No description provided for @supportTransferSelectAgent.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transférer à'**
+  String get supportTransferSelectAgent;
+
+  /// No description provided for @leadCreateTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau prospect'**
+  String get leadCreateTitle;
+
+  /// No description provided for @leadNameLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom *'**
+  String get leadNameLabel;
+
+  /// No description provided for @ticketEditTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Éditer le ticket'**
+  String get ticketEditTitle;
+
+  /// No description provided for @incidentEditTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Éditer l\'incident'**
+  String get incidentEditTitle;
+
+  /// No description provided for @parcelEventsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Événements du colis'**
+  String get parcelEventsTitle;
+
+  /// No description provided for @parcelTemplatesTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mes modèles de colis'**
+  String get parcelTemplatesTitle;
+
+  /// No description provided for @parcelTemplatesEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun modèle enregistré.'**
+  String get parcelTemplatesEmpty;
+
+  /// No description provided for @parcelTemplatesSaveCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer'**
+  String get parcelTemplatesSaveCta;
+
+  /// No description provided for @csvImportTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Import groupé CSV'**
+  String get csvImportTitle;
+
+  /// No description provided for @csvImportPickFile.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisir un fichier'**
+  String get csvImportPickFile;
+
+  /// No description provided for @csvImportRunning.
+  ///
+  /// In fr, this message translates to:
+  /// **'Import en cours… {done}/{total}'**
+  String csvImportRunning(int done, int total);
 }
 
 class _AppLocalizationsDelegate
