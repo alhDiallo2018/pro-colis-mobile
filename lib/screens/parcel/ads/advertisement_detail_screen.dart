@@ -2,6 +2,7 @@ import '../../../widgets/journey_stops_card.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:procolis/theme/fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -198,6 +199,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                           _buildDriverProfile(),
                           const SizedBox(height: 16),
                           _buildDetailsCard(),
+                          _buildShuttleActions(),
                           JourneyStopsCard(
                               journey: Advertisement.fromJson(_adData ?? {})),
                           if (_myOffer != null) ...[
@@ -401,6 +403,61 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
   // ============================================================
   // Carte details
   // ============================================================
+
+  // Actions Phase 1 + 6 : accès au manifeste navette, aux arrêts atteints et
+  // à la tournée optimisée. Ne s'affiche que si l'annonce est liée à une
+  // ligne de transport (transitLineId).
+  Widget _buildShuttleActions() {
+    final adId = _adData?['id']?.toString() ?? _adId;
+    final transitLineId = _adData?['transitLineId']?.toString();
+    if (adId.isEmpty || transitLineId == null || transitLineId.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Text(
+                  'Actions navette',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => context
+                        .push('/driver/advertisements/$adId/manifest'),
+                    icon: const Icon(Icons.list_alt),
+                    label: const Text('Manifeste'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => context
+                        .push('/advertisements/$adId/reached-stops'),
+                    icon: const Icon(Icons.flag_outlined),
+                    label: const Text('Arrêts atteints'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => context
+                        .push('/driver/advertisements/$adId/optimize-route'),
+                    icon: const Icon(Icons.route),
+                    label: const Text('Tournée optimisée'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildDetailsCard() {
     final price = _parcelFromAd?.proposedPrice ??
