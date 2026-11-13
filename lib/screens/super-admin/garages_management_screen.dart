@@ -8,6 +8,7 @@ import '../../models/garage.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../utils/back_nav.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/pc_components.dart';
@@ -277,7 +278,7 @@ class _GaragesManagementScreenState extends ConsumerState<GaragesManagementScree
         title: const Text('Gestion des zones'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => safeBack(context),
         ),
         actions: [
           PcIconButton(

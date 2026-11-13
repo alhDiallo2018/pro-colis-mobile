@@ -6,6 +6,7 @@ import '../../models/garage.dart';
 import '../../models/user.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/back_nav.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/pc_components.dart';
 
@@ -95,7 +96,7 @@ class _GarageDriversScreenState extends ConsumerState<GarageDriversScreen> {
         leading: PcIconButton(
           Icons.arrow_back_ios_new_rounded,
           size: PcButtonSize.sm,
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => safeBack(context),
         ),
         actions: [
           PcIconButton(
