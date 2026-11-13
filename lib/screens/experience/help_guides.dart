@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:go_router/go_router.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../models/public_config.dart';
 import '../../services/api/client.dart';
 
@@ -23,14 +24,15 @@ class _HelpGuidesState extends State<HelpGuides> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final guides = widget.guides.where((g) => g.language == _language).toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       DropdownButtonFormField<String>(
           initialValue: _language,
-          decoration: const InputDecoration(labelText: 'Langue des consignes'),
-          items: const [
-            DropdownMenuItem(value: 'fr', child: Text('Français')),
-            DropdownMenuItem(value: 'wo', child: Text('Wolof'))
+          decoration: InputDecoration(labelText: l.helpGuideLanguageLabel),
+          items: [
+            DropdownMenuItem(value: 'fr', child: Text(l.helpGuideLangFr)),
+            DropdownMenuItem(value: 'wo', child: Text(l.helpGuideLangWo))
           ],
           onChanged: (value) {
             _audio.stop();
@@ -54,7 +56,7 @@ class _HelpGuidesState extends State<HelpGuides> {
                         Wrap(spacing: 8, children: [
                           TextButton.icon(
                               icon: const Icon(Icons.volume_up_outlined),
-                              label: const Text('Écouter'),
+                              label: Text(l.helpGuidePlay),
                               onPressed: () async {
                                 try {
                                   await _audio.stop();
@@ -63,26 +65,26 @@ class _HelpGuidesState extends State<HelpGuides> {
                                           guide.audioUrl!)));
                                   if (mounted) setState(() => _error = null);
                                 } catch (_) {
-                                  if (mounted)
-                                    setState(() => _error =
-                                        'Lecture indisponible. Le texte reste accessible.');
+                                  if (!mounted) return;
+                                  setState(() => _error = l.helpGuideAudioError);
                                 }
                               }),
                           TextButton(
                               onPressed: () => _audio.stop(),
-                              child: const Text('Arrêter'))
+                              child: Text(l.helpGuideStop))
                         ]),
                     ]))),
       if (guides.isEmpty)
         Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-                'Les consignes ${_language == 'wo' ? 'en wolof' : 'en français'} ne sont pas encore disponibles.')),
+            child: Text(_language == 'wo'
+                ? l.helpGuideNoneAvailableWo
+                : l.helpGuideNoneAvailableFr)),
       if (_error != null) Text(_error!),
       if (guides.isEmpty)
         TextButton(
             onPressed: () => context.push('/support'),
-            child: const Text('Demander de l’aide au support')),
+            child: Text(l.helpGuideContactSupport)),
       const SizedBox(height: 16),
     ]);
   }

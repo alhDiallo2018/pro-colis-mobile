@@ -167,7 +167,7 @@ class _TransitLinePickerSheetState extends State<TransitLinePickerSheet> {
                   return Padding(
                     padding: const EdgeInsets.all(12),
                     child: Text('Catalogue indisponible. Utilise un trajet habituel ou le CSV.',
-                      style: TextStyle(color: Colors.red.shade700)));
+                      style: TextStyle(color: AppTheme.red500)));
                 }
                 final grouped = _grouped;
                 if (grouped.isEmpty) {

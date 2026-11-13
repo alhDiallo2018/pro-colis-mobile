@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:procolis/l10n/generated/app_localizations.dart';
 import 'package:procolis/providers/public_config_provider.dart';
 import 'package:procolis/providers/app_update_provider.dart';
 import 'package:procolis/screens/help/help_screen.dart';
@@ -92,7 +93,13 @@ void main() {
     response = _config();
     await tester.pumpWidget(_scope(
       notifier,
-      MaterialApp(theme: AppTheme.lightTheme, home: const HelpScreen()),
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        locale: const Locale('fr'),
+        home: const HelpScreen(),
+      ),
     ));
     await tester.pumpAndSettle();
     final grid = tester.widget<GridView>(find.byType(GridView));
@@ -130,7 +137,13 @@ void main() {
     );
     await tester.pumpWidget(_scope(
       notifier,
-      MaterialApp(theme: AppTheme.lightTheme, home: const HelpScreen()),
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        locale: const Locale('fr'),
+        home: const HelpScreen(),
+      ),
     ));
     await tester.pumpAndSettle();
     expect(find.text('Réessayer'), findsOneWidget);
@@ -184,7 +197,12 @@ void main() {
           await tester.pumpWidget(_scope(
             notifier,
             MaterialApp.router(
-                theme: AppTheme.lightTheme, routerConfig: router),
+              theme: AppTheme.lightTheme,
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              locale: const Locale('fr'),
+              routerConfig: router,
+            ),
           ));
           await tester.pumpAndSettle();
           if (imperative) {

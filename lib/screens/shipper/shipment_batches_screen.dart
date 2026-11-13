@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../providers/shipment_batch_provider.dart';
 import '../../services/api/shipment_batch_api.dart';
+import '../../theme/app_theme.dart';
 
 class ShipmentBatchesScreen extends ConsumerWidget {
   const ShipmentBatchesScreen({super.key});
@@ -111,11 +112,11 @@ class _BatchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (batch.status) {
-      'draft' => Colors.grey,
-      'open' => Colors.blue,
-      'closed' => Colors.green,
-      'cancelled' => Colors.red,
-      _ => Colors.grey,
+      'draft' => AppTheme.slate400,
+      'open' => AppTheme.blue500,
+      'closed' => AppTheme.green500,
+      'cancelled' => AppTheme.red400,
+      _ => AppTheme.slate400,
     };
     return Card(
       child: ListTile(

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../providers/reached_stops_provider.dart';
+import '../../theme/app_theme.dart';
 import '../../services/api/advertisement_extra_api.dart';
 
 class AdvertisementReachedStopsScreen extends ConsumerWidget {
@@ -82,7 +83,7 @@ class _ReachedList extends StatelessWidget {
               '${s.reachedAt != null ? "\n${_formatDate(s.reachedAt!)}" : ""}',
             ),
             isThreeLine: s.reachedAt != null,
-            trailing: const Icon(Icons.check_circle, color: Colors.green),
+            trailing: Icon(Icons.check_circle, color: AppTheme.successColor),
           ),
         );
       },

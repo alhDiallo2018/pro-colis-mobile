@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../providers/handover_provider.dart';
 import '../../services/api/handover_api.dart';
+import '../../theme/app_theme.dart';
 
 class HandoverInitiateScreen extends ConsumerStatefulWidget {
   final String parcelId;
@@ -121,7 +122,7 @@ class _HandoverInitiateScreenState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Card(
-          color: Colors.amber.shade50,
+          color: AppTheme.amber50,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(

@@ -331,6 +331,7 @@ class AuthSegment extends StatelessWidget {
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         options[i].icon,
@@ -338,12 +339,16 @@ class AuthSegment extends StatelessWidget {
                         color: value == i ? AppTheme.teal600 : AppTheme.textSecondary,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        options[i].label,
-                        style: AppFonts.plusJakartaSans(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: value == i ? AppTheme.textPrimary : AppTheme.textSecondary,
+                      Flexible(
+                        child: Text(
+                          options[i].label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.plusJakartaSans(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: value == i ? AppTheme.textPrimary : AppTheme.textSecondary,
+                          ),
                         ),
                       ),
                     ],

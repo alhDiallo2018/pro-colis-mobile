@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/admin_operations_provider.dart';
 import '../../services/api/admin_operations_api.dart';
+import '../../theme/app_theme.dart';
 
 class AdminOperationsHubScreen extends ConsumerWidget {
   const AdminOperationsHubScreen({super.key});
@@ -188,10 +189,10 @@ class _IntegrationsHealthTab extends ConsumerWidget {
 
   Widget _renderHealth(BuildContext context, IntegrationsHealth h) {
     final color = switch (h.status) {
-      'ok' => Colors.green,
-      'degraded' => Colors.orange,
-      'fail' => Colors.red,
-      _ => Colors.grey,
+      'ok' => AppTheme.green500,
+      'degraded' => AppTheme.amber500,
+      'fail' => AppTheme.red400,
+      _ => AppTheme.slate400,
     };
     final integrations = h.integrations;
     return ListView(
@@ -242,7 +243,7 @@ class _IntegrationsHealthTab extends ConsumerWidget {
         child: ListTile(
           leading: Icon(
             configured ? Icons.check_circle : Icons.warning_amber,
-            color: configured ? Colors.green : Colors.orange,
+            color: configured ? AppTheme.successColor : AppTheme.amber500,
           ),
           title: Text(key),
           subtitle: configured
@@ -262,7 +263,7 @@ class _IntegrationsHealthTab extends ConsumerWidget {
       contentPadding: EdgeInsets.zero,
       leading: Icon(
         configured ? Icons.check_circle : Icons.warning_amber,
-        color: configured ? Colors.green : Colors.orange,
+        color: configured ? AppTheme.successColor : AppTheme.amber500,
         size: 20,
       ),
       title: Text(c['carrier']?.toString() ?? ''),
@@ -296,10 +297,10 @@ class _WebhooksTab extends ConsumerWidget {
             itemBuilder: (context, i) {
               final r = rows[i];
               final color = switch (r.status) {
-                'delivered' => Colors.green,
-                'failed' => Colors.red,
-                'pending' => Colors.orange,
-                _ => Colors.grey,
+                'delivered' => AppTheme.green500,
+                'failed' => AppTheme.red400,
+                'pending' => AppTheme.amber500,
+                _ => AppTheme.slate400,
               };
               return Card(
                 child: ListTile(
@@ -399,10 +400,10 @@ class _HandoversTab extends ConsumerWidget {
             itemBuilder: (context, i) {
               final h = rows[i];
               final color = switch (h.status) {
-                'completed' => Colors.green,
-                'cancelled' => Colors.red,
-                'pending_pickup' => Colors.orange,
-                _ => Colors.grey,
+                'completed' => AppTheme.green500,
+                'cancelled' => AppTheme.red400,
+                'pending_pickup' => AppTheme.amber500,
+                _ => AppTheme.slate400,
               };
               return Card(
                 child: ListTile(

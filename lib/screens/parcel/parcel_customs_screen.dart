@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/customs_provider.dart';
 import '../../services/api/customs_api.dart';
+import '../../theme/app_theme.dart';
 
 const _purposes = ['personal', 'gift', 'sample', 'commercial', 'return'];
 
@@ -167,14 +168,14 @@ class _ParcelCustomsScreenState extends ConsumerState<ParcelCustomsScreen> {
           children: [
             if (signed)
               Card(
-                color: Colors.green.shade50,
-                child: const Padding(
-                  padding: EdgeInsets.all(16),
+                color: AppTheme.green50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      Icon(Icons.verified, color: Colors.green),
-                      SizedBox(width: 8),
-                      Expanded(
+                      Icon(Icons.verified, color: AppTheme.successColor),
+                      const SizedBox(width: 8),
+                      const Expanded(
                         child: Text(
                           'Déclaration signée et verrouillée.',
                           style: TextStyle(fontWeight: FontWeight.w600),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -70,6 +71,75 @@ class _IdentityVerificationsScreenState extends State<IdentityVerificationsScree
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(res['success'] == false ? 'Erreur' : 'Vérification rejetée')),
+      );
+    }
+    _load();
+  }
+
+  Future<void> _delete(Map<String, dynamic> v) async {
+    final l = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.kycDeleteConfirmTitle),
+        content: Text(l.kycDeleteConfirmBody),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.red500),
+            child: Text(l.kycDeleteCta),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final res = await _api.deleteIdentity(v['id']?.toString() ?? '');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text(res['success'] == false ? 'Erreur' : 'Vérification supprimée')),
+      );
+    }
+    _load();
+  }
+
+  Future<void> _requestInfo(Map<String, dynamic> v) async {
+    final l = AppLocalizations.of(context);
+    final ctrl = TextEditingController();
+    final message = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.kycRequestInfoTitle),
+        content: TextField(
+          controller: ctrl,
+          decoration:
+              InputDecoration(labelText: l.kycRequestInfoMessageLabel),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: Text(l.kycRequestInfoSubmit),
+          ),
+        ],
+      ),
+    );
+    if (message == null || message.length < 5) return;
+    final res =
+        await _api.requestInfoIdentity(v['id']?.toString() ?? '', message);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                res['success'] == false ? 'Erreur' : 'Demande envoyée')),
       );
     }
     _load();
@@ -197,26 +267,45 @@ class _IdentityVerificationsScreenState extends State<IdentityVerificationsScree
             const SizedBox(height: 6),
             Text('Motif : ${v['rejectionReason']}', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
           ],
-          if (st == 'pending' || st == 'rejected') ...[
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+          const SizedBox(height: 10),
+          Builder(builder: (context) {
+            final l = AppLocalizations.of(context);
+            return Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                if (st == 'pending')
+                TextButton.icon(
+                  onPressed: () => _delete(v),
+                  icon: Icon(Icons.delete_outline,
+                      color: AppTheme.red500, size: 18),
+                  label: Text(l.kycDeleteCta,
+                      style: TextStyle(color: AppTheme.red500)),
+                ),
+                if (st == 'pending') ...[
+                  TextButton.icon(
+                    onPressed: () => _requestInfo(v),
+                    icon: Icon(Icons.info_outline,
+                        color: AppTheme.amber700, size: 18),
+                    label: Text(l.kycRequestInfoCta,
+                        style: TextStyle(color: AppTheme.amber700)),
+                  ),
                   TextButton.icon(
                     onPressed: () => _reject(v),
-                    icon: Icon(Icons.close, color: AppTheme.red500, size: 18),
-                    label: Text('Rejeter', style: TextStyle(color: AppTheme.red500)),
+                    icon:
+                        Icon(Icons.close, color: AppTheme.red500, size: 18),
+                    label: Text('Rejeter',
+                        style: TextStyle(color: AppTheme.red500)),
                   ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () => _approve(v),
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Approuver'),
-                ),
+                  ElevatedButton.icon(
+                    onPressed: () => _approve(v),
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Approuver'),
+                  ),
+                ],
               ],
-            ),
-          ],
+            );
+          }),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/support_presence_monitor.dart';
@@ -92,6 +93,26 @@ class _SupportInboxScreenState extends ConsumerState<SupportInboxScreen> {
       await _load();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
+    }
+  }
+
+  Future<void> _close(Map<String, dynamic> chat) async {
+    final result = await showDialog<_CloseResult>(
+      context: context,
+      builder: (_) => const _CloseConversationDialog(),
+    );
+    if (result == null) return;
+    try {
+      await _api.supportChatRequest(
+        '/conversations/${chat['id']}/close',
+        data: {'reason': result.reason, 'category': result.category},
+      );
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Clôture impossible : $error')),
+      );
     }
   }
 
@@ -258,12 +279,96 @@ class _SupportInboxScreenState extends ConsumerState<SupportInboxScreen> {
                         onPressed: () => _transfer(chat),
                         child: const Text('Transférer')),
                     TextButton(
-                        onPressed: () => _action(chat['id'] as String, 'close'),
-                        child: const Text('Clôturer')),
+                        onPressed: () => _close(chat),
+                        child: Text(AppLocalizations.of(context)
+                            .supportCloseCta)),
                   ],
                 ]),
               ])),
           ])),
+    );
+  }
+}
+
+class _CloseResult {
+  final String reason;
+  final String category;
+  const _CloseResult(this.reason, this.category);
+}
+
+class _CloseConversationDialog extends StatefulWidget {
+  const _CloseConversationDialog();
+  @override
+  State<_CloseConversationDialog> createState() =>
+      _CloseConversationDialogState();
+}
+
+class _CloseConversationDialogState extends State<_CloseConversationDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _reason = TextEditingController();
+  String _category = 'resolved';
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l.supportCloseTitle),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: _category,
+              decoration:
+                  InputDecoration(labelText: l.supportCloseCategoryLabel),
+              items: [
+                DropdownMenuItem(
+                    value: 'resolved',
+                    child: Text(l.supportCloseCategoryResolved)),
+                DropdownMenuItem(
+                    value: 'duplicate',
+                    child: Text(l.supportCloseCategoryDuplicate)),
+                DropdownMenuItem(
+                    value: 'spam', child: Text(l.supportCloseCategorySpam)),
+                DropdownMenuItem(
+                    value: 'no_answer',
+                    child: Text(l.supportCloseCategoryNoAnswer)),
+              ],
+              onChanged: (v) => setState(() => _category = v!),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _reason,
+              decoration:
+                  InputDecoration(labelText: l.supportCloseReasonLabel),
+              maxLines: 3,
+              autofocus: true,
+              validator: (v) =>
+                  (v?.trim().length ?? 0) < 5 ? l.supportCloseReasonValidator : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState?.validate() != true) return;
+            Navigator.pop(
+                context, _CloseResult(_reason.text.trim(), _category));
+          },
+          child: Text(l.supportCloseSubmit),
+        ),
+      ],
     );
   }
 }

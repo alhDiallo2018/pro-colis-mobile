@@ -117,6 +117,29 @@ class AiAssistantApi {
     }
   }
 
+  /// Transcrit un enregistrement vocal (URL déjà uploadée) en texte via le
+  /// backend. Retourne null si l'endpoint n'est pas disponible — l'UI
+  /// affichera alors un message d'indisponibilité au lieu de pré-remplir.
+  Future<String?> transcribe({required String audioUrl}) async {
+    try {
+      final response = await client.dio.post(
+        '/ai/assistant/transcribe',
+        data: {'audioUrl': audioUrl},
+      );
+      final data = response.data;
+      if (data is! Map) return null;
+      final body = Map<String, dynamic>.from(data);
+      final payload = body['data'] is Map
+          ? Map<String, dynamic>.from(body['data'] as Map)
+          : body;
+      final text = payload['text']?.toString();
+      if (text != null && text.trim().isNotEmpty) return text.trim();
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   AiAssistantResult _fallback() => const AiAssistantResult(
         intent: 'unknown',
         answerText:

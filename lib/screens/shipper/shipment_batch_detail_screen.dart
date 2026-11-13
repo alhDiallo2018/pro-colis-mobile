@@ -152,6 +152,7 @@ class ShipmentBatchDetailScreen extends ConsumerWidget {
         ),
         data: (batch) => _BatchDetailView(
           batch: batch,
+          batchId: batchId,
           onAddParcel: batch.isMutable ? () => _addParcel(context, ref) : null,
           onClose: batch.isMutable ? () => _close(context, ref) : null,
           onDetach:
@@ -162,21 +163,25 @@ class ShipmentBatchDetailScreen extends ConsumerWidget {
   }
 }
 
-class _BatchDetailView extends StatelessWidget {
+class _BatchDetailView extends ConsumerWidget {
   final ShipmentBatch batch;
+  final String batchId;
   final VoidCallback? onAddParcel;
   final VoidCallback? onClose;
   final void Function(String parcelId)? onDetach;
 
   const _BatchDetailView({
     required this.batch,
+    required this.batchId,
     this.onAddParcel,
     this.onClose,
     this.onDetach,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final eventsAsync = ref.watch(shipmentBatchStopEventsProvider(batchId));
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -267,7 +272,69 @@ class _BatchDetailView extends StatelessWidget {
                         ),
                 ),
               )),
+        const SizedBox(height: 24),
+        Text(
+          l.batchStopEventsTitle,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        eventsAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (_, __) => Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(l.batchStopEventsEmpty),
+          ),
+          data: (events) => events.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(l.batchStopEventsEmpty),
+                )
+              : Column(
+                  children: events.map(_BatchStopEventTile.new).toList(),
+                ),
+        ),
       ],
+    );
+  }
+}
+
+class _BatchStopEventTile extends StatelessWidget {
+  final ShipmentBatchStopEvent event;
+  const _BatchStopEventTile(this.event);
+
+  IconData get _icon {
+    switch (event.type) {
+      case 'arrival':
+        return Icons.place_outlined;
+      case 'departure':
+        return Icons.directions_car_filled_outlined;
+      case 'incident':
+        return Icons.warning_amber_rounded;
+      case 'delay':
+        return Icons.schedule_rounded;
+      case 'delivered':
+        return Icons.check_circle_outline;
+      default:
+        return Icons.circle_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = [
+      if (event.stopLabel != null) event.stopLabel!,
+      if (event.description != null) event.description!,
+      if (event.occurredAt != null) event.occurredAt!.toLocal().toString(),
+    ].join(' · ');
+    return Card(
+      child: ListTile(
+        leading: Icon(_icon),
+        title: Text(event.label ?? event.type),
+        subtitle: subtitle.isEmpty ? null : Text(subtitle),
+      ),
     );
   }
 }

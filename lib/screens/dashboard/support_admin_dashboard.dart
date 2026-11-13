@@ -16,6 +16,8 @@ import '../../models/role_profile.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/nav_provider.dart';
+import '../../services/api/client.dart';
+import '../../services/api/support_api.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/fonts.dart';
@@ -55,9 +57,17 @@ final supportAdminAssistancesProvider =
   (ref) => ApiService().getAssistances(),
 );
 
+/// Vue SLA cross-tier. Null si l'endpoint n'est pas encore disponible côté
+/// backend ; la section est alors masquée.
+final supportAdminSlaProvider =
+    FutureProvider.autoDispose<SupportSlaOverview?>(
+  (ref) => SupportApi(ApiClient()).getSlaOverview(),
+);
+
 void invalidateSupportAdmin(WidgetRef ref) {
   ref.invalidate(supportAdminConversationsProvider);
   ref.invalidate(supportAdminAssistancesProvider);
+  ref.invalidate(supportAdminSlaProvider);
 }
 
 class SupportAdminDashboard extends ConsumerStatefulWidget {
@@ -285,6 +295,8 @@ class _SupportAdminHome extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 22),
+                  _SupportSlaCard(onSeeConversations: onSeeConversations),
                   const SizedBox(height: 22),
                   RoleListHeader(
                     title: 'Dernières conversations',
@@ -542,5 +554,150 @@ class _EmptyLine extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SupportSlaCard extends ConsumerWidget {
+  final VoidCallback onSeeConversations;
+  const _SupportSlaCard({required this.onSeeConversations});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(supportAdminSlaProvider);
+    final sla = async.valueOrNull;
+    if (async.isLoading && sla == null) {
+      return const RoleLoadingBlock(height: 120);
+    }
+    if (sla == null) return const SizedBox.shrink();
+    final totalIssues =
+        sla.technicalAtRisk + sla.technicalBreached + sla.commercialDelayed +
+            sla.chatExceeded;
+    final overallTone = totalIssues == 0
+        ? AppTheme.successColor
+        : (sla.technicalBreached > 0 || sla.chatExceeded > 3)
+            ? AppTheme.red400
+            : AppTheme.amber500;
+    return PcCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: overallTone.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.speed_rounded, color: overallTone, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  totalIssues == 0
+                      ? 'SLA sains sur les trois canaux'
+                      : '$totalIssues alerte${totalIssues > 1 ? 's' : ''} SLA à surveiller',
+                  style: AppFonts.plusJakartaSans(
+                      fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _SlaPill(
+                label: 'Tech à risque',
+                value: '${sla.technicalAtRisk}',
+                tone: sla.technicalAtRisk == 0
+                    ? AppTheme.successColor
+                    : AppTheme.amber500,
+              ),
+              _SlaPill(
+                label: 'Tech dépassés',
+                value: '${sla.technicalBreached}',
+                tone: sla.technicalBreached == 0
+                    ? AppTheme.successColor
+                    : AppTheme.red400,
+              ),
+              _SlaPill(
+                label: 'Commercial en retard',
+                value: '${sla.commercialDelayed}',
+                tone: sla.commercialDelayed == 0
+                    ? AppTheme.successColor
+                    : AppTheme.amber500,
+              ),
+              _SlaPill(
+                label: 'Chat dépassés',
+                value: '${sla.chatExceeded}',
+                tone: sla.chatExceeded == 0
+                    ? AppTheme.successColor
+                    : AppTheme.red400,
+                onTap: onSeeConversations,
+              ),
+            ],
+          ),
+          if (sla.chatAvgFirstResponseMinutes != null ||
+              sla.technicalAvgResolutionHours != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              [
+                if (sla.chatAvgFirstResponseMinutes != null)
+                  'Chat : ${sla.chatAvgFirstResponseMinutes!.toStringAsFixed(1)} min 1re réponse',
+                if (sla.technicalAvgResolutionHours != null)
+                  'Tech : ${sla.technicalAvgResolutionHours!.toStringAsFixed(1)} h résolution',
+              ].join(' · '),
+              style: AppFonts.manrope(
+                  fontSize: 12, color: AppTheme.textSecondary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SlaPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color tone;
+  final VoidCallback? onTap;
+  const _SlaPill({
+    required this.label,
+    required this.value,
+    required this.tone,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tone.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(value,
+              style: AppFonts.plusJakartaSans(
+                  fontSize: 14, fontWeight: FontWeight.w800, color: tone)),
+          const SizedBox(width: 6),
+          Text(label,
+              style: AppFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary)),
+        ],
+      ),
+    );
+    if (onTap == null) return content;
+    return InkWell(borderRadius: BorderRadius.circular(12), onTap: onTap, child: content);
   }
 }

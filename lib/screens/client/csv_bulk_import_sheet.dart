@@ -190,17 +190,56 @@ class _CsvBulkImportSheetState extends State<CsvBulkImportSheet> {
       _uploading = true;
       _outcomes = const [];
     });
-    final outcomes = <_ImportOutcome>[];
-    for (final row in valid) {
-      try {
-        await _api.createParcel({
-          'receiverName': row.receiverName,
-          'receiverPhone': row.receiverPhone,
-          'description': row.description,
-          'weight': row.weightKg,
-          if (row.receiverAddress != null)
-            'receiverAddress': row.receiverAddress,
+
+    final payloads = valid
+        .map((row) => <String, dynamic>{
+              'receiverName': row.receiverName,
+              'receiverPhone': row.receiverPhone,
+              'description': row.description,
+              'weight': row.weightKg,
+              if (row.receiverAddress != null)
+                'receiverAddress': row.receiverAddress,
+            })
+        .toList(growable: false);
+
+    // Essaie d'abord l'endpoint bulk atomique (backend v2+). Si 404, retombe
+    // sur une création séquentielle pour garder le progrès partiel.
+    try {
+      final bulk = await _api.bulkCreateParcels(payloads);
+      if (bulk != null) {
+        final outcomes = <_ImportOutcome>[];
+        for (var i = 0; i < valid.length; i++) {
+          final row = valid[i];
+          final success = i < bulk.created.length + bulk.failed.length
+              ? (i < bulk.created.length)
+              : false;
+          outcomes.add(_ImportOutcome(
+            row: row,
+            success: success,
+            message: success
+                ? null
+                : (i - bulk.created.length < bulk.failed.length
+                    ? bulk.failed[i - bulk.created.length]['message']
+                        ?.toString()
+                    : null),
+          ));
+        }
+        if (!mounted) return;
+        setState(() {
+          _outcomes = outcomes;
+          _uploading = false;
         });
+        return;
+      }
+    } catch (_) {
+      // L'endpoint bulk existe mais a échoué : on tente ligne par ligne.
+    }
+
+    final outcomes = <_ImportOutcome>[];
+    for (var i = 0; i < valid.length; i++) {
+      final row = valid[i];
+      try {
+        await _api.createParcel(payloads[i]);
         outcomes.add(_ImportOutcome(row: row, success: true));
       } catch (error) {
         outcomes.add(_ImportOutcome(

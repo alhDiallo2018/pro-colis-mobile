@@ -125,6 +125,38 @@ class ShipperDashboard {
   }
 }
 
+class BusinessShipperInvoice {
+  final String id;
+  final String? number;
+  final DateTime? issuedAt;
+  final double amount;
+  final String? currency;
+  final String status;
+  final String? pdfUrl;
+
+  const BusinessShipperInvoice({
+    required this.id,
+    this.number,
+    this.issuedAt,
+    this.amount = 0,
+    this.currency,
+    this.status = 'pending',
+    this.pdfUrl,
+  });
+
+  factory BusinessShipperInvoice.fromJson(Map<String, dynamic> json) =>
+      BusinessShipperInvoice(
+        id: json['id']?.toString() ?? '',
+        number: json['number']?.toString(),
+        issuedAt: DateTime.tryParse(json['issuedAt']?.toString() ?? ''),
+        amount:
+            json['amount'] is num ? (json['amount'] as num).toDouble() : 0,
+        currency: json['currency']?.toString(),
+        status: json['status']?.toString() ?? 'pending',
+        pdfUrl: json['pdfUrl']?.toString(),
+      );
+}
+
 class BusinessShipperApi {
   final ApiClient client;
 
@@ -142,5 +174,27 @@ class BusinessShipperApi {
     final body = client.handle(res);
     final data = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
     return ShipperDashboard.fromJson(data);
+  }
+
+  /// Récupère les factures du compte. Renvoie une liste vide si l'endpoint
+  /// n'est pas encore exposé par le backend (404) — l'UI affiche alors
+  /// l'état vide normal.
+  Future<List<BusinessShipperInvoice>> getInvoices({int limit = 5}) async {
+    try {
+      final res = await client.dio.get(
+        '/business-shipper/invoices',
+        queryParameters: {'limit': limit},
+      );
+      final body = client.handle(res);
+      final data = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
+      final list = (data['invoices'] as List?) ?? const [];
+      return list
+          .whereType<Map>()
+          .map((e) =>
+              BusinessShipperInvoice.fromJson(e.cast<String, dynamic>()))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 }

@@ -215,8 +215,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               OutlinedButton.icon(
                 onPressed: disabled ? null : _google,
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF1F1F1F),
+                  backgroundColor: AppTheme.cardColor,
+                  foregroundColor: AppTheme.slate900,
                   minimumSize: const Size(double.infinity, 52),
                   side: BorderSide(color: AppTheme.slate200),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

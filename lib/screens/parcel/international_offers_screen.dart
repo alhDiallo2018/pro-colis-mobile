@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/customs_provider.dart';
 import '../../services/api/international_carriers_api.dart';
+import '../../theme/app_theme.dart';
 
 class InternationalOffersScreen extends ConsumerWidget {
   final String parcelId;
@@ -78,7 +79,7 @@ class _OffersView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Card(
-              color: Colors.amber.shade50,
+              color: AppTheme.amber50,
               child: const Padding(
                 padding: EdgeInsets.all(12),
                 child: Text(

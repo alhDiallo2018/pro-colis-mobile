@@ -673,6 +673,13 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
           route: '/client/debts',
           tone: PcTone.amber,
         ),
+        RoleQuickLink(
+          icon: Icons.gavel_rounded,
+          title: 'Mes litiges',
+          subtitle: 'Suivi des réclamations formelles',
+          route: '/disputes',
+          tone: PcTone.neutral,
+        ),
       ];
 
     case UserRole.driver:
@@ -710,6 +717,13 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
           title: 'Véhicule et disponibilité',
           subtitle: 'Modifier mon véhicule et mon statut',
           route: '/driver/settings',
+          tone: PcTone.neutral,
+        ),
+        RoleQuickLink(
+          icon: Icons.gavel_rounded,
+          title: 'Mes litiges',
+          subtitle: 'Suivi des réclamations clients',
+          route: '/disputes',
           tone: PcTone.neutral,
         ),
       ];

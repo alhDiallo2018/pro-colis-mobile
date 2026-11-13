@@ -723,6 +723,708 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Import en cours… {done}/{total}'**
   String csvImportRunning(int done, int total);
+
+  /// No description provided for @experienceLoadFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Récapitulatif indisponible. Réessayez avec une connexion.'**
+  String get experienceLoadFailed;
+
+  /// No description provided for @experienceOverdueNotice.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'heure estimée de livraison est dépassée. Contactez le chauffeur pour une mise à jour.'**
+  String get experienceOverdueNotice;
+
+  /// No description provided for @experienceLastPositionFresh.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dernière position : {timestamp}. Position récente.'**
+  String experienceLastPositionFresh(String timestamp);
+
+  /// No description provided for @experienceLastPositionStale.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dernière position : {timestamp}. Position ancienne, le véhicule peut avoir bougé.'**
+  String experienceLastPositionStale(String timestamp);
+
+  /// No description provided for @experienceFinanceTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Récapitulatif financier'**
+  String get experienceFinanceTitle;
+
+  /// No description provided for @experienceAgreedPrice.
+  ///
+  /// In fr, this message translates to:
+  /// **'Prix convenu'**
+  String get experienceAgreedPrice;
+
+  /// No description provided for @experiencePaymentsConfirmed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paiements confirmés'**
+  String get experiencePaymentsConfirmed;
+
+  /// No description provided for @experienceCommissionEstimated.
+  ///
+  /// In fr, this message translates to:
+  /// **'Commission (estimation)'**
+  String get experienceCommissionEstimated;
+
+  /// No description provided for @experienceCommissionRecorded.
+  ///
+  /// In fr, this message translates to:
+  /// **'Commission (enregistrée)'**
+  String get experienceCommissionRecorded;
+
+  /// No description provided for @experienceNetAfterCommissionEstimated.
+  ///
+  /// In fr, this message translates to:
+  /// **'Net après commission (estimé)'**
+  String get experienceNetAfterCommissionEstimated;
+
+  /// No description provided for @experienceNetAfterCommission.
+  ///
+  /// In fr, this message translates to:
+  /// **'Net après commission'**
+  String get experienceNetAfterCommission;
+
+  /// No description provided for @experienceCommissionPaid.
+  ///
+  /// In fr, this message translates to:
+  /// **'Commission réglée'**
+  String get experienceCommissionPaid;
+
+  /// No description provided for @experienceDebtCreated.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dette créée sur ce colis'**
+  String get experienceDebtCreated;
+
+  /// No description provided for @experienceAccountCommissionDebt.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dette actuelle du compte'**
+  String get experienceAccountCommissionDebt;
+
+  /// No description provided for @experienceParcelPenaltyDue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pénalités restant à régler'**
+  String get experienceParcelPenaltyDue;
+
+  /// No description provided for @experienceShareReceipt.
+  ///
+  /// In fr, this message translates to:
+  /// **'Partager le reçu de {amount}'**
+  String experienceShareReceipt(String amount);
+
+  /// No description provided for @experienceReportIssue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Signaler un problème'**
+  String get experienceReportIssue;
+
+  /// No description provided for @experienceContactSupport.
+  ///
+  /// In fr, this message translates to:
+  /// **'Conversation avec le support'**
+  String get experienceContactSupport;
+
+  /// No description provided for @experienceSendSimilar.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer un colis similaire'**
+  String get experienceSendSimilar;
+
+  /// No description provided for @experienceFollowComplaint.
+  ///
+  /// In fr, this message translates to:
+  /// **'{subject} — {status}\nSuivre cette réclamation'**
+  String experienceFollowComplaint(String subject, String status);
+
+  /// No description provided for @complaintReasonLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Motif'**
+  String get complaintReasonLabel;
+
+  /// No description provided for @complaintReasonDelay.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retard'**
+  String get complaintReasonDelay;
+
+  /// No description provided for @complaintReasonDamage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis endommagé'**
+  String get complaintReasonDamage;
+
+  /// No description provided for @complaintReasonMissing.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis manquant'**
+  String get complaintReasonMissing;
+
+  /// No description provided for @complaintReasonPayment.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paiement'**
+  String get complaintReasonPayment;
+
+  /// No description provided for @complaintReasonOther.
+  ///
+  /// In fr, this message translates to:
+  /// **'Autre problème'**
+  String get complaintReasonOther;
+
+  /// No description provided for @complaintMessageLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Décrivez le problème'**
+  String get complaintMessageLabel;
+
+  /// No description provided for @complaintMessageValidator.
+  ///
+  /// In fr, this message translates to:
+  /// **'Décrivez le problème en au moins 10 caractères.'**
+  String get complaintMessageValidator;
+
+  /// No description provided for @complaintPhotoAttached.
+  ///
+  /// In fr, this message translates to:
+  /// **'Photo {index} jointe'**
+  String complaintPhotoAttached(int index);
+
+  /// No description provided for @complaintRemovePhoto.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retirer la photo'**
+  String get complaintRemovePhoto;
+
+  /// No description provided for @complaintAddPhoto.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter une photo ({count}/4)'**
+  String complaintAddPhoto(int count);
+
+  /// No description provided for @complaintSending.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoi…'**
+  String get complaintSending;
+
+  /// No description provided for @complaintSubmit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer la réclamation'**
+  String get complaintSubmit;
+
+  /// No description provided for @complaintPhotoError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Photo non envoyée. Réessayez.'**
+  String get complaintPhotoError;
+
+  /// No description provided for @complaintSubmitError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réclamation non confirmée. Votre saisie est conservée ; réessayez.'**
+  String get complaintSubmitError;
+
+  /// No description provided for @helpGuideLanguageLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue des consignes'**
+  String get helpGuideLanguageLabel;
+
+  /// No description provided for @helpGuideLangFr.
+  ///
+  /// In fr, this message translates to:
+  /// **'Français'**
+  String get helpGuideLangFr;
+
+  /// No description provided for @helpGuideLangWo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Wolof'**
+  String get helpGuideLangWo;
+
+  /// No description provided for @helpGuidePlay.
+  ///
+  /// In fr, this message translates to:
+  /// **'Écouter'**
+  String get helpGuidePlay;
+
+  /// No description provided for @helpGuideStop.
+  ///
+  /// In fr, this message translates to:
+  /// **'Arrêter'**
+  String get helpGuideStop;
+
+  /// No description provided for @helpGuideAudioError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lecture indisponible. Le texte reste accessible.'**
+  String get helpGuideAudioError;
+
+  /// No description provided for @helpGuideNoneAvailableFr.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les consignes en français ne sont pas encore disponibles.'**
+  String get helpGuideNoneAvailableFr;
+
+  /// No description provided for @helpGuideNoneAvailableWo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les consignes en wolof ne sont pas encore disponibles.'**
+  String get helpGuideNoneAvailableWo;
+
+  /// No description provided for @helpGuideContactSupport.
+  ///
+  /// In fr, this message translates to:
+  /// **'Demander de l\'aide au support'**
+  String get helpGuideContactSupport;
+
+  /// No description provided for @qualityScreenTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Qualité de service'**
+  String get qualityScreenTitle;
+
+  /// No description provided for @qualityScreenHeader.
+  ///
+  /// In fr, this message translates to:
+  /// **'Indicateurs sur les 30 derniers jours. Les retards utilisent les estimations de livraison enregistrées.'**
+  String get qualityScreenHeader;
+
+  /// No description provided for @qualityScreenError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Indicateurs temporairement indisponibles.'**
+  String get qualityScreenError;
+
+  /// No description provided for @qualityScreenRefresh.
+  ///
+  /// In fr, this message translates to:
+  /// **'Actualiser'**
+  String get qualityScreenRefresh;
+
+  /// No description provided for @qualityParcelsCreated.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis créés'**
+  String get qualityParcelsCreated;
+
+  /// No description provided for @qualityParcelsDelivered.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis livrés'**
+  String get qualityParcelsDelivered;
+
+  /// No description provided for @qualityDeliveriesOverdue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Livraisons en retard'**
+  String get qualityDeliveriesOverdue;
+
+  /// No description provided for @qualityPaymentsFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paiements échoués'**
+  String get qualityPaymentsFailed;
+
+  /// No description provided for @qualityCreationsStarted.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créations commencées'**
+  String get qualityCreationsStarted;
+
+  /// No description provided for @qualityCreationsAbandoned.
+  ///
+  /// In fr, this message translates to:
+  /// **'Abandons présumés après 24 h'**
+  String get qualityCreationsAbandoned;
+
+  /// No description provided for @qualityFirstResponse.
+  ///
+  /// In fr, this message translates to:
+  /// **'Première réponse du support'**
+  String get qualityFirstResponse;
+
+  /// No description provided for @qualityNotYetMeasured.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas encore de mesure'**
+  String get qualityNotYetMeasured;
+
+  /// No description provided for @qualityMinutes.
+  ///
+  /// In fr, this message translates to:
+  /// **'{minutes} min'**
+  String qualityMinutes(int minutes);
+
+  /// No description provided for @qualityFooter.
+  ///
+  /// In fr, this message translates to:
+  /// **'Abandons présumés : formulaires instrumentés sans création confirmée après 24 h. Délai du support calculé sur {sample} conversation(s) avec réponse enregistrée.'**
+  String qualityFooter(String sample);
+
+  /// No description provided for @kycDeleteCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer'**
+  String get kycDeleteCta;
+
+  /// No description provided for @kycDeleteConfirmTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer cette vérification ?'**
+  String get kycDeleteConfirmTitle;
+
+  /// No description provided for @kycDeleteConfirmBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les documents et l\'historique de vérification seront définitivement effacés.'**
+  String get kycDeleteConfirmBody;
+
+  /// No description provided for @kycRequestInfoCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Demander un complément'**
+  String get kycRequestInfoCta;
+
+  /// No description provided for @kycRequestInfoTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Demande d\'informations complémentaires'**
+  String get kycRequestInfoTitle;
+
+  /// No description provided for @kycRequestInfoMessageLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Message pour l\'utilisateur'**
+  String get kycRequestInfoMessageLabel;
+
+  /// No description provided for @kycRequestInfoSubmit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer la demande'**
+  String get kycRequestInfoSubmit;
+
+  /// No description provided for @supportCloseCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Clôturer'**
+  String get supportCloseCta;
+
+  /// No description provided for @supportCloseTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Clôturer la conversation'**
+  String get supportCloseTitle;
+
+  /// No description provided for @supportCloseCategoryLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Catégorie'**
+  String get supportCloseCategoryLabel;
+
+  /// No description provided for @supportCloseCategoryResolved.
+  ///
+  /// In fr, this message translates to:
+  /// **'Résolu'**
+  String get supportCloseCategoryResolved;
+
+  /// No description provided for @supportCloseCategoryDuplicate.
+  ///
+  /// In fr, this message translates to:
+  /// **'Doublon'**
+  String get supportCloseCategoryDuplicate;
+
+  /// No description provided for @supportCloseCategorySpam.
+  ///
+  /// In fr, this message translates to:
+  /// **'Spam'**
+  String get supportCloseCategorySpam;
+
+  /// No description provided for @supportCloseCategoryNoAnswer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sans réponse'**
+  String get supportCloseCategoryNoAnswer;
+
+  /// No description provided for @supportCloseReasonLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Motif de clôture'**
+  String get supportCloseReasonLabel;
+
+  /// No description provided for @supportCloseReasonValidator.
+  ///
+  /// In fr, this message translates to:
+  /// **'Indiquez un motif (min. 5 caractères).'**
+  String get supportCloseReasonValidator;
+
+  /// No description provided for @supportCloseSubmit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Clôturer'**
+  String get supportCloseSubmit;
+
+  /// No description provided for @aiAssistantOpenCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Assistant IA'**
+  String get aiAssistantOpenCta;
+
+  /// No description provided for @aiAssistantPrefilledSnack.
+  ///
+  /// In fr, this message translates to:
+  /// **'Formulaire pré-rempli depuis l\'assistant.'**
+  String get aiAssistantPrefilledSnack;
+
+  /// No description provided for @aiAssistantVoiceRecord.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dicter'**
+  String get aiAssistantVoiceRecord;
+
+  /// No description provided for @aiAssistantVoiceRecording.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrement…'**
+  String get aiAssistantVoiceRecording;
+
+  /// No description provided for @aiAssistantVoiceStop.
+  ///
+  /// In fr, this message translates to:
+  /// **'Arrêter'**
+  String get aiAssistantVoiceStop;
+
+  /// No description provided for @aiAssistantVoiceTranscribing.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transcription…'**
+  String get aiAssistantVoiceTranscribing;
+
+  /// No description provided for @aiAssistantVoiceUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transcription vocale indisponible. Veuillez saisir votre demande.'**
+  String get aiAssistantVoiceUnavailable;
+
+  /// No description provided for @aiAssistantVoicePermission.
+  ///
+  /// In fr, this message translates to:
+  /// **'Autorisez le microphone dans les réglages pour dicter.'**
+  String get aiAssistantVoicePermission;
+
+  /// No description provided for @batchStopEventsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Événements de la tournée'**
+  String get batchStopEventsTitle;
+
+  /// No description provided for @batchStopEventsEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun événement enregistré pour ce lot.'**
+  String get batchStopEventsEmpty;
+
+  /// No description provided for @invoicesSectionTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Factures'**
+  String get invoicesSectionTitle;
+
+  /// No description provided for @invoicesEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune facture disponible.'**
+  String get invoicesEmpty;
+
+  /// No description provided for @invoicesDownloadCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Télécharger'**
+  String get invoicesDownloadCta;
+
+  /// No description provided for @invoicesViewAllCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir toutes les factures'**
+  String get invoicesViewAllCta;
+
+  /// No description provided for @invoicesIssuedOn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Émise le {date}'**
+  String invoicesIssuedOn(String date);
+
+  /// No description provided for @disputesTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mes litiges'**
+  String get disputesTitle;
+
+  /// No description provided for @disputesEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun litige en cours.'**
+  String get disputesEmpty;
+
+  /// No description provided for @disputesOpenCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvrir un litige'**
+  String get disputesOpenCta;
+
+  /// No description provided for @disputesStatusOpen.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvert'**
+  String get disputesStatusOpen;
+
+  /// No description provided for @disputesStatusInReview.
+  ///
+  /// In fr, this message translates to:
+  /// **'En cours d\'étude'**
+  String get disputesStatusInReview;
+
+  /// No description provided for @disputesStatusResolved.
+  ///
+  /// In fr, this message translates to:
+  /// **'Résolu'**
+  String get disputesStatusResolved;
+
+  /// No description provided for @disputesStatusRejected.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rejeté'**
+  String get disputesStatusRejected;
+
+  /// No description provided for @disputesCategoryDamage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis endommagé'**
+  String get disputesCategoryDamage;
+
+  /// No description provided for @disputesCategoryLost.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colis perdu'**
+  String get disputesCategoryLost;
+
+  /// No description provided for @disputesCategoryDelay.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retard important'**
+  String get disputesCategoryDelay;
+
+  /// No description provided for @disputesCategoryPayment.
+  ///
+  /// In fr, this message translates to:
+  /// **'Litige de paiement'**
+  String get disputesCategoryPayment;
+
+  /// No description provided for @disputesCategoryOther.
+  ///
+  /// In fr, this message translates to:
+  /// **'Autre'**
+  String get disputesCategoryOther;
+
+  /// No description provided for @disputesNewTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau litige'**
+  String get disputesNewTitle;
+
+  /// No description provided for @disputesCategoryLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Catégorie'**
+  String get disputesCategoryLabel;
+
+  /// No description provided for @disputesSubjectLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Objet (optionnel)'**
+  String get disputesSubjectLabel;
+
+  /// No description provided for @disputesDescriptionLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Décrivez le problème'**
+  String get disputesDescriptionLabel;
+
+  /// No description provided for @disputesDescriptionValidator.
+  ///
+  /// In fr, this message translates to:
+  /// **'Décrivez le problème en au moins 20 caractères.'**
+  String get disputesDescriptionValidator;
+
+  /// No description provided for @disputesClaimedAmountLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Montant réclamé (optionnel)'**
+  String get disputesClaimedAmountLabel;
+
+  /// No description provided for @disputesSubmit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Soumettre le litige'**
+  String get disputesSubmit;
+
+  /// No description provided for @disputesSubmitting.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoi…'**
+  String get disputesSubmitting;
+
+  /// No description provided for @disputesSubmitError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Litige non soumis. Vérifiez votre connexion et réessayez.'**
+  String get disputesSubmitError;
+
+  /// No description provided for @disputesDetailTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Détail du litige'**
+  String get disputesDetailTitle;
+
+  /// No description provided for @disputesCommentLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter un commentaire'**
+  String get disputesCommentLabel;
+
+  /// No description provided for @disputesCommentSend.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer'**
+  String get disputesCommentSend;
+
+  /// No description provided for @disputesResolutionNote.
+  ///
+  /// In fr, this message translates to:
+  /// **'Note de résolution'**
+  String get disputesResolutionNote;
+
+  /// No description provided for @disputesEventsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Historique'**
+  String get disputesEventsTitle;
+
+  /// No description provided for @disputesParcelLink.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir le colis'**
+  String get disputesParcelLink;
 }
 
 class _AppLocalizationsDelegate

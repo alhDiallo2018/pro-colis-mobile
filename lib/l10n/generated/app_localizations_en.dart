@@ -341,4 +341,388 @@ class AppLocalizationsEn extends AppLocalizations {
   String csvImportRunning(int done, int total) {
     return 'Importing… $done/$total';
   }
+
+  @override
+  String get experienceLoadFailed =>
+      'Summary unavailable. Try again with a connection.';
+
+  @override
+  String get experienceOverdueNotice =>
+      'The estimated delivery time has passed. Contact the driver for an update.';
+
+  @override
+  String experienceLastPositionFresh(String timestamp) {
+    return 'Last position: $timestamp. Recent position.';
+  }
+
+  @override
+  String experienceLastPositionStale(String timestamp) {
+    return 'Last position: $timestamp. Old position, the vehicle may have moved.';
+  }
+
+  @override
+  String get experienceFinanceTitle => 'Financial summary';
+
+  @override
+  String get experienceAgreedPrice => 'Agreed price';
+
+  @override
+  String get experiencePaymentsConfirmed => 'Confirmed payments';
+
+  @override
+  String get experienceCommissionEstimated => 'Commission (estimate)';
+
+  @override
+  String get experienceCommissionRecorded => 'Commission (recorded)';
+
+  @override
+  String get experienceNetAfterCommissionEstimated =>
+      'Net after commission (estimate)';
+
+  @override
+  String get experienceNetAfterCommission => 'Net after commission';
+
+  @override
+  String get experienceCommissionPaid => 'Commission paid';
+
+  @override
+  String get experienceDebtCreated => 'Debt created on this parcel';
+
+  @override
+  String get experienceAccountCommissionDebt => 'Current account debt';
+
+  @override
+  String get experienceParcelPenaltyDue => 'Penalties remaining to pay';
+
+  @override
+  String experienceShareReceipt(String amount) {
+    return 'Share the receipt for $amount';
+  }
+
+  @override
+  String get experienceReportIssue => 'Report an issue';
+
+  @override
+  String get experienceContactSupport => 'Talk to support';
+
+  @override
+  String get experienceSendSimilar => 'Send a similar parcel';
+
+  @override
+  String experienceFollowComplaint(String subject, String status) {
+    return '$subject — $status\nFollow this complaint';
+  }
+
+  @override
+  String get complaintReasonLabel => 'Reason';
+
+  @override
+  String get complaintReasonDelay => 'Delay';
+
+  @override
+  String get complaintReasonDamage => 'Damaged parcel';
+
+  @override
+  String get complaintReasonMissing => 'Missing parcel';
+
+  @override
+  String get complaintReasonPayment => 'Payment';
+
+  @override
+  String get complaintReasonOther => 'Other issue';
+
+  @override
+  String get complaintMessageLabel => 'Describe the issue';
+
+  @override
+  String get complaintMessageValidator =>
+      'Describe the issue in at least 10 characters.';
+
+  @override
+  String complaintPhotoAttached(int index) {
+    return 'Photo $index attached';
+  }
+
+  @override
+  String get complaintRemovePhoto => 'Remove photo';
+
+  @override
+  String complaintAddPhoto(int count) {
+    return 'Add a photo ($count/4)';
+  }
+
+  @override
+  String get complaintSending => 'Sending…';
+
+  @override
+  String get complaintSubmit => 'Submit the complaint';
+
+  @override
+  String get complaintPhotoError => 'Photo not sent. Try again.';
+
+  @override
+  String get complaintSubmitError =>
+      'Complaint not confirmed. Your input is kept; try again.';
+
+  @override
+  String get helpGuideLanguageLabel => 'Guide language';
+
+  @override
+  String get helpGuideLangFr => 'French';
+
+  @override
+  String get helpGuideLangWo => 'Wolof';
+
+  @override
+  String get helpGuidePlay => 'Listen';
+
+  @override
+  String get helpGuideStop => 'Stop';
+
+  @override
+  String get helpGuideAudioError =>
+      'Playback unavailable. The text is still accessible.';
+
+  @override
+  String get helpGuideNoneAvailableFr =>
+      'Guides in French are not yet available.';
+
+  @override
+  String get helpGuideNoneAvailableWo =>
+      'Guides in Wolof are not yet available.';
+
+  @override
+  String get helpGuideContactSupport => 'Ask support for help';
+
+  @override
+  String get qualityScreenTitle => 'Service quality';
+
+  @override
+  String get qualityScreenHeader =>
+      'Metrics for the past 30 days. Delays use recorded delivery estimates.';
+
+  @override
+  String get qualityScreenError => 'Metrics temporarily unavailable.';
+
+  @override
+  String get qualityScreenRefresh => 'Refresh';
+
+  @override
+  String get qualityParcelsCreated => 'Parcels created';
+
+  @override
+  String get qualityParcelsDelivered => 'Parcels delivered';
+
+  @override
+  String get qualityDeliveriesOverdue => 'Overdue deliveries';
+
+  @override
+  String get qualityPaymentsFailed => 'Failed payments';
+
+  @override
+  String get qualityCreationsStarted => 'Creations started';
+
+  @override
+  String get qualityCreationsAbandoned => 'Presumed abandoned after 24h';
+
+  @override
+  String get qualityFirstResponse => 'Support first response';
+
+  @override
+  String get qualityNotYetMeasured => 'No measurement yet';
+
+  @override
+  String qualityMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String qualityFooter(String sample) {
+    return 'Presumed abandons: instrumented forms without a confirmed creation after 24h. Support delay computed on $sample conversation(s) with a recorded reply.';
+  }
+
+  @override
+  String get kycDeleteCta => 'Delete';
+
+  @override
+  String get kycDeleteConfirmTitle => 'Delete this verification?';
+
+  @override
+  String get kycDeleteConfirmBody =>
+      'Documents and verification history will be permanently removed.';
+
+  @override
+  String get kycRequestInfoCta => 'Request more info';
+
+  @override
+  String get kycRequestInfoTitle => 'Request additional information';
+
+  @override
+  String get kycRequestInfoMessageLabel => 'Message for the user';
+
+  @override
+  String get kycRequestInfoSubmit => 'Send request';
+
+  @override
+  String get supportCloseCta => 'Close';
+
+  @override
+  String get supportCloseTitle => 'Close the conversation';
+
+  @override
+  String get supportCloseCategoryLabel => 'Category';
+
+  @override
+  String get supportCloseCategoryResolved => 'Resolved';
+
+  @override
+  String get supportCloseCategoryDuplicate => 'Duplicate';
+
+  @override
+  String get supportCloseCategorySpam => 'Spam';
+
+  @override
+  String get supportCloseCategoryNoAnswer => 'No answer';
+
+  @override
+  String get supportCloseReasonLabel => 'Close reason';
+
+  @override
+  String get supportCloseReasonValidator =>
+      'Provide a reason (min. 5 characters).';
+
+  @override
+  String get supportCloseSubmit => 'Close';
+
+  @override
+  String get aiAssistantOpenCta => 'AI Assistant';
+
+  @override
+  String get aiAssistantPrefilledSnack => 'Form prefilled from the assistant.';
+
+  @override
+  String get aiAssistantVoiceRecord => 'Dictate';
+
+  @override
+  String get aiAssistantVoiceRecording => 'Recording…';
+
+  @override
+  String get aiAssistantVoiceStop => 'Stop';
+
+  @override
+  String get aiAssistantVoiceTranscribing => 'Transcribing…';
+
+  @override
+  String get aiAssistantVoiceUnavailable =>
+      'Voice transcription unavailable. Please type your request.';
+
+  @override
+  String get aiAssistantVoicePermission =>
+      'Allow microphone access in settings to dictate.';
+
+  @override
+  String get batchStopEventsTitle => 'Trip events';
+
+  @override
+  String get batchStopEventsEmpty => 'No events recorded for this batch.';
+
+  @override
+  String get invoicesSectionTitle => 'Invoices';
+
+  @override
+  String get invoicesEmpty => 'No invoices available.';
+
+  @override
+  String get invoicesDownloadCta => 'Download';
+
+  @override
+  String get invoicesViewAllCta => 'View all invoices';
+
+  @override
+  String invoicesIssuedOn(String date) {
+    return 'Issued on $date';
+  }
+
+  @override
+  String get disputesTitle => 'My disputes';
+
+  @override
+  String get disputesEmpty => 'No open disputes.';
+
+  @override
+  String get disputesOpenCta => 'Open a dispute';
+
+  @override
+  String get disputesStatusOpen => 'Open';
+
+  @override
+  String get disputesStatusInReview => 'Under review';
+
+  @override
+  String get disputesStatusResolved => 'Resolved';
+
+  @override
+  String get disputesStatusRejected => 'Rejected';
+
+  @override
+  String get disputesCategoryDamage => 'Damaged parcel';
+
+  @override
+  String get disputesCategoryLost => 'Lost parcel';
+
+  @override
+  String get disputesCategoryDelay => 'Significant delay';
+
+  @override
+  String get disputesCategoryPayment => 'Payment dispute';
+
+  @override
+  String get disputesCategoryOther => 'Other';
+
+  @override
+  String get disputesNewTitle => 'New dispute';
+
+  @override
+  String get disputesCategoryLabel => 'Category';
+
+  @override
+  String get disputesSubjectLabel => 'Subject (optional)';
+
+  @override
+  String get disputesDescriptionLabel => 'Describe the issue';
+
+  @override
+  String get disputesDescriptionValidator =>
+      'Describe the issue in at least 20 characters.';
+
+  @override
+  String get disputesClaimedAmountLabel => 'Claimed amount (optional)';
+
+  @override
+  String get disputesSubmit => 'Submit dispute';
+
+  @override
+  String get disputesSubmitting => 'Sending…';
+
+  @override
+  String get disputesSubmitError =>
+      'Dispute not submitted. Check your connection and try again.';
+
+  @override
+  String get disputesDetailTitle => 'Dispute details';
+
+  @override
+  String get disputesCommentLabel => 'Add a comment';
+
+  @override
+  String get disputesCommentSend => 'Send';
+
+  @override
+  String get disputesResolutionNote => 'Resolution note';
+
+  @override
+  String get disputesEventsTitle => 'History';
+
+  @override
+  String get disputesParcelLink => 'View parcel';
 }

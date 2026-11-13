@@ -1156,7 +1156,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Zone modifiée avec succès'),
-              backgroundColor: Colors.green,
+              backgroundColor: AppTheme.successColor,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1168,7 +1168,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message'] ?? 'Erreur lors de la modification'),
-              backgroundColor: Colors.red,
+              backgroundColor: AppTheme.red400,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1193,7 +1193,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Zone créée avec succès'),
-              backgroundColor: Colors.green,
+              backgroundColor: AppTheme.successColor,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1205,7 +1205,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message'] ?? 'Erreur lors de la création'),
-              backgroundColor: Colors.red,
+              backgroundColor: AppTheme.red400,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1219,7 +1219,7 @@ class _GarageFormScreenState extends State<_GarageFormScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.red400,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),

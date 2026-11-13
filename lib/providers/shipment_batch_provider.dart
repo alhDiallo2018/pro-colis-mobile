@@ -27,6 +27,12 @@ final shipmentBatchDetailProvider = FutureProvider.family
   return api.get(batchId);
 });
 
+final shipmentBatchStopEventsProvider = FutureProvider.family
+    .autoDispose<List<ShipmentBatchStopEvent>, String>((ref, batchId) async {
+  final api = ref.read(shipmentBatchApiProvider);
+  return api.stopEvents(batchId);
+});
+
 class ShipmentBatchMutationState {
   final bool busy;
   final String? error;

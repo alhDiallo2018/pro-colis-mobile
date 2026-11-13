@@ -156,4 +156,55 @@ class ShipmentBatchApi {
     final batch = (payload['batch'] as Map?)?.cast<String, dynamic>() ?? {};
     return ShipmentBatch.fromJson(batch);
   }
+
+  /// Récupère les événements de tournée du lot (arrivée arrêt, incident, etc.).
+  /// Renvoie une liste vide si l'endpoint n'existe pas encore (404) — la
+  /// section UI s'affichera alors avec « Aucun événement enregistré ».
+  Future<List<ShipmentBatchStopEvent>> stopEvents(String batchId) async {
+    try {
+      final res = await client.dio
+          .get('/shipment-batches/$batchId/stop-events');
+      final body = client.handle(res);
+      final payload = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
+      final list = (payload['events'] as List?) ?? const [];
+      return list
+          .whereType<Map>()
+          .map((e) =>
+              ShipmentBatchStopEvent.fromJson(e.cast<String, dynamic>()))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+}
+
+class ShipmentBatchStopEvent {
+  final String id;
+  final String type;
+  final String? label;
+  final String? description;
+  final DateTime? occurredAt;
+  final String? parcelId;
+  final String? stopLabel;
+
+  const ShipmentBatchStopEvent({
+    required this.id,
+    required this.type,
+    this.label,
+    this.description,
+    this.occurredAt,
+    this.parcelId,
+    this.stopLabel,
+  });
+
+  factory ShipmentBatchStopEvent.fromJson(Map<String, dynamic> json) =>
+      ShipmentBatchStopEvent(
+        id: json['id']?.toString() ?? '',
+        type: json['type']?.toString() ?? 'event',
+        label: json['label']?.toString(),
+        description: json['description']?.toString(),
+        occurredAt: DateTime.tryParse(json['occurredAt']?.toString() ?? ''),
+        parcelId: json['parcelId']?.toString(),
+        stopLabel: json['stopLabel']?.toString(),
+      );
 }

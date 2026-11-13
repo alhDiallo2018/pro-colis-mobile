@@ -13,7 +13,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/api/business_shipper_api.dart';
 import '../../services/api/client.dart';
 import '../../theme/app_theme.dart';
@@ -35,6 +38,7 @@ class _BusinessShipperDashboardScreenState
   late final BusinessShipperApi _api = BusinessShipperApi(ApiClient());
 
   ShipperDashboard? _dashboard;
+  List<BusinessShipperInvoice> _invoices = const [];
   bool _loading = true;
   String? _error;
 
@@ -54,10 +58,14 @@ class _BusinessShipperDashboardScreenState
       _error = null;
     });
     try {
-      final data = await _api.getDashboard(from: _from, to: _to);
+      final results = await Future.wait([
+        _api.getDashboard(from: _from, to: _to),
+        _api.getInvoices(limit: 5),
+      ]);
       if (!mounted) return;
       setState(() {
-        _dashboard = data;
+        _dashboard = results[0] as ShipperDashboard;
+        _invoices = results[1] as List<BusinessShipperInvoice>;
         _loading = false;
       });
     } catch (e) {
@@ -66,6 +74,17 @@ class _BusinessShipperDashboardScreenState
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _downloadInvoice(BusinessShipperInvoice invoice) async {
+    if (invoice.pdfUrl == null || invoice.pdfUrl!.isEmpty) return;
+    final resolved = ApiClient.resolveMediaUrl(invoice.pdfUrl!);
+    final uri = Uri.tryParse(resolved);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      await Share.share(resolved);
     }
   }
 
@@ -161,8 +180,9 @@ class _BusinessShipperDashboardScreenState
                       _slaCard(period.stats),
                       const SizedBox(height: 14),
                       _destinationsCard(period.stats),
+                      const SizedBox(height: 14),                      _volumeTimelineCard(period.stats),
                       const SizedBox(height: 14),
-                      _volumeTimelineCard(period.stats),
+                      _invoicesCard(),
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -413,6 +433,87 @@ class _BusinessShipperDashboardScreenState
               '${stats.byDay.first.date} → ${stats.byDay.last.date} · max $maxCount/jour',
               style: AppFonts.manrope(
                   fontSize: 11, color: AppTheme.textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _invoicesCard() {
+    final l = AppLocalizations.of(context);
+    return PcCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.receipt_long_rounded, color: AppTheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l.invoicesSectionTitle,
+                style: AppFonts.plusJakartaSans(
+                    fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          if (_invoices.isEmpty)
+            Text(
+              l.invoicesEmpty,
+              style: AppFonts.manrope(
+                  fontSize: 13, color: AppTheme.textSecondary),
+            )
+          else
+            ..._invoices.map((invoice) {
+              final dateLabel = invoice.issuedAt == null
+                  ? ''
+                  : l.invoicesIssuedOn(
+                      DateFormat('d MMM y', 'fr').format(invoice.issuedAt!));
+              final amountLabel = invoice.currency == 'XOF' ||
+                      invoice.currency == null ||
+                      invoice.currency!.isEmpty
+                  ? _fcfa(invoice.amount)
+                  : '${NumberFormat.decimalPattern('fr').format(invoice.amount.round())} ${invoice.currency}';
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          invoice.number ?? invoice.id,
+                          style: AppFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary),
+                        ),
+                        if (dateLabel.isNotEmpty)
+                          Text(
+                            '$dateLabel · $amountLabel',
+                            style: AppFonts.manrope(
+                                fontSize: 11,
+                                color: AppTheme.textSecondary),
+                          )
+                        else
+                          Text(
+                            amountLabel,
+                            style: AppFonts.manrope(
+                                fontSize: 11,
+                                color: AppTheme.textSecondary),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (invoice.pdfUrl != null && invoice.pdfUrl!.isNotEmpty)
+                    IconButton(
+                      tooltip: l.invoicesDownloadCta,
+                      icon: const Icon(Icons.download_rounded),
+                      onPressed: () => _downloadInvoice(invoice),
+                    ),
+                ]),
+              );
+            }),
         ],
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/api/client.dart';
 
 class QualityScreen extends StatefulWidget {
@@ -24,15 +25,15 @@ class _QualityScreenState extends State<QualityScreen> {
       final response = await client.dio.get('/quality');
       final body = client.handle(response);
       if (response.statusCode != 200 || body['success'] != true)
-        throw StateError('Indicateurs indisponibles');
+        throw StateError('quality_unavailable');
       if (mounted)
         setState(() {
           _quality = Map<String, dynamic>.from(body['quality']);
           _error = null;
         });
     } catch (_) {
-      if (mounted)
-        setState(() => _error = 'Indicateurs temporairement indisponibles.');
+      if (!mounted) return;
+      setState(() => _error = AppLocalizations.of(context).qualityScreenError);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -40,30 +41,31 @@ class _QualityScreenState extends State<QualityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final q = _quality;
     final metrics = q == null
         ? <String, dynamic>{}
         : {
-            'Colis créés': q['created'],
-            'Colis livrés': q['delivered'],
-            'Livraisons en retard': q['overdue'],
-            'Paiements échoués': q['payments']['failed'] ?? 0,
-            'Créations commencées': q['creationAttempts']['started'],
-            'Abandons présumés après 24 h': q['creationAttempts']['abandoned'],
-            'Première réponse du support': q['firstResponse']['minutes'] == null
-                ? 'Pas encore de mesure'
-                : '${(q['firstResponse']['minutes'] as num).round()} min',
+            l.qualityParcelsCreated: q['created'],
+            l.qualityParcelsDelivered: q['delivered'],
+            l.qualityDeliveriesOverdue: q['overdue'],
+            l.qualityPaymentsFailed: q['payments']['failed'] ?? 0,
+            l.qualityCreationsStarted: q['creationAttempts']['started'],
+            l.qualityCreationsAbandoned: q['creationAttempts']['abandoned'],
+            l.qualityFirstResponse: q['firstResponse']['minutes'] == null
+                ? l.qualityNotYetMeasured
+                : l.qualityMinutes(
+                    (q['firstResponse']['minutes'] as num).round()),
           };
     return Scaffold(
-        appBar: AppBar(title: const Text('Qualité de service')),
+        appBar: AppBar(title: Text(l.qualityScreenTitle)),
         body: RefreshIndicator(
             onRefresh: _load,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
-                const Text(
-                    'Indicateurs sur les 30 derniers jours. Les retards utilisent les estimations de livraison enregistrées.'),
+                Text(l.qualityScreenHeader),
                 const SizedBox(height: 16),
                 if (_loading) const LinearProgressIndicator(),
                 if (_error != null)
@@ -72,7 +74,7 @@ class _QualityScreenState extends State<QualityScreen> {
                           color: Theme.of(context).colorScheme.error)),
                 OutlinedButton(
                     onPressed: _loading ? null : _load,
-                    child: const Text('Actualiser')),
+                    child: Text(l.qualityScreenRefresh)),
                 for (final entry in metrics.entries)
                   Card(
                       child: Padding(
@@ -91,8 +93,8 @@ class _QualityScreenState extends State<QualityScreen> {
                                         .headlineMedium),
                               ]))),
                 if (q != null)
-                  Text(
-                      'Abandons présumés : formulaires instrumentés sans création confirmée après 24 h. Délai du support calculé sur ${q['firstResponse']['sample']} conversation(s) avec réponse enregistrée.'),
+                  Text(l.qualityFooter(
+                      q['firstResponse']['sample'].toString())),
               ],
             )));
   }

@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../providers/handover_provider.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/qr_scanner_page.dart';
 
 class HandoverConfirmScreen extends ConsumerStatefulWidget {
@@ -162,7 +163,7 @@ class _HandoverConfirmScreenState extends ConsumerState<HandoverConfirmScreen> {
     return Column(
       children: [
         const SizedBox(height: 24),
-        Icon(Icons.check_circle, size: 72, color: Colors.green.shade600),
+        Icon(Icons.check_circle, size: 72, color: AppTheme.green600),
         const SizedBox(height: 16),
         Text(
           l.handoverConfirmSuccess,

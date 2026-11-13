@@ -29,10 +29,14 @@ import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/debt_block.dart';
 import '../../widgets/payment_channel_selector.dart';
+import '../../l10n/generated/app_localizations.dart';
+import '../../services/api/ai_api.dart';
 import '../../widgets/pay_client_debt_sheet.dart';
+import '../../widgets/parcel_templates_sheet.dart';
 import '../../widgets/phone_contact_picker.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../../widgets/location_autocomplete.dart';
+import '../shared/ai_assistant_screen.dart';
 
 final _apiService = ApiService();
 
@@ -750,6 +754,70 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
   String get _modeLabel =>
       _isFreeMode ? 'Publier une annonce' : 'Proposer à un chauffeur';
 
+  Future<void> _openTemplates() async {
+    final ownerId = ref.read(authProvider).user?.id ?? '';
+    final current = _hasAnyContent() ? _snapshotForTemplate() : null;
+    final data = await ParcelTemplatesSheet.show(
+      context,
+      ownerId: ownerId,
+      currentDraft: current,
+    );
+    if (!mounted || data == null) return;
+    setState(() {
+      _receiverNameCtrl.text = data['receiverName']?.toString() ?? '';
+      _receiverPhoneCtrl.text = data['receiverPhone']?.toString() ?? '';
+      _descriptionCtrl.text = data['description']?.toString() ?? '';
+      _weightCtrl.text = data['weight']?.toString() ?? '';
+      _departureZoneId = data['departureZoneId']?.toString();
+      _arrivalZoneId = data['arrivalZoneId']?.toString();
+    });
+  }
+
+  bool _hasAnyContent() =>
+      _receiverNameCtrl.text.trim().isNotEmpty ||
+      _receiverPhoneCtrl.text.trim().isNotEmpty ||
+      _descriptionCtrl.text.trim().isNotEmpty ||
+      _weightCtrl.text.trim().isNotEmpty ||
+      _departureZoneId != null ||
+      _arrivalZoneId != null;
+
+  Map<String, dynamic> _snapshotForTemplate() => {
+        'receiverName': _receiverNameCtrl.text.trim(),
+        'receiverPhone': _receiverPhoneCtrl.text.trim(),
+        'description': _descriptionCtrl.text.trim(),
+        'weight': _weightCtrl.text.trim(),
+        if (_departureZoneId != null) 'departureZoneId': _departureZoneId,
+        if (_arrivalZoneId != null) 'arrivalZoneId': _arrivalZoneId,
+      };
+
+  Future<void> _openAiAssistant() async {
+    final draft = await Navigator.of(context).push<AiParcelDraft>(
+      MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+    );
+    if (!mounted || draft == null) return;
+    setState(() {
+      if (draft.receiverName != null) {
+        _receiverNameCtrl.text = draft.receiverName!;
+      }
+      if (draft.receiverPhone != null) {
+        _receiverPhoneCtrl.text = draft.receiverPhone!;
+      }
+      if (draft.weightKg != null) {
+        _weightCtrl.text = draft.weightKg!.toStringAsFixed(
+            draft.weightKg! == draft.weightKg!.roundToDouble() ? 0 : 2);
+      }
+      if (draft.notes != null && _descriptionCtrl.text.trim().isEmpty) {
+        _descriptionCtrl.text = draft.notes!;
+      }
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(
+              AppLocalizations.of(context).aiAssistantPrefilledSnack)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -757,6 +825,18 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       appBar: AppBar(
         title: const Text('Nouveau colis'),
         backgroundColor: AppTheme.cardColor,
+        actions: [
+          IconButton(
+            tooltip: AppLocalizations.of(context).parcelTemplatesTitle,
+            icon: const Icon(Icons.bookmarks_outlined),
+            onPressed: _openTemplates,
+          ),
+          IconButton(
+            tooltip: AppLocalizations.of(context).aiAssistantOpenCta,
+            icon: const Icon(Icons.auto_awesome_rounded),
+            onPressed: _openAiAssistant,
+          ),
+        ],
       ),
       body: Column(
         children: [

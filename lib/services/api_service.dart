@@ -353,6 +353,42 @@ class ApiService {
     }
   }
 
+  /// Crée plusieurs colis en un seul appel atomique côté serveur.
+  /// Retourne null si l'endpoint n'existe pas (404) — l'appelant doit alors
+  /// retomber sur `createParcel` ligne par ligne pour préserver le progrès
+  /// partiel.
+  Future<BulkParcelResult?> bulkCreateParcels(
+      List<Map<String, dynamic>> parcels) async {
+    try {
+      final response = await _dio.post(
+        '/client/parcels/bulk-create',
+        data: {'parcels': parcels},
+      );
+      final responseData = _handleResponse(response);
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode == 404) return null;
+      if (statusCode >= 400 || responseData['success'] == false) {
+        throw _apiExceptionFromResponse(responseData, statusCode);
+      }
+      final results = (responseData['results'] as List?) ?? const [];
+      return BulkParcelResult(
+        created: results
+            .whereType<Map>()
+            .where((r) => r['success'] == true)
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList(),
+        failed: results
+            .whereType<Map>()
+            .where((r) => r['success'] != true)
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList(),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
   /// Corrige un colis pas encore pris en charge. L'API refuse la modification
   /// dès qu'un chauffeur est assigné, qu'une offre est acceptée ou qu'un
   /// paiement est engagé : le message de refus est renvoyé tel quel à l'appelant.
@@ -2567,6 +2603,28 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> deleteIdentity(String verificationId) async {
+    try {
+      final response = await _dio
+          .delete('/super-admin/identity-verifications/$verificationId');
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> requestInfoIdentity(
+      String verificationId, String message) async {
+    try {
+      final response = await _dio.post(
+          '/super-admin/identity-verifications/$verificationId/request-info',
+          data: {'message': message});
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ===== Assistances (journal des interactions support) =====
 
   Future<Map<String, dynamic>> getAssistances(
@@ -3361,4 +3419,10 @@ class ApiException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class BulkParcelResult {
+  final List<Map<String, dynamic>> created;
+  final List<Map<String, dynamic>> failed;
+  const BulkParcelResult({required this.created, required this.failed});
 }

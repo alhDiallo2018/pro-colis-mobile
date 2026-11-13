@@ -342,4 +342,389 @@ class AppLocalizationsFr extends AppLocalizations {
   String csvImportRunning(int done, int total) {
     return 'Import en cours… $done/$total';
   }
+
+  @override
+  String get experienceLoadFailed =>
+      'Récapitulatif indisponible. Réessayez avec une connexion.';
+
+  @override
+  String get experienceOverdueNotice =>
+      'L\'heure estimée de livraison est dépassée. Contactez le chauffeur pour une mise à jour.';
+
+  @override
+  String experienceLastPositionFresh(String timestamp) {
+    return 'Dernière position : $timestamp. Position récente.';
+  }
+
+  @override
+  String experienceLastPositionStale(String timestamp) {
+    return 'Dernière position : $timestamp. Position ancienne, le véhicule peut avoir bougé.';
+  }
+
+  @override
+  String get experienceFinanceTitle => 'Récapitulatif financier';
+
+  @override
+  String get experienceAgreedPrice => 'Prix convenu';
+
+  @override
+  String get experiencePaymentsConfirmed => 'Paiements confirmés';
+
+  @override
+  String get experienceCommissionEstimated => 'Commission (estimation)';
+
+  @override
+  String get experienceCommissionRecorded => 'Commission (enregistrée)';
+
+  @override
+  String get experienceNetAfterCommissionEstimated =>
+      'Net après commission (estimé)';
+
+  @override
+  String get experienceNetAfterCommission => 'Net après commission';
+
+  @override
+  String get experienceCommissionPaid => 'Commission réglée';
+
+  @override
+  String get experienceDebtCreated => 'Dette créée sur ce colis';
+
+  @override
+  String get experienceAccountCommissionDebt => 'Dette actuelle du compte';
+
+  @override
+  String get experienceParcelPenaltyDue => 'Pénalités restant à régler';
+
+  @override
+  String experienceShareReceipt(String amount) {
+    return 'Partager le reçu de $amount';
+  }
+
+  @override
+  String get experienceReportIssue => 'Signaler un problème';
+
+  @override
+  String get experienceContactSupport => 'Conversation avec le support';
+
+  @override
+  String get experienceSendSimilar => 'Envoyer un colis similaire';
+
+  @override
+  String experienceFollowComplaint(String subject, String status) {
+    return '$subject — $status\nSuivre cette réclamation';
+  }
+
+  @override
+  String get complaintReasonLabel => 'Motif';
+
+  @override
+  String get complaintReasonDelay => 'Retard';
+
+  @override
+  String get complaintReasonDamage => 'Colis endommagé';
+
+  @override
+  String get complaintReasonMissing => 'Colis manquant';
+
+  @override
+  String get complaintReasonPayment => 'Paiement';
+
+  @override
+  String get complaintReasonOther => 'Autre problème';
+
+  @override
+  String get complaintMessageLabel => 'Décrivez le problème';
+
+  @override
+  String get complaintMessageValidator =>
+      'Décrivez le problème en au moins 10 caractères.';
+
+  @override
+  String complaintPhotoAttached(int index) {
+    return 'Photo $index jointe';
+  }
+
+  @override
+  String get complaintRemovePhoto => 'Retirer la photo';
+
+  @override
+  String complaintAddPhoto(int count) {
+    return 'Ajouter une photo ($count/4)';
+  }
+
+  @override
+  String get complaintSending => 'Envoi…';
+
+  @override
+  String get complaintSubmit => 'Envoyer la réclamation';
+
+  @override
+  String get complaintPhotoError => 'Photo non envoyée. Réessayez.';
+
+  @override
+  String get complaintSubmitError =>
+      'Réclamation non confirmée. Votre saisie est conservée ; réessayez.';
+
+  @override
+  String get helpGuideLanguageLabel => 'Langue des consignes';
+
+  @override
+  String get helpGuideLangFr => 'Français';
+
+  @override
+  String get helpGuideLangWo => 'Wolof';
+
+  @override
+  String get helpGuidePlay => 'Écouter';
+
+  @override
+  String get helpGuideStop => 'Arrêter';
+
+  @override
+  String get helpGuideAudioError =>
+      'Lecture indisponible. Le texte reste accessible.';
+
+  @override
+  String get helpGuideNoneAvailableFr =>
+      'Les consignes en français ne sont pas encore disponibles.';
+
+  @override
+  String get helpGuideNoneAvailableWo =>
+      'Les consignes en wolof ne sont pas encore disponibles.';
+
+  @override
+  String get helpGuideContactSupport => 'Demander de l\'aide au support';
+
+  @override
+  String get qualityScreenTitle => 'Qualité de service';
+
+  @override
+  String get qualityScreenHeader =>
+      'Indicateurs sur les 30 derniers jours. Les retards utilisent les estimations de livraison enregistrées.';
+
+  @override
+  String get qualityScreenError => 'Indicateurs temporairement indisponibles.';
+
+  @override
+  String get qualityScreenRefresh => 'Actualiser';
+
+  @override
+  String get qualityParcelsCreated => 'Colis créés';
+
+  @override
+  String get qualityParcelsDelivered => 'Colis livrés';
+
+  @override
+  String get qualityDeliveriesOverdue => 'Livraisons en retard';
+
+  @override
+  String get qualityPaymentsFailed => 'Paiements échoués';
+
+  @override
+  String get qualityCreationsStarted => 'Créations commencées';
+
+  @override
+  String get qualityCreationsAbandoned => 'Abandons présumés après 24 h';
+
+  @override
+  String get qualityFirstResponse => 'Première réponse du support';
+
+  @override
+  String get qualityNotYetMeasured => 'Pas encore de mesure';
+
+  @override
+  String qualityMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String qualityFooter(String sample) {
+    return 'Abandons présumés : formulaires instrumentés sans création confirmée après 24 h. Délai du support calculé sur $sample conversation(s) avec réponse enregistrée.';
+  }
+
+  @override
+  String get kycDeleteCta => 'Supprimer';
+
+  @override
+  String get kycDeleteConfirmTitle => 'Supprimer cette vérification ?';
+
+  @override
+  String get kycDeleteConfirmBody =>
+      'Les documents et l\'historique de vérification seront définitivement effacés.';
+
+  @override
+  String get kycRequestInfoCta => 'Demander un complément';
+
+  @override
+  String get kycRequestInfoTitle => 'Demande d\'informations complémentaires';
+
+  @override
+  String get kycRequestInfoMessageLabel => 'Message pour l\'utilisateur';
+
+  @override
+  String get kycRequestInfoSubmit => 'Envoyer la demande';
+
+  @override
+  String get supportCloseCta => 'Clôturer';
+
+  @override
+  String get supportCloseTitle => 'Clôturer la conversation';
+
+  @override
+  String get supportCloseCategoryLabel => 'Catégorie';
+
+  @override
+  String get supportCloseCategoryResolved => 'Résolu';
+
+  @override
+  String get supportCloseCategoryDuplicate => 'Doublon';
+
+  @override
+  String get supportCloseCategorySpam => 'Spam';
+
+  @override
+  String get supportCloseCategoryNoAnswer => 'Sans réponse';
+
+  @override
+  String get supportCloseReasonLabel => 'Motif de clôture';
+
+  @override
+  String get supportCloseReasonValidator =>
+      'Indiquez un motif (min. 5 caractères).';
+
+  @override
+  String get supportCloseSubmit => 'Clôturer';
+
+  @override
+  String get aiAssistantOpenCta => 'Assistant IA';
+
+  @override
+  String get aiAssistantPrefilledSnack =>
+      'Formulaire pré-rempli depuis l\'assistant.';
+
+  @override
+  String get aiAssistantVoiceRecord => 'Dicter';
+
+  @override
+  String get aiAssistantVoiceRecording => 'Enregistrement…';
+
+  @override
+  String get aiAssistantVoiceStop => 'Arrêter';
+
+  @override
+  String get aiAssistantVoiceTranscribing => 'Transcription…';
+
+  @override
+  String get aiAssistantVoiceUnavailable =>
+      'Transcription vocale indisponible. Veuillez saisir votre demande.';
+
+  @override
+  String get aiAssistantVoicePermission =>
+      'Autorisez le microphone dans les réglages pour dicter.';
+
+  @override
+  String get batchStopEventsTitle => 'Événements de la tournée';
+
+  @override
+  String get batchStopEventsEmpty => 'Aucun événement enregistré pour ce lot.';
+
+  @override
+  String get invoicesSectionTitle => 'Factures';
+
+  @override
+  String get invoicesEmpty => 'Aucune facture disponible.';
+
+  @override
+  String get invoicesDownloadCta => 'Télécharger';
+
+  @override
+  String get invoicesViewAllCta => 'Voir toutes les factures';
+
+  @override
+  String invoicesIssuedOn(String date) {
+    return 'Émise le $date';
+  }
+
+  @override
+  String get disputesTitle => 'Mes litiges';
+
+  @override
+  String get disputesEmpty => 'Aucun litige en cours.';
+
+  @override
+  String get disputesOpenCta => 'Ouvrir un litige';
+
+  @override
+  String get disputesStatusOpen => 'Ouvert';
+
+  @override
+  String get disputesStatusInReview => 'En cours d\'étude';
+
+  @override
+  String get disputesStatusResolved => 'Résolu';
+
+  @override
+  String get disputesStatusRejected => 'Rejeté';
+
+  @override
+  String get disputesCategoryDamage => 'Colis endommagé';
+
+  @override
+  String get disputesCategoryLost => 'Colis perdu';
+
+  @override
+  String get disputesCategoryDelay => 'Retard important';
+
+  @override
+  String get disputesCategoryPayment => 'Litige de paiement';
+
+  @override
+  String get disputesCategoryOther => 'Autre';
+
+  @override
+  String get disputesNewTitle => 'Nouveau litige';
+
+  @override
+  String get disputesCategoryLabel => 'Catégorie';
+
+  @override
+  String get disputesSubjectLabel => 'Objet (optionnel)';
+
+  @override
+  String get disputesDescriptionLabel => 'Décrivez le problème';
+
+  @override
+  String get disputesDescriptionValidator =>
+      'Décrivez le problème en au moins 20 caractères.';
+
+  @override
+  String get disputesClaimedAmountLabel => 'Montant réclamé (optionnel)';
+
+  @override
+  String get disputesSubmit => 'Soumettre le litige';
+
+  @override
+  String get disputesSubmitting => 'Envoi…';
+
+  @override
+  String get disputesSubmitError =>
+      'Litige non soumis. Vérifiez votre connexion et réessayez.';
+
+  @override
+  String get disputesDetailTitle => 'Détail du litige';
+
+  @override
+  String get disputesCommentLabel => 'Ajouter un commentaire';
+
+  @override
+  String get disputesCommentSend => 'Envoyer';
+
+  @override
+  String get disputesResolutionNote => 'Note de résolution';
+
+  @override
+  String get disputesEventsTitle => 'Historique';
+
+  @override
+  String get disputesParcelLink => 'Voir le colis';
 }

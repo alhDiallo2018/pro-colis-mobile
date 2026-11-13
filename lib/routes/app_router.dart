@@ -59,6 +59,7 @@ import '../screens/parcel/ads/advertisements_screen.dart';
 import '../screens/parcel/confirm_delivery_screen.dart';
 import '../screens/parcel/driver_profile_screen.dart';
 import '../screens/parcel/free_parcels_screen.dart';
+import '../screens/parcel/dispute_management_screen.dart';
 import '../screens/parcel/new_parcel_wizard_screen.dart';
 import '../screens/parcel/offres_recues_screen.dart';
 import '../screens/parcel/parcel_detail_screen.dart';
@@ -606,6 +607,28 @@ class AppRouter {
           name: 'shipment-batch-detail',
           builder: (context, state) => ShipmentBatchDetailScreen(
             batchId: state.pathParameters['batchId'] ?? '',
+          ),
+        ),
+
+        GoRoute(
+          path: '/disputes',
+          name: 'disputes',
+          builder: (context, state) => const DisputesListScreen(),
+        ),
+        GoRoute(
+          path: '/disputes/:disputeId',
+          name: 'dispute-detail',
+          builder: (context, state) => DisputeDetailScreen(
+            disputeId: state.pathParameters['disputeId'] ?? '',
+          ),
+        ),
+        GoRoute(
+          path: '/parcel/:parcelId/dispute',
+          name: 'dispute-new',
+          builder: (context, state) => NewDisputeScreen(
+            parcelId: state.pathParameters['parcelId'] ?? '',
+            parcelTrackingNumber:
+                state.uri.queryParameters['tracking'],
           ),
         ),
 

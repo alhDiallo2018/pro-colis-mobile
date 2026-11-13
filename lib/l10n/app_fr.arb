@@ -156,5 +156,162 @@
       "done": { "type": "int" },
       "total": { "type": "int" }
     }
-  }
+  },
+
+  "experienceLoadFailed": "Récapitulatif indisponible. Réessayez avec une connexion.",
+  "experienceOverdueNotice": "L'heure estimée de livraison est dépassée. Contactez le chauffeur pour une mise à jour.",
+  "experienceLastPositionFresh": "Dernière position : {timestamp}. Position récente.",
+  "@experienceLastPositionFresh": {
+    "placeholders": { "timestamp": { "type": "String" } }
+  },
+  "experienceLastPositionStale": "Dernière position : {timestamp}. Position ancienne, le véhicule peut avoir bougé.",
+  "@experienceLastPositionStale": {
+    "placeholders": { "timestamp": { "type": "String" } }
+  },
+  "experienceFinanceTitle": "Récapitulatif financier",
+  "experienceAgreedPrice": "Prix convenu",
+  "experiencePaymentsConfirmed": "Paiements confirmés",
+  "experienceCommissionEstimated": "Commission (estimation)",
+  "experienceCommissionRecorded": "Commission (enregistrée)",
+  "experienceNetAfterCommissionEstimated": "Net après commission (estimé)",
+  "experienceNetAfterCommission": "Net après commission",
+  "experienceCommissionPaid": "Commission réglée",
+  "experienceDebtCreated": "Dette créée sur ce colis",
+  "experienceAccountCommissionDebt": "Dette actuelle du compte",
+  "experienceParcelPenaltyDue": "Pénalités restant à régler",
+  "experienceShareReceipt": "Partager le reçu de {amount}",
+  "@experienceShareReceipt": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "experienceReportIssue": "Signaler un problème",
+  "experienceContactSupport": "Conversation avec le support",
+  "experienceSendSimilar": "Envoyer un colis similaire",
+  "experienceFollowComplaint": "{subject} — {status}\nSuivre cette réclamation",
+  "@experienceFollowComplaint": {
+    "placeholders": {
+      "subject": { "type": "String" },
+      "status": { "type": "String" }
+    }
+  },
+
+  "complaintReasonLabel": "Motif",
+  "complaintReasonDelay": "Retard",
+  "complaintReasonDamage": "Colis endommagé",
+  "complaintReasonMissing": "Colis manquant",
+  "complaintReasonPayment": "Paiement",
+  "complaintReasonOther": "Autre problème",
+  "complaintMessageLabel": "Décrivez le problème",
+  "complaintMessageValidator": "Décrivez le problème en au moins 10 caractères.",
+  "complaintPhotoAttached": "Photo {index} jointe",
+  "@complaintPhotoAttached": {
+    "placeholders": { "index": { "type": "int" } }
+  },
+  "complaintRemovePhoto": "Retirer la photo",
+  "complaintAddPhoto": "Ajouter une photo ({count}/4)",
+  "@complaintAddPhoto": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "complaintSending": "Envoi…",
+  "complaintSubmit": "Envoyer la réclamation",
+  "complaintPhotoError": "Photo non envoyée. Réessayez.",
+  "complaintSubmitError": "Réclamation non confirmée. Votre saisie est conservée ; réessayez.",
+
+  "helpGuideLanguageLabel": "Langue des consignes",
+  "helpGuideLangFr": "Français",
+  "helpGuideLangWo": "Wolof",
+  "helpGuidePlay": "Écouter",
+  "helpGuideStop": "Arrêter",
+  "helpGuideAudioError": "Lecture indisponible. Le texte reste accessible.",
+  "helpGuideNoneAvailableFr": "Les consignes en français ne sont pas encore disponibles.",
+  "helpGuideNoneAvailableWo": "Les consignes en wolof ne sont pas encore disponibles.",
+  "helpGuideContactSupport": "Demander de l'aide au support",
+
+  "qualityScreenTitle": "Qualité de service",
+  "qualityScreenHeader": "Indicateurs sur les 30 derniers jours. Les retards utilisent les estimations de livraison enregistrées.",
+  "qualityScreenError": "Indicateurs temporairement indisponibles.",
+  "qualityScreenRefresh": "Actualiser",
+  "qualityParcelsCreated": "Colis créés",
+  "qualityParcelsDelivered": "Colis livrés",
+  "qualityDeliveriesOverdue": "Livraisons en retard",
+  "qualityPaymentsFailed": "Paiements échoués",
+  "qualityCreationsStarted": "Créations commencées",
+  "qualityCreationsAbandoned": "Abandons présumés après 24 h",
+  "qualityFirstResponse": "Première réponse du support",
+  "qualityNotYetMeasured": "Pas encore de mesure",
+  "qualityMinutes": "{minutes} min",
+  "@qualityMinutes": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "qualityFooter": "Abandons présumés : formulaires instrumentés sans création confirmée après 24 h. Délai du support calculé sur {sample} conversation(s) avec réponse enregistrée.",
+  "@qualityFooter": {
+    "placeholders": { "sample": { "type": "String" } }
+  },
+
+  "kycDeleteCta": "Supprimer",
+  "kycDeleteConfirmTitle": "Supprimer cette vérification ?",
+  "kycDeleteConfirmBody": "Les documents et l'historique de vérification seront définitivement effacés.",
+  "kycRequestInfoCta": "Demander un complément",
+  "kycRequestInfoTitle": "Demande d'informations complémentaires",
+  "kycRequestInfoMessageLabel": "Message pour l'utilisateur",
+  "kycRequestInfoSubmit": "Envoyer la demande",
+
+  "supportCloseCta": "Clôturer",
+  "supportCloseTitle": "Clôturer la conversation",
+  "supportCloseCategoryLabel": "Catégorie",
+  "supportCloseCategoryResolved": "Résolu",
+  "supportCloseCategoryDuplicate": "Doublon",
+  "supportCloseCategorySpam": "Spam",
+  "supportCloseCategoryNoAnswer": "Sans réponse",
+  "supportCloseReasonLabel": "Motif de clôture",
+  "supportCloseReasonValidator": "Indiquez un motif (min. 5 caractères).",
+  "supportCloseSubmit": "Clôturer",
+
+  "aiAssistantOpenCta": "Assistant IA",
+  "aiAssistantPrefilledSnack": "Formulaire pré-rempli depuis l'assistant.",
+  "aiAssistantVoiceRecord": "Dicter",
+  "aiAssistantVoiceRecording": "Enregistrement…",
+  "aiAssistantVoiceStop": "Arrêter",
+  "aiAssistantVoiceTranscribing": "Transcription…",
+  "aiAssistantVoiceUnavailable": "Transcription vocale indisponible. Veuillez saisir votre demande.",
+  "aiAssistantVoicePermission": "Autorisez le microphone dans les réglages pour dicter.",
+
+  "batchStopEventsTitle": "Événements de la tournée",
+  "batchStopEventsEmpty": "Aucun événement enregistré pour ce lot.",
+
+  "invoicesSectionTitle": "Factures",
+  "invoicesEmpty": "Aucune facture disponible.",
+  "invoicesDownloadCta": "Télécharger",
+  "invoicesViewAllCta": "Voir toutes les factures",
+  "invoicesIssuedOn": "Émise le {date}",
+  "@invoicesIssuedOn": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+
+  "disputesTitle": "Mes litiges",
+  "disputesEmpty": "Aucun litige en cours.",
+  "disputesOpenCta": "Ouvrir un litige",
+  "disputesStatusOpen": "Ouvert",
+  "disputesStatusInReview": "En cours d'étude",
+  "disputesStatusResolved": "Résolu",
+  "disputesStatusRejected": "Rejeté",
+  "disputesCategoryDamage": "Colis endommagé",
+  "disputesCategoryLost": "Colis perdu",
+  "disputesCategoryDelay": "Retard important",
+  "disputesCategoryPayment": "Litige de paiement",
+  "disputesCategoryOther": "Autre",
+  "disputesNewTitle": "Nouveau litige",
+  "disputesCategoryLabel": "Catégorie",
+  "disputesSubjectLabel": "Objet (optionnel)",
+  "disputesDescriptionLabel": "Décrivez le problème",
+  "disputesDescriptionValidator": "Décrivez le problème en au moins 20 caractères.",
+  "disputesClaimedAmountLabel": "Montant réclamé (optionnel)",
+  "disputesSubmit": "Soumettre le litige",
+  "disputesSubmitting": "Envoi…",
+  "disputesSubmitError": "Litige non soumis. Vérifiez votre connexion et réessayez.",
+  "disputesDetailTitle": "Détail du litige",
+  "disputesCommentLabel": "Ajouter un commentaire",
+  "disputesCommentSend": "Envoyer",
+  "disputesResolutionNote": "Note de résolution",
+  "disputesEventsTitle": "Historique",
+  "disputesParcelLink": "Voir le colis"
 }
