@@ -458,11 +458,18 @@ class _BusinessShipperDashboardScreenState
           ]),
           const SizedBox(height: 12),
           if (_invoices.isEmpty)
-            Text(
-              l.invoicesEmpty,
-              style: AppFonts.manrope(
-                  fontSize: 13, color: AppTheme.textSecondary),
-            )
+            Row(children: [
+              Icon(Icons.receipt_outlined,
+                  color: AppTheme.slate400, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l.invoicesEmpty,
+                  style: AppFonts.manrope(
+                      fontSize: 13, color: AppTheme.textSecondary),
+                ),
+              ),
+            ])
           else
             ..._invoices.map((invoice) {
               final dateLabel = invoice.issuedAt == null

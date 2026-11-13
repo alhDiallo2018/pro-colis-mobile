@@ -12,6 +12,7 @@ import '../../models/parcel.dart';
 import '../../providers/shipment_batch_provider.dart';
 import '../../services/api/shipment_batch_api.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 
 class ShipmentBatchDetailScreen extends ConsumerWidget {
   final String batchId;
@@ -288,9 +289,22 @@ class _BatchDetailView extends ConsumerWidget {
             child: Text(l.batchStopEventsEmpty),
           ),
           data: (events) => events.isEmpty
-              ? Padding(
+              ? Container(
                   padding: const EdgeInsets.all(16),
-                  child: Text(l.batchStopEventsEmpty),
+                  decoration: BoxDecoration(
+                    color: AppTheme.slate50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.slate200),
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.timeline_rounded,
+                        color: AppTheme.slate400, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(l.batchStopEventsEmpty,
+                          style: TextStyle(color: AppTheme.textSecondary)),
+                    ),
+                  ]),
                 )
               : Column(
                   children: events.map(_BatchStopEventTile.new).toList(),

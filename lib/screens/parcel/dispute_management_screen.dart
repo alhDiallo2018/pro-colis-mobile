@@ -17,6 +17,7 @@ import '../../l10n/generated/app_localizations.dart';
 import '../../services/api/client.dart';
 import '../../services/api/disputes_api.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/empty_state.dart';
 
 final _disputesApiProvider =
     Provider<DisputesApi>((ref) => DisputesApi(ApiClient()));
@@ -51,20 +52,11 @@ class DisputesListScreen extends ConsumerWidget {
           ),
         ),
         data: (disputes) => disputes.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.gavel_rounded,
-                          size: 56, color: AppTheme.slate400),
-                      const SizedBox(height: 12),
-                      Text(l.disputesEmpty,
-                          style: TextStyle(color: AppTheme.textSecondary)),
-                    ],
-                  ),
-                ),
+            ? EmptyState(
+                icon: Icons.gavel_rounded,
+                title: l.disputesEmpty,
+                message:
+                    'Depuis un colis livré, vous pouvez signaler un problème formel.',
               )
             : RefreshIndicator(
                 onRefresh: () =>

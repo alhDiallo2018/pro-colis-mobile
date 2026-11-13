@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../services/api/client.dart';
 import '../services/api/referral_api.dart';
 import '../theme/app_theme.dart';
 import 'pc_components.dart';
+import 'referral_invite_card.dart';
 
 /// Carte « Invitez vos proches » à insérer dans l'écran profil. Masquée
 /// silencieusement si le backend n'a pas pu fournir un code.
@@ -65,10 +65,7 @@ class _ReferralCardState extends State<ReferralCard> {
   Future<void> _share() async {
     final code = _code;
     if (code == null) return;
-    await Share.share(
-      "Rejoignez-moi sur SendProColis avec mon code $code "
-      "— vous bénéficierez d'un bonus à votre première livraison.",
-    );
+    await shareReferralCode(context, code);
   }
 
   @override
