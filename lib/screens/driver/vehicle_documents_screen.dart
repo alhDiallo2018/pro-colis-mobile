@@ -307,6 +307,10 @@ class _VehicleDocumentsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: AppTheme.cardColor,
+        title: const Text('Documents du véhicule'),
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(

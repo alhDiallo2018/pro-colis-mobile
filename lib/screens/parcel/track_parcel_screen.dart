@@ -34,6 +34,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/live_tracking_map.dart';
+import '../../utils/back_nav.dart';
 import '../../widgets/parcel_tracking_summary.dart';
 import '../../widgets/parcel_live_tracking_card.dart';
 import '../../widgets/status_timeline.dart';
@@ -1145,7 +1146,7 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
         children: [
           if (!widget.embedded)
             IconButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => safeBack(context),
               icon: const Icon(Icons.arrow_back_rounded),
               color: AppTheme.textPrimary,
             )

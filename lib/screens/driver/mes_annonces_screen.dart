@@ -22,6 +22,7 @@ import '../../widgets/citymapper.dart';
 import '../../widgets/negotiation_chat_widget.dart';
 import '../../widgets/parcel_card.dart';
 import '../../widgets/pc_components.dart';
+import '../../utils/back_nav.dart';
 import '../../widgets/video_player_widget.dart';
 import '../parcel/free_parcels_screen.dart';
 import 'create_annonce_sheet.dart';
@@ -355,7 +356,7 @@ class _DriverMesAnnoncesScreenState
                     PcIconButton(
                       Icons.arrow_back_rounded,
                       variant: PcIconButtonVariant.soft,
-                      onPressed: () => Navigator.of(context).maybePop(),
+                      onPressed: () => safeBack(context),
                       tooltip: 'Retour',
                     ),
                     const SizedBox(width: 8),

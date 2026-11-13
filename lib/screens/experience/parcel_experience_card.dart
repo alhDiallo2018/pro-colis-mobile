@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/api/experience_api.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/payment_receipt.dart';
 
 class ParcelExperienceCard extends StatefulWidget {
   const ParcelExperienceCard({super.key, required this.parcelId, this.api});
@@ -138,9 +138,12 @@ class _ParcelExperienceCardState extends State<ParcelExperienceCard> {
                   for (final receipt in value['receipts'] as List)
                     TextButton.icon(
                         icon: const Icon(Icons.receipt_long),
-                        onPressed: () => Share.share(receiptText(
-                            Map<String, dynamic>.from(receipt),
-                            value['trackingNumber'])),
+                        onPressed: () => showPaymentReceiptSheet(
+                              context,
+                              receipt: Map<String, dynamic>.from(receipt),
+                              trackingNumber:
+                                  value['trackingNumber']?.toString() ?? '',
+                            ),
                         label: Text(l.experienceShareReceipt(
                             experienceMoney(receipt['amount'])))),
                   const Divider(height: 28),

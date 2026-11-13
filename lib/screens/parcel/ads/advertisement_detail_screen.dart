@@ -16,6 +16,7 @@ import '../../../theme/app_theme.dart';
 import '../../../utils/parcel_offer_helpers.dart';
 import '../../../widgets/app_bottom_nav.dart';
 import '../../../widgets/custom_text_field.dart';
+import '../../../utils/back_nav.dart';
 import '../../../widgets/negotiation_chat_widget.dart';
 import '../../../widgets/payment_channel_selector.dart';
 import '../../../widgets/pc_components.dart';
@@ -242,7 +243,7 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
         children: [
           Row(
             children: [
-              _HeroBackButton(onTap: () => Navigator.pop(context)),
+              _HeroBackButton(onTap: () => safeBack(context)),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
