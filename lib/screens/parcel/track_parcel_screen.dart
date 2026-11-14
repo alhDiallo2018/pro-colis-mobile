@@ -35,6 +35,7 @@ import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/live_tracking_map.dart';
 import '../../utils/back_nav.dart';
+import '../../widgets/delivery_receipt_card.dart';
 import '../../widgets/parcel_tracking_share_card.dart';
 import '../../widgets/parcel_tracking_summary.dart';
 import '../../widgets/parcel_live_tracking_card.dart';
@@ -286,6 +287,18 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   }
 
   void _showReceiptDialog() {
+    final parcel = _trackedParcel;
+    if (parcel == null) return;
+    final config = ref.read(publicConfigProvider);
+    showDeliveryReceiptSheet(
+      context,
+      parcel: parcel,
+      supportPhone: config?.displaySupportPhone,
+      supportEmail: config?.displaySupportEmail,
+    );
+  }
+
+  void _showReceiptDialogLegacy() {
     if (_trackedParcel == null) return;
 
     final GlobalKey receiptKey = GlobalKey();

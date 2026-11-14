@@ -35,6 +35,11 @@ abstract final class AppConfig {
   /// Sur le web, `Uri.base` permet de suivre automatiquement le domaine qui
   /// sert le build. Sur mobile, l'origine de l'API constitue un repli cohérent
   /// lorsque `APP_BASE_URL` n'a pas été injectée.
+  /// Origine publique de référence utilisée dans les partages (QR, liens).
+  /// Un fallback production garantit qu'un APK compilé sans `--dart-define`
+  /// n'envoie jamais `localhost:...` à un destinataire.
+  static const String _productionPublicAppUrl = 'https://sendprocolis.com';
+
   static String get publicAppUrl {
     if (_configuredPublicAppUrl.trim().isNotEmpty) {
       return _withoutTrailingSlash(_configuredPublicAppUrl.trim());
@@ -42,18 +47,31 @@ abstract final class AppConfig {
 
     final runtimeUri = Uri.base;
     if (runtimeUri.hasScheme &&
-        (runtimeUri.scheme == 'http' || runtimeUri.scheme == 'https')) {
+        (runtimeUri.scheme == 'http' || runtimeUri.scheme == 'https') &&
+        !_isLocalHost(runtimeUri.host)) {
       return runtimeUri.origin;
     }
 
     final apiUri = Uri.tryParse(apiBaseUrl);
     if (apiUri != null &&
         apiUri.hasScheme &&
-        (apiUri.scheme == 'http' || apiUri.scheme == 'https')) {
+        (apiUri.scheme == 'http' || apiUri.scheme == 'https') &&
+        !_isLocalHost(apiUri.host)) {
       return apiUri.origin;
     }
 
-    return 'http://localhost:18081';
+    // Jamais de localhost dans un lien partagé : repli explicite sur le
+    // domaine public, même en dev si rien n'est configuré.
+    return _productionPublicAppUrl;
+  }
+
+  static bool _isLocalHost(String host) {
+    final h = host.toLowerCase();
+    return h == 'localhost' ||
+        h == '127.0.0.1' ||
+        h == '0.0.0.0' ||
+        h == '10.0.2.2' ||
+        h.endsWith('.local');
   }
 
   static String get mediaBaseUrl {

@@ -38,6 +38,7 @@ import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
 import '../../widgets/negotiation_chat_widget.dart';
+import '../../widgets/delivery_receipt_card.dart';
 import '../../widgets/parcel_tracking_share_card.dart';
 import '../shared/messages_screen.dart';
 import 'confirm_delivery_screen.dart';
@@ -475,6 +476,17 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
       ref.read(publicConfigProvider)?.displaySupportEmail ?? '';
 
   void _showReceipt() {
+    showDeliveryReceiptSheet(
+      context,
+      parcel: _parcel,
+      supportPhone: _supportPhone,
+      supportEmail: _supportEmail,
+    );
+  }
+
+  // Ancien builder conservé pour référence (non utilisé).
+  // ignore: unused_element
+  void _showReceiptLegacy() {
     final GlobalKey receiptKey = GlobalKey();
 
     showModalBottomSheet(
