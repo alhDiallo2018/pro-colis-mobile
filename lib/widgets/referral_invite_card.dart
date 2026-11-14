@@ -90,10 +90,12 @@ class ReferralInviteCard extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Text(
+                  const Text(
                     'MON CODE',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      // Fond blanc toujours : couleur fixe grise foncée
+                      // pour garantir le contraste quel que soit le mode.
+                      color: Color(0xFF677474),
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 2,
@@ -107,7 +109,10 @@ class ReferralInviteCard extends StatelessWidget {
                       fontSize: 30,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 4,
-                      color: AppTheme.primary,
+                      // Teinte brand, fixe en light mode (teal500) pour
+                      // contraster avec le fond blanc. En dark mode, le QR
+                      // bg reste blanc donc idem.
+                      color: const Color(0xFF018982),
                     ),
                   ),
                 ],

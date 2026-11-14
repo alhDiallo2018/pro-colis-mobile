@@ -38,6 +38,7 @@ import '../../widgets/pay_client_debt_sheet.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/video_player_widget.dart';
 import '../../widgets/negotiation_chat_widget.dart';
+import '../../widgets/parcel_tracking_share_card.dart';
 import '../shared/messages_screen.dart';
 import 'confirm_delivery_screen.dart';
 import 'edit_colis_sheet.dart';
@@ -437,16 +438,14 @@ class _ParcelDetailScreenState extends ConsumerState<ParcelDetailScreen> {
   }
 
   Future<void> _shareTracking() async {
-    final trackingUrl = AppConfig.trackingUrl(_parcel.trackingNumber);
     try {
-      await Share.share(
-        '📦 Suivi de colis PRO COLIS\n\n'
-        '🔹 N° de suivi: ${_parcel.trackingNumber}\n'
-        '🔹 Statut: ${_parcel.status.label}\n'
-        '🔹 Expéditeur: ${_parcel.senderName}\n'
-        '🔹 Destinataire: ${_parcel.receiverName}\n\n'
-        '🔗 Suivez votre colis en ligne: $trackingUrl',
-        subject: 'Suivi de colis PRO COLIS',
+      await shareParcelTracking(
+        context,
+        trackingNumber: _parcel.trackingNumber,
+        trackingUrl: AppConfig.trackingUrl(_parcel.trackingNumber),
+        statusLabel: _parcel.status.label,
+        senderName: _parcel.senderName,
+        receiverName: _parcel.receiverName,
         sharePositionOrigin: _shareOrigin(),
       );
     } catch (e, s) {

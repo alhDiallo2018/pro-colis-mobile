@@ -35,6 +35,7 @@ import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/live_tracking_map.dart';
 import '../../utils/back_nav.dart';
+import '../../widgets/parcel_tracking_share_card.dart';
 import '../../widgets/parcel_tracking_summary.dart';
 import '../../widgets/parcel_live_tracking_card.dart';
 import '../../widgets/status_timeline.dart';
@@ -725,17 +726,13 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
 
   Future<void> _shareTrackingLink() async {
     if (_trackedParcel == null) return;
-
-    final trackingUrl = AppConfig.trackingUrl(_trackedParcel!.trackingNumber);
-
-    await Share.share(
-      '📦 Suivi de colis PRO COLIS\n\n'
-      '🔹 N° de suivi: ${_trackedParcel!.trackingNumber}\n'
-      '🔹 Statut: ${_trackedParcel!.status.label}\n'
-      '🔹 Expéditeur: ${_trackedParcel!.senderName}\n'
-      '🔹 Destinataire: ${_trackedParcel!.receiverName}\n\n'
-      '🔗 Suivez votre colis en ligne: $trackingUrl',
-      subject: 'Suivi de colis PRO COLIS',
+    await shareParcelTracking(
+      context,
+      trackingNumber: _trackedParcel!.trackingNumber,
+      trackingUrl: AppConfig.trackingUrl(_trackedParcel!.trackingNumber),
+      statusLabel: _trackedParcel!.status.label,
+      senderName: _trackedParcel!.senderName,
+      receiverName: _trackedParcel!.receiverName,
     );
   }
 
@@ -1011,18 +1008,15 @@ class _TrackParcelScreenState extends ConsumerState<TrackParcelScreen> {
   }
 
   void _shareTrackingNumber() {
-    if (_trackedParcel != null) {
-      final trackingUrl = AppConfig.trackingUrl(_trackedParcel!.trackingNumber);
-      Share.share(
-        '📦 Suivi de colis PRO COLIS\n\n'
-        '🔹 N° de suivi: ${_trackedParcel!.trackingNumber}\n'
-        '🔹 Statut: ${_trackedParcel!.status.label}\n'
-        '🔹 Expéditeur: ${_trackedParcel!.senderName}\n'
-        '🔹 Destinataire: ${_trackedParcel!.receiverName}\n\n'
-        '🔗 Suivez votre colis: $trackingUrl',
-        subject: 'Suivi de colis PRO COLIS',
-      );
-    }
+    if (_trackedParcel == null) return;
+    shareParcelTracking(
+      context,
+      trackingNumber: _trackedParcel!.trackingNumber,
+      trackingUrl: AppConfig.trackingUrl(_trackedParcel!.trackingNumber),
+      statusLabel: _trackedParcel!.status.label,
+      senderName: _trackedParcel!.senderName,
+      receiverName: _trackedParcel!.receiverName,
+    );
   }
 
   String _formatDate(DateTime date) {
