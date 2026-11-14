@@ -115,6 +115,34 @@ class ShipmentBatchController
       return null;
     }
   }
+
+  Future<ShipmentBatchStopEvent?> createStopEvent(
+    String batchId, {
+    required String type,
+    String? label,
+    String? description,
+    String? parcelId,
+    String? stopLabel,
+  }) async {
+    state = state.copyWith(busy: true, error: null);
+    try {
+      final event = await _api.createStopEvent(
+        batchId,
+        type: type,
+        label: label,
+        description: description,
+        parcelId: parcelId,
+        stopLabel: stopLabel,
+      );
+      state = state.copyWith(busy: false);
+      _ref.invalidate(shipmentBatchStopEventsProvider(batchId));
+      return event;
+    } catch (err, st) {
+      debugPrint('[ShipmentBatch] createStopEvent failed: $err\n$st');
+      state = state.copyWith(busy: false, error: err.toString());
+      return null;
+    }
+  }
 }
 
 final shipmentBatchControllerProvider = StateNotifierProvider<

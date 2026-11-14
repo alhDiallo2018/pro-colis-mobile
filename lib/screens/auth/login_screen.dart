@@ -342,10 +342,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: disabled
                     ? null
                     : () => _run(() async {
-                          final unlocked = await ref
+                          final result = await ref
                               .read(authProvider.notifier)
                               .unlockWithBiometrics();
-                          if (!unlocked && mounted) {
+                          if (result != BiometricUnlockResult.unlocked &&
+                              mounted) {
                             setState(() =>
                                 _error = 'Déverrouillage impossible. Saisissez votre PIN.');
                           }

@@ -34,15 +34,18 @@ class BiometricService {
     }
   }
 
-  /// Le déverrouillage est-il actif pour la session conservée sur cet appareil ?
+  /// Le déverrouillage est-il actif pour cet appareil ?
+  ///
+  /// Le flag seul fait foi : une révocation de session serveur (refresh
+  /// refusé, jeton expiré) ne doit pas désactiver silencieusement le verrou.
+  /// L'utilisateur reste maître de l'option depuis les paramètres.
   static Future<bool> isEnabled() async {
     try {
       if (await _storage.read(key: _enabledKey) != 'true') return false;
-      if (await AuthSessionManager.instance.read() == null) return false;
       final owner = await _storage.read(key: _ownerKey);
       if (owner != null) {
         final cachedOwner = await currentOwner();
-        // Un cache absent ne doit pas désactiver silencieusement le verrou.
+        // Un cache absent (session révoquée) ne doit pas désactiver le verrou.
         return cachedOwner == null || owner == cachedOwner;
       }
       // Compatibilité des installations antérieures ; le secret sera retiré

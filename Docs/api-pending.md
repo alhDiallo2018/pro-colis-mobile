@@ -9,20 +9,16 @@ manquant**, et **l'estimation UI** côté mobile une fois l'API disponible.
 
 ---
 
-## 1. Billing / Facturation
+## 1. Billing / Facturation — ✅ Livré 2026-11-14
 
-**Usage attendu**
-Un expéditeur pro doit pouvoir télécharger ses factures mensuelles et suivre
-son compte débiteur/créditeur.
+Les trois endpoints sont livrés ; les factures sont synthétisées sur les
+colis livrés groupés par mois (ID `synth-YYYY-MM`). Le PDF est généré en
+mémoire via `src/utils/invoice-pdf.js` (pas de lib externe). Mobile : la
+section "Facturation" télécharge le PDF via Dio puis le partage.
 
-**Endpoints manquants**
-- `GET /business-shipper/invoices` → liste paginée (mois, montant, statut)
-- `GET /business-shipper/invoices/:id` → détail
-- `GET /business-shipper/invoices/:id/pdf` → stream PDF
-
-**UI côté mobile (quand prêt)**
-Section "Facturation" dans `business_shipper_dashboard_screen.dart` avec liste
-+ bouton de partage/téléchargement. Pattern : identique à `backups_screen`.
+- `GET /business-shipper/invoices` (liste)
+- `GET /business-shipper/invoices/:id` (détail + colis inclus)
+- `GET /business-shipper/invoices/:id/pdf` (stream PDF)
 
 ---
 
@@ -78,13 +74,13 @@ vers chaque tier.
 
 ---
 
-## 5. Journey stop events pour les batches
+## 5. Journey stop events pour les batches — ✅ Livré 2026-11-14
 
-**Usage attendu**
-Le chauffeur d'un lot B2B doit pouvoir enregistrer un événement par arrêt
-(arrivée, retard, incident) attaché au lot.
+Endpoints opérationnels, persistés via `AuditLog`
+(`entityType='shipment_batch'`, `action='stop_event'`). UI mobile : bottom-sheet
+avec type (dropdown), libellés optionnels ; le provider des événements est
+invalidé après création.
 
-**Endpoints manquants**
 - `POST /shipment-batches/:batchId/stop-events` → body : `{ type, locationLat, locationLng, note }`
 - `GET /shipment-batches/:batchId/stop-events`
 

@@ -25,6 +25,16 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 /// login lit la valeur, affiche un SnackBar puis la remet a null.
 final ValueNotifier<String?> sessionExpiredNotice = ValueNotifier<String?>(null);
 
+/// Résultat d'un déverrouillage biométrique. `requiresLogin` distingue
+/// l'empreinte acceptée d'une session serveur à renouveler (jeton révoqué ou
+/// trop ancien) : le réglage biométrique reste actif, seule la saisie PIN
+/// manque.
+enum BiometricUnlockResult {
+  unlocked,
+  failed,
+  requiresLogin,
+}
+
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier({ApiService? apiService})
       : _apiService = apiService ?? ApiService(),
@@ -36,11 +46,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _sessionRestoration = _loadUser();
   }
 
+  /// Invoqué quand une expiration serveur (401 refresh refusé) ou une panne
+  /// de restauration survient alors que la biométrie reste active. L'app
+  /// l'utilise pour reposer le verrou avant que le routeur ne redirige vers
+  /// `/login`, afin que l'empreinte reste la porte d'entrée.
+  static VoidCallback? onBiometricRelockRequested;
+
+  Future<void> _maybeRelockBiometric() async {
+    try {
+      if (await BiometricService.isEnabled()) {
+        onBiometricRelockRequested?.call();
+      }
+    } catch (error) {
+      debugPrint('[AuthNotifier] Verrou biométrique après expiration : $error');
+    }
+  }
+
   void _handleSessionExpired() {
     if (!mounted) return;
     OfflineAccess.instance.useSession(null);
     sessionExpiredNotice.value =
         'Votre session a expire. Reconnectez-vous pour continuer.';
+    // Le verrou doit être posé avant la transition d'état : sinon le routeur
+    // redirige vers /login et l'utilisateur voit brièvement la saisie PIN
+    // sans empreinte, avant que le LockScreen ne s'installe.
+    unawaited(_relockThenUnauthenticate());
+  }
+
+  Future<void> _relockThenUnauthenticate() async {
+    await _maybeRelockBiometric();
+    if (!mounted) return;
     state = AuthState.unauthenticated();
   }
 
@@ -129,11 +164,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final cause = error is DioException ? error.error : error;
       if (cause is SessionChangedException) return;
       if (cause is SessionExpiredException) {
+        await _maybeRelockBiometric();
+        if (!mounted) return;
         state = AuthState.unauthenticated();
         return;
       }
       // Hors ligne/5xx : garder les jetons et proposer une restauration, sans
       // presenter un ancien profil comme une authentification serveur valide.
+      // Un verrou biométrique repose l'empreinte en entrée pour que l'écran
+      // « Connexion indisponible » du splash ne soit jamais visible seul.
+      await _maybeRelockBiometric();
+      if (!mounted) return;
       state = AuthState.pendingSession(
           'Connexion indisponible. Votre session est conservée.');
     }
@@ -302,24 +343,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
   ///
   /// Le verrou local ne revoque pas la session serveur. Une session restauree
   /// se déverrouille sans nouvelle connexion. Un refus serveur définitif
-  /// impose une nouvelle authentification en ligne.
-  Future<bool> unlockWithBiometrics() async {
+  /// conserve le réglage biométrique et renvoie `requiresLogin` : l'empreinte
+  /// reste la porte d'entrée, la saisie du PIN sert uniquement à renouveler
+  /// les jetons côté serveur.
+  Future<BiometricUnlockResult> unlockWithBiometrics() async {
     try {
-      if (!await BiometricService.isEnabled()) return false;
+      if (!await BiometricService.isEnabled()) {
+        return BiometricUnlockResult.failed;
+      }
 
       final approved = await BiometricService.authenticate(
         'Déverrouillez votre session SENDPROCOLIS',
       );
-      if (!approved) return false;
+      if (!approved) return BiometricUnlockResult.failed;
 
       // Au démarrage à froid, la restauration du jeton et la demande système
       // peuvent progresser en parallèle. On attend la première pour éviter que
       // deux connexions concurrentes écrasent l'état utilisateur ou les jetons.
       await _sessionRestoration;
-      if (state.isAuthenticated) return true;
-      if (state.hasPendingSession) return _restoreLocalProfile();
+      if (state.isAuthenticated) return BiometricUnlockResult.unlocked;
+      if (state.hasPendingSession) {
+        return await _restoreLocalProfile()
+            ? BiometricUnlockResult.unlocked
+            : BiometricUnlockResult.failed;
+      }
 
-      return false;
+      // Empreinte acceptée mais aucune session locale : jeton révoqué côté
+      // serveur ou refresh trop ancien. Le réglage biométrique est conservé
+      // pour que la prochaine ouverture repasse par l'empreinte ; l'écran
+      // appelant route vers la saisie PIN, identifiant prérempli.
+      return BiometricUnlockResult.requiresLogin;
     } catch (error, stackTrace) {
       debugPrint(
           '[AuthNotifier] Déverrouillage biométrique impossible : $error');
@@ -327,7 +380,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         label: '[AuthNotifier] Trace de déverrouillage biométrique',
         stackTrace: stackTrace,
       );
-      return false;
+      return BiometricUnlockResult.failed;
     }
   }
 

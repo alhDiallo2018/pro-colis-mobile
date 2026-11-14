@@ -176,6 +176,31 @@ class ShipmentBatchApi {
       return const [];
     }
   }
+
+  Future<ShipmentBatchStopEvent> createStopEvent(
+    String batchId, {
+    required String type,
+    String? label,
+    String? description,
+    String? parcelId,
+    String? stopLabel,
+    DateTime? occurredAt,
+  }) async {
+    final res =
+        await client.dio.post('/shipment-batches/$batchId/stop-events', data: {
+      'type': type,
+      if (label != null && label.isNotEmpty) 'label': label,
+      if (description != null && description.isNotEmpty)
+        'description': description,
+      if (parcelId != null && parcelId.isNotEmpty) 'parcelId': parcelId,
+      if (stopLabel != null && stopLabel.isNotEmpty) 'stopLabel': stopLabel,
+      if (occurredAt != null) 'occurredAt': occurredAt.toIso8601String(),
+    });
+    final body = client.handle(res);
+    final payload = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
+    final event = (payload['event'] as Map?)?.cast<String, dynamic>() ?? {};
+    return ShipmentBatchStopEvent.fromJson(event);
+  }
 }
 
 class ShipmentBatchStopEvent {

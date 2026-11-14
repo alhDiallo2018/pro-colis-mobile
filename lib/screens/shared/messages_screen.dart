@@ -78,6 +78,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   bool _isPaused = false;
   int _recordDuration = 0;
   Timer? _recordTimer;
+  String? _previewAudioPath;
+  bool _previewAudioPlaying = false;
+  bool _previewAudioUploading = false;
 
   bool _showPriceInput = false;
   final _priceController = TextEditingController();
@@ -461,18 +464,71 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     if (!_isRecording) return;
 
     final path = await _audioRecorder.stop();
+    if (!mounted) return;
     setState(() {
       _isRecording = false;
       _isPaused = false;
+      _previewAudioPath = path;
+      _previewAudioPlaying = false;
     });
+  }
 
-    if (path != null && _activePeerId != null) {
-      _showSnackBar('Envoi du message vocal...');
+  Future<void> _togglePreviewAudio() async {
+    final path = _previewAudioPath;
+    if (path == null) return;
+    try {
+      if (_previewAudioPlaying) {
+        await _audioPlayer.pause();
+        if (mounted) setState(() => _previewAudioPlaying = false);
+      } else {
+        await _audioPlayer.stop();
+        await _audioPlayer.play(DeviceFileSource(path));
+        if (mounted) setState(() => _previewAudioPlaying = true);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _previewAudioPlaying = false);
+    }
+  }
+
+  Future<void> _discardPreviewAudio() async {
+    final path = _previewAudioPath;
+    if (path == null) return;
+    try { await _audioPlayer.stop(); } catch (_) {}
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _previewAudioPath = null;
+        _previewAudioPlaying = false;
+      });
+    }
+  }
+
+  Future<void> _sendPreviewAudio() async {
+    final path = _previewAudioPath;
+    if (path == null || _previewAudioUploading || _activePeerId == null) return;
+    setState(() => _previewAudioUploading = true);
+    try {
+      await _audioPlayer.stop();
       final audioUrl = await _apiService.uploadChatAudio(XFile(path));
       if (audioUrl != null && mounted) {
         await _sendMessage(audioUrl: audioUrl);
-      } else {
+      } else if (mounted) {
         _showSnackBar('Erreur lors de l\'envoi du message vocal');
+      }
+    } finally {
+      try {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _previewAudioPath = null;
+          _previewAudioPlaying = false;
+          _previewAudioUploading = false;
+        });
       }
     }
   }
@@ -1316,6 +1372,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
 
         // Recording indicator
         if (_isRecording) _buildRecordingIndicator(),
+        if (!_isRecording && _previewAudioPath != null) _buildAudioPreviewBar(),
 
         // Price input row
         if (_showPriceInput) _buildPriceInputRow(),
@@ -2053,6 +2110,69 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAudioPreviewBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.teal50,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.teal100),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _previewAudioPlaying
+                ? Icons.graphic_eq_rounded
+                : Icons.audiotrack_rounded,
+            size: 18,
+            color: AppTheme.teal600,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _previewAudioUploading
+                  ? 'Envoi en cours…'
+                  : (_previewAudioPlaying
+                      ? 'Lecture…'
+                      : 'Prévisualisation prête'),
+              style: AppFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.teal700,
+              ),
+            ),
+          ),
+          PcIconButton(
+            _previewAudioPlaying
+                ? Icons.pause_rounded
+                : Icons.play_arrow_rounded,
+            variant: PcIconButtonVariant.soft,
+            size: PcButtonSize.sm,
+            round: true,
+            onPressed: _previewAudioUploading ? null : _togglePreviewAudio,
+          ),
+          const SizedBox(width: 6),
+          PcIconButton(
+            Icons.delete_outline_rounded,
+            variant: PcIconButtonVariant.danger,
+            size: PcButtonSize.sm,
+            round: true,
+            onPressed: _previewAudioUploading ? null : _discardPreviewAudio,
+          ),
+          const SizedBox(width: 6),
+          PcIconButton(
+            Icons.send_rounded,
+            variant: PcIconButtonVariant.solid,
+            size: PcButtonSize.sm,
+            round: true,
+            onPressed: _previewAudioUploading ? null : _sendPreviewAudio,
+          ),
+        ],
       ),
     );
   }

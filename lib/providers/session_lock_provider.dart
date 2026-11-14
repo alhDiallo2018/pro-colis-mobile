@@ -149,4 +149,14 @@ class SessionLockNotifier extends StateNotifier<SessionLockStatus> {
     _leftAt = null;
     if (mounted) state = SessionLockStatus.unlocked;
   }
+
+  /// Repose le verrou local après une expiration serveur silencieuse :
+  /// l'empreinte reste la porte d'entrée avant la saisie du PIN, au lieu
+  /// de laisser l'utilisateur tomber sur `/login` sans passer par la
+  /// biométrie. Ignoré si l'écran est déjà verrouillé.
+  void lock() {
+    _leftAt = null;
+    if (mounted && state != SessionLockStatus.locked)
+      state = SessionLockStatus.locked;
+  }
 }

@@ -79,6 +79,33 @@ class ShipmentBatchDetailScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _addStopEvent(BuildContext context, WidgetRef ref) async {
+    final result = await showModalBottomSheet<_StopEventFormResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => const _StopEventForm(),
+    );
+    if (result == null) return;
+    final event = await ref
+        .read(shipmentBatchControllerProvider.notifier)
+        .createStopEvent(
+          batchId,
+          type: result.type,
+          label: result.label,
+          description: result.description,
+          stopLabel: result.stopLabel,
+        );
+    if (!context.mounted) return;
+    if (event == null) {
+      final err = ref.read(shipmentBatchControllerProvider).error ?? 'Erreur';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Événement enregistré')),
+      );
+    }
+  }
+
   Future<void> _close(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -158,6 +185,7 @@ class ShipmentBatchDetailScreen extends ConsumerWidget {
           onClose: batch.isMutable ? () => _close(context, ref) : null,
           onDetach:
               batch.isMutable ? (pid) => _detach(context, ref, pid) : null,
+          onAddStopEvent: () => _addStopEvent(context, ref),
         ),
       ),
     );
@@ -170,6 +198,7 @@ class _BatchDetailView extends ConsumerWidget {
   final VoidCallback? onAddParcel;
   final VoidCallback? onClose;
   final void Function(String parcelId)? onDetach;
+  final VoidCallback? onAddStopEvent;
 
   const _BatchDetailView({
     required this.batch,
@@ -177,6 +206,7 @@ class _BatchDetailView extends ConsumerWidget {
     this.onAddParcel,
     this.onClose,
     this.onDetach,
+    this.onAddStopEvent,
   });
 
   @override
@@ -274,9 +304,21 @@ class _BatchDetailView extends ConsumerWidget {
                 ),
               )),
         const SizedBox(height: 24),
-        Text(
-          l.batchStopEventsTitle,
-          style: Theme.of(context).textTheme.titleMedium,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l.batchStopEventsTitle,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            if (onAddStopEvent != null)
+              TextButton.icon(
+                onPressed: onAddStopEvent,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Ajouter'),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
         eventsAsync.when(
@@ -475,6 +517,143 @@ class _ParcelPickerSheetState extends State<_ParcelPickerSheet> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StopEventFormResult {
+  final String type;
+  final String? label;
+  final String? description;
+  final String? stopLabel;
+
+  const _StopEventFormResult({
+    required this.type,
+    this.label,
+    this.description,
+    this.stopLabel,
+  });
+}
+
+class _StopEventForm extends StatefulWidget {
+  const _StopEventForm();
+
+  @override
+  State<_StopEventForm> createState() => _StopEventFormState();
+}
+
+class _StopEventFormState extends State<_StopEventForm> {
+  static const _types = <(String, String, IconData)>[
+    ('arrival', 'Arrivée à l\'arrêt', Icons.place_outlined),
+    ('departure', 'Départ de l\'arrêt', Icons.directions_car_filled_outlined),
+    ('incident', 'Incident', Icons.warning_amber_rounded),
+    ('delay', 'Retard', Icons.schedule_rounded),
+    ('delivered', 'Livraison effectuée', Icons.check_circle_outline),
+    ('event', 'Autre', Icons.circle_outlined),
+  ];
+
+  String _type = 'arrival';
+  final _labelCtrl = TextEditingController();
+  final _stopLabelCtrl = TextEditingController();
+  final _descriptionCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _labelCtrl.dispose();
+    _stopLabelCtrl.dispose();
+    _descriptionCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Nouvel événement de tournée',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _type,
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: _types
+                    .map((t) => DropdownMenuItem(
+                          value: t.$1,
+                          child: Row(children: [
+                            Icon(t.$3, size: 18),
+                            const SizedBox(width: 8),
+                            Text(t.$2),
+                          ]),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _type = v ?? 'arrival'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _labelCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Titre (optionnel)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLength: 200,
+              ),
+              TextField(
+                controller: _stopLabelCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Arrêt / Lieu (optionnel)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLength: 200,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _descriptionCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Description (optionnel)',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                maxLength: 2000,
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () => Navigator.of(context).pop(
+                  _StopEventFormResult(
+                    type: _type,
+                    label: _labelCtrl.text.trim().isEmpty
+                        ? null
+                        : _labelCtrl.text.trim(),
+                    stopLabel: _stopLabelCtrl.text.trim().isEmpty
+                        ? null
+                        : _stopLabelCtrl.text.trim(),
+                    description: _descriptionCtrl.text.trim().isEmpty
+                        ? null
+                        : _descriptionCtrl.text.trim(),
+                  ),
+                ),
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Enregistrer l\'événement'),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -94,12 +94,17 @@ class _OffersView extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.local_shipping, size: 32),
               title: Text('${o.carrier.toUpperCase()} · ${o.service}'),
-              subtitle: Text(
-                '${o.etaDays} jour${o.etaDays > 1 ? "s" : ""}'
-                '${o.destinationZone != null ? ' · zone ${o.destinationZone}' : ''}'
-                '\n${o.confidence == 'stub' ? '⚠️ tarif indicatif (stub)' : 'tarif négocié'}',
+              subtitle: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${o.etaDays} jour${o.etaDays > 1 ? "s" : ""}'
+                      '${o.destinationZone != null ? ' · zone ${o.destinationZone}' : ''}',
+                    ),
+                  ),
+                  _ConfidenceBadge(confidence: o.confidence),
+                ],
               ),
-              isThreeLine: true,
               trailing: Text(
                 '${o.priceXof} FCFA',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -107,6 +112,39 @@ class _OffersView extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ConfidenceBadge extends StatelessWidget {
+  final String confidence;
+  const _ConfidenceBadge({required this.confidence});
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label, icon) = switch (confidence) {
+      'high' => (Colors.green, 'Tarif de référence', Icons.verified_outlined),
+      'medium' => (Colors.orange, 'Tarif indicatif', Icons.info_outline),
+      'live' => (Colors.blue, 'Tarif négocié', Icons.sync),
+      _ => (Colors.red, 'Estimation approximative', Icons.warning_amber_rounded),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 }

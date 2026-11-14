@@ -134,30 +134,53 @@ class _VoiceNoteFieldState extends State<VoiceNoteField> {
     }
   }
 
-  Future<void> _stopAndUpload() async {
-    if (_working) return;
+  /// Arrête l'enregistrement et garde le fichier local pour permettre à
+  /// l'utilisateur de le réécouter avant de valider l'envoi.
+  Future<void> _stopRecording() async {
+    if (_working || !_recording) return;
     setState(() {
       _working = true;
       _error = null;
     });
     _notifyBusy();
     try {
-      if (_recording) {
-        final path = await _audioRecorder.stop();
-        _timer?.cancel();
-        if (!mounted) return;
-        setState(() {
-          _recording = false;
-          _paused = false;
-        });
-        if (path == null || path.isEmpty) {
-          await _deleteLocalFile();
-          throw StateError('Aucun fichier audio enregistré');
-        }
-        _localPath = path;
+      final path = await _audioRecorder.stop();
+      _timer?.cancel();
+      if (!mounted) return;
+      setState(() {
+        _recording = false;
+        _paused = false;
+      });
+      if (path == null || path.isEmpty) {
+        await _deleteLocalFile();
+        throw StateError('Aucun fichier audio enregistré');
       }
-      final path = _localPath;
-      if (path == null) return;
+      _localPath = path;
+    } catch (error, stackTrace) {
+      _reportError(
+          'Arrêt de l\'enregistrement impossible.', error, stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() => _working = false);
+        _notifyBusy();
+      }
+    }
+  }
+
+  /// Téléverse le fichier local après que l'utilisateur ait validé la prise.
+  Future<void> _uploadLocal() async {
+    if (_working || _localPath == null) return;
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+    _notifyBusy();
+    try {
+      // Si on écoute encore la prévisualisation, on coupe la lecture avant upload.
+      if (_playing) {
+        try { await _audioPlayer.stop(); } catch (_) {}
+      }
+      final path = _localPath!;
       final upload = widget.upload ?? ApiService().uploadChatAudio;
       final url = await upload(XFile(path, name: 'note-vocale.m4a'));
       if (url == null || url.trim().isEmpty) {
@@ -165,15 +188,41 @@ class _VoiceNoteFieldState extends State<VoiceNoteField> {
       }
       if (!mounted) return;
       widget.onChanged(url);
+      setState(() {
+        _playing = false;
+        _pausedPlaybackUrl = null;
+      });
       await _deleteLocalFile();
     } catch (error, stackTrace) {
       _reportError(
-          'Impossible d’ajouter la note vocale. Réessayez.', error, stackTrace);
+          'Impossible d\'envoyer la note vocale. Réessayez.', error, stackTrace);
     } finally {
       if (mounted) {
         setState(() => _working = false);
         _notifyBusy();
       }
+    }
+  }
+
+  /// Lecture du fichier local pendant la prévisualisation (avant upload).
+  Future<void> _togglePreviewPlayback() async {
+    if (_working || _localPath == null) return;
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+    try {
+      if (_playing) {
+        await _audioPlayer.pause();
+        if (mounted) setState(() => _playing = false);
+      } else {
+        await _audioPlayer.play(DeviceFileSource(_localPath!));
+        if (mounted) setState(() => _playing = true);
+      }
+    } catch (error, stackTrace) {
+      _reportError('Lecture audio impossible.', error, stackTrace);
+    } finally {
+      if (mounted) setState(() => _working = false);
     }
   }
 
@@ -293,15 +342,24 @@ class _VoiceNoteFieldState extends State<VoiceNoteField> {
                 label: Text(_paused ? 'Reprendre' : 'Pause'),
               ),
               TextButton.icon(
-                onPressed: disabled ? null : _stopAndUpload,
+                onPressed: disabled ? null : _stopRecording,
                 icon: const Icon(Icons.stop_rounded),
                 label: const Text('Terminer'),
               ),
             ] else if (_localPath != null) ...[
-              const Text('Note vocale en attente d’envoi'),
-              TextButton(
-                  onPressed: disabled ? null : _stopAndUpload,
-                  child: const Text('Réessayer')),
+              Text('Prévisualisation · $duration'),
+              TextButton.icon(
+                onPressed: disabled ? null : _togglePreviewPlayback,
+                icon: Icon(_playing
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded),
+                label: Text(_playing ? 'Pause' : 'Réécouter'),
+              ),
+              FilledButton.icon(
+                onPressed: disabled ? null : _uploadLocal,
+                icon: const Icon(Icons.send_rounded),
+                label: const Text('Envoyer'),
+              ),
             ] else if (hasVoice) ...[
               const Text('Note vocale enregistrée'),
               TextButton.icon(

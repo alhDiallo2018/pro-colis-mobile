@@ -53,6 +53,13 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
       ref.read(sessionLockProvider.notifier).initializeOnLaunch(),
     );
 
+    // Une expiration serveur silencieuse (401 refresh refusé, 5xx au retour
+    // en ligne) ne doit pas sauter la biométrie : le verrou se repose avant
+    // que le routeur n'affiche /login ou le splash « Connexion indisponible ».
+    AuthNotifier.onBiometricRelockRequested = () {
+      if (mounted) ref.read(sessionLockProvider.notifier).lock();
+    };
+
     // Branche la navigation depuis une notification : le handler est affecté
     // après la création du routeur, ce qui rejoue aussi une éventuelle
     // notification ouverte pendant le démarrage à froid.
@@ -68,6 +75,7 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
   void dispose() {
     PushNotificationService.onNotificationTap = null;
     NotificationService.onNotificationTap = null;
+    AuthNotifier.onBiometricRelockRequested = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

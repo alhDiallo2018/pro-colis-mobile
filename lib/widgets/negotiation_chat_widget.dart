@@ -77,6 +77,9 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
   bool _recording = false;
   bool _paused = false;
   int _recordSecs = 0;
+  String? _previewPath;
+  bool _previewPlaying = false;
+  bool _previewUploading = false;
   Timer? _pollTimer;
   Timer? _recordTimer;
   StreamSubscription<PlayerState>? _playerStateSubscription;
@@ -388,15 +391,22 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     } catch (_) {}
   }
 
+  /// Arrête l'enregistrement et passe en mode prévisualisation (lecture +
+  /// validation). L'upload n'est effectué qu'à la validation explicite.
   Future<void> _stopRecording() async {
     _recordTimer?.cancel();
     try {
       final p = await _audioRecorder.stop();
-      if (p != null && mounted) {
+      if (!mounted) return;
+      if (p != null && p.isNotEmpty) {
+        setState(() {
+          _recording = false;
+          _paused = false;
+          _previewPath = p;
+          _previewPlaying = false;
+        });
+      } else {
         setState(() { _recording = false; _paused = false; });
-        final file = XFile(p);
-        final url = await _api.uploadFile(file: file, mediaType: 'audio');
-        if (url != null) await _send(audioUrl: url);
       }
     } catch (_) {
       if (mounted) setState(() { _recording = false; _paused = false; });
@@ -407,6 +417,66 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
     _recordTimer?.cancel();
     _audioRecorder.stop();
     setState(() { _recording = false; _paused = false; });
+  }
+
+  Future<void> _togglePreviewPlayback() async {
+    final path = _previewPath;
+    if (path == null) return;
+    try {
+      if (_previewPlaying) {
+        await _audioPlayer.pause();
+        if (mounted) setState(() => _previewPlaying = false);
+      } else {
+        await _audioPlayer.stop();
+        await _audioPlayer.play(DeviceFileSource(path));
+        if (mounted) setState(() => _previewPlaying = true);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _previewPlaying = false);
+    }
+  }
+
+  Future<void> _discardPreview() async {
+    final path = _previewPath;
+    if (path == null) return;
+    try { await _audioPlayer.stop(); } catch (_) {}
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _previewPath = null;
+        _previewPlaying = false;
+      });
+    }
+  }
+
+  Future<void> _sendPreviewAudio() async {
+    final path = _previewPath;
+    if (path == null || _previewUploading) return;
+    setState(() => _previewUploading = true);
+    try {
+      await _audioPlayer.stop();
+      final url = await _api.uploadFile(file: XFile(path), mediaType: 'audio');
+      if (url != null) {
+        await _send(audioUrl: url);
+      }
+    } catch (_) {
+      // Erreur réseau : on garde le preview pour permettre un retry.
+    } finally {
+      try {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _previewPath = null;
+          _previewPlaying = false;
+          _previewUploading = false;
+        });
+      }
+    }
   }
 
   Future<void> _toggleAudio(String url) async {
@@ -792,7 +862,104 @@ class _NegotiationChatScreenState extends State<NegotiationChatScreen> {
         color: AppTheme.cardColor,
         border: Border(top: BorderSide(color: AppTheme.slate200)),
       ),
-      child: _recording
+      child: _previewPath != null
+          ? Row(
+              children: [
+                GestureDetector(
+                  onTap: _previewUploading ? null : _discardPreview,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppTheme.slate100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.delete_outline_rounded,
+                        color: AppTheme.textSecondary),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.teal50,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _previewPlaying
+                              ? Icons.graphic_eq_rounded
+                              : Icons.audiotrack_rounded,
+                          size: 18,
+                          color: AppTheme.teal600,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _previewUploading
+                                ? 'Envoi...'
+                                : (_previewPlaying
+                                    ? 'Lecture...'
+                                    : 'Prévisualisation'),
+                            style: TextStyle(
+                              color: AppTheme.teal700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _previewUploading ? null : _togglePreviewPlayback,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppTheme.teal50,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.teal500),
+                    ),
+                    child: Icon(
+                      _previewPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: AppTheme.teal600,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _previewUploading ? null : _sendPreviewAudio,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppTheme.teal500,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _previewUploading
+                        ? const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded,
+                            color: Colors.white, size: 20),
+                  ),
+                ),
+              ],
+            )
+          : _recording
           ? Row(
               children: [
                 GestureDetector(

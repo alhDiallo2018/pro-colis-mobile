@@ -32,6 +32,8 @@ import '../super-admin/colis_management_screen.dart';
 import '../super-admin/users_management_screen.dart';
 import 'notifications/notifications_screen.dart';
 import 'role_dashboard_widgets.dart';
+import 'support_commercial_dashboard.dart';
+import 'support_technique_dashboard.dart';
 
 /// Conversations de support ouvertes, rafraîchies au pull-to-refresh.
 final supportAdminConversationsProvider =
@@ -114,6 +116,22 @@ class _SupportAdminDashboardState extends ConsumerState<SupportAdminDashboard> {
     );
   }
 
+  void _openSupportTechTickets() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => const SupportTechniqueDashboard(initialTab: 1)),
+    );
+  }
+
+  void _openSupportComLeads() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => const SupportCommercialDashboard(initialTab: 1)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
@@ -179,6 +197,8 @@ class _SupportAdminDashboardState extends ConsumerState<SupportAdminDashboard> {
           onSeeChauffeurs: _openChauffeurs,
           onSeeUtilisateurs: _openUtilisateurs,
           onSeeProfile: () => _goToTab(4),
+          onSeeTechnicalTickets: _openSupportTechTickets,
+          onSeeCommercialLeads: _openSupportComLeads,
         );
     }
   }
@@ -196,6 +216,8 @@ class _SupportAdminHome extends ConsumerWidget {
   final VoidCallback onSeeChauffeurs;
   final VoidCallback onSeeUtilisateurs;
   final VoidCallback onSeeProfile;
+  final VoidCallback onSeeTechnicalTickets;
+  final VoidCallback onSeeCommercialLeads;
 
   const _SupportAdminHome({
     required this.user,
@@ -205,6 +227,8 @@ class _SupportAdminHome extends ConsumerWidget {
     required this.onSeeChauffeurs,
     required this.onSeeUtilisateurs,
     required this.onSeeProfile,
+    required this.onSeeTechnicalTickets,
+    required this.onSeeCommercialLeads,
   });
 
   @override
@@ -296,7 +320,11 @@ class _SupportAdminHome extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 22),
-                  _SupportSlaCard(onSeeConversations: onSeeConversations),
+                  _SupportSlaCard(
+                    onSeeConversations: onSeeConversations,
+                    onSeeTechnicalTickets: onSeeTechnicalTickets,
+                    onSeeCommercialLeads: onSeeCommercialLeads,
+                  ),
                   const SizedBox(height: 22),
                   RoleListHeader(
                     title: 'Dernières conversations',
@@ -559,7 +587,13 @@ class _EmptyLine extends StatelessWidget {
 
 class _SupportSlaCard extends ConsumerWidget {
   final VoidCallback onSeeConversations;
-  const _SupportSlaCard({required this.onSeeConversations});
+  final VoidCallback onSeeTechnicalTickets;
+  final VoidCallback onSeeCommercialLeads;
+  const _SupportSlaCard({
+    required this.onSeeConversations,
+    required this.onSeeTechnicalTickets,
+    required this.onSeeCommercialLeads,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -616,6 +650,7 @@ class _SupportSlaCard extends ConsumerWidget {
                 tone: sla.technicalAtRisk == 0
                     ? AppTheme.successColor
                     : AppTheme.amber500,
+                onTap: onSeeTechnicalTickets,
               ),
               _SlaPill(
                 label: 'Tech dépassés',
@@ -623,6 +658,7 @@ class _SupportSlaCard extends ConsumerWidget {
                 tone: sla.technicalBreached == 0
                     ? AppTheme.successColor
                     : AppTheme.red400,
+                onTap: onSeeTechnicalTickets,
               ),
               _SlaPill(
                 label: 'Commercial en retard',
@@ -630,6 +666,7 @@ class _SupportSlaCard extends ConsumerWidget {
                 tone: sla.commercialDelayed == 0
                     ? AppTheme.successColor
                     : AppTheme.amber500,
+                onTap: onSeeCommercialLeads,
               ),
               _SlaPill(
                 label: 'Chat dépassés',

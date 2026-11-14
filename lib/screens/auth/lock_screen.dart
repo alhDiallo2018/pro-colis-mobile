@@ -42,20 +42,29 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     });
 
     try {
-      final unlocked =
+      final result =
           await ref.read(authProvider.notifier).unlockWithBiometrics();
       if (!mounted) return;
 
-      if (unlocked) {
-        ref.read(sessionLockProvider.notifier).unlock();
-        return;
+      switch (result) {
+        case BiometricUnlockResult.unlocked:
+          ref.read(sessionLockProvider.notifier).unlock();
+          return;
+        case BiometricUnlockResult.requiresLogin:
+          // Empreinte reconnue, jeton serveur à renouveler. On retire le
+          // verrou local et on laisse le routeur poser /login ; l'identifiant
+          // déjà mémorisé prérémplit le champ pour que seul le PIN reste à
+          // saisir. Le réglage biométrique est conservé.
+          ref.read(sessionLockProvider.notifier).unlock();
+          GoRouter.of(context).go('/login');
+          return;
+        case BiometricUnlockResult.failed:
+          setState(() {
+            _busy = false;
+            _error =
+                'Déverrouillage impossible. Réessayez ou utilisez le code de votre appareil.';
+          });
       }
-
-      setState(() {
-        _busy = false;
-        _error =
-            'Déverrouillage impossible. Réessayez ou utilisez le code de votre appareil.';
-      });
     } catch (error, stackTrace) {
       debugPrint('[LockScreen] Erreur de déverrouillage : $error');
       debugPrintStack(

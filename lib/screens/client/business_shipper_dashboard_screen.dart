@@ -9,12 +9,14 @@
 // `/business/dashboard` et on laisse la décision d'affichage (profile B2B
 // ou pas) au point d'entrée.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/api/business_shipper_api.dart';
@@ -78,13 +80,21 @@ class _BusinessShipperDashboardScreenState
   }
 
   Future<void> _downloadInvoice(BusinessShipperInvoice invoice) async {
-    if (invoice.pdfUrl == null || invoice.pdfUrl!.isEmpty) return;
-    final resolved = ApiClient.resolveMediaUrl(invoice.pdfUrl!);
-    final uri = Uri.tryParse(resolved);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      await Share.share(resolved);
+    if (invoice.id.isEmpty) return;
+    try {
+      final bytes = await _api.downloadInvoicePdf(invoice.id);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${invoice.number ?? invoice.id}.pdf');
+      await file.writeAsBytes(bytes, flush: true);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/pdf')],
+        subject: invoice.number ?? invoice.id,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Téléchargement impossible : $e')),
+      );
     }
   }
 

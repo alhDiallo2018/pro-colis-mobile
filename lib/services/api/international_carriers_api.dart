@@ -15,7 +15,9 @@ class CarrierOffer {
   final int etaDays;
   final String? originZone;
   final String? destinationZone;
-  final String confidence; // 'stub' ou 'live' (V2)
+  /// 'high' (CEDEAO calibré), 'medium' (zone connue), 'low' (zone 'other'),
+  /// 'live' (V2 : réponse carrier contractuelle).
+  final String confidence;
 
   const CarrierOffer({
     required this.carrier,
@@ -24,7 +26,7 @@ class CarrierOffer {
     required this.etaDays,
     this.originZone,
     this.destinationZone,
-    this.confidence = 'stub',
+    this.confidence = 'low',
   });
 
   factory CarrierOffer.fromJson(Map<String, dynamic> json) => CarrierOffer(
@@ -34,7 +36,7 @@ class CarrierOffer {
         etaDays: (json['etaDays'] as num?)?.toInt() ?? 0,
         originZone: json['originZone']?.toString(),
         destinationZone: json['destinationZone']?.toString(),
-        confidence: json['confidence']?.toString() ?? 'stub',
+        confidence: json['confidence']?.toString() ?? 'low',
       );
 }
 

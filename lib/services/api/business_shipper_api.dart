@@ -9,6 +9,10 @@
 // côté mobile pour que le composant d'écran puisse afficher la période
 // consultée à côté des KPI.
 
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
 import 'client.dart';
 
 class ShipperTopDestination {
@@ -196,5 +200,78 @@ class BusinessShipperApi {
     } catch (_) {
       return const [];
     }
+  }
+
+  /// Détail agrégé d'une facture (colis inclus).
+  Future<BusinessShipperInvoiceDetail> getInvoice(String invoiceId) async {
+    final res =
+        await client.dio.get('/business-shipper/invoices/$invoiceId');
+    final body = client.handle(res);
+    final data = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
+    return BusinessShipperInvoiceDetail.fromJson(data);
+  }
+
+  /// Télécharge le PDF du relevé depuis la route authentifiée et renvoie
+  /// les octets. Le caller est responsable de l'écriture sur disque / du
+  /// partage via `share_plus`.
+  Future<List<int>> downloadInvoicePdf(String invoiceId) async {
+    final res = await client.dio.get(
+      '/business-shipper/invoices/$invoiceId/pdf',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final data = res.data;
+    if (data is List<int>) return data;
+    if (data is Uint8List) return data;
+    throw Exception('Réponse PDF invalide');
+  }
+}
+
+class BusinessShipperInvoiceParcel {
+  final String id;
+  final String? trackingNumber;
+  final String? receiverName;
+  final DateTime? deliveryDate;
+  final double amount;
+
+  const BusinessShipperInvoiceParcel({
+    required this.id,
+    this.trackingNumber,
+    this.receiverName,
+    this.deliveryDate,
+    this.amount = 0,
+  });
+
+  factory BusinessShipperInvoiceParcel.fromJson(Map<String, dynamic> json) =>
+      BusinessShipperInvoiceParcel(
+        id: json['id']?.toString() ?? '',
+        trackingNumber: json['trackingNumber']?.toString(),
+        receiverName: json['receiverName']?.toString(),
+        deliveryDate:
+            DateTime.tryParse(json['deliveryDate']?.toString() ?? ''),
+        amount: json['amount'] is num ? (json['amount'] as num).toDouble() : 0,
+      );
+}
+
+class BusinessShipperInvoiceDetail {
+  final BusinessShipperInvoice invoice;
+  final List<BusinessShipperInvoiceParcel> parcels;
+
+  const BusinessShipperInvoiceDetail({
+    required this.invoice,
+    this.parcels = const [],
+  });
+
+  factory BusinessShipperInvoiceDetail.fromJson(Map<String, dynamic> json) {
+    final invoiceJson =
+        (json['invoice'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final parcelsJson = (json['parcels'] as List?) ?? const [];
+    return BusinessShipperInvoiceDetail(
+      invoice: BusinessShipperInvoice.fromJson(invoiceJson),
+      parcels: parcelsJson
+          .whereType<Map>()
+          .map((e) =>
+              BusinessShipperInvoiceParcel.fromJson(e.cast<String, dynamic>()))
+          .toList(),
+    );
   }
 }
