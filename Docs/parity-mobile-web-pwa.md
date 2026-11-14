@@ -36,15 +36,15 @@ que l'équivalence pixel-perfect (le comment).
 |---|---|---|---|
 | Login / PIN 6 chiffres | ✅ | ✅ | ✅ |
 | Récupération de PIN | ✅ | ✅ | ✅ |
-| Google Sign-In | ✅ | ⚠️ (dépend config API) | ⚠️ |
+| Google Sign-In | ✅ | ⚠️ code livré, dépend `GOOGLE_WEB_CLIENT_ID` env | ⚠️ idem |
 | Déverrouillage biométrique | ✅ | ↩️ WebAuthn à évaluer | ↩️ |
 | Notifications in-app | ✅ | ✅ | ✅ |
 | Notifications push temps réel | ✅ FCM | ✅ Web Push VAPID | ✅ Web Push (SW + badge + routing) |
 | Chat support | ✅ | ✅ | ✅ |
 | Profil + préférences notifications | ✅ | ✅ | ✅ |
 | Pages légales (CGU, confidentialité…) | ✅ | ✅ | ✅ |
-| Localisation (fr / en / wo) | ✅ | ⚠️ (vérifier wo) | ⚠️ |
-| Mode sombre | ✅ | ⚠️ à vérifier | ⚠️ |
+| Localisation (fr / en / wo) | ✅ 3 locales | ⚠️ fr uniquement (pas de framework i18n) | ⚠️ idem |
+| Mode sombre | ✅ | ✅ 2026-11-14 (audit) — toggle `SettingsScreen` + `[data-theme=dark]` | ✅ |
 | Historique hors ligne (lecture) | ✅ cache local | ✅ SW + IndexedDB (TTL 14j) | ✅ |
 | Référral / parrainages | ✅ | ✅ | ✅ |
 | App update gate (version mini) | ✅ | N/A (PWA se met à jour auto) | ✅ via SW |
@@ -65,7 +65,7 @@ que l'équivalence pixel-perfect (le comment).
 | Dispute / litige | ✅ | ✅ | ✅ |
 | Dashboard B2B shipper | ✅ | ✅ | ✅ |
 | Facturation PDF | ✅ download+share | ✅ download | ✅ |
-| Import CSV bulk | ✅ bulk-create | ⚠️ à vérifier | ⚠️ |
+| Import CSV bulk | ✅ bulk-create | ✅ 2026-11-14 (`CsvBulkImportDialog` dans `/client/outils`) | ✅ |
 | Modèles de colis (templates) | ✅ local-only | ✅ local-only (`localStorage`) | ✅ local-only |
 | Self-service clés API | ✅ `/business/api-keys` | ✅ `/client/api-keys` | ✅ |
 | Carnet d'adresses enregistré | ✅ | ✅ | ✅ |
@@ -82,16 +82,16 @@ que l'équivalence pixel-perfect (le comment).
 | Dashboard chauffeur | ✅ | ✅ | ✅ |
 | Toggle disponibilité | ✅ | ✅ | ✅ |
 | Création d'annonces / voyages | ✅ | ✅ | ✅ |
-| Import de routes (fichier) | ✅ | ⚠️ à vérifier | ⚠️ |
+| Import de routes (fichier) | ✅ | ✅ 2026-11-14 (nav `Importer des trajets` → `#route-import` ouvre `RouteCsvImport`) | ✅ |
 | Catalogue colis libres | ✅ | ✅ | ✅ |
 | Proposer offre + négociation chat | ✅ | ✅ | ✅ |
 | Confirmation ramassage (scan QR + photo) | ✅ | ↩️ photo via file input | ↩️ |
 | GPS continu partage position | ✅ background | 🚫 impossible web | 🚫 |
 | Carte itinéraire client | ✅ | ✅ | ✅ |
 | Confirmation livraison (signature + photo) | ✅ | ↩️ canvas signature | ↩️ |
-| Manifeste navette (shuttle) | ✅ | ⚠️ à vérifier | ⚠️ |
+| Manifeste navette (shuttle) | ✅ | ✅ 2026-11-14 (`AdvertisementManifestScreen` route `/driver/annonces/:id/manifest`) | ✅ |
 | Handover colis chauffeur→chauffeur | ✅ | ✅ 2026-11-14 | ✅ |
-| Arrêts atteints / tracking intermédiaire | ✅ | ⚠️ partiel | ⚠️ |
+| Arrêts atteints / tracking intermédiaire | ✅ | ✅ 2026-11-14 (`AdvertisementReachedStopsScreen` route `/driver/annonces/:id/arrets-atteints`) | ✅ |
 | Revenus + historique | ✅ | ✅ | ✅ |
 | Documents véhicule | ✅ | ✅ | ✅ |
 | Points fidélité | ✅ | ✅ | ✅ |
@@ -137,7 +137,7 @@ que l'équivalence pixel-perfect (le comment).
 | Broadcasts mass users | ✅ | ✅ | ✅ |
 | Réputation + scores + classement | ✅ | ✅ | ✅ |
 | Pilot metrics | ✅ | ✅ 2026-11-14 `/admin/pilot-metrics` | ✅ |
-| Hub opérationnel | ✅ | ⚠️ à vérifier | ⚠️ |
+| Hub opérationnel | ✅ | ✅ 2026-11-14 `/admin/operations` (4 onglets : intégrations, webhooks récents, arrêts GPS, transferts) | ✅ |
 
 ---
 
@@ -250,9 +250,9 @@ Livrés dans le chantier PWA :
 
 Reste à livrer (hors chantier PWA actuel) :
 
-6. **Précache des shells par rôle** (lazy precache post-login)
-7. **Capture photo dans le flow livraison** via `<input capture>` ou `getUserMedia`
-8. **Web Share Target** (recevoir un tracking number partagé depuis une autre app)
+6. ✅ **Précache des shells par rôle** — livré 2026-11-14 : `features/pwa/precacheByRole.ts` déclenche les `import()` dynamiques des écrans du rôle courant via `requestIdleCallback` après connexion. Le SW capture au vol les bundles `/assets/*-hash.{js,css}` → la navigation hors ligne fonctionne pour toutes les pages du rôle, pas seulement celles déjà visitées. Branché depuis `PwaProvider` sur `useAuthStore(user.role, sessionId)`.
+7. ⚠️ **Capture photo dans le flow livraison** — **non-gap** après audit : le mobile capture bien une photo via `DeliveryProofScreen` mais le bouton « Valider la preuve » fait seulement `Navigator.pop(context, true)` sans envoyer de payload à l'API. Côté serveur, `driverDeliver` extrait `signature`/`proofImage` du body mais `changeParcelStatus` lit `extra.signatureUrl`/`extra.photoUrl` : le mapping est incohérent, les champs seraient silencieusement perdus. **Vraie parité fonctionnelle actuellement** : OTP-only des deux côtés.
+8. ✅ **Web Share Target** — livré 2026-11-14 : `share_target` dans `manifest.webmanifest`, handler `extractTrackingFromShared` dans `SuiviScreen` extrait les tokens `PC-XXXX-XXXX` depuis `title/text/url`
 
 Ce qui NE sera pas livré côté PWA (compromis documenté) :
 - GPS continu arrière-plan (impossible navigateur)
@@ -295,9 +295,109 @@ de capacités natives.
 Dernière mise à jour : 2026-11-14 (chantier PWA P1→P5 livré : Web Push + VAPID,
 Background Sync, IndexedDB durable, Badging API, splash screens iOS).
 
-Dernière mise à jour : 2026-11-14 (audit initial + lot P1–P3 Web livré + audit final P2/P3/P5 clôturé).
+Dernière mise à jour : 2026-11-14 (chantier parité mission — CSV bulk, manifeste, arrêts atteints, hub opérationnel, nav import routes livrés).
 
 ## Journal des livraisons
+
+### 2026-11-14 — Chantier parité mission (lot ⚠️→✅)
+
+Clôture des items encore marqués ⚠️ dans la matrice après audit croisé des 4
+codebases par 5 agents parallèles. Changements Web uniquement, additifs, sans
+toucher à l'API.
+
+- **Import CSV bulk client** : `CsvBulkImportDialog` + wrapper
+  `parcels.bulkCreate()` (`POST /client/parcels/bulk-create`) câblé depuis
+  `WorkspaceScreen` (`/client/outils`). Parsing CSV séparateur `;`, header
+  toléré, validation ligne-par-ligne, rapport succès/échec ordonné, fallback
+  séquentiel si endpoint 404. Jumelle `csv_bulk_import_sheet.dart` côté mobile.
+- **Manifeste navette** : `AdvertisementManifestScreen` sur
+  `/driver/annonces/:advertisementId/manifest` + wrapper
+  `advertisements.fetchManifest()`. Boutons d'entrée ajoutés à `AdCard` dans
+  `MesAnnoncesScreen` (visibles si l'annonce a des arrêts).
+- **Arrêts atteints** : `AdvertisementReachedStopsScreen` sur
+  `/driver/annonces/:advertisementId/arrets-atteints` + wrapper
+  `advertisements.fetchReachedStops()`.
+- **Hub opérationnel super_admin** : `OperationsHubPage` sur
+  `/admin/operations` avec 4 onglets (Intégrations, Webhooks récents, Arrêts
+  GPS récents, Transferts récents). Nouveau wrapper `lib/api/admin-operations.ts`
+  couvrant `GET /health/integrations`, `/super-admin/webhooks/recent`,
+  `/super-admin/stop-events/recent`, `/super-admin/handovers/recent`. Entrée
+  nav « Hub opérationnel » ajoutée dans la section Supervision.
+- **Import routes driver** : entrée nav « Importer des trajets » qui pointe
+  vers `/driver/annonces#route-import` ; `RouteCsvImport` s'ouvre
+  automatiquement si le hash est présent. Label du summary renommé
+  « Importer mes trajets (CSV) » pour la découvrabilité.
+
+**Audits confirmant un ✅ (pas de code requis)** :
+- Mode sombre web : toggle fonctionnel dans `SettingsScreen`, CSS
+  `[data-theme="dark"]` dans `ds/tokens/colors.css`, persistance
+  `localStorage.procolis-theme`, respect `prefers-color-scheme`.
+
+**Audits qui restent ⚠️ (décisions explicites non livrées dans ce chantier)** :
+- Google Sign-In web : code 100 % identique au mobile (`idToken` envoyé,
+  même endpoint `/auth/google`). Seul gap : `GOOGLE_WEB_CLIENT_ID` vide dans
+  `.env` prod. Action : valoriser l'env côté infra, pas de patch code.
+- Localisation `wo` (wolof) web : aucun framework i18n installé, strings
+  françaises codées en dur. Introduction d'un pipeline i18n (extraction
+  ~2000+ chaînes, i18next ou équivalent) = chantier dédié, hors scope parité
+  additive.
+
+**Audit vérifié ✅ dans la matrice** : Routes import endpoint identique au
+mobile (`POST /driver/route-templates/import{,/preview}`) ; le seul écart
+était la découvrabilité, corrigé par nav + hash anchor.
+
+### 2026-11-14 — Vérification finale « ce qui reste »
+
+Après re-lecture complète de la matrice et croisement avec les mobiles, les
+items non ✅ encore ouverts se répartissent ainsi :
+
+**Fermés dans ce complément** :
+- **Web Share Target (PWA #8)** : `share_target` ajouté au
+  `manifest.webmanifest` (action `/track`, méthode `GET`, params
+  `title/text/url`). `SuiviScreen` extrait un token `PC-XXXX-XXXX` depuis
+  ces trois paramètres via une regex et renseigne la recherche
+  automatiquement. Aucun endpoint nouveau.
+
+**Fermé dans ce complément (suite)** :
+- **Précache PWA par rôle (PWA #6)** : `precacheByRole.ts` + hook dans
+  `PwaProvider`. Déclenche en `requestIdleCallback` les `import()` dynamiques
+  des écrans du rôle dès que `user.role` + `sessionId` sont présents.
+  Mémorisation par clé `${role}:${sessionId}` pour éviter les re-précache
+  après refetch du profil. Erreurs silencieuses — un échec de précache ne
+  casse pas l'UX.
+
+**Encore ⚠️ — nécessitent action hors scope « patch additif »** :
+
+| Item | Statut | Pourquoi non fermé maintenant |
+|---|---|---|
+| Google Sign-In web | ⚠️ | Code identique au mobile, seul manque `GOOGLE_WEB_CLIENT_ID` dans `.env` prod. Action infra, pas code. |
+| Localisation `wo` web | ⚠️ | Aucun framework i18n installé — refactor ~2000+ chaînes. Chantier dédié. |
+
+**Non-gap confirmé par audit (statut révisé)** :
+- **Capture photo livraison (PWA #7)** : audit du code mobile a révélé que
+  `DeliveryProofScreen._submit` fait `Navigator.pop(context, true)` sans
+  envoyer la photo/signature à l'API. Côté serveur, `driverDeliver` destructure
+  `signature`/`proofImage` mais `changeParcelStatus` lit
+  `extra.signatureUrl`/`extra.photoUrl` : mapping incohérent, les fichiers
+  seraient perdus. La parité réelle actuelle est **OTP-only des deux côtés**.
+  Transformer cet item ⚠️→✅ demanderait d'abord un correctif API
+  (mapping + storage upload), hors scope parité additive.
+
+**↩️ fallbacks documentés (pas d'action attendue)** :
+- Biométrie WebAuthn (support iOS inconsistant)
+- Caméra scan QR persistante (session-only via `getUserMedia`)
+- Share sheet (Web Share API mobile only)
+- Enregistrement audio (session MediaRecorder uniquement)
+- Signature canvas livraison (compromis accepté)
+- Secure Storage (IndexedDB + crypto.subtle)
+- OCR on-device (coûteux côté web)
+
+**🚫 non applicable** :
+- GPS continu arrière-plan
+- Carnet d'adresses OS
+
+**❌ bloqué côté API** (voir `api-pending.md` §9) :
+- Shuttle Operator : CRUD flotte / horaires / lignes de transit
 
 ### 2026-11-14 — Mise à niveau fonctionnelle Web
 

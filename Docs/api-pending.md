@@ -93,7 +93,10 @@ avec `{ reason, category }`.
 ## 7. Parcel templates serveur (optionnel)
 
 **Statut : implémenté en local-only pour l'instant**
-(voir `lib/services/parcel_template_store.dart`).
+(voir `lib/services/parcel_template_store.dart` côté mobile et
+`src/lib/parcelTemplateStore.ts` côté web — clés localStorage cloisonnées par
+utilisateur). Les deux implémentations partagent la même sérialisation ; une
+éventuelle synchro serveur viendrait s'ajouter sans migration.
 
 **Pour synchroniser entre appareils** il faudrait :
 - `GET /me/parcel-templates` + create / update / delete
@@ -112,9 +115,54 @@ de 404 (vieux serveur), fallback automatique sur les créations séquentielles.
 
 ---
 
+## 9. Shuttle Operator — CRUD lignes / flotte / horaires
+
+**Statut : non livré (bloqué côté API).**
+
+Le rôle `shuttle_operator` a été introduit par la migration
+`20261117_shuttle_operator_role`. Les lignes de transit existent (modèle
+`TransitLine` + `TransitLineStop`) mais sont **alimentées par seed**
+(`seed-transit.js`) et uniquement exposées en lecture via :
+
+- `GET /transit/lines` (catalogue public)
+- `GET /transit/lines/:lineId`
+- `GET /transit/lines/:lineId/live` (voyages actifs)
+- `GET /transit/stops/search`
+- `GET /transit/lines/:lineId/draft` (pré-remplissage annonce chauffeur)
+
+Les 3 endpoints partagés avec le driver (`POST /advertisements`,
+`POST /parcels/:id/handovers`, `POST /parcels/:id/handovers/:handoverId/confirm`)
+sont accessibles au shuttle_operator mais passent par l'UI driver.
+
+**Endpoints manquants pour un espace shuttle_operator complet :**
+
+- Gestion des lignes de l'opérateur (CRUD restreint à l'opérateur) :
+  - `GET /shuttle-operator/lines` (mes lignes)
+  - `POST /shuttle-operator/lines`
+  - `PATCH /shuttle-operator/lines/:lineId`
+  - `DELETE /shuttle-operator/lines/:lineId`
+- Gestion de la flotte (véhicules collectifs) :
+  - `GET/POST/PATCH/DELETE /shuttle-operator/vehicles`
+- Gestion des horaires et plages de service :
+  - `GET/POST/PATCH/DELETE /shuttle-operator/schedules`
+- Dashboard opérationnel :
+  - `GET /shuttle-operator/overview` (lignes actives, départs du jour, flotte
+    disponible)
+
+**UI mobile / web (quand prêt)** — ni le mobile ni le web n'exposent d'écran
+dédié. Les deux clients consomment déjà les 3 endpoints partagés via les
+écrans driver. Un espace dédié sera construit une fois les endpoints ci-dessus
+livrés.
+
+---
+
 ## Priorisation suggérée
 
-Tout le lot « pending » est livré hors `§7 parcel templates serveur`
+Tout le lot « pending » 1-8 est livré hors `§7 parcel templates serveur`
 (volontairement reporté — local-only suffit).
 
-Dernière mise à jour : 2026-11-14.
+`§9 Shuttle Operator CRUD` est la seule dépendance backend nouvelle issue
+de l'audit final 2026-11-14 : pas urgente tant qu'aucun opérateur n'est
+contractualisé.
+
+Dernière mise à jour : 2026-11-14 (audit final + §9 shuttle operator).
