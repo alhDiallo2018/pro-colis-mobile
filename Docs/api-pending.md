@@ -22,16 +22,24 @@ section "Facturation" télécharge le PDF via Dio puis le partage.
 
 ---
 
-## 2. API keys & webhooks scoped au shipper — ⏳ UI prête, API manquante
+## 2. API keys scoped au shipper — ✅ Livré 2026-11-14
 
-UI mobile prête : `ApiKeysScreen(scope: ApiKeysScope.businessShipper)` consomme
-`/business-shipper/api-keys/*`, accessible via la route `/business/api-keys`.
-Activera dès la livraison des endpoints serveur ci-dessous.
+UI mobile : `ApiKeysScreen(scope: ApiKeysScope.businessShipper)` sur
+`/business/api-keys`. Backend : migration `20261120_api_key_owner` (colonne
+`created_by_id` FK users, cascade delete) + 5 handlers dans
+`mobile.controller.js` filtrant systématiquement par `createdById: req.user.id`
+(404 sur clé tierce). Scopes limités à `parcel.read / parcel.write /
+webhook.receive`. Couvert par `tests/business-shipper-api-keys.test.js` (7/7).
 
-**Endpoints manquants**
-- `GET /business-shipper/api-keys` + create / rotate / deactivate
-- `GET /business-shipper/webhooks` + create / update / delete
-- Middleware : authent de type shipper, scope limité à son propre compte
+- `GET /business-shipper/api-keys`
+- `POST /business-shipper/api-keys`
+- `POST /business-shipper/api-keys/:keyId/rotate`
+- `PATCH /business-shipper/api-keys/:keyId`
+- `POST /business-shipper/api-keys/:keyId/deactivate`
+
+Les webhooks sortants dédiés shipper (endpoint `/business-shipper/webhooks`
+séparé) ne sont pas nécessaires : l'URL webhook est portée par la clé API
+elle-même (`webhookUrl` + `webhookSecret`), comme pour les clés partenaires.
 
 ---
 
@@ -106,7 +114,7 @@ de 404 (vieux serveur), fallback automatique sur les créations séquentielles.
 
 ## Priorisation suggérée
 
-Ne reste côté UI mobile que l'activation des endpoints business-shipper
-(section 2) : UI prête, dépend de la livraison backend.
+Tout le lot « pending » est livré hors `§7 parcel templates serveur`
+(volontairement reporté — local-only suffit).
 
 Dernière mise à jour : 2026-11-14.
