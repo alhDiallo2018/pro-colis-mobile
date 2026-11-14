@@ -98,6 +98,7 @@ import '../screens/super-admin/payments_screen.dart';
 import '../screens/super-admin/reputation_dashboard_screen.dart';
 import '../screens/super-admin/score_detail_screen.dart';
 import '../screens/super-admin/api_keys_screen.dart';
+import '../services/api/admin_api_keys_api.dart';
 import '../screens/super-admin/pilot_metrics_screen.dart';
 import '../screens/super-admin/systeme_screen.dart';
 import '../screens/client/business_shipper_dashboard_screen.dart';
@@ -947,6 +948,12 @@ class AppRouter {
           path: '/admin/api-keys',
           name: 'admin-api-keys',
           builder: (context, state) => const ApiKeysScreen(),
+        ),
+        GoRoute(
+          path: '/business/api-keys',
+          name: 'business-api-keys',
+          builder: (context, state) =>
+              const ApiKeysScreen(scope: ApiKeysScope.businessShipper),
         ),
         GoRoute(
           path: '/admin/backups',

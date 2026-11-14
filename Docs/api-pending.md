@@ -22,55 +22,38 @@ section "Facturation" télécharge le PDF via Dio puis le partage.
 
 ---
 
-## 2. API keys & webhooks scoped au shipper
+## 2. API keys & webhooks scoped au shipper — ⏳ UI prête, API manquante
 
-**Usage attendu**
-Un expéditeur pro souhaite gérer ses propres clés API et webhooks sans
-dépendre du super_admin.
+UI mobile prête : `ApiKeysScreen(scope: ApiKeysScope.businessShipper)` consomme
+`/business-shipper/api-keys/*`, accessible via la route `/business/api-keys`.
+Activera dès la livraison des endpoints serveur ci-dessous.
 
 **Endpoints manquants**
 - `GET /business-shipper/api-keys` + create / rotate / deactivate
 - `GET /business-shipper/webhooks` + create / update / delete
 - Middleware : authent de type shipper, scope limité à son propre compte
 
-**UI côté mobile (quand prêt)**
-Réutiliser `api_keys_screen.dart` en passant un `scope` différent, ou dupliquer
-sous `/business-shipper/*`.
-
 ---
 
-## 3. KYC : suppression + demande d'infos complémentaires
+## 3. KYC : suppression + demande d'infos complémentaires — ✅ Livré 2026-11-14
 
-**Usage attendu**
-L'équipe KYC doit pouvoir :
-- Supprimer une soumission invalide (pièce illisible, doublon)
-- Demander des infos supplémentaires sans rejeter (ex. nouvelle photo)
+UI mobile : boutons "Supprimer" + "Demander des infos" dans
+`identity_verifications_screen`, dialogues de confirmation/motif branchés sur
+`ApiService.deleteIdentity` / `requestInfoIdentity`.
 
-**Endpoints manquants**
 - `DELETE /super-admin/identity-verifications/:id`
 - `POST /super-admin/identity-verifications/:id/request-info` (body : message)
 
-**UI côté mobile (quand prêt)**
-Boutons "Supprimer" + "Demander des infos" dans `identity_verifications_screen`
-à côté des actions approve/reject existantes.
-
 ---
 
-## 4. Dashboard SLA cross-tier admin
+## 4. Dashboard SLA cross-tier admin — ✅ Livré 2026-11-14
 
-**Usage attendu**
-Un admin a besoin d'une vue consolidée des SLA techniques, commerciaux et
-chat sur un seul écran (plutôt que de passer d'un onglet à l'autre).
+UI mobile : `_SupportSlaCard` dans `support_admin_dashboard` affiche 4 pills
+(tech à risque / tech dépassé / commercial en retard / chat dépassé) avec
+raccourcis vers chaque écran de suivi. Le provider `supportAdminSlaProvider`
+masque la carte tant que l'endpoint retourne null.
 
-**Endpoints manquants**
-- `GET /support-admin/sla-overview` → métriques combinées :
-  - tickets techniques en risque (par priorité)
-  - leads commerciaux en retard
-  - conversations chat SLA dépassé
-
-**UI côté mobile (quand prêt)**
-Nouvel onglet dans `support_admin_dashboard` avec 3 compteurs + raccourcis
-vers chaque tier.
+- `GET /support-admin/sla-overview`
 
 ---
 
@@ -90,19 +73,12 @@ similaire au timeline parcel events.
 
 ---
 
-## 6. Close conversation avec motif de résolution
+## 6. Close conversation avec motif de résolution — ✅ Livré 2026-11-14
 
-**Usage attendu**
-À la clôture d'une demande support, l'agent doit préciser le motif pour
-alimenter les stats et la base de connaissance.
-
-**Endpoint manquant**
-Modification : `POST /support/chat/conversations/:id/close` accepte un body
-`{ reason: string, category: 'resolved' | 'duplicate' | 'spam' | 'no_answer' }`.
-
-**UI côté mobile (quand prêt)**
-Modifier `support_inbox_screen._action` pour appeler un dialogue de motif
-avant close, puis envoyer le body.
+UI mobile : `_CloseConversationDialog` dans `support_inbox_screen` collecte
+dropdown catégorie (resolved / duplicate / spam / no_answer) + motif libre
+(validation min. 5 chars) avant d'envoyer `POST /conversations/:id/close`
+avec `{ reason, category }`.
 
 ---
 
@@ -120,32 +96,17 @@ serveur pour un usage essentiellement personnel.
 
 ---
 
-## 8. CSV bulk import endpoint bulk-create
+## 8. CSV bulk import endpoint bulk-create — ✅ Livré 2026-11-14
 
-**Statut : implémenté en local-only pour l'instant**
-(voir `lib/screens/client/csv_bulk_import_sheet.dart`).
-
-Actuellement N appels séquentiels à `POST /client/parcels/create`. Un
-endpoint `POST /client/parcels/bulk-create` (body : `{ parcels: [...] }`)
-permettrait :
-- Transaction atomique (soit tous, soit aucun)
-- 1 round-trip au lieu de N
-- Validation en un seul passage
-
-**UI côté mobile (quand prêt)**
-Remplacer la boucle `for` du sheet par un seul appel bulk, garder le
-rapport ligne-par-ligne grâce à la réponse structurée du serveur.
+UI mobile : le sheet appelle d'abord `POST /client/parcels/bulk-create` et
+remonte le rapport ligne-par-ligne depuis `results[]` (ordre préservé). En cas
+de 404 (vieux serveur), fallback automatique sur les créations séquentielles.
 
 ---
 
 ## Priorisation suggérée
 
-1. **Close with reason** (déjà déployable côté API, UX immédiate pour les agents)
-2. **Bulk-create** (gain de perf significatif pour les shippers pro)
-3. **KYC delete + request info** (ergonomie équipe compliance)
-4. **Billing/invoicing** (nécessaire pour les shippers B2B à terme)
-5. **SLA cross-tier dashboard** (nice-to-have pour l'admin)
-6. **Shipper-scoped API keys/webhooks** (self-service shipper pro)
-7. **Batch stop events** (traçabilité flotte)
+Ne reste côté UI mobile que l'activation des endpoints business-shipper
+(section 2) : UI prête, dépend de la livraison backend.
 
-Dernière mise à jour : 2026-11-12.
+Dernière mise à jour : 2026-11-14.

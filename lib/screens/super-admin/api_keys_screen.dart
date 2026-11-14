@@ -19,14 +19,17 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/pc_components.dart';
 
 class ApiKeysScreen extends ConsumerStatefulWidget {
-  const ApiKeysScreen({super.key});
+  final ApiKeysScope scope;
+  const ApiKeysScreen({super.key, this.scope = ApiKeysScope.superAdmin});
 
   @override
   ConsumerState<ApiKeysScreen> createState() => _ApiKeysScreenState();
 }
 
 class _ApiKeysScreenState extends ConsumerState<ApiKeysScreen> {
-  late final AdminApiKeysApi _api = AdminApiKeysApi(ApiClient());
+  late final AdminApiKeysApi _api =
+      AdminApiKeysApi(ApiClient(), scope: widget.scope);
+  bool get _isBusiness => widget.scope == ApiKeysScope.businessShipper;
 
   List<ApiKey> _keys = const [];
   bool _loading = true;
@@ -64,7 +67,7 @@ class _ApiKeysScreenState extends ConsumerState<ApiKeysScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _CreateApiKeySheet(api: _api),
+      builder: (_) => _CreateApiKeySheet(api: _api, isBusiness: _isBusiness),
     );
     if (created != null) {
       await _showSecretDialog(created, isRotation: false);
@@ -197,7 +200,7 @@ class _ApiKeysScreenState extends ConsumerState<ApiKeysScreen> {
             }
           },
         ),
-        title: const Text('Clés API partenaires'),
+        title: Text(_isBusiness ? 'Mes clés API' : 'Clés API partenaires'),
         actions: [
           IconButton(
             tooltip: 'Actualiser',
@@ -222,11 +225,12 @@ class _ApiKeysScreenState extends ConsumerState<ApiKeysScreen> {
                   action: PcButton('Réessayer', onPressed: _load),
                 )
               : _keys.isEmpty
-                  ? const EmptyState(
+                  ? EmptyState(
                       icon: Icons.vpn_key_outlined,
                       title: 'Aucune clé API',
-                      message:
-                          'Créez une clé pour qu\'un partenaire e-commerce puisse émettre des colis via l\'API publique.',
+                      message: _isBusiness
+                          ? 'Créez une clé pour que vos outils internes puissent émettre des colis via l\'API publique.'
+                          : 'Créez une clé pour qu\'un partenaire e-commerce puisse émettre des colis via l\'API publique.',
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
@@ -403,7 +407,8 @@ class _SecretBlock extends StatelessWidget {
 
 class _CreateApiKeySheet extends StatefulWidget {
   final AdminApiKeysApi api;
-  const _CreateApiKeySheet({required this.api});
+  final bool isBusiness;
+  const _CreateApiKeySheet({required this.api, this.isBusiness = false});
 
   @override
   State<_CreateApiKeySheet> createState() => _CreateApiKeySheetState();
@@ -489,9 +494,13 @@ class _CreateApiKeySheetState extends State<_CreateApiKeySheet> {
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _partnerName,
-                  decoration: const InputDecoration(
-                      labelText: 'Nom du partenaire',
-                      hintText: 'Ex. BoutiqueOnline SA'),
+                  decoration: InputDecoration(
+                      labelText: widget.isBusiness
+                          ? 'Libellé de la clé'
+                          : 'Nom du partenaire',
+                      hintText: widget.isBusiness
+                          ? 'Ex. Intégration ERP interne'
+                          : 'Ex. BoutiqueOnline SA'),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Requis' : null,
                 ),

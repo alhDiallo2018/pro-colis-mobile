@@ -372,16 +372,10 @@ class ApiService {
       }
       final results = (responseData['results'] as List?) ?? const [];
       return BulkParcelResult(
-        created: results
+        results: results
             .whereType<Map>()
-            .where((r) => r['success'] == true)
             .map((r) => Map<String, dynamic>.from(r))
-            .toList(),
-        failed: results
-            .whereType<Map>()
-            .where((r) => r['success'] != true)
-            .map((r) => Map<String, dynamic>.from(r))
-            .toList(),
+            .toList(growable: false),
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
@@ -3422,7 +3416,13 @@ class ApiException implements Exception {
 }
 
 class BulkParcelResult {
-  final List<Map<String, dynamic>> created;
-  final List<Map<String, dynamic>> failed;
-  const BulkParcelResult({required this.created, required this.failed});
+  /// Résultats dans l'ordre des colis envoyés — chaque entrée contient
+  /// `success: bool`, `parcel?` (si créé), `message?` (si échec).
+  final List<Map<String, dynamic>> results;
+  const BulkParcelResult({required this.results});
+
+  Iterable<Map<String, dynamic>> get created =>
+      results.where((r) => r['success'] == true);
+  Iterable<Map<String, dynamic>> get failed =>
+      results.where((r) => r['success'] != true);
 }

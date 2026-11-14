@@ -85,10 +85,21 @@ class AdminApiKeysException implements Exception {
   String toString() => message;
 }
 
+/// Détermine l'espace serveur consommé par l'écran : super-admin voit toutes
+/// les clés, un business-shipper ne voit (et ne gère) que les siennes.
+enum ApiKeysScope {
+  superAdmin('/super-admin/api-keys'),
+  businessShipper('/business-shipper/api-keys');
+
+  final String basePath;
+  const ApiKeysScope(this.basePath);
+}
+
 class AdminApiKeysApi {
   final ApiClient client;
+  final ApiKeysScope scope;
 
-  AdminApiKeysApi(this.client);
+  AdminApiKeysApi(this.client, {this.scope = ApiKeysScope.superAdmin});
 
   /// Scopes gérés aujourd'hui côté backend — alignés sur
   /// `src/utils/api-key-auth.js`. À élargir si le backend en ajoute.
@@ -98,8 +109,10 @@ class AdminApiKeysApi {
     'webhook.receive',
   ];
 
+  String get _base => scope.basePath;
+
   Future<List<ApiKey>> list() async {
-    final res = await client.dio.get('/super-admin/api-keys');
+    final res = await client.dio.get(_base);
     final body = client.handle(res);
     final data = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
     final raw = data['keys'];
@@ -116,7 +129,7 @@ class AdminApiKeysApi {
     String? webhookUrl,
     String? webhookSecret,
   }) async {
-    final res = await client.dio.post('/super-admin/api-keys', data: {
+    final res = await client.dio.post(_base, data: {
       'partnerName': partnerName,
       'scopes': scopes,
       if (webhookUrl != null && webhookUrl.isNotEmpty) 'webhookUrl': webhookUrl,
@@ -137,7 +150,7 @@ class AdminApiKeysApi {
   }
 
   Future<ApiKeyWithSecret> rotate(String keyId) async {
-    final res = await client.dio.post('/super-admin/api-keys/$keyId/rotate');
+    final res = await client.dio.post('$_base/$keyId/rotate');
     final body = client.handle(res);
     final status = res.statusCode ?? 500;
     if (status >= 400 || body['success'] == false) {
@@ -157,7 +170,7 @@ class AdminApiKeysApi {
     String? webhookUrl,
     bool? active,
   }) async {
-    final res = await client.dio.patch('/super-admin/api-keys/$keyId', data: {
+    final res = await client.dio.patch('$_base/$keyId', data: {
       if (scopes != null) 'scopes': scopes,
       if (webhookUrl != null) 'webhookUrl': webhookUrl,
       if (active != null) 'active': active,
@@ -177,7 +190,7 @@ class AdminApiKeysApi {
 
   Future<ApiKey> deactivate(String keyId) async {
     final res =
-        await client.dio.post('/super-admin/api-keys/$keyId/deactivate');
+        await client.dio.post('$_base/$keyId/deactivate');
     final body = client.handle(res);
     final status = res.statusCode ?? 500;
     if (status >= 400 || body['success'] == false) {

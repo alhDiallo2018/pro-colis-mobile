@@ -207,23 +207,19 @@ class _CsvBulkImportSheetState extends State<CsvBulkImportSheet> {
     try {
       final bulk = await _api.bulkCreateParcels(payloads);
       if (bulk != null) {
-        final outcomes = <_ImportOutcome>[];
-        for (var i = 0; i < valid.length; i++) {
-          final row = valid[i];
-          final success = i < bulk.created.length + bulk.failed.length
-              ? (i < bulk.created.length)
-              : false;
-          outcomes.add(_ImportOutcome(
-            row: row,
-            success: success,
-            message: success
-                ? null
-                : (i - bulk.created.length < bulk.failed.length
-                    ? bulk.failed[i - bulk.created.length]['message']
-                        ?.toString()
-                    : null),
-          ));
-        }
+        // Le serveur préserve l'ordre d'envoi : result[i] correspond à valid[i].
+        final outcomes = <_ImportOutcome>[
+          for (var i = 0; i < valid.length; i++)
+            _ImportOutcome(
+              row: valid[i],
+              success: i < bulk.results.length
+                  ? bulk.results[i]['success'] == true
+                  : false,
+              message: i < bulk.results.length
+                  ? bulk.results[i]['message']?.toString()
+                  : 'Réponse serveur incomplète',
+            ),
+        ];
         if (!mounted) return;
         setState(() {
           _outcomes = outcomes;
