@@ -115,9 +115,31 @@ de 404 (vieux serveur), fallback automatique sur les créations séquentielles.
 
 ---
 
-## 9. Shuttle Operator — CRUD lignes / flotte / horaires
+## 9. Shuttle Operator — CRUD lignes / flotte / horaires — ✅ Livré 2026-11-14
 
-**Statut : non livré (bloqué côté API).**
+**Statut : API livrée, UI web livrée, mobile non prioritaire.**
+
+Migration SQL : `20261122000000_shuttle_operator_crud` — ajoute
+`transit_lines.operator_user_id` + crée `shuttle_vehicles` et
+`shuttle_schedules`. Endpoints montés sous `/shuttle-operator/*` dans
+`app.js`, RBAC `shuttle_operator`, ownership isolée (404 sur ressource
+d'un autre opérateur). Tests `tests/shuttle-operator.test.js` couvrent
+RBAC + ownership + validation + CRUD + soft delete + unicité plaque.
+
+- `GET /shuttle-operator/overview`
+- `GET/POST/PATCH/DELETE /shuttle-operator/lines[/:lineId]` — CRUD atomique
+  avec stops (deleteMany + createMany dans la même transaction pour les
+  mises à jour).
+- `GET/POST/PATCH/DELETE /shuttle-operator/vehicles[/:vehicleId]` — soft
+  delete via `deletedAt + status='retired'` ; unicité plaque *par* opérateur.
+- `GET/POST/PATCH/DELETE /shuttle-operator/schedules[/:scheduleId]` —
+  validation HH:MM, jours 0-6, plage `activeFrom`/`activeUntil`.
+
+Web : espace `/shuttle` avec `ShuttleOverviewPage`, `ShuttleLinesPage`,
+`ShuttleVehiclesPage`, `ShuttleSchedulesPage` ; wrapper
+`src/lib/api/shuttle-operator.ts` ; précache PWA inclus.
+
+**Non livré** (contenu originel) :
 
 Le rôle `shuttle_operator` a été introduit par la migration
 `20261117_shuttle_operator_role`. Les lignes de transit existent (modèle

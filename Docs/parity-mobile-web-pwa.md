@@ -176,11 +176,18 @@ n'exposent d'écran "Shuttle Operator".
 | Consultation des lignes de transit (catalogue) | ✅ via `/transit/lines` | ✅ via `TransitLinePicker` + `/transit/lines` | ✅ | — |
 | Création d'annonce (voyage) | ✅ écran chauffeur partagé | ✅ écran chauffeur partagé | ✅ | — |
 | Handover colis (recevoir / transférer) | ✅ | ✅ 2026-11-14 | ✅ | — |
-| Gestion flotte (CRUD véhicules opérateur) | ❌ non livré | ❌ non livré | ❌ | API absente |
-| Gestion des horaires (CRUD schedules) | ❌ non livré | ❌ non livré | ❌ | API absente |
-| CRUD lignes de transit | ❌ non livré | ❌ non livré | ❌ | API absente (lignes seedées) |
+| Gestion flotte (CRUD véhicules opérateur) | ❌ non livré | ✅ 2026-11-14 `/shuttle/vehicules` | ✅ | API livrée |
+| Gestion des horaires (CRUD schedules) | ❌ non livré | ✅ 2026-11-14 `/shuttle/horaires` | ✅ | API livrée |
+| CRUD lignes de transit | ❌ non livré | ✅ 2026-11-14 `/shuttle/lignes` | ✅ | API livrée |
+| Dashboard overview opérateur | ❌ non livré | ✅ 2026-11-14 `/shuttle` (overview) | ✅ | — |
 
-Les lignes "gestion" sont bloquées côté backend : voir `api-pending.md` §9.
+API `/shuttle-operator/*` livrée : lignes (CRUD atomique avec stops), flotte
+(CRUD + soft delete sur `deletedAt`), horaires (CRUD avec validation HH:MM
+et jours 0-6), overview (compteurs). Migration SQL
+`20261122000000_shuttle_operator_crud`. RBAC : `shuttle_operator` uniquement,
+ownership isolée (404 sur ressource d'un autre opérateur, pas 403, pour ne
+pas divulguer l'existence). Mobile : pas d'UI — l'opérateur passe par le web
+(écrans desktop-first, saisie formulaire riche).
 
 ---
 
@@ -345,6 +352,42 @@ toucher à l'API.
 **Audit vérifié ✅ dans la matrice** : Routes import endpoint identique au
 mobile (`POST /driver/route-templates/import{,/preview}`) ; le seul écart
 était la découvrabilité, corrigé par nav + hash anchor.
+
+### 2026-11-14 — Shuttle Operator CRUD (dernier item bloquant clôturé)
+
+Dernier ❌ de la matrice ; la section « Shuttle Operator » passe en ✅.
+
+**API** (`sendprocolis-api`) :
+- Migration SQL `20261122000000_shuttle_operator_crud` :
+  - `transit_lines.operator_user_id UUID NULL FK users ON DELETE SET NULL` →
+    les lignes seedées publiques restent avec operator null, non modifiables
+    depuis l'espace opérateur.
+  - Nouvelles tables `shuttle_vehicles` (plaque unique par opérateur, soft
+    delete via `deleted_at`) et `shuttle_schedules` (jours 0-6, HH:MM,
+    plage activeFrom/activeUntil).
+- Module `src/modules/shuttle/` : routes + controllers.
+  - 13 endpoints : overview + CRUD lignes + CRUD vehicles + CRUD schedules.
+  - RBAC `shuttle_operator` sur le routeur entier.
+  - Ownership strict : chaque handler filtre par `operatorUserId = req.user.id`,
+    404 (pas 403) sur ressource d'un autre opérateur.
+- Tests `tests/shuttle-operator.test.js` (5 cas) : RBAC, isolation ownership,
+  unicité plaque par opérateur, validation HH:MM, cascade delete.
+
+**Web** (`sendprocolis-web`) :
+- Wrapper `src/lib/api/shuttle-operator.ts` (overview, lines, vehicles,
+  schedules) + types `ShuttleLine`, `ShuttleVehicle`, `ShuttleSchedule`.
+- Nouvel espace `/shuttle` avec RBAC guard `shuttle_operator`.
+  - `ShuttleOverviewPage` — compteurs rafraîchis 60 s.
+  - `ShuttleLinesPage` — CRUD atomique avec composition d'arrêts (min 2).
+  - `ShuttleVehiclesPage` — CRUD + soft delete, tableau filtré.
+  - `ShuttleSchedulesPage` — toggles jours de la semaine, dates actives.
+- Nav SHUTTLE_NAV ajoutée, redirection `ROLE_HOME.shuttle_operator = /shuttle`.
+- Précache par rôle étendu aux 4 écrans.
+- Types `Role` et toutes les cartes `Record<Role, string>` étendus à
+  `shuttle_operator`.
+
+**Mobile** : hors scope (aucune UI à migrer — pas de régression). Le mobile
+reste cantonné aux endpoints partagés avec driver (annonces + handovers).
 
 ### 2026-11-14 — Vérification finale « ce qui reste »
 
