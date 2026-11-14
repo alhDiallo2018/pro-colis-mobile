@@ -39,13 +39,13 @@ que l'équivalence pixel-perfect (le comment).
 | Google Sign-In | ✅ | ⚠️ (dépend config API) | ⚠️ |
 | Déverrouillage biométrique | ✅ | ↩️ WebAuthn à évaluer | ↩️ |
 | Notifications in-app | ✅ | ✅ | ✅ |
-| Notifications push temps réel | ✅ FCM | ❌ | ❌ Web Push à ajouter |
+| Notifications push temps réel | ✅ FCM | ✅ Web Push VAPID | ✅ Web Push (SW + badge + routing) |
 | Chat support | ✅ | ✅ | ✅ |
 | Profil + préférences notifications | ✅ | ✅ | ✅ |
 | Pages légales (CGU, confidentialité…) | ✅ | ✅ | ✅ |
 | Localisation (fr / en / wo) | ✅ | ⚠️ (vérifier wo) | ⚠️ |
 | Mode sombre | ✅ | ⚠️ à vérifier | ⚠️ |
-| Historique hors ligne (lecture) | ✅ cache local | ⚠️ partiel SW | ⚠️ |
+| Historique hors ligne (lecture) | ✅ cache local | ✅ SW + IndexedDB (TTL 14j) | ✅ |
 | Référral / parrainages | ✅ | ✅ | ✅ |
 | App update gate (version mini) | ✅ | N/A (PWA se met à jour auto) | ✅ via SW |
 | Partage (Share sheet) | ✅ natif | ↩️ Web Share API | ↩️ |
@@ -66,8 +66,8 @@ que l'équivalence pixel-perfect (le comment).
 | Dashboard B2B shipper | ✅ | ✅ | ✅ |
 | Facturation PDF | ✅ download+share | ✅ download | ✅ |
 | Import CSV bulk | ✅ bulk-create | ⚠️ à vérifier | ⚠️ |
-| Modèles de colis (templates) | ✅ local-only | ❌ | ❌ |
-| Self-service clés API | ✅ `/business/api-keys` | ❌ | ❌ |
+| Modèles de colis (templates) | ✅ local-only | ✅ local-only (`localStorage`) | ✅ local-only |
+| Self-service clés API | ✅ `/business/api-keys` | ✅ `/client/api-keys` | ✅ |
 | Carnet d'adresses enregistré | ✅ | ✅ | ✅ |
 | Dettes client / soldes dus | ✅ | ✅ | ✅ |
 | Public tracking (sans login) | N/A | ✅ | ✅ |
@@ -90,7 +90,7 @@ que l'équivalence pixel-perfect (le comment).
 | Carte itinéraire client | ✅ | ✅ | ✅ |
 | Confirmation livraison (signature + photo) | ✅ | ↩️ canvas signature | ↩️ |
 | Manifeste navette (shuttle) | ✅ | ⚠️ à vérifier | ⚠️ |
-| Handover colis chauffeur→chauffeur | ✅ | ❌ | ❌ |
+| Handover colis chauffeur→chauffeur | ✅ | ✅ 2026-11-14 | ✅ |
 | Arrêts atteints / tracking intermédiaire | ✅ | ⚠️ partiel | ⚠️ |
 | Revenus + historique | ✅ | ✅ | ✅ |
 | Documents véhicule | ✅ | ✅ | ✅ |
@@ -109,7 +109,7 @@ que l'équivalence pixel-perfect (le comment).
 | Colis de la zone | ✅ | ✅ | ✅ |
 | Rapports d'activité | ✅ | ✅ | ✅ |
 | Assignation colis → chauffeur | ✅ | ✅ | ✅ |
-| Broadcast groupe garage | ⚠️ | ⚠️ | ⚠️ |
+| Broadcast groupe garage | ✅ (via `ManualMessagePanel`, scope auto `garageId`) | ✅ `/garage/envoyer-message` | ✅ |
 
 ---
 
@@ -130,13 +130,13 @@ que l'équivalence pixel-perfect (le comment).
 | Config Brevo (email) | ✅ | ✅ | ✅ |
 | Config Paydunya | ✅ | ✅ | ✅ |
 | Clés API partenaires | ✅ | ✅ | ✅ |
-| Vérifications identité (KYC) | ✅ (+ delete + request-info) | ⚠️ sans delete/request-info | ⚠️ |
+| Vérifications identité (KYC) | ✅ (+ delete + request-info) | ✅ (+ delete + request-info) | ✅ |
 | Audit logs | ✅ | ✅ | ✅ |
 | Backups | ✅ | ✅ | ✅ |
 | Système / health check | ✅ | ✅ | ✅ |
 | Broadcasts mass users | ✅ | ✅ | ✅ |
 | Réputation + scores + classement | ✅ | ✅ | ✅ |
-| Pilot metrics | ✅ | ⚠️ à vérifier | ⚠️ |
+| Pilot metrics | ✅ | ✅ 2026-11-14 `/admin/pilot-metrics` | ✅ |
 | Hub opérationnel | ✅ | ⚠️ à vérifier | ⚠️ |
 
 ---
@@ -146,7 +146,7 @@ que l'équivalence pixel-perfect (le comment).
 | Fonctionnalité | Mobile | Web | PWA |
 |---|---|---|---|
 | Inbox support partagée | ✅ | ✅ | ✅ |
-| Close conversation avec motif | ✅ reason+category | ⚠️ à vérifier | ⚠️ |
+| Close conversation avec motif | ✅ reason+category | ✅ 2026-11-14 dropdown + commentaire | ✅ |
 | Transfert conversation à agent | ✅ | ✅ | ✅ |
 | Présence agents | ✅ | ✅ | ✅ |
 | Gestion assistances | ✅ | ✅ | ✅ |
@@ -155,19 +155,32 @@ que l'équivalence pixel-perfect (le comment).
 | Couverture réseau | ✅ (com) | ✅ (com) | ✅ |
 | Qualité de service | ✅ (tech) | ✅ (tech) | ✅ |
 | Incidents temps réel | ✅ | ✅ | ✅ |
-| **Dashboard SLA cross-tier** | ✅ 4 pills | ❌ | ❌ |
+| **Dashboard SLA cross-tier** | ✅ 4 pills | ✅ 4 pills + moyennes | ✅ 4 pills + moyennes |
 
 ---
 
 ## Shuttle Operator (opérateur Tata/AFTU/DDD)
 
-| Fonctionnalité | Mobile | Web | PWA |
-|---|---|---|---|
-| Lignes de transit | ✅ | ⚠️ à vérifier | ⚠️ |
-| Gestion flotte | ✅ | ⚠️ à vérifier | ⚠️ |
-| Horaires et arrêts | ✅ | ⚠️ à vérifier | ⚠️ |
+**Audit 2026-11-14** — Le rôle `shuttle_operator` a été ajouté en base
+(migration `20261117_shuttle_operator_role`) et partage avec le driver 3
+endpoints : `POST /advertisements`, `POST /parcels/:id/handovers`,
+`POST /parcels/:id/handovers/:handoverId/confirm`. Les lignes de transit
+(`TransitLine` + `TransitLineStop`) sont **lecture seule et alimentées par
+seed** (`seed-transit.js`). Il n'existe **aucun endpoint de CRUD** pour les
+lignes, la flotte ou les horaires. Le statut mobile précédemment ✅ reflétait
+l'existence du rôle en base, pas une UI dédiée : ni le mobile ni le web
+n'exposent d'écran "Shuttle Operator".
 
-*(Rôle récemment ajouté côté backend `20261117_shuttle_operator_role` — parité web à auditer.)*
+| Fonctionnalité | Mobile | Web | PWA | Dépendance |
+|---|---|---|---|---|
+| Consultation des lignes de transit (catalogue) | ✅ via `/transit/lines` | ✅ via `TransitLinePicker` + `/transit/lines` | ✅ | — |
+| Création d'annonce (voyage) | ✅ écran chauffeur partagé | ✅ écran chauffeur partagé | ✅ | — |
+| Handover colis (recevoir / transférer) | ✅ | ✅ 2026-11-14 | ✅ | — |
+| Gestion flotte (CRUD véhicules opérateur) | ❌ non livré | ❌ non livré | ❌ | API absente |
+| Gestion des horaires (CRUD schedules) | ❌ non livré | ❌ non livré | ❌ | API absente |
+| CRUD lignes de transit | ❌ non livré | ❌ non livré | ❌ | API absente (lignes seedées) |
+
+Les lignes "gestion" sont bloquées côté backend : voir `api-pending.md` §9.
 
 ---
 
@@ -181,7 +194,7 @@ la dégradation acceptée.
 | Caméra (scan QR, photos) | caméra persistante | `getUserMedia` (session) | ↩️ scan fallback saisie manuelle |
 | GPS continu arrière-plan | FusedLocation background | 🚫 bloqué par navigateur | 🚫 pas d'équivalent ; drivers restent mobile-only pour le tracking |
 | Carnet d'adresses OS | `contacts_service` | 🚫 Contacts API non dispo | 🚫 saisie manuelle + autocomplete carnet serveur |
-| Push notifications | FCM | Web Push + VAPID | ❌ à livrer (voir backlog PWA) |
+| Push notifications | FCM | Web Push + VAPID | ✅ livré (`utils/web-push.js` + SW handlers + `useWebPush`) |
 | Biométrie | empreinte / Face ID | WebAuthn | ↩️ à évaluer (support Safari + Chrome iOS inconsistant) |
 | Enregistrement audio | microphone persistant | `MediaRecorder` session | ↩️ enregistrement en page uniquement, pas en arrière-plan |
 | OCR on-device | ML Kit | 🚫 trop coûteux web | ↩️ fallback saisie ou OCR serveur |
@@ -194,26 +207,50 @@ la dégradation acceptée.
 
 ## Backlog PWA
 
-État actuel : **installable + shell offline** (manifest + SW cache-first
-sur bundles, network-first sur navigation, offline.html fallback).
+État actuel (au 2026-11-14, après chantier P1→P5) : **Web Push + Background
+Sync + IndexedDB durable + Badging + splash iOS**. Installable, shell offline,
+historique durable, et push temps réel même onglet fermé.
 
-À livrer pour rapprocher la PWA du mobile, par ordre de valeur :
+Livrés dans le chantier PWA :
 
-1. **Web Push + VAPID**
-   - Service Worker : `push` + `notificationclick` handlers
-   - Côté API : endpoint d'abonnement PushSubscription, dispatcher parallèle à FCM
-   - Cibles : missions driver, offres reçues client, broadcasts admin
-2. **Background Sync** (uploads retryables)
-   - File d'upload photos preuve livraison si connexion perdue
-   - API : endpoint idempotent avec requestId (déjà convention projet)
-3. **Précache des shells par rôle**
-   - Actuellement l'admin shell n'est pas précaché → première visite offline = page blanche
-   - Stratégie : lazy precache après login selon rôle du user
-4. **IndexedDB pour historique hors ligne durable**
-   - Aujourd'hui : SW cache les bundles mais pas les listes de colis/missions
-   - Cible : derniers 50 colis / missions lus accessibles hors ligne
-5. **Badging API** (nombre de notifs non lues sur l'icône installée)
-6. **Splash screens iOS** (couvre tous les tailles d'écran)
+1. ✅ **Web Push + VAPID**
+   - Backend : table `push_subscriptions`, `utils/web-push.js` (pont parallèle
+     à FCM), endpoints `/notifications/web-push/{public-key,subscribe,unsubscribe}`
+   - Service Worker : `push`, `notificationclick`, `notificationclose` handlers
+     avec routage data-driven (parcelId, bidId, conversationId)
+   - Frontend : `useWebPush()` hook (loading/denied/granted/subscribed/error),
+     toggle dans `NotificationPreferences`, bridge SW↔React via
+     `PUSH_NOTIFICATION_CLICK` message
+   - Dépendance : `web-push@4` (backend). VAPID keys à générer avec
+     `npx web-push generate-vapid-keys` et déposer dans `.env`
+2. ✅ **Background Sync** (file retryable)
+   - IndexedDB `procolis-sync` partagée SW ↔ UI, tag `procolis-sync`
+   - Idempotence via `X-Request-Id` (convention projet déjà utilisée)
+   - Fallback automatique au retour `online` pour Safari/Firefox (pas de
+     SyncManager)
+   - Abandon après 10 tentatives pour éviter de bloquer la file sur un
+     payload invalide
+3. ✅ **IndexedDB pour historique hors ligne durable**
+   - `lib/offlineDb.ts` : get/put/delete avec TTL (14j pour l'historique)
+   - `OfflineHistoryRecorder` écrit dans **localStorage ET IndexedDB**
+     (dual-backend : LS pour la lecture synchrone au boot, IDB pour volume
+     + durabilité + quota élargi)
+   - Purge liée à la session : `clearOfflineDbForSession()` au logout
+4. ✅ **Badging API**
+   - Hook `useAppBadge(count)` + wiring automatique via
+     `useUnreadNotificationsCount` (feature-detect, aucun fallback nécessaire)
+   - Reset à la déconnexion (`clearAppBadge()` dans `authStore.clearSession`)
+   - Payload push porte aussi le badge → le SW l'applique même app fermée
+5. ✅ **Splash screens iOS**
+   - 11 PNG générés par `scripts/generate-ios-splash.mjs` (pur Node, encodeur
+     PNG inlined — pas de `sharp`/`jimp` ajouté)
+   - `<link rel="apple-touch-startup-image">` par taille d'écran dans
+     `index.html`, portrait uniquement (iOS n'applique la splash qu'en portrait)
+   - Script `npm run splash` pour régénérer après changement de `theme_color`
+
+Reste à livrer (hors chantier PWA actuel) :
+
+6. **Précache des shells par rôle** (lazy precache post-login)
 7. **Capture photo dans le flow livraison** via `<input capture>` ou `getUserMedia`
 8. **Web Share Target** (recevoir un tracking number partagé depuis une autre app)
 
@@ -229,15 +266,16 @@ Ce qui NE sera pas livré côté PWA (compromis documenté) :
 Items où le web est en retard fonctionnel sur le mobile — non dépendants
 de capacités natives.
 
-| Priorité | Item | Rôle | Impact |
-|---|---|---|---|
-| P1 | Dashboard SLA cross-tier dans support_admin | support, super_admin | Alignement supervision |
-| P1 | KYC : actions delete + request-info | super_admin | Ergonomie compliance |
-| P2 | Self-service clés API côté business-shipper | client | Autonomie shipper pro |
-| P2 | Close conversation avec motif structuré (dropdown resolved/duplicate/spam/no_answer) | support* | Stats et base de connaissance |
-| P2 | Handover colis chauffeur↔chauffeur | driver | Rare mais critique quand utilisé |
-| P3 | Modèles de colis réutilisables (local-only côté mobile, inexistant web) | client | Optionnel |
-| P3 | Dashboard pilot metrics | super_admin | Reporting interne |
+| Priorité | Item | Rôle | Impact | Statut |
+|---|---|---|---|---|
+| P1 | Dashboard SLA cross-tier dans support_admin | support, super_admin | Alignement supervision | ✅ Livré 2026-11-14 |
+| P1 | KYC : actions delete + request-info | super_admin | Ergonomie compliance | ✅ Livré 2026-11-14 |
+| P2 | Self-service clés API côté business-shipper | client | Autonomie shipper pro | ✅ Livré 2026-11-14 (`/client/api-keys`) |
+| P2 | Close conversation avec motif structuré (dropdown resolved/duplicate/spam/no_answer) | support* | Stats et base de connaissance | ✅ Livré 2026-11-14 |
+| P2 | Handover colis chauffeur↔chauffeur | driver | Rare mais critique quand utilisé | ✅ Livré 2026-11-14 |
+| P3 | Modèles de colis réutilisables (local-only côté mobile, inexistant web) | client | Optionnel | ✅ Livré 2026-11-14 (local-only `localStorage`) |
+| P3 | Dashboard pilot metrics | super_admin | Reporting interne | ✅ Livré 2026-11-14 (`/admin/pilot-metrics`) |
+| P4 | Broadcast groupe garage (scope auto `garageId`) | admin | Communication interne | ✅ Déjà en prod (`/garage/envoyer-message`, scope backend via `recipientScope`) |
 
 ---
 
@@ -254,4 +292,69 @@ de capacités natives.
   serveur**. Une case ❌ ici peut découler d'un endpoint absent — dans ce
   cas, pointer vers l'entrée d'`api-pending.md` correspondante.
 
-Dernière mise à jour : 2026-11-14 (audit initial).
+Dernière mise à jour : 2026-11-14 (chantier PWA P1→P5 livré : Web Push + VAPID,
+Background Sync, IndexedDB durable, Badging API, splash screens iOS).
+
+Dernière mise à jour : 2026-11-14 (audit initial + lot P1–P3 Web livré + audit final P2/P3/P5 clôturé).
+
+## Journal des livraisons
+
+### 2026-11-14 — Mise à niveau fonctionnelle Web
+
+- **KYC super_admin** : actions « Demander un complément » et « Supprimer »
+  branchées sur `POST /super-admin/identity-verifications/:id/request-info` et
+  `DELETE /super-admin/identity-verifications/:id`. Boutons ajoutés aux lignes
+  (desktop + mobile) et à la fiche détaillée, avec dialogues de confirmation
+  dédiés (`IdentityVerificationsPage.tsx`).
+- **Supervision SLA cross-tier** : composant `SlaCrossTierCard` intégré au
+  tableau de bord support partagé ; lit `GET /support-admin/sla-overview`,
+  rafraîchi toutes les 60 s, masqué si l'API renvoie 404.
+- **Clés API business-shipper** : page `/client/api-keys` accessible depuis la
+  nav client ; liste, création (scopes + URL de webhook), rotation et
+  désactivation. Secret affiché une seule fois dans une modale dédiée.
+- **Modèles de colis** : stockage local par utilisateur
+  (`localStorage[parcel_templates.<ownerId>]`) jumeau du mobile. Bouton
+  « Mes modèles » dans le wizard `NewParcelScreen`, permet d'enregistrer la
+  saisie courante et d'appliquer un modèle existant.
+
+### 2026-11-14 — Audit final de parité (lot P2/P3/P5)
+
+- **Handover chauffeur↔chauffeur** (P2 driver) :
+  - `src/lib/api/handovers.ts` (wrappers `initiate/list/confirm/cancel` +
+    `HANDOVERABLE_PARCEL_STATUSES`).
+  - `features/driver/HandoverInitiateDialog.tsx` — ouvert depuis
+    `MissionsScreen` via bouton « Transférer » (visible uniquement si le colis
+    est en `picked_up/in_transit/arrived` ET assigné au driver connecté).
+    Affiche PIN + jeton QR une seule fois, liste les transferts en attente
+    avec action Annuler.
+  - `features/driver/HandoverConfirmScreen.tsx` — route
+    `/driver/handovers/confirmer`, saisie parcelId + handoverId + PIN + jeton.
+  - Entrée « Recevoir un transfert » ajoutée à `DRIVER_NAV`.
+- **Clôture support avec motif structuré** (P3 support) :
+  - `features/shared/CloseConversationDialog.tsx` — dropdown
+    (resolved/duplicate/spam/no_answer) + commentaire optionnel (min 5 chars
+    si renseigné, max 2000).
+  - `SupportInboxScreen.tsx` passe désormais `{category, reason}` à
+    `closeSupportChat`.
+- **Dashboard métriques pilote** (P5 super_admin) :
+  - `features/superAdmin/PilotMetricsPage.tsx`, route `/admin/pilot-metrics`
+    (sous SUPER_NAV > Pilotage). Fenêtre glissante configurable 7/14/30/90
+    jours, rafraîchissement 60 s, StatBox (colis, livrés, handovers, arrêts
+    GPS, offres acceptées, webhooks, lots, douanes) + panneaux par statut.
+- **Rôle ShuttleOperator** (P1) : audit croisé → aucune UI dédiée côté mobile
+  non plus, les besoins "flotte/horaires/CRUD lignes" sont bloqués par
+  l'absence d'endpoints. Documenté en §9 de `api-pending.md`. Les 3
+  endpoints partagés (annonces + handovers) restent couverts par les écrans
+  driver.
+- **Broadcast garage admin** (P4) : audit → déjà fonctionnel via
+  `ManualMessagePanel` monté sous `/garage/envoyer-message` ; le backend
+  limite automatiquement les destinataires au `garageId` du compte admin
+  (`recipient-scope.js`). Aucune modification nécessaire ; doc remise à jour.
+- **Hygiène tests** :
+  - `fake-indexeddb/auto` ajouté au setup vitest pour couvrir les flux PWA
+    offline.
+  - Mock `@/store/auth` complété (expose `subscribe`/`getState`) dans
+    `MissionsScreen.test.tsx` pour permettre le chargement du client HTTP.
+  - `PwaProvider.test.tsx` enveloppé d'un `QueryClientProvider` pour que
+    `InstallPage` → `MarketingFooter` puisse résoudre `usePublicConfig`.
+  - Résultat : 281/281 tests verts.
