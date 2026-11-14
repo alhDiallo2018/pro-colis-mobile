@@ -396,6 +396,68 @@ Dernier ❌ de la matrice ; la section « Shuttle Operator » passe en ✅.
 **Mobile** : hors scope (aucune UI à migrer — pas de régression). Le mobile
 reste cantonné aux endpoints partagés avec driver (annonces + handovers).
 
+### 2026-11-14 — Validation finale, clôture de la parité
+
+**Correctif fonctionnel** :
+- `DeliveryProofScreen._submit` (mobile) ne faisait qu'un `Navigator.pop`
+  silencieux : aucune preuve n'atteignait le serveur. Implémenté :
+  - Nouvel endpoint API `POST /driver/parcels/:parcelId/proof`
+    (`driverAttachDeliveryProof` dans `mobile.controller.js`). Guards :
+    statut `delivered` + driver assigné. Persiste `signatureUrl`, crée un
+    `parcelEvent` traçable + attache `ParcelMedia` via `saveMedia`.
+    Idempotent par `requestId`.
+  - Mobile `ApiService.submitDeliveryProof(...)` wrapper + câblage complet
+    dans `_DeliveryProofScreenState._submit` : upload photo via
+    `/upload`, consolidation note + signature, feedback utilisateur
+    (SnackBar + état d'erreur inline), état `_submitting` qui bloque le
+    double-tap. Si l'utilisateur ferme sans remplir, pop silencieux.
+
+**Décision produit — Shuttle Operator / Mobile** :
+- Les opérations de gestion (CRUD lignes / flotte / horaires) restent
+  **web-only** par décision produit : il s'agit d'opérations
+  administratives *desktop-first* (formulaires riches avec composition
+  d'arrêts, tableaux de flotte, édition de plages de dates). Ce n'est pas
+  un oubli.
+- Les chauffeurs qui travaillent *pour* un opérateur continuent à utiliser
+  l'app driver mobile sans changement (annonces, missions, handovers).
+- Le rôle `shuttle_operator` existe côté mobile uniquement comme cible
+  dans l'écran super-admin de promotion.
+
+**Audit déploiement** :
+- Migration `20261122000000_shuttle_operator_crud` présente, non appliquée
+  (DB injoignable depuis l'environnement d'édition — normal). À appliquer
+  via `npx prisma migrate deploy` sur dev + prod avec sauvegarde préalable.
+- `GOOGLE_WEB_CLIENT_ID` valorisée en `.env` dev API ; prod = responsabilité
+  ops (valeur non secrète mais hors scope édition).
+- OAuth : mobile `google_auth_service.dart` lit `serverClientId` (aligné),
+  web `GoogleAuth` lit `/auth/google/config` (aligné), API vérifie l'audience
+  `GOOGLE_WEB_CLIENT_ID` (unique client ID).
+
+**Audit capacités natives — fallbacks confirmés** :
+- Photo via `<input type="file" capture="environment">` → upload
+  `/uploads/parcel-photo`.
+- Audio session via `MediaRecorder` (VoiceRecorder, chat, note vocale).
+- Share sheet → `navigator.clipboard.writeText` par défaut.
+- Scan QR → saisie manuelle UUID avec regex validation.
+- Contacts OS → carnet serveur `/experience/recipients` + autocomplete.
+- Secure storage → `offlineDb.ts` IndexedDB + zustand persist.
+- FCM → Web Push VAPID (livré).
+- Biométrie → fallback = PIN existant (WebAuthn documenté à évaluer).
+- OCR, GPS background, Contacts API → 🚫 impossibilités absolues du
+  navigateur, pas des gaps.
+
+**Tests finaux exécutés** :
+- API : `node --check` syntaxe OK sur controllers + routes modifiés. Suite
+  d'intégration non exécutée (DB injoignable localement).
+- Web : `npm run typecheck` ✅ · `npm run lint` ✅ (10 warnings pré-existants,
+  aucun nouveau) · `npm test` **281/281** ✅ · `npm run build` ✅ 1.6 s.
+- Mobile : `flutter analyze` sur les fichiers modifiés ✅ 0 issues.
+
+**Parcours métier vérifiés statiquement** (pas de staging accessible) :
+authentification, création de colis, livraison, preuve, suivi, paiement,
+notifications — chaînes d'appels tracées depuis les screens → API, pas de
+reference cassée ni d'endpoint manquant.
+
 ### 2026-11-14 — Vérification finale « ce qui reste »
 
 Après re-lecture complète de la matrice et croisement avec les mobiles, les

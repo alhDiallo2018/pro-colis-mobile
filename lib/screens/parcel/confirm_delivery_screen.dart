@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../models/parcel.dart';
 import '../../providers/parcel_provider.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/declare_cash_payment_sheet.dart';
@@ -412,8 +413,11 @@ class DeliveryProofScreen extends StatefulWidget {
 class _DeliveryProofScreenState extends State<DeliveryProofScreen> {
   final _picker = ImagePicker();
   final _noteController = TextEditingController();
+  final _api = ApiService();
   XFile? _photo;
   bool _signed = false;
+  bool _submitting = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -428,6 +432,68 @@ class _DeliveryProofScreenState extends State<DeliveryProofScreen> {
     );
     if (photo == null) return;
     setState(() => _photo = photo);
+  }
+
+  Future<void> _submit() async {
+    // Permet de valider la preuve même sans photo (signature + note seules
+    // sont acceptées côté serveur). Si aucun des trois n'est fourni, on ne
+    // touche pas au serveur mais on ferme l'écran — l'utilisateur a renoncé.
+    final note = _noteController.text.trim();
+    if (_photo == null && !_signed && note.isEmpty) {
+      if (!mounted) return;
+      Navigator.pop(context, false);
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      String? photoUrl;
+      if (_photo != null) {
+        photoUrl = await _api.uploadFile(
+          file: _photo!,
+          mediaType: 'photo',
+          parcelId: widget.parcel.id,
+        );
+        if (photoUrl == null) {
+          throw Exception("L'envoi de la photo a échoué. Réessayez.");
+        }
+      }
+
+      // La signature est capturée côté UI comme une empreinte « touché »
+      // sans tracé vectoriel : on ne la convertit pas en image. Elle est
+      // notée dans la description de l'événement via la note consolidée.
+      final signatureNote = _signed
+          ? 'Signée par ${widget.parcel.receiverName}'
+          : null;
+      final combinedNote = [if (signatureNote != null) signatureNote, if (note.isNotEmpty) note]
+          .join(' · ');
+
+      final res = await _api.submitDeliveryProof(
+        parcelId: widget.parcel.id,
+        photoUrl: photoUrl,
+        note: combinedNote.isEmpty ? null : combinedNote,
+      );
+
+      if (res['success'] == false) {
+        throw Exception(res['message']?.toString() ?? 'Enregistrement impossible');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preuve enregistrée.')),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
   }
 
   @override
@@ -524,11 +590,31 @@ class _DeliveryProofScreenState extends State<DeliveryProofScreen> {
               prefixIcon: Icon(Icons.edit_note_rounded),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
+          if (_error != null)
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.red50,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: AppTheme.red500),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(_error!, style: TextStyle(color: AppTheme.red500, fontSize: 12.5)),
+                  ),
+                ],
+              ),
+            ),
+          if (_error != null) const SizedBox(height: 10),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.check_rounded),
-            label: const Text('Valider la preuve'),
+            onPressed: _submitting ? null : _submit,
+            icon: _submitting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.check_rounded),
+            label: Text(_submitting ? 'Envoi en cours…' : 'Valider la preuve'),
           ),
         ],
       ),

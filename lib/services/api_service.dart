@@ -1279,6 +1279,31 @@ class ApiService {
     }
   }
 
+  /// `POST /driver/parcels/:parcelId/proof` — ajoute une preuve de livraison
+  /// (photo, signature, note) après que l'OTP a validé la livraison.
+  /// Idempotent via `requestId`. Retour standard : `{success, message, data}`.
+  Future<Map<String, dynamic>> submitDeliveryProof({
+    required String parcelId,
+    String? photoUrl,
+    String? signatureUrl,
+    String? note,
+    String? requestId,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        if (photoUrl != null) 'photoUrl': photoUrl,
+        if (signatureUrl != null) 'signatureUrl': signatureUrl,
+        if (note != null && note.isNotEmpty) 'note': note,
+        if (requestId != null) 'requestId': requestId,
+      };
+      final response =
+          await _dio.post('/driver/parcels/$parcelId/proof', data: body);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ==================== GARAGE ADMIN ====================
 
   Future<List<Parcel>> getGarageParcels({String? status}) async {
