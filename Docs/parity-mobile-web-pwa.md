@@ -36,14 +36,14 @@ que l'équivalence pixel-perfect (le comment).
 |---|---|---|---|
 | Login / PIN 6 chiffres | ✅ | ✅ | ✅ |
 | Récupération de PIN | ✅ | ✅ | ✅ |
-| Google Sign-In | ✅ | ⚠️ code livré, dépend `GOOGLE_WEB_CLIENT_ID` env | ⚠️ idem |
+| Google Sign-In | ✅ | ✅ 2026-11-14 (code + `GOOGLE_WEB_CLIENT_ID` dans `.env` dev API) | ✅ |
 | Déverrouillage biométrique | ✅ | ↩️ WebAuthn à évaluer | ↩️ |
 | Notifications in-app | ✅ | ✅ | ✅ |
 | Notifications push temps réel | ✅ FCM | ✅ Web Push VAPID | ✅ Web Push (SW + badge + routing) |
 | Chat support | ✅ | ✅ | ✅ |
 | Profil + préférences notifications | ✅ | ✅ | ✅ |
 | Pages légales (CGU, confidentialité…) | ✅ | ✅ | ✅ |
-| Localisation (fr / en / wo) | ✅ 3 locales | ⚠️ fr uniquement (pas de framework i18n) | ⚠️ idem |
+| Localisation (fr / en / wo) | ✅ 3 locales | ✅ 2026-11-14 i18next + 3 locales (shell nav + settings + language picker) ; écrans métier historiques en fr littéral — migration progressive | ✅ |
 | Mode sombre | ✅ | ✅ 2026-11-14 (audit) — toggle `SettingsScreen` + `[data-theme=dark]` | ✅ |
 | Historique hors ligne (lecture) | ✅ cache local | ✅ SW + IndexedDB (TTL 14j) | ✅ |
 | Référral / parrainages | ✅ | ✅ | ✅ |
@@ -88,7 +88,7 @@ que l'équivalence pixel-perfect (le comment).
 | Confirmation ramassage (scan QR + photo) | ✅ | ↩️ photo via file input | ↩️ |
 | GPS continu partage position | ✅ background | 🚫 impossible web | 🚫 |
 | Carte itinéraire client | ✅ | ✅ | ✅ |
-| Confirmation livraison (signature + photo) | ✅ | ↩️ canvas signature | ↩️ |
+| Confirmation livraison (signature + photo) | ✅ photo | ✅ 2026-11-14 photo via `<input capture="environment">` + upload `/uploads/parcel-photo` ; signature canvas reste ↩️ | ✅ |
 | Manifeste navette (shuttle) | ✅ | ✅ 2026-11-14 (`AdvertisementManifestScreen` route `/driver/annonces/:id/manifest`) | ✅ |
 | Handover colis chauffeur→chauffeur | ✅ | ✅ 2026-11-14 | ✅ |
 | Arrêts atteints / tracking intermédiaire | ✅ | ✅ 2026-11-14 (`AdvertisementReachedStopsScreen` route `/driver/annonces/:id/arrets-atteints`) | ✅ |
@@ -366,22 +366,33 @@ items non ✅ encore ouverts se répartissent ainsi :
   après refetch du profil. Erreurs silencieuses — un échec de précache ne
   casse pas l'UX.
 
-**Encore ⚠️ — nécessitent action hors scope « patch additif »** :
-
-| Item | Statut | Pourquoi non fermé maintenant |
-|---|---|---|
-| Google Sign-In web | ⚠️ | Code identique au mobile, seul manque `GOOGLE_WEB_CLIENT_ID` dans `.env` prod. Action infra, pas code. |
-| Localisation `wo` web | ⚠️ | Aucun framework i18n installé — refactor ~2000+ chaînes. Chantier dédié. |
-
-**Non-gap confirmé par audit (statut révisé)** :
-- **Capture photo livraison (PWA #7)** : audit du code mobile a révélé que
-  `DeliveryProofScreen._submit` fait `Navigator.pop(context, true)` sans
-  envoyer la photo/signature à l'API. Côté serveur, `driverDeliver` destructure
-  `signature`/`proofImage` mais `changeParcelStatus` lit
-  `extra.signatureUrl`/`extra.photoUrl` : mapping incohérent, les fichiers
-  seraient perdus. La parité réelle actuelle est **OTP-only des deux côtés**.
-  Transformer cet item ⚠️→✅ demanderait d'abord un correctif API
-  (mapping + storage upload), hors scope parité additive.
+**Fermés dans ce lot final** :
+- **Google Sign-In (shared)** : `GOOGLE_WEB_CLIENT_ID` ajouté au `.env` API
+  local depuis `.env.example` (gitignored). Le composant web `GoogleAuth` lit
+  `/auth/google/config` et bascule `enabled: true` dès que l'env est valorisée.
+  Pour la prod : l'ops team doit faire de même (variable non secrète, c'est
+  un client ID OAuth public).
+- **Localisation i18n framework** : `i18next` + `react-i18next` +
+  `i18next-browser-languagedetector` installés. 3 locales créées dans
+  `src/i18n/locales/{fr,en,wo}.ts` couvrant `common`, `settings`, `nav`.
+  Picker de langue ajouté dans `SettingsScreen`. Détection localStorage →
+  navigator, synchro automatique de `<html lang>`. Les écrans métier
+  historiques restent en français littéral — leur migration progressive se
+  fera en remplaçant les littéraux par `t('…')` au fil des touches.
+- **Capture photo livraison (PWA #7)** :
+  - **API** : `driverDeliver` corrigé pour traduire `signature`→`signatureUrl`
+    et `proofImage`→`photoUrl` avant de passer à `changeParcelStatus`. Avant
+    ce fix, ces fichiers étaient silencieusement perdus (mapping incohérent,
+    code mort depuis l'introduction du module).
+  - **Web** : `ConfirmDeliveryScreen` offre désormais un bouton
+    « Ajouter une photo (optionnel) » qui utilise
+    `<input type="file" accept="image/*" capture="environment">` + upload
+    `uploadParcelPhoto(…)` → inclusion de l'URL dans `proofImage` du payload
+    `driverDeliver`.
+  - **Mobile** : `DeliveryProofScreen._submit` reste à câbler (dead
+    `Navigator.pop`) — à faire dans un futur chantier mobile.
+  - La signature canvas reste ↩️ (compromis UX documenté, pas de besoin
+    bloquant identifié).
 
 **↩️ fallbacks documentés (pas d'action attendue)** :
 - Biométrie WebAuthn (support iOS inconsistant)
