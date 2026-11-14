@@ -258,7 +258,14 @@ Livrés dans le chantier PWA :
 Reste à livrer (hors chantier PWA actuel) :
 
 6. ✅ **Précache des shells par rôle** — livré 2026-11-14 : `features/pwa/precacheByRole.ts` déclenche les `import()` dynamiques des écrans du rôle courant via `requestIdleCallback` après connexion. Le SW capture au vol les bundles `/assets/*-hash.{js,css}` → la navigation hors ligne fonctionne pour toutes les pages du rôle, pas seulement celles déjà visitées. Branché depuis `PwaProvider` sur `useAuthStore(user.role, sessionId)`.
-7. ⚠️ **Capture photo dans le flow livraison** — **non-gap** après audit : le mobile capture bien une photo via `DeliveryProofScreen` mais le bouton « Valider la preuve » fait seulement `Navigator.pop(context, true)` sans envoyer de payload à l'API. Côté serveur, `driverDeliver` extrait `signature`/`proofImage` du body mais `changeParcelStatus` lit `extra.signatureUrl`/`extra.photoUrl` : le mapping est incohérent, les champs seraient silencieusement perdus. **Vraie parité fonctionnelle actuellement** : OTP-only des deux côtés.
+7. ✅ **Capture photo dans le flow livraison** — livré 2026-11-14 : fix API
+   `driverDeliver` (`signature→signatureUrl`, `proofImage→photoUrl` dans
+   `changeParcelStatus`) + bouton « Ajouter une photo (optionnel) » dans
+   `ConfirmDeliveryScreen` qui utilise
+   `<input type="file" accept="image/*" capture="environment">` et upload
+   via `uploadParcelPhoto` avant l'OTP. Côté mobile,
+   `DeliveryProofScreen._submit` reste un `Navigator.pop` — à câbler lors
+   d'un futur chantier mobile.
 8. ✅ **Web Share Target** — livré 2026-11-14 : `share_target` dans `manifest.webmanifest`, handler `extractTrackingFromShared` dans `SuiviScreen` extrait les tokens `PC-XXXX-XXXX` depuis `title/text/url`
 
 Ce qui NE sera pas livré côté PWA (compromis documenté) :
