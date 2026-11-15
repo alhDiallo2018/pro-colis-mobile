@@ -17,6 +17,7 @@ import '../models/parcel.dart';
 import '../models/user.dart';
 import '../models/wallet.dart';
 import 'api/api.dart';
+import 'app_version_interceptor.dart';
 import 'auth_session.dart';
 import 'offline_access.dart';
 
@@ -59,6 +60,7 @@ class ApiService {
   }
 
   void _setupInterceptors() {
+    _dio.interceptors.add(AppVersionInterceptor());
     _dio.interceptors.add(SessionAuthInterceptor(_dio));
     _dio.interceptors.add(OfflineAccessInterceptor());
   }

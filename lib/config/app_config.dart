@@ -5,14 +5,13 @@
 abstract final class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    // Mode TEST LOCAL — cible le backend démarré sur l'hôte (port 18081 du
-    // docker-compose). Rappels par cible :
-    //   - Flutter web / macOS / iOS Simulator → `http://localhost:18081`
-    //   - Android Emulator (AVD)             → `http://10.0.2.2:18081`
-    //   - Device physique                    → `http://<IP_LAN_de_votre_mac>:18081`
-    // Pour un build de prod, injecter explicitement :
-    //   flutter build apk --dart-define=API_BASE_URL=https://sendprocolis.com/api/v1
-    defaultValue: 'http://localhost:18081/api/v1',
+    // Défaut PRODUCTION : un APK publié sans `--dart-define` cible le backend
+    // officiel. Pour un build de dev, injecter explicitement :
+    //   - Flutter web / macOS / iOS Simulator → `http://localhost:18081/api/v1`
+    //   - Android Emulator (AVD)             → `http://10.0.2.2:18081/api/v1`
+    //   - Device physique                    → `http://<IP_LAN_de_votre_mac>:18081/api/v1`
+    //   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:18081/api/v1
+    defaultValue: 'https://sendprocolis.com/api/v1',
   );
 
   /// Verrou LOCAL uniquement : la biometrie protege l'ecran sans fermer la
