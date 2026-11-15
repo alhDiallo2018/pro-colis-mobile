@@ -1,6 +1,5 @@
 import '../experience/workspace_screen.dart';
 import '../client/business_shipper_dashboard_screen.dart';
-import '../shared/ai_assistant_screen.dart';
 // lib/screens/dashboard/client_dashboard.dart
 // ignore_for_file: prefer_const_literals_to_create_immutables, prefer_const_constructors, deprecated_member_use, unnecessary_this, unused_element
 
@@ -1280,13 +1279,44 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const AiAssistantScreen())),
-                        icon: const Icon(Icons.auto_awesome_outlined),
-                        label: const Text('Assistant IA'),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: null,
+                            icon: const Icon(Icons.auto_awesome_outlined),
+                            label: const Text('Assistant IA'),
+                          ),
+                          Positioned(
+                            top: -6,
+                            right: -4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.amber400,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.schedule_rounded,
+                                      size: 10, color: AppTheme.amberOnFg),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Bientôt',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.amberOnFg,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

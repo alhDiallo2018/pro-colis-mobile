@@ -790,6 +790,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         if (_arrivalZoneId != null) 'arrivalZoneId': _arrivalZoneId,
       };
 
+  // ignore: unused_element
   Future<void> _openAiAssistant() async {
     final draft = await Navigator.of(context).push<AiParcelDraft>(
       MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
@@ -831,10 +832,13 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             icon: const Icon(Icons.bookmarks_outlined),
             onPressed: _openTemplates,
           ),
+          // Entrée Assistant IA désactivée (fonctionnalité en cours de
+          // préparation) — tooltip + icône horloge signalent l'état « bientôt ».
           IconButton(
-            tooltip: AppLocalizations.of(context).aiAssistantOpenCta,
+            tooltip:
+                '${AppLocalizations.of(context).aiAssistantOpenCta} — Bientôt',
             icon: const Icon(Icons.auto_awesome_rounded),
-            onPressed: _openAiAssistant,
+            onPressed: null,
           ),
         ],
       ),

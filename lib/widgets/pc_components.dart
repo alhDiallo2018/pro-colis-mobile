@@ -106,21 +106,20 @@ class PcButton extends StatelessWidget {
 
     late Color bg, fg;
     Color? border;
-    List<BoxShadow> shadow = const [];
+    // Flat design : l'ombre portee sous les actions vient alourdir la lecture
+    // sur fond clair. On garde la hierarchie via la couleur et le contraste.
+    const List<BoxShadow> shadow = [];
     switch (variant) {
       case PcButtonVariant.primary:
         bg = AppTheme.primary;
         fg = Colors.white;
-        shadow = AppTheme.brandShadow();
       case PcButtonVariant.amber:
         bg = AppTheme.amber400;
         fg = AppTheme.amberOnFg;
-        shadow = AppTheme.amberShadow();
       case PcButtonVariant.secondary:
         bg = AppTheme.cardColor;
         fg = AppTheme.textPrimary;
         border = AppTheme.slate300;
-        shadow = AppTheme.shadowXs();
       case PcButtonVariant.ghost:
         bg = Colors.transparent;
         fg = AppTheme.primary;
@@ -132,7 +131,6 @@ class PcButton extends StatelessWidget {
       bg = AppTheme.slate200;
       fg = AppTheme.slate400;
       border = null;
-      shadow = const [];
     }
 
     Widget content;
