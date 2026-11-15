@@ -454,6 +454,11 @@ class User {
   bool get isDriverBusy => isDriver && driverStatus == DriverStatus.busy;
   bool get isDriverOffline => isDriver && driverStatus == DriverStatus.offline;
 
+  /// Le profil chauffeur a-t-il déjà remonté un statut connu ? Utilisé par le
+  /// dashboard pour éviter d'afficher « Hors ligne » tant que le serveur n'a
+  /// pas encore répondu après la connexion.
+  bool get isDriverStatusKnown => isDriver && driverStatus != null;
+
   // Statistiques
   double get successRate {
     if (totalDeliveries == null || totalDeliveries == 0) return 0.0;

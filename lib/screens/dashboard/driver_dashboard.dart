@@ -2570,6 +2570,10 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   }
 
   Widget _buildHero(User? user) {
+    // Trois etats : disponible, hors ligne, statut encore inconnu (post-login
+    // avant que le serveur n'ait renvoye driverStatus). Sans cette distinction,
+    // l'UI annoncait « Hors ligne » a tort pendant le premier affichage.
+    final statusKnown = user?.isDriverStatusKnown ?? false;
     final available = user?.isDriverAvailable ?? false;
     return Container(
       width: double.infinity,
@@ -2624,9 +2628,11 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                               width: 18,
                               height: 18,
                               decoration: BoxDecoration(
-                                color: available
-                                    ? AppTheme.green500
-                                    : AppTheme.slate400,
+                                color: !statusKnown
+                                    ? AppTheme.amber400
+                                    : (available
+                                        ? AppTheme.green500
+                                        : AppTheme.slate400),
                                 shape: BoxShape.circle,
                                 border:
                                     Border.all(color: Colors.white, width: 3),
@@ -2753,7 +2759,11 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       child: Icon(
-                        available ? Icons.bolt_rounded : Icons.bedtime_rounded,
+                        !statusKnown
+                            ? Icons.sync_rounded
+                            : (available
+                                ? Icons.bolt_rounded
+                                : Icons.bedtime_rounded),
                         color: Colors.white,
                         size: 26,
                       ),
@@ -2764,7 +2774,11 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            available ? 'Vous êtes en ligne' : 'Hors ligne',
+                            !statusKnown
+                                ? 'Récupération du statut…'
+                                : (available
+                                    ? 'Vous êtes en ligne'
+                                    : 'Hors ligne'),
                             style: AppFonts.plusJakartaSans(
                               color: Colors.white,
                               fontSize: 17,
@@ -2773,9 +2787,11 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            available
-                                ? 'Vous recevez les colis disponibles'
-                                : 'Vous ne recevez pas de colis',
+                            !statusKnown
+                                ? 'Synchronisation avec le serveur'
+                                : (available
+                                    ? 'Vous recevez les colis disponibles'
+                                    : 'Vous ne recevez pas de colis'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppFonts.manrope(
@@ -2787,7 +2803,7 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                         ],
                       ),
                     ),
-                    widget.isUpdatingStatus
+                    (widget.isUpdatingStatus || !statusKnown)
                         ? const SizedBox(
                             width: 40,
                             height: 24,
