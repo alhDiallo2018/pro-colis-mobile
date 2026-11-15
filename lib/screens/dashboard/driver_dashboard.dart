@@ -1790,9 +1790,16 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
   }
 
   Future<void> _refreshAll() async {
-    await widget.onRefresh();
-    await _loadDashboardData();
-    await _loadProposals();
+    // Trois chargements independants : le rafraichissement les menait en serie
+    // (parcels → dashboard metrics → propositions), soit jusqu'a 3x le temps
+    // du plus lent. Future.wait les lance en parallele et renvoie quand tous
+    // ont termine, tout en laissant chaque _load* mettre a jour son propre
+    // etat de maniere incrementale.
+    await Future.wait(<Future<void>>[
+      widget.onRefresh(),
+      _loadDashboardData(),
+      _loadProposals(),
+    ]);
   }
 
   Future<void> _loadDashboardData() async {
@@ -1885,8 +1892,12 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
         );
         return;
       }
-      await _loadProposals();
-      await _loadDashboardData();
+      // Les deux rechargements sont independants : les enchainer doublait le
+      // delai perceptible apres l'acceptation d'une proposition.
+      await Future.wait(<Future<void>>[
+        _loadProposals(),
+        _loadDashboardData(),
+      ]);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
