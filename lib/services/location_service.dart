@@ -6,7 +6,28 @@ import 'api_service.dart';
 import 'background_location.dart';
 import 'location_fix.dart';
 
-const Duration kLocationUploadInterval = Duration(seconds: 10);
+/// Valeur statique par défaut : fallback avant chargement de `PublicConfig`.
+/// L'intervalle effectif passe par `locationUploadInterval()` ci-dessous.
+const Duration kLocationUploadIntervalFallback = Duration(seconds: 10);
+
+/// Intervalle effectif. Surchargé par `configureLocationTimings()` dès que la
+/// configuration publique est lue (`timings.locationUploadIntervalSec`).
+Duration kLocationUploadInterval = kLocationUploadIntervalFallback;
+
+/// À appeler depuis un listener de `publicConfigProvider` dès que la config
+/// est disponible. Sans cet appel, le service continue de tourner avec les
+/// valeurs par défaut.
+void configureLocationTimings({
+  int? uploadIntervalSec,
+  int? freshnessSec,
+}) {
+  if (uploadIntervalSec != null && uploadIntervalSec > 0) {
+    kLocationUploadInterval = Duration(seconds: uploadIntervalSec);
+  }
+  if (freshnessSec != null && freshnessSec > 0) {
+    kLocationFreshness = Duration(seconds: freshnessSec);
+  }
+}
 
 /// Un seul flux GPS pour tous les colis transportés par le chauffeur.
 /// Fermer une fiche ou livrer un colis ne coupe pas les autres livraisons.

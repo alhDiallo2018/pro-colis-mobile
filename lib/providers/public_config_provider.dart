@@ -20,6 +20,14 @@ final publicConfigProvider =
   return notifier;
 });
 
+/// Timings effectifs (overrides admin + fallback statique). Un écran peut
+/// l'écouter directement sans se soucier de la disponibilité de la config :
+/// avant la première réponse `/public/config`, le fallback est utilisé.
+final timingsConfigProvider = Provider<TimingsConfig>((ref) {
+  final config = ref.watch(publicConfigProvider);
+  return config?.effectiveTimings ?? kTimingsFallback;
+});
+
 class PublicConfigNotifier extends StateNotifier<PublicConfig?> {
   PublicConfigNotifier({Future<Map<String, dynamic>> Function()? loadConfig})
       : _loadConfig = loadConfig ?? ApiService().getPublicConfig,

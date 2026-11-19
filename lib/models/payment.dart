@@ -227,6 +227,10 @@ class Payment {
     this.parcelId,
     this.trackingNumber,
     required this.amount,
+    // Devise d'affichage par défaut. `'XOF'` conservé comme repli statique
+    // pour les cas où la configuration publique (`currency.default`) n'est pas
+    // encore chargée. Les écrans qui ont accès à `PublicConfigProvider` doivent
+    // préférer `config.currencyDefault` à ce defaut littéral.
     this.currency = 'XOF',
     required this.method,
     required this.status,

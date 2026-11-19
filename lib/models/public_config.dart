@@ -85,6 +85,113 @@ List<T> _objList<T>(dynamic v, T Function(dynamic) fromJson) {
   return v.map(fromJson).toList();
 }
 
+/// Timings administrables (polling, timeouts, fenêtres GPS et messaging).
+/// Correspond côté API au module `utils/timings-config.js` et côté web à
+/// `TimingsConfig`. Valeurs par défaut gardées côté mobile (`kTimingsFallback`)
+/// pour fonctionner au boot avant la première réponse `/public/config`.
+class TimingsConfig {
+  // Polling
+  final int parcelStatusPollMs;
+  final int parcelsListPollMs;
+  final int announcementsFeedPollMs;
+  final int journeyPositionsPollMs;
+  final int operationsDashboardPollMs;
+  final int driverDiscoveryPollMs;
+  // Timeouts
+  final int apiRequestTimeoutMs;
+  final int geolocationTimeoutMs;
+  final int googleAuthTimeoutMs;
+  // GPS
+  final int locationUploadIntervalSec;
+  final int locationFreshnessSec;
+  // Messaging
+  final int messageEditWindowMs;
+  final int broadcastSnoozeHours;
+  // Discovery
+  final int positionTtlMs;
+  // Webhooks (exposés en lecture)
+  final int webhookRetryBackoffBaseMs;
+  final int webhookPollIntervalMs;
+  final int webhookMaxAttempts;
+  // PWA
+  final int pwaSyncMaxAttempts;
+
+  const TimingsConfig({
+    this.parcelStatusPollMs = 60000,
+    this.parcelsListPollMs = 15000,
+    this.announcementsFeedPollMs = 5000,
+    this.journeyPositionsPollMs = 15000,
+    this.operationsDashboardPollMs = 60000,
+    this.driverDiscoveryPollMs = 60000,
+    this.apiRequestTimeoutMs = 30000,
+    this.geolocationTimeoutMs = 15000,
+    this.googleAuthTimeoutMs = 15000,
+    this.locationUploadIntervalSec = 10,
+    this.locationFreshnessSec = 60,
+    this.messageEditWindowMs = 900000,
+    this.broadcastSnoozeHours = 2,
+    this.positionTtlMs = 600000,
+    this.webhookRetryBackoffBaseMs = 30000,
+    this.webhookPollIntervalMs = 15000,
+    this.webhookMaxAttempts = 6,
+    this.pwaSyncMaxAttempts = 10,
+  });
+
+  static int _int(dynamic v, int fallback) {
+    if (v is num) {
+      final n = v.toInt();
+      return n >= 0 ? n : fallback;
+    }
+    if (v == null) return fallback;
+    final parsed = int.tryParse(v.toString());
+    return (parsed != null && parsed >= 0) ? parsed : fallback;
+  }
+
+  factory TimingsConfig.fromJson(dynamic value) {
+    const d = TimingsConfig();
+    if (value is! Map) return d;
+    final m = Map<String, dynamic>.from(value);
+    return TimingsConfig(
+      parcelStatusPollMs: _int(m['parcelStatusPollMs'], d.parcelStatusPollMs),
+      parcelsListPollMs: _int(m['parcelsListPollMs'], d.parcelsListPollMs),
+      announcementsFeedPollMs:
+          _int(m['announcementsFeedPollMs'], d.announcementsFeedPollMs),
+      journeyPositionsPollMs:
+          _int(m['journeyPositionsPollMs'], d.journeyPositionsPollMs),
+      operationsDashboardPollMs:
+          _int(m['operationsDashboardPollMs'], d.operationsDashboardPollMs),
+      driverDiscoveryPollMs:
+          _int(m['driverDiscoveryPollMs'], d.driverDiscoveryPollMs),
+      apiRequestTimeoutMs:
+          _int(m['apiRequestTimeoutMs'], d.apiRequestTimeoutMs),
+      geolocationTimeoutMs:
+          _int(m['geolocationTimeoutMs'], d.geolocationTimeoutMs),
+      googleAuthTimeoutMs:
+          _int(m['googleAuthTimeoutMs'], d.googleAuthTimeoutMs),
+      locationUploadIntervalSec:
+          _int(m['locationUploadIntervalSec'], d.locationUploadIntervalSec),
+      locationFreshnessSec:
+          _int(m['locationFreshnessSec'], d.locationFreshnessSec),
+      messageEditWindowMs:
+          _int(m['messageEditWindowMs'], d.messageEditWindowMs),
+      broadcastSnoozeHours:
+          _int(m['broadcastSnoozeHours'], d.broadcastSnoozeHours),
+      positionTtlMs: _int(m['positionTtlMs'], d.positionTtlMs),
+      webhookRetryBackoffBaseMs:
+          _int(m['webhookRetryBackoffBaseMs'], d.webhookRetryBackoffBaseMs),
+      webhookPollIntervalMs:
+          _int(m['webhookPollIntervalMs'], d.webhookPollIntervalMs),
+      webhookMaxAttempts:
+          _int(m['webhookMaxAttempts'], d.webhookMaxAttempts),
+      pwaSyncMaxAttempts:
+          _int(m['pwaSyncMaxAttempts'], d.pwaSyncMaxAttempts),
+    );
+  }
+}
+
+/// Snapshot de référence utilisé tant que `PublicConfig` n'est pas chargé.
+const TimingsConfig kTimingsFallback = TimingsConfig();
+
 class PublicConfig {
   final double commissionPercentage;
   final double commissionMinimum;
@@ -133,6 +240,28 @@ class PublicConfig {
   final String legalTechnicalDirectorName;
   final String legalTechnicalDirectorEmail;
 
+  /// Phase 1 externalisation : paramètres d'authentification administrables
+  /// via `auth.*` dans `SystemConfig`. Permet de borner la saisie OTP sans
+  /// valeur magique codée côté mobile (`attempts < 5` historique).
+  final int otpExpiryMinutes;
+  final int otpMaxAttempts;
+
+  /// Phase 1 externalisation : devise d'affichage par défaut et liste
+  /// autorisée. Remplace les `currency = 'XOF'` codés en dur dans les modèles
+  /// paiement / colis / douane.
+  final String currencyDefault;
+  final List<String> currencySupported;
+
+  /// Phase 1 externalisation : tarification internationale CEDEAO. Les paires
+  /// desservies et la limite de poids proviennent de la config admin.
+  final double internationalMaxWeightKg;
+  final List<String> internationalCountryPairs;
+
+  /// Phase 3 externalisation : timings (polling, timeouts, fenêtres GPS/messaging).
+  /// `null` tant que la réponse `/public/config` n'embarque pas le bloc —
+  /// l'appelant retombe alors sur `kTimingsFallback`.
+  final TimingsConfig? timings;
+
   const PublicConfig({
     this.commissionPercentage = 0,
     this.commissionMinimum = 0,
@@ -168,6 +297,13 @@ class PublicConfig {
     this.legalDirectorEmail = '',
     this.legalTechnicalDirectorName = '',
     this.legalTechnicalDirectorEmail = '',
+    this.otpExpiryMinutes = 10,
+    this.otpMaxAttempts = 5,
+    this.currencyDefault = 'XOF',
+    this.currencySupported = const ['XOF'],
+    this.internationalMaxWeightKg = 50,
+    this.internationalCountryPairs = const [],
+    this.timings,
   });
 
   factory PublicConfig.fromJson(Map<String, dynamic> json) {
@@ -192,6 +328,26 @@ class PublicConfig {
     final legal = json['legal'] is Map
         ? Map<String, dynamic>.from(json['legal'] as Map)
         : const <String, dynamic>{};
+    final auth = json['auth'] is Map
+        ? Map<String, dynamic>.from(json['auth'] as Map)
+        : const <String, dynamic>{};
+    final currency = json['currency'] is Map
+        ? Map<String, dynamic>.from(json['currency'] as Map)
+        : const <String, dynamic>{};
+    final international = json['international'] is Map
+        ? Map<String, dynamic>.from(json['international'] as Map)
+        : const <String, dynamic>{};
+
+    List<String> _stringList(dynamic v, List<String> fallback) {
+      if (v is! List) return fallback;
+      final result = <String>[];
+      for (final item in v) {
+        if (item == null) continue;
+        final s = item.toString().trim();
+        if (s.isNotEmpty) result.add(s);
+      }
+      return result.isEmpty ? fallback : result;
+    }
 
     return PublicConfig(
       commissionPercentage: _num(commission['percentage'], 0),
@@ -231,8 +387,20 @@ class PublicConfig {
       legalDirectorEmail: _str(legal['directorEmail'], ''),
       legalTechnicalDirectorName: _str(legal['technicalDirectorName'], ''),
       legalTechnicalDirectorEmail: _str(legal['technicalDirectorEmail'], ''),
+      otpExpiryMinutes: _num(auth['otpExpiryMinutes'], 10).toInt(),
+      otpMaxAttempts: _num(auth['otpMaxAttempts'], 5).toInt(),
+      currencyDefault: _str(currency['default'], 'XOF'),
+      currencySupported: _stringList(currency['supported'], const ['XOF']),
+      internationalMaxWeightKg: _num(international['maxWeightKg'], 50),
+      internationalCountryPairs:
+          _stringList(international['countryPairs'], const <String>[]),
+      timings:
+          json['timings'] == null ? null : TimingsConfig.fromJson(json['timings']),
     );
   }
+
+  /// Timings effectifs : valeurs admin si disponibles, sinon fallback statique.
+  TimingsConfig get effectiveTimings => timings ?? kTimingsFallback;
 
   /// Numéro de téléphone du support, fourni par la configuration API.
   String get displaySupportPhone => supportPhone.trim();

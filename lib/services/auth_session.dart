@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/app_config.dart';
+import '../config/runtime_timings.dart';
 
 class SessionExpiredException implements Exception {}
 
@@ -34,8 +35,9 @@ class AuthSessionManager {
         _refreshDio = refreshDio ??
             Dio(BaseOptions(
               baseUrl: AppConfig.apiBaseUrl,
-              connectTimeout: const Duration(seconds: 30),
-              receiveTimeout: const Duration(seconds: 30),
+              // Timeout admin (`timings.apiRequestTimeoutMs`) — fallback 30 s.
+              connectTimeout: kApiRequestTimeout,
+              receiveTimeout: kApiRequestTimeout,
               validateStatus: (status) => status != null && status < 500,
             ));
 

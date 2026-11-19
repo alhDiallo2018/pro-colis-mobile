@@ -1,6 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
+/// Fraîcheur GPS maximale par défaut. Surchargée par `configureLocationTimings`
+/// (`timings.locationFreshnessSec`). Les positions plus anciennes sont ignorées
+/// pour ne pas publier une trace périmée qui tromperait le suivi client.
+const Duration kLocationFreshnessFallback = Duration(seconds: 60);
+
+/// Valeur effective. Modifiée via `configureLocationTimings()` dans
+/// `location_service.dart` dès la lecture de `PublicConfig`.
+Duration kLocationFreshness = kLocationFreshnessFallback;
+
 /// Un flux natif maintient le GPS lorsque l'écran se verrouille. Un simple
 /// Timer Dart ne suffit pas : Android et iOS suspendent les tâches ordinaires.
 LocationSettings backgroundLocationSettings({
@@ -39,6 +48,5 @@ LocationSettings backgroundLocationSettings({
 
 bool isRecentPosition(Position position, {DateTime? now}) {
   final age = (now ?? DateTime.now()).difference(position.timestamp);
-  return age >= const Duration(seconds: -5) &&
-      age <= const Duration(seconds: 60);
+  return age >= const Duration(seconds: -5) && age <= kLocationFreshness;
 }

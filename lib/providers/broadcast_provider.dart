@@ -17,7 +17,18 @@ final broadcastProvider = FutureProvider<List<Broadcast>>((ref) async {
 ///
 /// Deux heures évitent qu'il réapparaisse à chaque navigation tout en
 /// garantissant qu'une annonce encore active sera revue plus tard.
-const Duration broadcastSnoozeDuration = Duration(hours: 2);
+const Duration broadcastSnoozeDurationFallback = Duration(hours: 2);
+
+/// Valeur effective (pilotée par `timings.broadcastSnoozeHours`). Reste
+/// modifiable au runtime via `configureBroadcastTimings()`.
+Duration broadcastSnoozeDuration = broadcastSnoozeDurationFallback;
+
+/// Appelé depuis un listener de `publicConfigProvider`.
+void configureBroadcastTimings({int? snoozeHours}) {
+  if (snoozeHours != null && snoozeHours > 0) {
+    broadcastSnoozeDuration = Duration(hours: snoozeHours);
+  }
+}
 
 const String _legacyDismissedKey = 'procolis-broadcasts-dismissed';
 const String _snoozeKeyPrefix = 'procolis-broadcasts-snoozed-until';
@@ -82,10 +93,14 @@ Future<void> _saveBroadcastSnoozes(
 Future<DateTime> snoozeBroadcast(
   String id,
   String userScope, {
-  Duration duration = broadcastSnoozeDuration,
+  Duration? duration,
 }) async {
   final snoozes = await loadBroadcastSnoozes(userScope);
-  final until = DateTime.now().add(duration);
+  // `broadcastSnoozeDuration` est modifié au runtime par la config admin :
+  // on le résout à l'appel pour profiter d'un éventuel ajustement en cours
+  // d'exécution (ex. admin qui augmente le snooze de 2 h à 4 h).
+  final effective = duration ?? broadcastSnoozeDuration;
+  final until = DateTime.now().add(effective);
   snoozes[id] = until;
   await _saveBroadcastSnoozes(userScope, snoozes);
   return until;

@@ -25,7 +25,21 @@ class OtpCode {
     this.attempts = 0,
   });
 
-  bool get isValid => !isUsed && expiresAt.isAfter(DateTime.now()) && attempts < 5;
+  /// Nombre maximum de tentatives historique, utilisé comme repli quand la
+  /// configuration publique (`auth.otpMaxAttempts`) n'a pas encore été chargée.
+  /// Préférer `isValidWith(maxAttempts)` dès que la config est disponible.
+  static const int defaultMaxAttempts = 5;
+
+  /// Valide avec un plafond de tentatives configurable. Les écrans qui ont
+  /// accès à `PublicConfigProvider` doivent passer `config.otpMaxAttempts`.
+  bool isValidWith(int maxAttempts) =>
+      !isUsed &&
+      expiresAt.isAfter(DateTime.now()) &&
+      attempts < (maxAttempts > 0 ? maxAttempts : defaultMaxAttempts);
+
+  /// Compat : conserve le comportement historique (`attempts < 5`) pour les
+  /// appelants qui n'ont pas encore été migrés vers la config publique.
+  bool get isValid => isValidWith(defaultMaxAttempts);
 
   factory OtpCode.fromJson(Map<String, dynamic> json) {
     return OtpCode(

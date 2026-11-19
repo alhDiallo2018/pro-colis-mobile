@@ -16,7 +16,21 @@ import '../services/api_service.dart';
 import '../services/notification_badge_service.dart';
 
 /// Doit rester aligné sur `MESSAGE_EDIT_WINDOW_MS` de l'API.
-const Duration kMessageEditWindow = Duration(minutes: 15);
+/// Fallback utilisé avant chargement de `PublicConfig`.
+const Duration kMessageEditWindowFallback = Duration(minutes: 15);
+
+/// Valeur effective. Surchargée par `configureMessagingTimings()` dès que
+/// `/public/config` répond. Reste `const`-like au boot pour que les tests
+/// sans provider conservent le comportement historique.
+Duration kMessageEditWindow = kMessageEditWindowFallback;
+
+/// Appelé depuis un listener de `publicConfigProvider` pour réaligner la
+/// fenêtre d'édition sur la config admin.
+void configureMessagingTimings({int? editWindowMs}) {
+  if (editWindowMs != null && editWindowMs > 0) {
+    kMessageEditWindow = Duration(milliseconds: editWindowMs);
+  }
+}
 
 /// Préfixe des propositions de prix échangées dans le fil. L'API refuse de les
 /// modifier ou de les supprimer, elles engagent une négociation.

@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'providers/auth_provider.dart';
 import 'providers/locale_provider.dart';
+import 'models/public_config.dart';
 import 'providers/public_config_provider.dart';
 import 'providers/session_lock_provider.dart';
 import 'providers/theme_provider.dart';
@@ -28,6 +29,7 @@ import 'widgets/support_presence_monitor.dart';
 import 'widgets/offline_notice.dart';
 import 'services/offline_access.dart';
 import 'services/api_service.dart';
+import 'config/runtime_timings.dart';
 
 class ProColisApp extends ConsumerStatefulWidget {
   const ProColisApp({super.key});
@@ -69,6 +71,13 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
     // Charge la configuration publique (commission, points, contact support…)
     // dès le démarrage : les écrans la lisent ensuite sans valeur codée en dur.
     ref.read(publicConfigProvider);
+
+    // Propage les timings dynamiques (`timings.*`) vers les variables runtime
+    // (HTTP timeouts, GPS, messaging). Les services sans Widget consomment
+    // ensuite ces valeurs sans dépendre de Riverpod.
+    ref.listenManual<PublicConfig?>(publicConfigProvider, (previous, next) {
+      if (next != null) RuntimeTimings.apply(next.effectiveTimings);
+    }, fireImmediately: true);
   }
 
   @override

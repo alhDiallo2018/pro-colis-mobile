@@ -12,6 +12,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../config/app_config.dart';
+import '../config/runtime_timings.dart';
 import '../models/garage.dart';
 import '../models/parcel.dart';
 import '../models/user.dart';
@@ -52,8 +53,11 @@ class ApiService {
   ApiService({Dio? dioOverride}) : _dio = dioOverride ?? Dio() {
     _dio.options.baseUrl = baseUrl;
     _dio.options.headers['Content-Type'] = 'application/json';
-    _dio.options.connectTimeout = const Duration(seconds: 30);
-    _dio.options.receiveTimeout = const Duration(seconds: 30);
+    // Timeouts pilotés par la config admin (`timings.apiRequestTimeoutMs`)
+    // via `RuntimeTimings.apply`. Fallback 30 s si la config n'est pas encore
+    // chargée (boot, mode offline, ancienne version d'API).
+    _dio.options.connectTimeout = kApiRequestTimeout;
+    _dio.options.receiveTimeout = kApiRequestTimeout;
     _dio.options.validateStatus = (status) => status! < 500;
 
     _setupInterceptors();

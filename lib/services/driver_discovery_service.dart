@@ -2,10 +2,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/runtime_timings.dart';
 import 'api_service.dart';
 import 'auth_session.dart';
 import 'background_location.dart';
 import 'location_fix.dart';
+
+/// Intervalle minimal entre deux publications discovery, dérivé de la
+/// fraîcheur admin (`timings.locationFreshnessSec`) : tant que la position
+/// précédente est encore valide côté serveur, inutile de spammer l'API.
+Duration _minPublishInterval() {
+  final fresh = kLocationFreshness;
+  // Garde un plancher à 30 s pour éviter un flood si la config est mal réglée.
+  return fresh < const Duration(seconds: 30) ? const Duration(seconds: 30) : fresh;
+}
 
 /// Le booléen représente le choix du chauffeur, pas la présence d’un signal.
 /// Ce choix est mémorisé par compte jusqu’à une désactivation explicite.
@@ -93,15 +103,23 @@ class DriverDiscoveryService extends ValueNotifier<bool> {
     if (generation != _generation || _userId != userId) return;
     value = true;
     error = null;
-    _retry ??= Timer.periodic(
-        const Duration(seconds: 30), (_) => unawaited(_ensureRunning()));
+    // Retry du flux GPS : fréquence calée sur le polling discovery admin
+    // (`timings.driverDiscoveryPollMs`), avec un plancher raisonnable.
+    final retryPeriod = kDriverDiscoveryPoll < const Duration(seconds: 10)
+        ? const Duration(seconds: 10)
+        : kDriverDiscoveryPoll;
+    _retry ??=
+        Timer.periodic(retryPeriod, (_) => unawaited(_ensureRunning()));
     await _ensureRunning(requestPermission: true);
   }
 
   Future<void> resume() async {
     if (!value || !_available || _userId == null) return;
-    _retry ??= Timer.periodic(
-        const Duration(seconds: 30), (_) => unawaited(_ensureRunning()));
+    final retryPeriod = kDriverDiscoveryPoll < const Duration(seconds: 10)
+        ? const Duration(seconds: 10)
+        : kDriverDiscoveryPoll;
+    _retry ??=
+        Timer.periodic(retryPeriod, (_) => unawaited(_ensureRunning()));
     await _ensureRunning();
   }
 
@@ -185,7 +203,7 @@ class DriverDiscoveryService extends ValueNotifier<bool> {
         !isRecentPosition(position) ||
         (_lastSent != null &&
             position.timestamp.difference(_lastSent!) <
-                const Duration(minutes: 1))) return;
+                _minPublishInterval())) return;
     _updatingGeneration = generation;
     try {
       await _serialize(() async {
