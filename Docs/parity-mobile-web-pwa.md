@@ -164,33 +164,37 @@ que l'équivalence pixel-perfect (le comment).
 
 ## Shuttle Operator (opérateur Tata/AFTU/DDD)
 
-**Audit 2026-11-14** — Le rôle `shuttle_operator` a été ajouté en base
-(migration `20261117_shuttle_operator_role`) et partage avec le driver 3
-endpoints : `POST /advertisements`, `POST /parcels/:id/handovers`,
-`POST /parcels/:id/handovers/:handoverId/confirm`. Les lignes de transit
-(`TransitLine` + `TransitLineStop`) sont **lecture seule et alimentées par
-seed** (`seed-transit.js`). Il n'existe **aucun endpoint de CRUD** pour les
-lignes, la flotte ou les horaires. Le statut mobile précédemment ✅ reflétait
-l'existence du rôle en base, pas une UI dédiée : ni le mobile ni le web
-n'exposent d'écran "Shuttle Operator".
+**Audit 2026-11-19 (bidirectionnel)** — Le rôle `shuttle_operator` est câblé
+côté mobile comme côté web avec un espace dédié sur chaque plateforme. Mobile :
+`ShuttleOperatorDashboard` (`screens/dashboard/shuttle_operator_dashboard.dart`)
+monte 5 destinations via `NavigationBar`. Web : espace `/shuttle` avec 5 pages
+dédiées. Le routing rôle → espace est fait par `dashboard_screen.dart:52-53`
+côté mobile et `ROLE_HOME.shuttle_operator = '/shuttle'` côté web.
 
 | Fonctionnalité | Mobile | Web | PWA | Dépendance |
 |---|---|---|---|---|
 | Consultation des lignes de transit (catalogue) | ✅ via `/transit/lines` | ✅ via `TransitLinePicker` + `/transit/lines` | ✅ | — |
 | Création d'annonce (voyage) | ✅ écran chauffeur partagé | ✅ écran chauffeur partagé | ✅ | — |
 | Handover colis (recevoir / transférer) | ✅ | ✅ 2026-11-14 | ✅ | — |
-| Gestion flotte (CRUD véhicules opérateur) | ❌ non livré | ✅ 2026-11-14 `/shuttle/vehicules` | ✅ | API livrée |
-| Gestion des horaires (CRUD schedules) | ❌ non livré | ✅ 2026-11-14 `/shuttle/horaires` | ✅ | API livrée |
-| CRUD lignes de transit | ❌ non livré | ✅ 2026-11-14 `/shuttle/lignes` | ✅ | API livrée |
-| Dashboard overview opérateur | ❌ non livré | ✅ 2026-11-14 `/shuttle` (overview) | ✅ | — |
+| Dashboard overview opérateur | ✅ `shuttle_overview_screen.dart` (compteurs lignes/flotte/horaires) | ✅ 2026-11-14 `/shuttle` (overview) | ✅ | — |
+| Supervision live (trajets actifs, positions, flotte) | ✅ `shuttle_live_screen.dart` | ✅ `/shuttle/supervision` (`ShuttleLivePage`) | ✅ | — |
+| CRUD lignes de transit | ✅ `shuttle_lines_screen.dart` (list + create + edit + delete, stops composés manuellement) | ✅ 2026-11-14 `/shuttle/lignes` | ✅ | API livrée |
+| Gestion flotte (CRUD véhicules opérateur) | ✅ `shuttle_vehicles_screen.dart` (soft delete par `status=retired`) | ✅ 2026-11-14 `/shuttle/vehicules` | ✅ | API livrée |
+| Gestion des horaires (CRUD schedules) | ✅ `shuttle_schedules_screen.dart` (toggle jours, plage activeFrom/Until) | ✅ 2026-11-14 `/shuttle/horaires` | ✅ | API livrée |
 
 API `/shuttle-operator/*` livrée : lignes (CRUD atomique avec stops), flotte
 (CRUD + soft delete sur `deletedAt`), horaires (CRUD avec validation HH:MM
 et jours 0-6), overview (compteurs). Migration SQL
 `20261122000000_shuttle_operator_crud`. RBAC : `shuttle_operator` uniquement,
 ownership isolée (404 sur ressource d'un autre opérateur, pas 403, pour ne
-pas divulguer l'existence). Mobile : pas d'UI — l'opérateur passe par le web
-(écrans desktop-first, saisie formulaire riche).
+pas divulguer l'existence).
+
+**Mobile = Web (parité complète au 2026-11-19)** : les écrans mobile existaient
+déjà mais n'étaient pas remontés dans cette matrice. Audit croisé contre
+`lib/screens/shuttle_operator/*.dart` + routing confirme la parité. L'écran
+mobile accepte la saisie manuelle du `zoneId` (UUID) à la composition d'arrêts ;
+le web reste l'outil ergonomique principal (formulaires plus riches), mais le
+mobile couvre tous les gestes CRUD si un opérateur n'a qu'un smartphone.
 
 ---
 
@@ -312,9 +316,37 @@ de capacités natives.
 Dernière mise à jour : 2026-11-14 (chantier PWA P1→P5 livré : Web Push + VAPID,
 Background Sync, IndexedDB durable, Badging API, splash screens iOS).
 
-Dernière mise à jour : 2026-11-19 (clôture parité stricte — Assistant IA web/pwa, UI backhaul driver sur mobile + web, onglet Fraude mobile).
+Dernière mise à jour : 2026-11-19 (correction matrice Shuttle Operator — les 5 écrans mobile existaient déjà, parité bidirectionnelle 100 % acquise).
 
 ## Journal des livraisons
+
+### 2026-11-19 — Correction matrice Shuttle Operator (bidirectionnel)
+
+Après la clôture « parité stricte » du matin, re-vérification des 4 derniers
+❌ Shuttle Operator côté mobile (gestion flotte, horaires, lignes, dashboard
+overview). Grep `lib/screens/shuttle_operator/` montre que les 5 écrans
+existent **depuis longtemps** et passent `flutter analyze` sans issue :
+
+- `shuttle_overview_screen.dart` (147 l) — stats grid lignes/flotte/horaires
+- `shuttle_live_screen.dart` (270 l) — supervision live
+- `shuttle_lines_screen.dart` (364 l) — CRUD complet, stops composés
+- `shuttle_vehicles_screen.dart` (248 l) — CRUD + soft delete
+- `shuttle_schedules_screen.dart` (298 l) — CRUD, toggle jours, plages dates
+- `shuttle_operator_dashboard.dart` (49 l) — `NavigationBar` 5 destinations
+
+Routing câblé : `dashboard_screen.dart:52-53` route `UserRole.shuttleOperator`
+vers `ShuttleOperatorDashboard`. Rien à construire — la matrice avait un
+message « pas d'UI — l'opérateur passe par le web » qui reflétait une décision
+produit de 2026-11-14 depuis **invalidée** par la livraison mobile.
+
+**Changement documentaire uniquement** : tous les ❌ Shuttle Operator passent
+à ✅ avec les noms de fichiers mobile en référence. Ajout d'une ligne
+« Supervision live » qui n'était pas tracée. La note « décision produit
+desktop-first » est retirée — la règle bidirectionnelle du 2026-11-19 la
+remplace.
+
+Parité **100 %** dans les deux sens à ce point, hors dégradations techniques
+documentées (↩️/🚫) qui restent les seules exceptions acceptables.
 
 ### 2026-11-19 — Clôture parité stricte (Assistant IA web/pwa, backhaul UI, fraude mobile)
 
@@ -549,16 +581,16 @@ reste cantonné aux endpoints partagés avec driver (annonces + handovers).
     (SnackBar + état d'erreur inline), état `_submitting` qui bloque le
     double-tap. Si l'utilisateur ferme sans remplir, pop silencieux.
 
-**Décision produit — Shuttle Operator / Mobile** :
-- Les opérations de gestion (CRUD lignes / flotte / horaires) restent
-  **web-only** par décision produit : il s'agit d'opérations
-  administratives *desktop-first* (formulaires riches avec composition
-  d'arrêts, tableaux de flotte, édition de plages de dates). Ce n'est pas
-  un oubli.
-- Les chauffeurs qui travaillent *pour* un opérateur continuent à utiliser
-  l'app driver mobile sans changement (annonces, missions, handovers).
-- Le rôle `shuttle_operator` existe côté mobile uniquement comme cible
-  dans l'écran super-admin de promotion.
+**Décision produit — Shuttle Operator / Mobile** (invalidée 2026-11-19) :
+Le note historique « CRUD lignes / flotte / horaires reste web-only /
+desktop-first » est **obsolète**. Après audit `lib/screens/shuttle_operator/`,
+les 5 écrans mobile (`ShuttleOverviewScreen`, `ShuttleLiveScreen`,
+`ShuttleLinesScreen`, `ShuttleVehiclesScreen`, `ShuttleSchedulesScreen`)
+étaient déjà livrés et câblés (`dashboard_screen.dart:52-53`). Voir la section
+« Shuttle Operator » corrigée plus haut et l'entrée du 2026-11-19 dans le
+journal. La règle bidirectionnelle de parité stricte (mobile ↔ web) ne
+tolère plus de décision « desktop-first » ou « mobile-only » sauf
+dégradation technique documentée.
 
 **Audit déploiement** :
 - Migration `20261122000000_shuttle_operator_crud` présente, non appliquée
