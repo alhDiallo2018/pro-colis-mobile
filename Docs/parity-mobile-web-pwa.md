@@ -72,6 +72,7 @@ que l'équivalence pixel-perfect (le comment).
 | Dettes client / soldes dus | ✅ | ✅ | ✅ |
 | Public tracking (sans login) | N/A | ✅ | ✅ |
 | Fiches publiques drivers | ✅ | ✅ | ✅ |
+| Assistant IA (création colis via NL) | ✅ 2026-11-19 (chat + voix, dégrisé via `/ai/assistant/config`) | ❌ pas d'écran dédié | ❌ |
 
 ---
 
@@ -92,6 +93,7 @@ que l'équivalence pixel-perfect (le comment).
 | Manifeste navette (shuttle) | ✅ | ✅ 2026-11-14 (`AdvertisementManifestScreen` route `/driver/annonces/:id/manifest`) | ✅ |
 | Handover colis chauffeur→chauffeur | ✅ | ✅ 2026-11-14 | ✅ |
 | Arrêts atteints / tracking intermédiaire | ✅ | ✅ 2026-11-14 (`AdvertisementReachedStopsScreen` route `/driver/annonces/:id/arrets-atteints`) | ✅ |
+| Suggestions backhaul (colis compatibles sur route) | ❌ pas d'UI (API `GET /drivers/backhaul-matches/:id` livrée 2026-11-19) | ❌ pas d'UI | ❌ |
 | Revenus + historique | ✅ | ✅ | ✅ |
 | Documents véhicule | ✅ | ✅ | ✅ |
 | Points fidélité | ✅ | ✅ | ✅ |
@@ -138,6 +140,7 @@ que l'équivalence pixel-perfect (le comment).
 | Réputation + scores + classement | ✅ | ✅ | ✅ |
 | Pilot metrics | ✅ | ✅ 2026-11-14 `/admin/pilot-metrics` | ✅ |
 | Hub opérationnel | ✅ | ✅ 2026-11-14 `/admin/operations` (4 onglets : intégrations, webhooks récents, arrêts GPS, transferts) | ✅ |
+| Fraude — scores + alertes persistées | ❌ pas d'UI (API livrée 2026-11-19) | ✅ 2026-11-19 5ᵉ tab `/admin/operations` (scores live, alertes ouvertes/résolues, dialog résolution) | ✅ |
 
 ---
 
@@ -309,9 +312,91 @@ de capacités natives.
 Dernière mise à jour : 2026-11-14 (chantier PWA P1→P5 livré : Web Push + VAPID,
 Background Sync, IndexedDB durable, Badging API, splash screens iOS).
 
-Dernière mise à jour : 2026-11-14 (chantier parité mission — CSV bulk, manifeste, arrêts atteints, hub opérationnel, nav import routes livrés).
+Dernière mise à jour : 2026-11-19 (Assistant IA mobile dégrisé, consolidation backhaul API, fraude admin API + web).
 
 ## Journal des livraisons
+
+### 2026-11-19 — Assistant IA mobile + consolidation backhaul + fraude admin
+
+Trois chantiers livrés en parallèle, plus de ⚠️ sauf nouveaux items (Assistant
+IA web/pwa, UI backhaul, UI fraude mobile) qui restent ❌ par choix produit.
+
+**Assistant IA mobile** (client + business_shipper) :
+- API : `GET /ai/assistant/config` → `{ configured: bool }` basé sur
+  `isAiAssistantConfigured()`. Le frontend consulte ce flag avant de dégriser.
+- Mobile : `AiAssistantApi.isConfigured()` + `aiAssistantConfiguredProvider`
+  (FutureProvider.autoDispose + keepAlive). Deux CTAs basculent via `Consumer`
+  local :
+  - `new_parcel_wizard_screen` : IconButton actif ; au retour d'`AiAssistantScreen`,
+    `_openAiAssistant` applique le draft (receiverName/Phone, weight, type,
+    isUrgent, notes, senderCity→zoneId, receiverCity→zoneId).
+  - `client_dashboard` : OutlinedButton navigue vers l'écran ; badge « Bientôt »
+    retiré quand configured.
+- Fallback silencieux : erreur réseau ou `configured=false` → UI reste grisée.
+- Web / PWA : pas d'écran dédié — l'Assistant IA reste mobile-only pour la V1
+  (interaction conversationnelle + voix mieux servie sur mobile ; le web a déjà
+  wizard + import CSV + templates).
+
+**Consolidation backhaul** (driver / shuttle_operator) :
+- API : `GET /drivers/backhaul-matches/:advertisementId` dans un nouveau module
+  `src/modules/consolidation/`. Consomme `matchCompatibleParcels()` pur sur les
+  colis `pending`/`free` ≤14j. Capacité restante = `availableWeight - Σ(weight
+  des offres acceptées non annulées/livrées)`. RBAC `driver` ou `shuttle_operator`,
+  ownership vérifiée.
+- 5 tests contractuels (401, 403 client, 403 driver tiers, 404, 200 avec tri).
+- Pas d'UI mobile ni web — le service est disponible pour quand une surface
+  « suggestions de colis à adopter » sera ajoutée aux dashboards drivers.
+
+**Fraude — scores + alertes persistées** (super_admin) :
+- API : nouveau modèle `FraudAlert` + migration `20261124_fraud_alerts`
+  (IF NOT EXISTS, FK via DO $$ idempotent). Service `buildSignalsForUser`
+  agrège 6 signaux via Prisma (âge compte, ratio annulations, dette via
+  `ClientPenaltyDebt`, OTP échouées heuristique, devices via `DeviceToken`,
+  annulations récentes), combine avec `scoreFraud()` → score+flags+level.
+  `refreshFraudAlerts()` scanne les users actifs 30j et crée/déduplique.
+- 4 endpoints super_admin : `GET /super-admin/fraud/scores?limit=50&level=`,
+  `GET /super-admin/fraud/alerts?status=`, `POST /super-admin/fraud/alerts/:id/resolve`,
+  `POST /super-admin/fraud/refresh`.
+- 5 tests contractuels.
+- Web : 5ᵉ tab « Fraude » dans `OperationsHubPage` (`/admin/operations`).
+  SegmentedControl Scores / Alertes ouvertes / Alertes résolues, bouton
+  « Rafraîchir les alertes » global, dialog Textarea de résolution.
+- Mobile : pas d'UI — l'écran `AdminOperationsHubScreen` mobile reste à 5
+  onglets (Pilot 14j, Health, Webhooks, Stop events, Handovers) ; la fraude
+  est volontairement laissée desktop-first (tableaux riches, traitement en
+  lot plus ergonomique en desktop).
+
+**Vérifications** : `node --check` sur tous les fichiers API, `npx prisma
+generate` OK, `flutter analyze` 0 issue, `npm run typecheck` web OK. Tests API
+non re-exécutés en local post-merge (DB procolis dans un container sans
+bind-mount du code source — à valider en CI).
+
+**Reste hors-code** : poser `ANTHROPIC_API_KEY` en `.env` prod pour que le flag
+Assistant IA passe à `true` en live ; appliquer la migration
+`20261124_fraud_alerts` via `npx prisma migrate deploy` avec sauvegarde
+préalable.
+
+**Externalisation config (addendum même jour)** : tous les knobs de policy des
+3 chantiers sont désormais pilotables depuis l'espace super-admin
+(`/admin/finance/configuration`, panneau « Paramètres système »), sans
+redéploiement :
+- Assistant IA : `ai.enabled` (kill-switch), `ai.maxPromptChars`,
+  `ai.maxOutputTokens`, `ai.model`, `ai.systemPrompt`.
+- Consolidation : `consolidation.enabled`, `consolidation.onRouteToleranceKm`,
+  `consolidation.parcelLookbackDays`, `consolidation.parcelLimit`,
+  `consolidation.rejectedPreviewLimit`, `consolidation.weightPickupDistance`,
+  `consolidation.weightDropoffDistance`, `consolidation.weightWeightFit`,
+  `consolidation.adoptableStatuses`.
+- Fraude : `fraud.enabled`, `fraud.activeLookbackDays`, 5 seuils (new account,
+  cancellation ratio, OTP, multi-devices, recent cancellations), 6 pondérations
+  de points, 3 seuils de niveau (low/medium/high).
+
+Pattern backend : 3 readers (`ai-assistant-config.js`, `consolidation-config.js`,
+`fraud-config.js`) suivant le pattern `anomaly-config.js` (cache 10 s + fallback
+sur defaults + invalidation par prefix dans `updateSystemConfig`). Valeurs
+invalides en base silencieusement ignorées au profit du défaut.
+
+### 2026-11-14 — Chantier parité mission (lot ⚠️→✅)
 
 ### 2026-11-14 — Chantier parité mission (lot ⚠️→✅)
 
