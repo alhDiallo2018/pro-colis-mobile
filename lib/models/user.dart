@@ -18,6 +18,8 @@ enum UserRole {
   supportCommercial('support_commercial', 'Support commercial', Icons.handshake,
       Color(0xFF0C6E7D)),
   support('support', 'Support', Icons.headset_mic, Color(0xFF475569)),
+  shuttleOperator('shuttle_operator', 'Opérateur navette',
+      Icons.directions_bus, Color(0xFF0E7490)),
   superAdmin(
       'super_admin', 'Super Admin', Icons.admin_panel_settings, Colors.red);
 
@@ -61,6 +63,9 @@ enum UserRole {
         return UserRole.supportCommercial;
       case 'support':
         return UserRole.support;
+      case 'shuttleoperator':
+      case 'shuttleop':
+        return UserRole.shuttleOperator;
       case 'superadmin':
         return UserRole.superAdmin;
       default:
@@ -87,7 +92,9 @@ enum UserRole {
         return '/support-technique/profile';
       case UserRole.supportCommercial:
         return '/support-commercial/profile';
-      // L'API autorise `super_admin` et `support` sur PUT /super-admin/profile.
+      // L'opérateur de navette n'a pas encore d'endpoint profil dédié : il
+      // consomme le profil super-admin (API tolère ce routage pour l'instant).
+      case UserRole.shuttleOperator:
       case UserRole.support:
       case UserRole.superAdmin:
         return '/super-admin/profile';
@@ -108,6 +115,8 @@ enum UserRole {
         return 'support-technique';
       case UserRole.supportCommercial:
         return 'support-commercial';
+      case UserRole.shuttleOperator:
+        return 'shuttle-operator';
       // `support` consomme les mêmes ressources que le super admin.
       case UserRole.support:
       case UserRole.superAdmin:
@@ -411,6 +420,7 @@ class User {
   bool get isClient => role == UserRole.client;
   bool get isSupportTechnique => role == UserRole.supportTechnique;
   bool get isSupportCommercial => role == UserRole.supportCommercial;
+  bool get isShuttleOperator => role == UserRole.shuttleOperator;
 
   /// Compte support partagé historique. L'API l'autorise sur toutes les routes
   /// `/super-admin/*` au même titre que le super admin, mais le web le cantonne

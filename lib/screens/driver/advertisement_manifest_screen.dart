@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../providers/manifest_provider.dart';
+import '../../providers/reached_stops_provider.dart';
+import '../../services/api/advertisement_extra_api.dart';
 import '../../services/api/manifest_api.dart';
 
 class AdvertisementManifestScreen extends ConsumerWidget {
@@ -23,6 +25,7 @@ class AdvertisementManifestScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final async = ref.watch(manifestProvider(advertisementId));
+    final confirmations = ref.watch(stopConfirmationsProvider(advertisementId));
     return Scaffold(
       appBar: AppBar(
         title: Text(l.manifestTitle),
@@ -30,7 +33,10 @@ class AdvertisementManifestScreen extends ConsumerWidget {
           IconButton(
             tooltip: l.errorRetry,
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(manifestProvider(advertisementId)),
+            onPressed: () {
+              ref.invalidate(manifestProvider(advertisementId));
+              ref.invalidate(stopConfirmationsProvider(advertisementId));
+            },
           ),
         ],
       ),
@@ -40,16 +46,26 @@ class AdvertisementManifestScreen extends ConsumerWidget {
           message: err.toString(),
           onRetry: () => ref.invalidate(manifestProvider(advertisementId)),
         ),
-        data: (manifest) => _ManifestView(manifest: manifest),
+        data: (manifest) => _ManifestView(
+          advertisementId: advertisementId,
+          manifest: manifest,
+          confirmations: confirmations.asData?.value ?? const [],
+        ),
       ),
     );
   }
 }
 
 class _ManifestView extends StatelessWidget {
+  final String advertisementId;
   final AdvertisementManifest manifest;
+  final List<ShuttleStopConfirmation> confirmations;
 
-  const _ManifestView({required this.manifest});
+  const _ManifestView({
+    required this.advertisementId,
+    required this.manifest,
+    required this.confirmations,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -65,12 +81,21 @@ class _ManifestView extends StatelessWidget {
         ),
       );
     }
+    // Clé lookup (offerId, type) → confirmation existante. Permet à chaque
+    // ligne d'offre d'afficher son état sans recharger la liste à chaque tap.
+    final confirmByKey = <String, ShuttleStopConfirmation>{
+      for (final c in confirmations) '${c.offerId}:${c.type.name}': c,
+    };
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _Header(totalOffers: manifest.totalOffers, stopsCount: manifest.stops.length),
         const SizedBox(height: 12),
-        ...manifest.stops.map((stop) => _StopCard(stop: stop)),
+        ...manifest.stops.map((stop) => _StopCard(
+              advertisementId: advertisementId,
+              stop: stop,
+              confirmByKey: confirmByKey,
+            )),
         if (manifest.unassigned.isNotEmpty) ...[
           const SizedBox(height: 16),
           _UnassignedSection(offers: manifest.unassigned),
@@ -123,9 +148,15 @@ class _Stat extends StatelessWidget {
 }
 
 class _StopCard extends StatelessWidget {
+  final String advertisementId;
   final ManifestStop stop;
+  final Map<String, ShuttleStopConfirmation> confirmByKey;
 
-  const _StopCard({required this.stop});
+  const _StopCard({
+    required this.advertisementId,
+    required this.stop,
+    required this.confirmByKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -140,9 +171,23 @@ class _StopCard extends StatelessWidget {
         ),
         children: [
           if (stop.picked.isNotEmpty)
-            _OfferGroup(title: AppLocalizations.of(context).manifestPicked, offers: stop.picked, icon: Icons.upload_outlined),
+            _OfferGroup(
+              title: AppLocalizations.of(context).manifestPicked,
+              offers: stop.picked,
+              icon: Icons.upload_outlined,
+              confirmType: StopConfirmationType.pickup,
+              advertisementId: advertisementId,
+              confirmByKey: confirmByKey,
+            ),
           if (stop.dropOffs.isNotEmpty)
-            _OfferGroup(title: AppLocalizations.of(context).manifestDropOffs, offers: stop.dropOffs, icon: Icons.download_outlined),
+            _OfferGroup(
+              title: AppLocalizations.of(context).manifestDropOffs,
+              offers: stop.dropOffs,
+              icon: Icons.download_outlined,
+              confirmType: StopConfirmationType.dropoff,
+              advertisementId: advertisementId,
+              confirmByKey: confirmByKey,
+            ),
           if (stop.totalOffers == 0)
             const Padding(
               padding: EdgeInsets.all(16),
@@ -158,8 +203,18 @@ class _OfferGroup extends StatelessWidget {
   final String title;
   final List<ManifestOfferSummary> offers;
   final IconData icon;
+  final StopConfirmationType confirmType;
+  final String advertisementId;
+  final Map<String, ShuttleStopConfirmation> confirmByKey;
 
-  const _OfferGroup({required this.title, required this.offers, required this.icon});
+  const _OfferGroup({
+    required this.title,
+    required this.offers,
+    required this.icon,
+    required this.confirmType,
+    required this.advertisementId,
+    required this.confirmByKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -176,18 +231,110 @@ class _OfferGroup extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          ...offers.map((offer) => ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(offer.trackingNumber ?? offer.id),
-                subtitle: offer.receiverName != null ? Text(offer.receiverName!) : null,
-                trailing: offer.price != null
-                    ? Text('${offer.price!.toStringAsFixed(0)} FCFA')
-                    : null,
-              )),
+          ...offers.map((offer) {
+            final existing = confirmByKey['${offer.id}:${confirmType.name}'];
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(offer.trackingNumber ?? offer.id),
+              subtitle: offer.receiverName != null ? Text(offer.receiverName!) : null,
+              trailing: _ConfirmButton(
+                advertisementId: advertisementId,
+                offerId: offer.id,
+                type: confirmType,
+                existing: existing,
+                price: offer.price,
+              ),
+            );
+          }),
         ],
       ),
     );
+  }
+}
+
+class _ConfirmButton extends ConsumerStatefulWidget {
+  final String advertisementId;
+  final String offerId;
+  final StopConfirmationType type;
+  final ShuttleStopConfirmation? existing;
+  final double? price;
+
+  const _ConfirmButton({
+    required this.advertisementId,
+    required this.offerId,
+    required this.type,
+    required this.existing,
+    required this.price,
+  });
+
+  @override
+  ConsumerState<_ConfirmButton> createState() => _ConfirmButtonState();
+}
+
+class _ConfirmButtonState extends ConsumerState<_ConfirmButton> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final existing = widget.existing;
+    if (existing != null) {
+      return Tooltip(
+        message: _formatTimestamp(existing.confirmedAt),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary, size: 20),
+            const SizedBox(width: 6),
+            Text(
+              widget.type == StopConfirmationType.pickup ? 'Pris en charge' : 'Remis',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      );
+    }
+    final label = widget.type == StopConfirmationType.pickup
+        ? 'Confirmer prise en charge'
+        : 'Confirmer remise';
+    return _loading
+        ? const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : TextButton(
+            onPressed: _submit,
+            child: Text(label, overflow: TextOverflow.ellipsis),
+          );
+  }
+
+  Future<void> _submit() async {
+    setState(() => _loading = true);
+    final api = ref.read(advertisementExtraApiProvider);
+    try {
+      await api.confirmStop(
+        advertisementId: widget.advertisementId,
+        offerId: widget.offerId,
+        type: widget.type,
+      );
+      if (!mounted) return;
+      ref.invalidate(stopConfirmationsProvider(widget.advertisementId));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Échec confirmation : $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _formatTimestamp(DateTime date) {
+    final local = date.toLocal();
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return 'Confirmé à $hh:$mm';
   }
 }
 

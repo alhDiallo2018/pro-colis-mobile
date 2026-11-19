@@ -112,6 +112,16 @@ class AppBottomNav extends ConsumerWidget {
           ProcolisTabItem(icon: Icons.sell_rounded, label: 'Annonces'),
           ProcolisTabItem(icon: Icons.person_rounded, label: 'Profil'),
         ];
+      case UserRole.shuttleOperator:
+        // L'opérateur navette utilise son dashboard dédié (bottom nav interne),
+        // pas ce menu bas partagé.
+        return const [
+          ProcolisTabItem(icon: Icons.dashboard_rounded, label: 'Accueil'),
+          ProcolisTabItem(icon: Icons.radar_rounded, label: 'Live'),
+          ProcolisTabItem(icon: Icons.route_rounded, label: 'Lignes'),
+          ProcolisTabItem(icon: Icons.directions_bus_rounded, label: 'Flotte'),
+          ProcolisTabItem(icon: Icons.schedule_rounded, label: 'Horaires'),
+        ];
     }
   }
 }

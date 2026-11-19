@@ -644,6 +644,7 @@ class _UsersManagementScreenState extends ConsumerState<UsersManagementScreen> {
         UserRole.supportTechnique => PcTone.primary,
         UserRole.supportCommercial => PcTone.primary,
         UserRole.support => PcTone.neutral,
+        UserRole.shuttleOperator => PcTone.primary,
         UserRole.superAdmin => PcTone.red,
       };
 

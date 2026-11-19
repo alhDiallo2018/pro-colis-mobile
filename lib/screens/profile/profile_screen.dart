@@ -451,6 +451,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       case UserRole.supportTechnique:
       case UserRole.supportCommercial:
       case UserRole.support:
+      case UserRole.shuttleOperator:
       case UserRole.superAdmin:
         return 'Profil · ${role.identity.label}';
     }

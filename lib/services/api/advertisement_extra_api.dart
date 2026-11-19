@@ -144,6 +144,62 @@ class OptimizedRoute {
   }
 }
 
+// Phase 2 — Confirmation chauffeur par colis à l'arrêt. Deux entrées par offre :
+// pickup à l'embarquement, dropoff à la remise. Le backend applique l'idempotence
+// applicative : POST sur une (offer, type) déjà confirmée renvoie 200.
+enum StopConfirmationType { pickup, dropoff }
+
+class ShuttleStopConfirmation {
+  final String id;
+  final String advertisementId;
+  final String offerId;
+  final String driverId;
+  final int stopOrder;
+  final StopConfirmationType type;
+  final double? latitude;
+  final double? longitude;
+  final String? note;
+  final DateTime confirmedAt;
+
+  const ShuttleStopConfirmation({
+    required this.id,
+    required this.advertisementId,
+    required this.offerId,
+    required this.driverId,
+    required this.stopOrder,
+    required this.type,
+    this.latitude,
+    this.longitude,
+    this.note,
+    required this.confirmedAt,
+  });
+
+  factory ShuttleStopConfirmation.fromJson(Map<String, dynamic> json) {
+    return ShuttleStopConfirmation(
+      id: json['id']?.toString() ?? '',
+      advertisementId: json['advertisementId']?.toString() ?? '',
+      offerId: json['offerId']?.toString() ?? '',
+      driverId: json['driverId']?.toString() ?? '',
+      stopOrder: json['stopOrder'] is num ? (json['stopOrder'] as num).toInt() : 0,
+      type: json['type'] == 'dropoff'
+          ? StopConfirmationType.dropoff
+          : StopConfirmationType.pickup,
+      latitude: json['latitude'] is num ? (json['latitude'] as num).toDouble() : null,
+      longitude: json['longitude'] is num ? (json['longitude'] as num).toDouble() : null,
+      note: json['note']?.toString(),
+      confirmedAt:
+          DateTime.tryParse(json['confirmedAt']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
+class ConfirmStopResult {
+  final ShuttleStopConfirmation confirmation;
+  final bool created;
+
+  const ConfirmStopResult({required this.confirmation, required this.created});
+}
+
 class AdvertisementExtraApi {
   final ApiClient client;
 
@@ -166,5 +222,47 @@ class AdvertisementExtraApi {
     final body = client.handle(res);
     final payload = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
     return OptimizedRoute.fromJson(payload);
+  }
+
+  Future<List<ShuttleStopConfirmation>> fetchStopConfirmations(
+      String advertisementId) async {
+    final res = await client.dio
+        .get('/advertisements/$advertisementId/stop-confirmations');
+    final body = client.handle(res);
+    final payload = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
+    final rows = (payload['confirmations'] as List?) ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((e) => ShuttleStopConfirmation.fromJson(e.cast<String, dynamic>()))
+        .toList(growable: false);
+  }
+
+  Future<ConfirmStopResult> confirmStop({
+    required String advertisementId,
+    required String offerId,
+    required StopConfirmationType type,
+    double? latitude,
+    double? longitude,
+    String? note,
+  }) async {
+    final payload = <String, dynamic>{
+      'type': type == StopConfirmationType.dropoff ? 'dropoff' : 'pickup',
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    };
+    final res = await client.dio.post(
+      '/advertisements/$advertisementId/offers/$offerId/stop-confirmations',
+      data: payload,
+    );
+    final body = client.handle(res);
+    final data = (body['data'] as Map?)?.cast<String, dynamic>() ?? body;
+    final created = data['created'] == true;
+    final confirmationJson =
+        (data['confirmation'] as Map?)?.cast<String, dynamic>() ?? {};
+    return ConfirmStopResult(
+      confirmation: ShuttleStopConfirmation.fromJson(confirmationJson),
+      created: created,
+    );
   }
 }

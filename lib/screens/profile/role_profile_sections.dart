@@ -58,6 +58,9 @@ class RoleStatsRow extends ConsumerWidget {
       case UserRole.support:
       case UserRole.superAdmin:
         return _fromAsync(ref.watch(globalStatsProvider), _globalStats);
+      case UserRole.shuttleOperator:
+        // L'opérateur voit ses métriques dans son dashboard dédié.
+        return const SizedBox.shrink();
     }
   }
 
@@ -293,6 +296,9 @@ class RoleProfileSectionCard extends ConsumerWidget {
         return stats == null
             ? const SizedBox.shrink()
             : _card(_globalSection(stats));
+      case UserRole.shuttleOperator:
+        // L'opérateur navette consulte son activité depuis son dashboard dédié.
+        return const SizedBox.shrink();
     }
   }
 
@@ -891,6 +897,11 @@ List<RoleQuickLink> quickLinksFor(UserRole role) {
           tone: PcTone.neutral,
         ),
       ];
+
+    case UserRole.shuttleOperator:
+      // Les raccourcis navette sont présentés via le BottomNavigationBar du
+      // ShuttleOperatorDashboard. On n'empile pas un deuxième menu ici.
+      return const [];
   }
 }
 

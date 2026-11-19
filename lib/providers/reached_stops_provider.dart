@@ -22,3 +22,16 @@ final optimizeRouteProvider = FutureProvider.family
   final api = ref.read(_advertisementExtraApiProvider);
   return api.optimizeRoute(advertisementId);
 });
+
+// Phase 2 — Confirmations chauffeur par colis à l'arrêt. On expose l'API
+// extra_api côté providers pour permettre à l'UI de POSTer une confirmation
+// et d'invalider la liste ensuite.
+final advertisementExtraApiProvider =
+    Provider<AdvertisementExtraApi>((ref) => AdvertisementExtraApi(ApiClient()));
+
+final stopConfirmationsProvider = FutureProvider.family
+    .autoDispose<List<ShuttleStopConfirmation>, String>(
+        (ref, advertisementId) async {
+  final api = ref.read(advertisementExtraApiProvider);
+  return api.fetchStopConfirmations(advertisementId);
+});

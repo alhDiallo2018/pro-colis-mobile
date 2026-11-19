@@ -181,6 +181,24 @@ class RoleIdentity {
           ),
           tone: PcTone.red,
         );
+
+      case UserRole.shuttleOperator:
+        return RoleIdentity(
+          label: 'Opérateur navette',
+          spaceName: 'Espace opérateur',
+          tagline: 'Supervisez vos lignes, flotte et trajets en temps réel',
+          dashboardIntro: 'Gérez vos lignes de navette et votre flotte',
+          icon: Icons.directions_bus_rounded,
+          accent: AppTheme.teal500,
+          accentSoft: AppTheme.teal50,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.teal500, AppTheme.deep500, AppTheme.green500],
+            stops: [0, 0.5, 1],
+          ),
+          tone: PcTone.primary,
+        );
     }
   }
 }

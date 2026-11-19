@@ -13,6 +13,7 @@ import '../parcel/track_parcel_screen.dart';
 import '../profile/profile_screen.dart';
 import 'client_dashboard.dart';
 import 'driver_dashboard.dart';
+import 'shuttle_operator_dashboard.dart';
 import 'super_admin_dashboard.dart';
 import 'support_admin_dashboard.dart';
 import 'support_commercial_dashboard.dart';
@@ -48,6 +49,8 @@ class DashboardScreen extends ConsumerWidget {
         return const SupportCommercialDashboard();
       case UserRole.support:
         return const SupportAdminDashboard();
+      case UserRole.shuttleOperator:
+        return const ShuttleOperatorDashboard();
       case UserRole.superAdmin:
         return const SuperAdminDashboard();
     }
