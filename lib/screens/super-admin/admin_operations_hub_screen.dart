@@ -1,11 +1,12 @@
 // lib/screens/super-admin/admin_operations_hub_screen.dart
 //
-// ADM-1 + OPS-3 + OPS-4 — Hub super_admin agrégé en 5 onglets :
+// ADM-1 + OPS-3 + OPS-4 — Hub super_admin agrégé en 6 onglets :
 //   1. Métriques pilote 14j
 //   2. Health intégrations
 //   3. Webhooks sortants
 //   4. Arrêts atteints (stop events)
 //   5. Correspondances récentes
+//   6. Fraude (scores live + alertes persistées)
 //
 // Chaque onglet consomme son provider dédié.
 
@@ -14,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/admin_operations_provider.dart';
 import '../../services/api/admin_operations_api.dart';
+import '../../services/api/fraud_api.dart';
+import '../../services/api/client.dart';
 import '../../theme/app_theme.dart';
 
 class AdminOperationsHubScreen extends ConsumerWidget {
@@ -22,7 +25,7 @@ class AdminOperationsHubScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Opérations admin'),
@@ -34,6 +37,7 @@ class AdminOperationsHubScreen extends ConsumerWidget {
               Tab(icon: Icon(Icons.webhook), text: 'Webhooks'),
               Tab(icon: Icon(Icons.flag), text: 'Arrêts'),
               Tab(icon: Icon(Icons.swap_horiz), text: 'Handovers'),
+              Tab(icon: Icon(Icons.gavel), text: 'Fraude'),
             ],
           ),
         ),
@@ -44,6 +48,7 @@ class AdminOperationsHubScreen extends ConsumerWidget {
             _WebhooksTab(),
             _StopEventsTab(),
             _HandoversTab(),
+            _FraudTab(),
           ],
         ),
       ),
@@ -427,5 +432,396 @@ class _HandoversTab extends ConsumerWidget {
     if (dt == null) return '-';
     final local = dt.toLocal();
     return '${local.day}/${local.month} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Onglet 6 — Fraude : scores live + alertes persistées (web parité)
+// ─────────────────────────────────────────────────────────────────────
+class _FraudTab extends StatefulWidget {
+  const _FraudTab();
+
+  @override
+  State<_FraudTab> createState() => _FraudTabState();
+}
+
+enum _FraudView { scores, open, resolved }
+
+class _FraudTabState extends State<_FraudTab> {
+  late final FraudApi _api;
+  _FraudView _view = _FraudView.scores;
+  Future<List<FraudScore>>? _scoresFuture;
+  Future<List<FraudAlert>>? _openFuture;
+  Future<List<FraudAlert>>? _resolvedFuture;
+  bool _refreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _api = FraudApi(ApiClient());
+    _scoresFuture = _api.fetchScores();
+    _openFuture = _api.fetchAlerts(status: 'open');
+    _resolvedFuture = _api.fetchAlerts(status: 'resolved');
+  }
+
+  void _reload() {
+    setState(() {
+      _scoresFuture = _api.fetchScores();
+      _openFuture = _api.fetchAlerts(status: 'open');
+      _resolvedFuture = _api.fetchAlerts(status: 'resolved');
+    });
+  }
+
+  Future<void> _refreshAlerts() async {
+    setState(() => _refreshing = true);
+    try {
+      final result = await _api.refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Rafraîchissement : ${result.scanned} scannés · '
+            '${result.created} nouvelles alertes · ${result.skipped} ignorés.',
+          ),
+        ),
+      );
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors du rafraîchissement : $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _resolveAlert(FraudAlert alert) async {
+    final controller = TextEditingController(text: alert.notes ?? '');
+    final notes = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Résoudre l’alerte'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              alert.user?.fullName ?? alert.userId,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 4,
+              maxLength: 2000,
+              decoration: const InputDecoration(
+                labelText: 'Notes (motif de résolution)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Résoudre'),
+          ),
+        ],
+      ),
+    );
+    if (notes == null) return;
+    try {
+      await _api.resolveAlert(alert.id, notes);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Alerte résolue.')),
+      );
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur : $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: SegmentedButton<_FraudView>(
+                  segments: const [
+                    ButtonSegment(value: _FraudView.scores, label: Text('Scores')),
+                    ButtonSegment(value: _FraudView.open, label: Text('Ouvertes')),
+                    ButtonSegment(value: _FraudView.resolved, label: Text('Résolues')),
+                  ],
+                  selected: {_view},
+                  onSelectionChanged: (s) => setState(() => _view = s.first),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Rafraîchir les alertes',
+                onPressed: _refreshing ? null : _refreshAlerts,
+                icon: _refreshing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async => _reload(),
+            child: switch (_view) {
+              _FraudView.scores => _ScoresList(future: _scoresFuture),
+              _FraudView.open => _AlertsList(
+                  future: _openFuture,
+                  showResolve: true,
+                  onResolve: _resolveAlert,
+                  emptyLabel: 'Aucune alerte ouverte.',
+                ),
+              _FraudView.resolved => _AlertsList(
+                  future: _resolvedFuture,
+                  showResolve: false,
+                  onResolve: _resolveAlert,
+                  emptyLabel: 'Aucune alerte résolue.',
+                ),
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScoresList extends StatelessWidget {
+  final Future<List<FraudScore>>? future;
+  const _ScoresList({required this.future});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<FraudScore>>(
+      future: future,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return ListView(padding: const EdgeInsets.all(24), children: [Text('Erreur : ${snap.error}')]);
+        }
+        final rows = snap.data ?? const [];
+        if (rows.isEmpty) {
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: const [Text('Aucun score à afficher.')],
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: rows.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 6),
+          itemBuilder: (context, i) {
+            final s = rows[i];
+            return Card(
+              child: ListTile(
+                leading: _levelDot(s.level),
+                title: Text('${s.name} · ${fraudLevelLabel(s.level)}'),
+                subtitle: Text(
+                  '${s.role} · ${s.phone}${s.flags.isEmpty ? '' : '\n${s.flags.join(" · ")}'}',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+                trailing: Text(
+                  '${s.score}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: _levelColor(s.level),
+                  ),
+                ),
+                isThreeLine: s.flags.isNotEmpty,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _AlertsList extends StatelessWidget {
+  final Future<List<FraudAlert>>? future;
+  final bool showResolve;
+  final void Function(FraudAlert) onResolve;
+  final String emptyLabel;
+
+  const _AlertsList({
+    required this.future,
+    required this.showResolve,
+    required this.onResolve,
+    required this.emptyLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<FraudAlert>>(
+      future: future,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return ListView(padding: const EdgeInsets.all(24), children: [Text('Erreur : ${snap.error}')]);
+        }
+        final rows = snap.data ?? const [];
+        if (rows.isEmpty) {
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [Text(emptyLabel)],
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: rows.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 6),
+          itemBuilder: (context, i) {
+            final a = rows[i];
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _levelDot(a.level),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                a.user?.fullName ?? a.userId,
+                                style: const TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                              Text(
+                                '${a.user?.role ?? '-'} · ${a.user?.phone ?? ''}',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppTheme.slate500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${a.score} · ${fraudLevelLabel(a.level)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: _levelColor(a.level),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (a.flags.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: a.flags
+                            .map((f) => Chip(
+                                  label: Text(f, style: const TextStyle(fontSize: 11)),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                    if (a.notes != null && a.notes!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.slate50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          a.notes!,
+                          style: const TextStyle(fontSize: 12.5),
+                        ),
+                      ),
+                    ],
+                    if (a.resolvedAt != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Résolue le ${_shortDate(a.resolvedAt)} par ${a.resolvedBy?.fullName ?? '—'}',
+                        style: TextStyle(fontSize: 11.5, color: AppTheme.slate500),
+                      ),
+                    ],
+                    if (showResolve) ...[
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => onResolve(a),
+                          icon: const Icon(Icons.check, size: 16),
+                          label: const Text('Résoudre'),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+String _shortDate(DateTime? dt) {
+  if (dt == null) return '-';
+  final local = dt.toLocal();
+  return '${local.day}/${local.month} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+}
+
+Widget _levelDot(FraudLevel level) {
+  return Icon(Icons.circle, size: 14, color: _levelColor(level));
+}
+
+Color _levelColor(FraudLevel level) {
+  switch (level) {
+    case FraudLevel.high:
+      return AppTheme.red400;
+    case FraudLevel.medium:
+      return AppTheme.amber500;
+    case FraudLevel.low:
+      return AppTheme.amber500;
+    case FraudLevel.safe:
+      return AppTheme.slate400;
   }
 }

@@ -72,7 +72,7 @@ que l'équivalence pixel-perfect (le comment).
 | Dettes client / soldes dus | ✅ | ✅ | ✅ |
 | Public tracking (sans login) | N/A | ✅ | ✅ |
 | Fiches publiques drivers | ✅ | ✅ | ✅ |
-| Assistant IA (création colis via NL) | ✅ 2026-11-19 (chat + voix, dégrisé via `/ai/assistant/config`) | ❌ pas d'écran dédié | ❌ |
+| Assistant IA (création colis via NL) | ✅ 2026-11-19 (chat + voix, dégrisé via `/ai/assistant/config`) | ✅ 2026-11-19 `/client/assistant` (chat + voix MediaRecorder, draft → wizard via sessionStorage) | ✅ |
 
 ---
 
@@ -93,7 +93,7 @@ que l'équivalence pixel-perfect (le comment).
 | Manifeste navette (shuttle) | ✅ | ✅ 2026-11-14 (`AdvertisementManifestScreen` route `/driver/annonces/:id/manifest`) | ✅ |
 | Handover colis chauffeur→chauffeur | ✅ | ✅ 2026-11-14 | ✅ |
 | Arrêts atteints / tracking intermédiaire | ✅ | ✅ 2026-11-14 (`AdvertisementReachedStopsScreen` route `/driver/annonces/:id/arrets-atteints`) | ✅ |
-| Suggestions backhaul (colis compatibles sur route) | ❌ pas d'UI (API `GET /drivers/backhaul-matches/:id` livrée 2026-11-19) | ❌ pas d'UI | ❌ |
+| Suggestions backhaul (colis compatibles sur route) | ✅ 2026-11-19 `backhaul_suggestions_screen` (bouton « Suggestions de colis » sur chaque annonce ouverte) | ✅ 2026-11-19 `BackhaulSuggestionsDialog` (bouton « Suggestions » sur chaque annonce ouverte, proposer offre inline) | ✅ |
 | Revenus + historique | ✅ | ✅ | ✅ |
 | Documents véhicule | ✅ | ✅ | ✅ |
 | Points fidélité | ✅ | ✅ | ✅ |
@@ -140,7 +140,7 @@ que l'équivalence pixel-perfect (le comment).
 | Réputation + scores + classement | ✅ | ✅ | ✅ |
 | Pilot metrics | ✅ | ✅ 2026-11-14 `/admin/pilot-metrics` | ✅ |
 | Hub opérationnel | ✅ | ✅ 2026-11-14 `/admin/operations` (4 onglets : intégrations, webhooks récents, arrêts GPS, transferts) | ✅ |
-| Fraude — scores + alertes persistées | ❌ pas d'UI (API livrée 2026-11-19) | ✅ 2026-11-19 5ᵉ tab `/admin/operations` (scores live, alertes ouvertes/résolues, dialog résolution) | ✅ |
+| Fraude — scores + alertes persistées | ✅ 2026-11-19 6ᵉ onglet `admin_operations_hub_screen` (SegmentedButton scores/ouvertes/résolues, bouton rafraîchir, dialog résolution) | ✅ 2026-11-19 5ᵉ tab `/admin/operations` (scores live, alertes ouvertes/résolues, dialog résolution) | ✅ |
 
 ---
 
@@ -312,9 +312,61 @@ de capacités natives.
 Dernière mise à jour : 2026-11-14 (chantier PWA P1→P5 livré : Web Push + VAPID,
 Background Sync, IndexedDB durable, Badging API, splash screens iOS).
 
-Dernière mise à jour : 2026-11-19 (Assistant IA mobile dégrisé, consolidation backhaul API, fraude admin API + web).
+Dernière mise à jour : 2026-11-19 (clôture parité stricte — Assistant IA web/pwa, UI backhaul driver sur mobile + web, onglet Fraude mobile).
 
 ## Journal des livraisons
+
+### 2026-11-19 — Clôture parité stricte (Assistant IA web/pwa, backhaul UI, fraude mobile)
+
+Suite à une consigne explicite « tout ce qui est au mobile doit être identique et
+implémenté sur le web et pwa » : les 3 items encore ❌ laissés en « mobile-only »
+ou « web-only » par choix produit sont livrés. Zéro régression, pas d'API nouvelle.
+
+**Assistant IA Web/PWA** (client) :
+- API wrapper `src/lib/api/ai-assistant.ts` : `askAssistant`, `transcribeAudio`,
+  `isAssistantConfigured`. Fallback silencieux sur erreur réseau (parité mobile).
+- Écran `src/features/shared/AiAssistantScreen.tsx` route `/client/assistant` :
+  chat vertical (bulles), enregistrement vocal via `MediaRecorder` (upload
+  `/upload` → `/ai/assistant/transcribe`), action « Pré-remplir le formulaire »
+  quand `intent=create_parcel`, action « Suivre » quand `intent=track_parcel`.
+- Persistance du draft via `src/features/shared/aiDraftStore.ts`
+  (sessionStorage, usage unique). `NewParcelScreen` consomme le draft au mount
+  si `?from=ai` et applique receiverName/Phone, weight, type, isUrgent,
+  description/notes, et matche senderCity/receiverCity contre les zones chargées.
+- CTA depuis `ClientDashboard` (nouvelle tuile violette « Assistant IA »).
+- Précache rôle `client` étendu (`features/pwa/precacheByRole.ts`).
+
+**UI Backhaul suggestions** (driver web + mobile) :
+- Web : wrapper `src/lib/api/consolidation.ts` + `BackhaulSuggestionsDialog`
+  intégré dans `MesAnnoncesScreen` (bouton « Suggestions » sur chaque annonce
+  ouverte). Liste triée par score, badges score/détour, action « Proposer une
+  offre » inline avec input prix → `POST /driver/bids`. Section rejetés
+  dépliable avec libellés UX (`BACKHAUL_REASON_LABELS`).
+- Mobile : wrapper `lib/services/api/consolidation_api.dart` +
+  `backhaul_suggestions_screen.dart` (plein écran, même UX : liste triée,
+  cards avec score/détour/poids/prix, dialog de prix, SnackBar feedback).
+  Bouton « Suggestions de colis » ajouté à `_buildAdCard` dans
+  `mes_annonces_screen.dart` (visible uniquement si annonce ouverte).
+
+**Fraude UI Mobile** (super_admin) :
+- Wrapper `lib/services/api/fraud_api.dart` (scores, alertes, résolution,
+  refresh).
+- 6ᵉ onglet « Fraude » ajouté à `admin_operations_hub_screen.dart` :
+  `SegmentedButton` Scores / Alertes ouvertes / Résolues, bouton
+  « Rafraîchir les alertes » (icône toolbar), dialog résolution avec TextField
+  multiline (max 2000 chars). Code couleur par niveau (high red, medium/low
+  amber, safe slate).
+
+**Vérifications** : `npm run typecheck` web OK, `npm run lint` web OK
+(seulement warnings pré-existants), `flutter analyze` 0 issues sur fichiers
+modifiés. Tests web non impactés — les 2 échecs sur `experience.test.tsx`
+existaient avant ce chantier (indépendants).
+
+**Reste hors-code** (inchangé depuis 2026-11-19) :
+- Poser `ANTHROPIC_API_KEY` en `.env` prod pour que l'Assistant IA se dégrise
+  côté web comme côté mobile.
+- Appliquer la migration `20261124_fraud_alerts` (`npx prisma migrate deploy`
+  avec backup).
 
 ### 2026-11-19 — Assistant IA mobile + consolidation backhaul + fraude admin
 

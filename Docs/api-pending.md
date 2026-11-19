@@ -187,4 +187,10 @@ Tout le lot « pending » 1-8 est livré hors `§7 parcel templates serveur`
 de l'audit final 2026-11-14 : pas urgente tant qu'aucun opérateur n'est
 contractualisé.
 
-Dernière mise à jour : 2026-11-14 (audit final + §9 shuttle operator).
+**Statut au 2026-11-19 (clôture parité stricte)** : plus aucun endpoint
+manquant côté mobile. Les 3 items encore ❌ dans la matrice parité
+(Assistant IA web/pwa, UI backhaul driver, onglet Fraude mobile) étaient
+des manques **côté client** (UI non livrée), pas des endpoints absents —
+tous livrés ce jour, pas d'API nouvelle.
+
+Dernière mise à jour : 2026-11-19 (vérif post-clôture : zéro endpoint pending).

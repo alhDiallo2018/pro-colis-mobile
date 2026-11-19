@@ -25,6 +25,7 @@ import '../../widgets/pc_components.dart';
 import '../../utils/back_nav.dart';
 import '../../widgets/video_player_widget.dart';
 import '../parcel/free_parcels_screen.dart';
+import 'backhaul_suggestions_screen.dart';
 import 'create_annonce_sheet.dart';
 
 class DriverMesAnnoncesScreen extends ConsumerStatefulWidget {
@@ -727,6 +728,27 @@ class _DriverMesAnnoncesScreenState
               description,
               style: AppFonts.manrope(
                   fontSize: 13, color: AppTheme.slate700, height: 1.45),
+            ),
+          ],
+
+          // Suggestions backhaul — uniquement pour les annonces ouvertes.
+          if (isOpen) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: PcButton(
+                'Suggestions de colis',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BackhaulSuggestionsScreen(
+                      advertisementId: adId,
+                      routeLabel: '$departure → $arrival',
+                    ),
+                  ),
+                ),
+                icon: Icons.auto_awesome_rounded,
+                variant: PcButtonVariant.secondary,
+              ),
             ),
           ],
 
