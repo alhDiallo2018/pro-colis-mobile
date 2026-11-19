@@ -271,8 +271,11 @@ Reste à livrer (hors chantier PWA actuel) :
    `ConfirmDeliveryScreen` qui utilise
    `<input type="file" accept="image/*" capture="environment">` et upload
    via `uploadParcelPhoto` avant l'OTP. Côté mobile,
-   `DeliveryProofScreen._submit` reste un `Navigator.pop` — à câbler lors
-   d'un futur chantier mobile.
+   `DeliveryProofScreen._submit` (`confirm_delivery_screen.dart:437-497`) est
+   désormais fonctionnel : upload photo via `_api.uploadFile`, note consolidée
+   (signature + note libre), appel `submitDeliveryProof`, gestion d'erreur
+   inline, `SnackBar` de succès. La signature reste un tag textuel, pas un
+   tracé vectoriel (compromis ↩️ documenté).
 8. ✅ **Web Share Target** — livré 2026-11-14 : `share_target` dans `manifest.webmanifest`, handler `extractTrackingFromShared` dans `SuiviScreen` extrait les tokens `PC-XXXX-XXXX` depuis `title/text/url`
 
 Ce qui NE sera pas livré côté PWA (compromis documenté) :
