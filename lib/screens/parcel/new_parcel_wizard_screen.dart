@@ -37,6 +37,7 @@ import '../../widgets/phone_contact_picker.dart';
 import '../../widgets/procolis_design_system.dart';
 import '../../widgets/location_autocomplete.dart';
 import '../shared/ai_assistant_screen.dart';
+import '../../providers/ai_assistant_provider.dart';
 
 final _apiService = ApiService();
 
@@ -790,12 +791,21 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         if (_arrivalZoneId != null) 'arrivalZoneId': _arrivalZoneId,
       };
 
-  // ignore: unused_element
   Future<void> _openAiAssistant() async {
     final draft = await Navigator.of(context).push<AiParcelDraft>(
       MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
     );
     if (!mounted || draft == null) return;
+    String? zoneIdByCity(String? city) {
+      if (city == null) return null;
+      final normalized = city.trim().toLowerCase();
+      if (normalized.isEmpty) return null;
+      for (final zone in _zones) {
+        if (zone.city.trim().toLowerCase() == normalized) return zone.id;
+      }
+      return null;
+    }
+
     setState(() {
       if (draft.receiverName != null) {
         _receiverNameCtrl.text = draft.receiverName!;
@@ -810,6 +820,16 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
       if (draft.notes != null && _descriptionCtrl.text.trim().isEmpty) {
         _descriptionCtrl.text = draft.notes!;
       }
+      if (draft.type != null) {
+        _parcelType = ParcelType.fromString(draft.type!);
+      }
+      if (draft.isUrgent) {
+        _isUrgent = true;
+      }
+      final departureId = zoneIdByCity(draft.senderCity);
+      if (departureId != null) _departureZoneId = departureId;
+      final arrivalId = zoneIdByCity(draft.receiverCity);
+      if (arrivalId != null) _arrivalZoneId = arrivalId;
     });
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -832,13 +852,19 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
             icon: const Icon(Icons.bookmarks_outlined),
             onPressed: _openTemplates,
           ),
-          // Entrée Assistant IA désactivée (fonctionnalité en cours de
-          // préparation) — tooltip + icône horloge signalent l'état « bientôt ».
-          IconButton(
-            tooltip:
-                '${AppLocalizations.of(context).aiAssistantOpenCta} — Bientôt',
-            icon: const Icon(Icons.auto_awesome_rounded),
-            onPressed: null,
+          Consumer(
+            builder: (context, ref, _) {
+              final configured = ref
+                  .watch(aiAssistantConfiguredProvider)
+                  .maybeWhen(data: (value) => value, orElse: () => false);
+              return IconButton(
+                tooltip: configured
+                    ? AppLocalizations.of(context).aiAssistantOpenCta
+                    : '${AppLocalizations.of(context).aiAssistantOpenCta} — Bientôt',
+                icon: const Icon(Icons.auto_awesome_rounded),
+                onPressed: configured ? _openAiAssistant : null,
+              );
+            },
           ),
         ],
       ),

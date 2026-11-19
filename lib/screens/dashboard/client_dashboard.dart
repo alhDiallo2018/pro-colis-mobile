@@ -33,6 +33,8 @@ import '../parcel/parcel_detail_screen.dart';
 import '../parcel/track_parcel_screen.dart';
 import '../profile/profile_screen.dart';
 import '../shared/messages_screen.dart';
+import '../shared/ai_assistant_screen.dart';
+import '../../providers/ai_assistant_provider.dart';
 
 import '../../services/notification_service.dart';
 import '../../services/notification_badge_service.dart';
@@ -1279,44 +1281,64 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: null,
-                            icon: const Icon(Icons.auto_awesome_outlined),
-                            label: const Text('Assistant IA'),
-                          ),
-                          Positioned(
-                            top: -6,
-                            right: -4,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppTheme.amber400,
-                                borderRadius: BorderRadius.circular(10),
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final configured = ref
+                              .watch(aiAssistantConfiguredProvider)
+                              .maybeWhen(
+                                  data: (value) => value,
+                                  orElse: () => false);
+                          if (configured) {
+                            return OutlinedButton.icon(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const AiAssistantScreen()),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.schedule_rounded,
-                                      size: 10, color: AppTheme.amberOnFg),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    'Bientôt',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTheme.amberOnFg,
-                                      letterSpacing: 0.2,
-                                    ),
+                              icon: const Icon(Icons.auto_awesome_outlined),
+                              label: const Text('Assistant IA'),
+                            );
+                          }
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: null,
+                                icon: const Icon(Icons.auto_awesome_outlined),
+                                label: const Text('Assistant IA'),
+                              ),
+                              Positioned(
+                                top: -6,
+                                right: -4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.amber400,
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                ],
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.schedule_rounded,
+                                          size: 10, color: AppTheme.amberOnFg),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        'Bientôt',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.amberOnFg,
+                                          letterSpacing: 0.2,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],

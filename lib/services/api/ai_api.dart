@@ -140,6 +140,19 @@ class AiAssistantApi {
     }
   }
 
+  Future<bool> isConfigured() async {
+    try {
+      final response = await client.dio.get('/ai/assistant/config');
+      final data = response.data;
+      if (data is Map && data['data'] is Map) {
+        return (data['data'] as Map)['configured'] == true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   AiAssistantResult _fallback() => const AiAssistantResult(
         intent: 'unknown',
         answerText:
