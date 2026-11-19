@@ -28,6 +28,7 @@ import '../../services/api/zones_api.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/debt_block.dart';
+import '../../config/runtime_limits.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/api/ai_api.dart';
@@ -1231,7 +1232,7 @@ class _NewParcelWizardScreenState extends ConsumerState<NewParcelWizardScreen> {
         TextField(
           controller: _descriptionCtrl,
           maxLines: 3,
-          maxLength: 280,
+          maxLength: RuntimeLimits.current.parcelDescriptionMaxChars,
           decoration: InputDecoration(
             labelText: 'Description',
             prefixIcon: const Icon(Icons.description_rounded),

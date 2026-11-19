@@ -21,6 +21,7 @@ import '../../providers/parcel_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/payment_channel_selector.dart';
+import '../../config/runtime_limits.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/route_picker.dart';
 
@@ -490,7 +491,7 @@ class _EditColisSheetState extends ConsumerState<_EditColisSheet> {
         TextField(
           controller: _description,
           maxLines: 3,
-          maxLength: 200,
+          maxLength: RuntimeLimits.current.annonceDescriptionMaxChars,
           style: AppFonts.manrope(fontSize: 14),
           decoration: _inputDecoration('Ex : deux cartons de vêtements.', null),
         ),

@@ -18,6 +18,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/payment_channel_selector.dart';
 import '../../widgets/pc_components.dart';
+import '../../config/runtime_limits.dart';
 
 class CashDeclarationsScreen extends ConsumerStatefulWidget {
   const CashDeclarationsScreen({super.key});
@@ -165,7 +166,7 @@ class _CashDeclarationsScreenState
               controller: controller,
               autofocus: true,
               maxLines: 3,
-              maxLength: 200,
+              maxLength: RuntimeLimits.current.cashJustificationMaxChars,
               decoration: const InputDecoration(
                 hintText: 'Ex : montant non retrouvé en caisse.',
                 counterText: '',

@@ -24,6 +24,7 @@ import '../../widgets/form_draft_ui.dart';
 import '../../widgets/pc_components.dart';
 import '../../widgets/route_picker.dart';
 import '../../widgets/voice_note_field.dart';
+import '../../config/runtime_limits.dart';
 
 /// Ouvre le modal de création d'annonce. Renvoie `true` si une annonce a été
 /// publiée (le parent peut alors rafraîchir sa liste).
@@ -851,7 +852,7 @@ class _CreateAnnonceSheetState extends ConsumerState<_CreateAnnonceSheet> {
         TextField(
           controller: _descriptionController,
           maxLines: 3,
-          maxLength: 200,
+          maxLength: RuntimeLimits.current.annonceDescriptionMaxChars,
           style: AppFonts.manrope(fontSize: 14),
           decoration: _inputDecoration(
               'Ex : véhicule climatisé, départ confirmé.', null),

@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../config/app_config.dart';
 import '../config/runtime_timings.dart';
+import '../config/runtime_limits.dart';
 import '../models/garage.dart';
 import '../models/parcel.dart';
 import '../models/user.dart';
@@ -1478,17 +1479,20 @@ class ApiService {
 
   // ==================== ZONES (PUBLIC) ====================
 
-  static const int _zonePageSize = 100;
-  static const int _zoneMaxPages = 20;
-
+  // Phase 4 externalisation : pagination zones pilotée via `limits.*`
+  // (`limits.zonePageSize`, `limits.zoneMaxPages`). Les anciennes constantes
+  // (100 / 20) servent de fallback via `kLimitsFallback` tant que
+  // `/public/config` n'a pas répondu.
   Future<List<Garage>> getAllZones() async {
     final all = <Garage>[];
+    final pageSize = RuntimeLimits.current.zonePageSize;
+    final maxPages = RuntimeLimits.current.zoneMaxPages;
     try {
       var page = 1;
       var totalPages = 1;
-      while (page <= totalPages && page <= _zoneMaxPages) {
+      while (page <= totalPages && page <= maxPages) {
         final response = await _dio.get('/public/zones',
-            queryParameters: {'page': page, 'limit': _zonePageSize});
+            queryParameters: {'page': page, 'limit': pageSize});
         final responseData = _handleResponse(response);
         final List<dynamic> batch =
             responseData['zones'] ?? responseData['data'] ?? [];
@@ -1497,7 +1501,7 @@ class ApiService {
         final pagination = responseData['pagination'];
         totalPages =
             pagination is Map ? (pagination['totalPages'] as int? ?? 1) : 1;
-        if (batch.length < _zonePageSize) break;
+        if (batch.length < pageSize) break;
         page++;
       }
     } catch (e) {

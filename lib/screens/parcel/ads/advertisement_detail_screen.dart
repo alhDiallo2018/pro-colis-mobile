@@ -20,6 +20,7 @@ import '../../../utils/back_nav.dart';
 import '../../../widgets/negotiation_chat_widget.dart';
 import '../../../widgets/payment_channel_selector.dart';
 import '../../../widgets/pc_components.dart';
+import '../../../config/runtime_limits.dart';
 
 class AdvertisementDetailScreen extends StatefulWidget {
   final Parcel? parcel;
@@ -985,16 +986,21 @@ class _AdvertisementDetailScreenState extends State<AdvertisementDetailScreen> {
                           label: 'Message (optionnel)',
                           hint: 'Votre message pour le chauffeur...',
                           maxLines: 3,
-                          maxLength: 200,
+                          maxLength: RuntimeLimits
+                              .current.annonceDescriptionMaxChars,
                         ),
                         if (_messageController.text.isNotEmpty) ...[
                           Align(
                             alignment: Alignment.centerRight,
                             child: Text(
-                              '${_messageController.text.length}/200',
+                              '${_messageController.text.length}/${RuntimeLimits.current.annonceDescriptionMaxChars}',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: _messageController.text.length > 180
+                                color: _messageController.text.length >
+                                        (RuntimeLimits.current
+                                                    .annonceDescriptionMaxChars *
+                                                9) ~/
+                                            10
                                     ? AppTheme.warningColor
                                     : AppTheme.slate400,
                               ),

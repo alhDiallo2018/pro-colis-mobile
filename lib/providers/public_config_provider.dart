@@ -28,6 +28,14 @@ final timingsConfigProvider = Provider<TimingsConfig>((ref) {
   return config?.effectiveTimings ?? kTimingsFallback;
 });
 
+/// Phase 4 externalisation : limites de formulaires et imports (CSV,
+/// longueurs max, dimensions photo, pagination zones). Même pattern que
+/// `timingsConfigProvider` : null-safe via `kLimitsFallback`.
+final limitsConfigProvider = Provider<LimitsConfig>((ref) {
+  final config = ref.watch(publicConfigProvider);
+  return config?.effectiveLimits ?? kLimitsFallback;
+});
+
 class PublicConfigNotifier extends StateNotifier<PublicConfig?> {
   PublicConfigNotifier({Future<Map<String, dynamic>> Function()? loadConfig})
       : _loadConfig = loadConfig ?? ApiService().getPublicConfig,

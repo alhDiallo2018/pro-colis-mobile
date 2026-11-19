@@ -192,6 +192,115 @@ class TimingsConfig {
 /// Snapshot de référence utilisé tant que `PublicConfig` n'est pas chargé.
 const TimingsConfig kTimingsFallback = TimingsConfig();
 
+/// Limites administrables (longueurs de champ, tailles d'import CSV,
+/// dimensions photo, pagination zones). Correspond côté API au module
+/// `utils/limits-config.js` et côté web à `LimitsConfig`. Valeurs par défaut
+/// gardées côté mobile (`kLimitsFallback`) pour fonctionner au boot avant la
+/// première réponse `/public/config`.
+class LimitsConfig {
+  // CSV / imports
+  final int csvMaxLines;
+  final int csvMaxBytes;
+  final int routesCsvMaxBytes;
+  final int maxStopsPerRoute;
+  final int maxDeparturesPerPublish;
+  // Colis
+  final int parcelWeightLightKg;
+  final int parcelPhotosMax;
+  final int parcelDescriptionMaxChars;
+  final int parcelDescriptionLongMaxChars;
+  final int addressMaxChars;
+  final int phoneMaxChars;
+  // Annonces / cash / messages courts
+  final int annonceDescriptionMaxChars;
+  final int cashJustificationMaxChars;
+  final int disputeDescriptionMaxChars;
+  // Médias
+  final int imageMaxDimension;
+  final double imageJpegQuality;
+  // Pagination API (zones)
+  final int zonePageSize;
+  final int zoneMaxPages;
+
+  const LimitsConfig({
+    this.csvMaxLines = 50,
+    this.csvMaxBytes = 2097152,
+    this.routesCsvMaxBytes = 131072,
+    this.maxStopsPerRoute = 38,
+    this.maxDeparturesPerPublish = 100,
+    this.parcelWeightLightKg = 10,
+    this.parcelPhotosMax = 4,
+    this.parcelDescriptionMaxChars = 280,
+    this.parcelDescriptionLongMaxChars = 100000,
+    this.addressMaxChars = 500,
+    this.phoneMaxChars = 30,
+    this.annonceDescriptionMaxChars = 200,
+    this.cashJustificationMaxChars = 200,
+    this.disputeDescriptionMaxChars = 2000,
+    this.imageMaxDimension = 1600,
+    this.imageJpegQuality = 0.8,
+    this.zonePageSize = 100,
+    this.zoneMaxPages = 20,
+  });
+
+  static int _int(dynamic v, int fallback) {
+    if (v is num) {
+      final n = v.toInt();
+      return n >= 0 ? n : fallback;
+    }
+    if (v == null) return fallback;
+    final parsed = int.tryParse(v.toString());
+    return (parsed != null && parsed >= 0) ? parsed : fallback;
+  }
+
+  static double _double(dynamic v, double fallback) {
+    if (v is num) {
+      final n = v.toDouble();
+      return n >= 0 ? n : fallback;
+    }
+    if (v == null) return fallback;
+    final parsed = double.tryParse(v.toString());
+    return (parsed != null && parsed >= 0) ? parsed : fallback;
+  }
+
+  factory LimitsConfig.fromJson(dynamic value) {
+    const d = LimitsConfig();
+    if (value is! Map) return d;
+    final m = Map<String, dynamic>.from(value);
+    return LimitsConfig(
+      csvMaxLines: _int(m['csvMaxLines'], d.csvMaxLines),
+      csvMaxBytes: _int(m['csvMaxBytes'], d.csvMaxBytes),
+      routesCsvMaxBytes: _int(m['routesCsvMaxBytes'], d.routesCsvMaxBytes),
+      maxStopsPerRoute: _int(m['maxStopsPerRoute'], d.maxStopsPerRoute),
+      maxDeparturesPerPublish:
+          _int(m['maxDeparturesPerPublish'], d.maxDeparturesPerPublish),
+      parcelWeightLightKg:
+          _int(m['parcelWeightLightKg'], d.parcelWeightLightKg),
+      parcelPhotosMax: _int(m['parcelPhotosMax'], d.parcelPhotosMax),
+      parcelDescriptionMaxChars:
+          _int(m['parcelDescriptionMaxChars'], d.parcelDescriptionMaxChars),
+      parcelDescriptionLongMaxChars: _int(
+          m['parcelDescriptionLongMaxChars'], d.parcelDescriptionLongMaxChars),
+      addressMaxChars: _int(m['addressMaxChars'], d.addressMaxChars),
+      phoneMaxChars: _int(m['phoneMaxChars'], d.phoneMaxChars),
+      annonceDescriptionMaxChars:
+          _int(m['annonceDescriptionMaxChars'], d.annonceDescriptionMaxChars),
+      cashJustificationMaxChars:
+          _int(m['cashJustificationMaxChars'], d.cashJustificationMaxChars),
+      disputeDescriptionMaxChars:
+          _int(m['disputeDescriptionMaxChars'], d.disputeDescriptionMaxChars),
+      imageMaxDimension: _int(m['imageMaxDimension'], d.imageMaxDimension),
+      imageJpegQuality: _double(m['imageJpegQuality'], d.imageJpegQuality),
+      zonePageSize: _int(m['zonePageSize'], d.zonePageSize),
+      zoneMaxPages: _int(m['zoneMaxPages'], d.zoneMaxPages),
+    );
+  }
+}
+
+/// Snapshot de référence utilisé tant que `PublicConfig` n'embarque pas de
+/// bloc `limits`. Les écrans retombent dessus via `effectiveLimits`.
+const LimitsConfig kLimitsFallback = LimitsConfig();
+
 class PublicConfig {
   final double commissionPercentage;
   final double commissionMinimum;
@@ -262,6 +371,12 @@ class PublicConfig {
   /// l'appelant retombe alors sur `kTimingsFallback`.
   final TimingsConfig? timings;
 
+  /// Phase 4 externalisation : limites de formulaires et imports (CSV,
+  /// longueurs max, dimensions photo, pagination zones). `null` tant que
+  /// la réponse `/public/config` n'embarque pas le bloc — les écrans
+  /// retombent sur `kLimitsFallback` via `effectiveLimits`.
+  final LimitsConfig? limits;
+
   const PublicConfig({
     this.commissionPercentage = 0,
     this.commissionMinimum = 0,
@@ -304,6 +419,7 @@ class PublicConfig {
     this.internationalMaxWeightKg = 50,
     this.internationalCountryPairs = const [],
     this.timings,
+    this.limits,
   });
 
   factory PublicConfig.fromJson(Map<String, dynamic> json) {
@@ -396,11 +512,16 @@ class PublicConfig {
           _stringList(international['countryPairs'], const <String>[]),
       timings:
           json['timings'] == null ? null : TimingsConfig.fromJson(json['timings']),
+      limits:
+          json['limits'] == null ? null : LimitsConfig.fromJson(json['limits']),
     );
   }
 
   /// Timings effectifs : valeurs admin si disponibles, sinon fallback statique.
   TimingsConfig get effectiveTimings => timings ?? kTimingsFallback;
+
+  /// Limites effectives : valeurs admin si disponibles, sinon fallback statique.
+  LimitsConfig get effectiveLimits => limits ?? kLimitsFallback;
 
   /// Numéro de téléphone du support, fourni par la configuration API.
   String get displaySupportPhone => supportPhone.trim();

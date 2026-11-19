@@ -18,6 +18,7 @@ import '../../services/api/client.dart';
 import '../../services/api/disputes_api.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
+import '../../config/runtime_limits.dart';
 
 final _disputesApiProvider =
     Provider<DisputesApi>((ref) => DisputesApi(ApiClient()));
@@ -219,7 +220,7 @@ class _NewDisputeScreenState extends ConsumerState<NewDisputeScreen> {
               enabled: !_submitting,
               minLines: 4,
               maxLines: 8,
-              maxLength: 2000,
+              maxLength: RuntimeLimits.current.disputeDescriptionMaxChars,
               decoration:
                   InputDecoration(labelText: l.disputesDescriptionLabel),
               validator: (v) => (v?.trim().length ?? 0) < 20

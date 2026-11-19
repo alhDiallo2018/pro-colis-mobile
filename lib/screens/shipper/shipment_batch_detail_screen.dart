@@ -13,6 +13,7 @@ import '../../providers/shipment_batch_provider.dart';
 import '../../services/api/shipment_batch_api.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../config/runtime_limits.dart';
 
 class ShipmentBatchDetailScreen extends ConsumerWidget {
   final String batchId;
@@ -612,7 +613,7 @@ class _StopEventFormState extends State<_StopEventForm> {
                   labelText: 'Titre (optionnel)',
                   border: OutlineInputBorder(),
                 ),
-                maxLength: 200,
+                maxLength: RuntimeLimits.current.annonceDescriptionMaxChars,
               ),
               TextField(
                 controller: _stopLabelCtrl,
@@ -620,7 +621,7 @@ class _StopEventFormState extends State<_StopEventForm> {
                   labelText: 'Arrêt / Lieu (optionnel)',
                   border: OutlineInputBorder(),
                 ),
-                maxLength: 200,
+                maxLength: RuntimeLimits.current.annonceDescriptionMaxChars,
               ),
               const SizedBox(height: 8),
               TextField(
@@ -631,7 +632,7 @@ class _StopEventFormState extends State<_StopEventForm> {
                   alignLabelWithHint: true,
                 ),
                 maxLines: 3,
-                maxLength: 2000,
+                maxLength: RuntimeLimits.current.disputeDescriptionMaxChars,
               ),
               const SizedBox(height: 12),
               FilledButton.icon(

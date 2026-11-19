@@ -31,6 +31,7 @@ import '../../services/ocr_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/driver_visibility.dart';
 import '../../utils/debt_block.dart';
+import '../../config/runtime_limits.dart';
 import '../../utils/format.dart';
 import '../../widgets/form_draft_ui.dart';
 import '../../widgets/location_autocomplete.dart';
@@ -1711,7 +1712,7 @@ class _CreateColisSheetState extends ConsumerState<_CreateColisSheet> {
         TextField(
           controller: _description,
           maxLines: 2,
-          maxLength: 200,
+          maxLength: RuntimeLimits.current.annonceDescriptionMaxChars,
           style: AppFonts.manrope(fontSize: 14),
           decoration: _dec('Ex : documents, fragile…', null),
         ),

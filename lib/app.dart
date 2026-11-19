@@ -30,6 +30,7 @@ import 'widgets/offline_notice.dart';
 import 'services/offline_access.dart';
 import 'services/api_service.dart';
 import 'config/runtime_timings.dart';
+import 'config/runtime_limits.dart';
 
 class ProColisApp extends ConsumerStatefulWidget {
   const ProColisApp({super.key});
@@ -76,7 +77,13 @@ class _ProColisAppState extends ConsumerState<ProColisApp>
     // (HTTP timeouts, GPS, messaging). Les services sans Widget consomment
     // ensuite ces valeurs sans dépendre de Riverpod.
     ref.listenManual<PublicConfig?>(publicConfigProvider, (previous, next) {
-      if (next != null) RuntimeTimings.apply(next.effectiveTimings);
+      if (next != null) {
+        RuntimeTimings.apply(next.effectiveTimings);
+        // Phase 4 externalisation : limites de formulaires et imports. Les
+        // services hors-Widget (ApiService pagination zones) consomment
+        // `RuntimeLimits.current` sans dépendre de Riverpod.
+        RuntimeLimits.apply(next.effectiveLimits);
+      }
     }, fireImmediately: true);
   }
 
