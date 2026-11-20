@@ -158,7 +158,7 @@ class DriverDiscoveryService extends ValueNotifier<bool> {
       _session = session;
       _positions = Geolocator.getPositionStream(
           locationSettings: backgroundLocationSettings(
-        title: 'ProColis · partage de position activé',
+        title: 'SendProColis · partage de position activé',
         text:
             'Votre position reste partagée jusqu’à sa désactivation dans l’application.',
       )).listen((position) async {

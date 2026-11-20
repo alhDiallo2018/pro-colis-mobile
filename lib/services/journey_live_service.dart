@@ -62,7 +62,7 @@ class JourneyLiveService extends ChangeNotifier {
       sessionId = session;
       _lastSent = position.timestamp;
       final settings = backgroundLocationSettings(
-        title: 'ProColis · trajet en cours',
+        title: 'SendProColis · trajet en cours',
         text: 'Votre position reste partagée pour ce départ jusqu’à l’arrêt du suivi.');
       _watchdog = Timer.periodic(const Duration(seconds: 15), (_) async {
         if (generation == _generation &&

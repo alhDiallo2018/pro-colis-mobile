@@ -50,7 +50,7 @@ enum PaymentChannel {
   platform(
     'platform',
     'Via la plateforme',
-    'Mobile money ou carte, encaissé par ProColis',
+    'Mobile money ou carte, encaissé par SendProColis',
     Icons.account_balance_wallet_rounded,
   );
 

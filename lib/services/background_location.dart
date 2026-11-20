@@ -25,7 +25,7 @@ LocationSettings backgroundLocationSettings({
       foregroundNotificationConfig: ForegroundNotificationConfig(
         notificationTitle: title,
         notificationText: text,
-        notificationChannelName: 'Partage de position ProColis',
+        notificationChannelName: 'Partage de position SendProColis',
         notificationIcon: const AndroidResource(name: 'ic_stat_sendprocolis'),
         enableWakeLock: true,
         setOngoing: true,

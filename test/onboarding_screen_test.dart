@@ -29,7 +29,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Que souhaitez-vous faire sur Send ProColis ?'),
+      find.text('Que souhaitez-vous faire sur SendProColis ?'),
       findsOneWidget,
     );
     expect(find.text('Envoyer un colis'), findsOneWidget);

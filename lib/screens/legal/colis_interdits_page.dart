@@ -50,7 +50,7 @@ class ColisInterditsPage extends StatelessWidget {
           const SizedBox(height: 12),
           _bodyText(
             'Les articles suivants sont strictement interdits au transport sur '
-            'la plateforme ProColis :',
+            'la plateforme SendProColis :',
           ),
           const SizedBox(height: 8),
           _subsectionTitle('Drogues et substances illicites'),

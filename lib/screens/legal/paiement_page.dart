@@ -25,7 +25,7 @@ class PaiementPage extends ConsumerWidget {
           _sectionTitle('1. Méthodes de paiement'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis accepte les méthodes de paiement suivantes via son '
+            'SendProColis accepte les méthodes de paiement suivantes via son '
             'système de wallet :',
           ),
           _bodyText('• Mobile Money (Orange Money, Wave, Free Money).'),
@@ -53,7 +53,7 @@ class PaiementPage extends ConsumerWidget {
           _sectionTitle('3. Sécurité des paiements'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis utilise des protocoles de sécurité conformes aux standards '
+            'SendProColis utilise des protocoles de sécurité conformes aux standards '
             'bancaires :',
           ),
           _bodyText('• Chiffrement SSL/TLS de toutes les transactions.'),
@@ -61,13 +61,13 @@ class PaiementPage extends ConsumerWidget {
           _bodyText('• Conformité avec les normes de sécurité des données (PCI DSS).'),
           _bodyText('• Surveillance continue des transactions suspectes.'),
           _bodyText(
-            'ProColis ne stocke jamais vos données bancaires complètes.',
+            'SendProColis ne stocke jamais vos données bancaires complètes.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('4. Commissions'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis prélève une commission de service sur chaque transaction. '
+            'SendProColis prélève une commission de service sur chaque transaction. '
             'Le taux est transparent et indiqué avant chaque confirmation de '
             'transport.',
           ),

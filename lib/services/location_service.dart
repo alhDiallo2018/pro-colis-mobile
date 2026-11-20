@@ -55,7 +55,7 @@ class LocationService {
   Future<Position> getCurrentPosition() => resolveCurrentPosition();
   Stream<Position> getPositionStream() => Geolocator.getPositionStream(
         locationSettings: backgroundLocationSettings(
-          title: 'ProColis · livraison en cours',
+          title: 'SendProColis · livraison en cours',
           text: 'La position de vos colis est partagée jusqu’à leur livraison.',
         ),
       );

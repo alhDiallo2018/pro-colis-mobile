@@ -74,7 +74,7 @@ class AppBrandLink extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'Retourner à l’onboarding Send ProColis',
+      label: 'Retourner à l’onboarding SendProColis',
       child: Tooltip(
         message: 'Retour à l’onboarding',
         child: Material(
@@ -101,7 +101,7 @@ class AppBrandLink extends StatelessWidget {
                   const SizedBox(width: 12),
                   Flexible(
                       child: Text(
-                    'Send ProColis',
+                    'SendProColis',
                     style: AppFonts.plusJakartaSans(
                       color: foreground,
                       fontSize: fontSize,

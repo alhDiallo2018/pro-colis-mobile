@@ -75,7 +75,7 @@ class AProposPage extends ConsumerWidget {
           _sectionTitle('Qui sommes-nous ?'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis est une plateforme de mise en relation entre expéditeurs '
+            'SendProColis est une plateforme de mise en relation entre expéditeurs '
             'et chauffeurs professionnels pour le transport de colis au Sénégal, '
             'en Afrique et à l\'international.',
           ),

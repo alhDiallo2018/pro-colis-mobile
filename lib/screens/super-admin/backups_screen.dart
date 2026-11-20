@@ -97,7 +97,7 @@ class _BackupsScreenState extends ConsumerState<BackupsScreen> {
       if (!mounted) return;
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'Sauvegarde ProColis',
+        subject: 'Sauvegarde SendProColis',
         text: 'Dump applicatif exporté le ${_formatDate(entry.completedAt)}.',
       );
     } catch (e) {

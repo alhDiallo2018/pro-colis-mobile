@@ -94,7 +94,7 @@ class RemboursementPage extends StatelessWidget {
             'ouvrés après validation du dossier par notre équipe.',
           ),
           _bodyText(
-            'Le remboursement est effectué sur le wallet ProColis. Le retrait '
+            'Le remboursement est effectué sur le wallet SendProColis. Le retrait '
             'vers un compte externe suit les délais habituels de retrait.',
           ),
           const SizedBox(height: 20),

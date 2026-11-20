@@ -110,14 +110,14 @@ class ReclamationsPage extends ConsumerWidget {
             '• Demander une réévaluation de votre dossier par un responsable.',
           ),
           _bodyText(
-            '• Saisir le service médiation de ProColis.',
+            '• Saisir le service médiation de SendProColis.',
           ),
           _bodyText(
             '• En dernier recours, saisir les autorités compétentes '
             '(tribunaux de Dakar).',
           ),
           _bodyText(
-            'ProColis s\'engage à traiter toutes les réclamations avec '
+            'SendProColis s\'engage à traiter toutes les réclamations avec '
             'impartialité et transparence.',
           ),
           const SizedBox(height: 20),

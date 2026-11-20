@@ -85,7 +85,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     if (_busy) return;
     if (!recover) {
       // Le dialogue système propose aussi le code de l'appareil. Ce repli
-      // fonctionne hors ligne et ne déconnecte pas le compte ProColis.
+      // fonctionne hors ligne et ne déconnecte pas le compte SendProColis.
       await _unlock();
       return;
     }
@@ -193,7 +193,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   TextButton(
                     onPressed: _busy ? null : () => _usePin(recover: true),
-                    child: const Text('Récupérer mon code PIN ProColis'),
+                    child: const Text('Récupérer mon code PIN SendProColis'),
                   ),
                 ],
               ),

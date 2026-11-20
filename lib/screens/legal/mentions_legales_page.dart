@@ -64,7 +64,7 @@ class MentionsLegalesPage extends ConsumerWidget {
           _sectionTitle('4. Objet de la plateforme'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis est une plateforme de mise en relation entre expéditeurs '
+            'SendProColis est une plateforme de mise en relation entre expéditeurs '
             'et chauffeurs professionnels pour le transport de colis au Sénégal, '
             'en Afrique et à l\'international.',
           ),
@@ -72,7 +72,7 @@ class MentionsLegalesPage extends ConsumerWidget {
           _sectionTitle('5. Fonctionnement'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis propose deux modes de mise en relation :',
+            'SendProColis propose deux modes de mise en relation :',
           ),
           const SizedBox(height: 8),
           _subsectionTitle('Mode libre-service'),
@@ -110,12 +110,12 @@ class MentionsLegalesPage extends ConsumerWidget {
           _sectionTitle('7. Responsabilité'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis agit en tant qu\'intermédiaire technique. La plateforme ne '
+            'SendProColis agit en tant qu\'intermédiaire technique. La plateforme ne '
             'garantit pas la conclusion effective des contrats de transport entre '
             'les utilisateurs.',
           ),
           _bodyText(
-            'ProColis ne saurait être tenue responsable des dommages directs ou '
+            'SendProColis ne saurait être tenue responsable des dommages directs ou '
             'indirects résultant de l\'utilisation de la plateforme, sauf en cas '
             'de faute lourde ou intentionnelle.',
           ),
@@ -130,7 +130,7 @@ class MentionsLegalesPage extends ConsumerWidget {
             'Les paiements transitent par des prestataires partenaires sécurisés.',
           ),
           _bodyText(
-            'ProColis prélève une commission sur chaque transaction selon les '
+            'SendProColis prélève une commission sur chaque transaction selon les '
             'conditions tarifaires en vigueur.',
           ),
           _bodyText(
@@ -141,7 +141,7 @@ class MentionsLegalesPage extends ConsumerWidget {
           _sectionTitle('9. Données personnelles'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis collecte les données suivantes : nom, prénom, numéro de '
+            'SendProColis collecte les données suivantes : nom, prénom, numéro de '
             'téléphone, adresse email, adresse de localisation, informations sur '
             'les colis envoyés et reçus, données de géolocalisation pour le suivi.',
           ),
@@ -168,7 +168,7 @@ class MentionsLegalesPage extends ConsumerWidget {
             'responsable de la confidentialité de ses identifiants.',
           ),
           _bodyText(
-            'ProColis se réserve le droit de suspendre ou supprimer tout compte '
+            'SendProColis se réserve le droit de suspendre ou supprimer tout compte '
             'en cas de non-respect des présentes conditions.',
           ),
           const SizedBox(height: 20),
@@ -177,7 +177,7 @@ class MentionsLegalesPage extends ConsumerWidget {
           _bodyText(
             'Les chauffeurs doivent fournir les documents requis : permis de '
             'conduire, carte grise, assurance, pièce d\'identité. La vérification '
-            'est effectuée par ProColis via des zones partenaires.',
+            'est effectuée par SendProColis via des zones partenaires.',
           ),
           _bodyText(
             'Les chauffeurs s\'engagent à respecter les délais convenus, à '
@@ -225,7 +225,7 @@ class MentionsLegalesPage extends ConsumerWidget {
             'via le formulaire de contact de l\'application.',
           ),
           _bodyText(
-            'ProColis s\'engage à répondre dans un délai de 48 heures ouvrées.',
+            'SendProColis s\'engage à répondre dans un délai de 48 heures ouvrées.',
           ),
           const SizedBox(height: 20),
           _sectionTitle('16. Droit applicable'),
@@ -241,7 +241,7 @@ class MentionsLegalesPage extends ConsumerWidget {
           _sectionTitle('17. Modifications'),
           const SizedBox(height: 12),
           _bodyText(
-            'ProColis se réserve le droit de modifier les présentes mentions légales '
+            'SendProColis se réserve le droit de modifier les présentes mentions légales '
             'à tout moment. Les utilisateurs seront informés de toute modification '
             'substantielle par notification dans l\'application.',
           ),

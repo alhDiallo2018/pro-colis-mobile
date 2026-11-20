@@ -25,7 +25,7 @@ class ConditionsTransportPage extends ConsumerWidget {
           _sectionTitle('1. Acceptation des conditions'),
           const SizedBox(height: 12),
           _bodyText(
-            'En utilisant la plateforme ProColis pour l\'envoi ou le transport '
+            'En utilisant la plateforme SendProColis pour l\'envoi ou le transport '
             'de colis, vous acceptez sans réserve les présentes conditions de '
             'transport. Ces conditions s\'appliquent à tous les utilisateurs, '
             'expéditeurs comme chauffeurs.',
@@ -93,7 +93,7 @@ class ConditionsTransportPage extends ConsumerWidget {
             'du colis en présence de l\'expéditeur pour vérification.',
           ),
           _bodyText(
-            'ProColis et le chauffeur se réservent le droit de signaler tout colis '
+            'SendProColis et le chauffeur se réservent le droit de signaler tout colis '
             'suspect aux autorités compétentes.',
           ),
           const SizedBox(height: 20),
@@ -101,7 +101,7 @@ class ConditionsTransportPage extends ConsumerWidget {
           const SizedBox(height: 12),
           _bodyText(
             'Les délais de livraison indiqués sont des estimations fournies par '
-            'le chauffeur. ProColis ne garantit pas les délais et ne saurait être '
+            'le chauffeur. SendProColis ne garantit pas les délais et ne saurait être '
             'tenue responsable des retards liés aux conditions de circulation, '
             'intempéries ou autres événements imprévisibles.',
           ),

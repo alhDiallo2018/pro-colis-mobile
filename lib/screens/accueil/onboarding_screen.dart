@@ -11,7 +11,7 @@ import '../../widgets/app_logo.dart';
 import '../../widgets/pc_components.dart';
 
 /// Remplace l'ancienne page marketing par un diagnostic court qui oriente
-/// immédiatement l'utilisateur vers le parcours Send ProColis correspondant.
+/// immédiatement l'utilisateur vers le parcours SendProColis correspondant.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -173,7 +173,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 0:
         return _QuestionStep(
           eyebrow: 'Commençons par votre besoin',
-          title: 'Que souhaitez-vous faire sur Send ProColis ?',
+          title: 'Que souhaitez-vous faire sur SendProColis ?',
           description:
               'Choisissez votre objectif principal. Nous vous montrerons uniquement les informations utiles.',
           children: [
@@ -198,7 +198,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 1:
         return _QuestionStep(
           eyebrow: 'Votre expérience',
-          title: 'Connaissez-vous déjà Send ProColis ?',
+          title: 'Connaissez-vous déjà SendProColis ?',
           description:
               'Votre réponse nous permet d’adapter le niveau de détail du guide.',
           children: [
@@ -415,7 +415,7 @@ _Recommendation _buildRecommendation({
             'Comparez les offres et gardez le contrôle',
         },
         description: isFirstTime
-            ? 'Send ProColis vous accompagne de la déclaration du colis jusqu’à sa remise au destinataire.'
+            ? 'SendProColis vous accompagne de la déclaration du colis jusqu’à sa remise au destinataire.'
             : 'Accédez directement à la création du colis et publiez-le en libre service.',
         tip: switch (priority) {
           _OnboardingPriority.guidance =>
@@ -580,7 +580,7 @@ class _OnboardingTopBar extends StatelessWidget {
                         color: Colors.white,
                       ),
                       children: [
-                        const TextSpan(text: 'Send '),
+                        const TextSpan(text: 'Send'),
                         TextSpan(
                           text: 'ProColis',
                           style: TextStyle(color: AppTheme.amber200),
