@@ -19,6 +19,7 @@ import '../../theme/fonts.dart';
 import '../../theme/role_identity.dart';
 import '../../widgets/bar_chart.dart';
 import '../../widgets/pc_components.dart';
+import '../parcel/track_parcel_screen.dart';
 
 // ============================================================
 // Bandeau d'en-tête
@@ -132,6 +133,18 @@ class RoleDashboardHero extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  // Recherche / scan QR d'un colis par n° de suivi, disponible
+                  // dans tous les espaces non-client qui réutilisent ce hero.
+                  IconButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const TrackParcelScreen()),
+                    ),
+                    color: Colors.white,
+                    tooltip: 'Rechercher un colis',
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 25),
                   ),
                   if (onNotificationsTap != null)
                     IconButton(

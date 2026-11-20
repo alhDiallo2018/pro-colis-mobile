@@ -99,21 +99,53 @@ enum CancellationParty {
 /// configuration publique). Le mobile ne conserve ici que le couple
 /// `value`/`label` pour l'affichage : le code `value` envoyé au backend vient
 /// toujours de l'API, jamais d'une liste métier codée en dur.
+///
+/// [scope] indique à quel rôle le motif s'applique : `"client"`, `"driver"`
+/// ou `"both"` / `null` (motif universel). Lu depuis `scope` / `audience` /
+/// `role` dans le JSON. À défaut, un repli heuristique inspecte le `value`
+/// (préfixes `client_` / `driver_`) pour éviter d'exposer un motif chauffeur
+/// à un client (et vice-versa) le temps que le backend expose le champ.
 class CancellationReason {
   final String value;
   final String label;
+  final String? scope;
 
-  const CancellationReason({required this.value, required this.label});
+  const CancellationReason({
+    required this.value,
+    required this.label,
+    this.scope,
+  });
 
   factory CancellationReason.fromJson(dynamic json) {
     if (json is! Map) return const CancellationReason(value: '', label: '');
+    final value = _toStr(json['value']) ?? '';
+    final rawScope = _toStr(json['scope']) ??
+        _toStr(json['audience']) ??
+        _toStr(json['role']);
     return CancellationReason(
-      value: _toStr(json['value']) ?? '',
-      label: _toStr(json['label']) ?? _toStr(json['value']) ?? '',
+      value: value,
+      label: _toStr(json['label']) ?? value,
+      scope: rawScope?.toLowerCase() ?? _inferScopeFromValue(value),
     );
   }
 
+  static String? _inferScopeFromValue(String value) {
+    final v = value.toLowerCase();
+    if (v.startsWith('client_') || v.startsWith('client.')) return 'client';
+    if (v.startsWith('driver_') || v.startsWith('driver.')) return 'driver';
+    return null;
+  }
+
   bool get isValid => value.isNotEmpty;
+
+  /// Ce motif est-il applicable au rôle courant ? Un motif sans `scope`
+  /// (ou marqué `both` / `all` / `any`) est considéré comme universel.
+  bool appliesTo({required bool viewerIsDriver}) {
+    final s = scope;
+    if (s == null || s.isEmpty) return true;
+    if (s == 'both' || s == 'all' || s == 'any') return true;
+    return viewerIsDriver ? s == 'driver' : s == 'client';
+  }
 }
 
 /// Bloc `clientDebt` : dette de pénalité du client décidée par le backend.

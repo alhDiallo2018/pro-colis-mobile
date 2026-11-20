@@ -52,6 +52,9 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
   int _selectedIndex = 0;
   int _unreadNotificationsCount = 0;
   int _unreadMessagesCount = 0;
+  // Évite la fausse notification « nouveau message » au premier chargement :
+  // tant qu'on n'a pas fini la 1re requête, on ne compare pas à 0.
+  bool _messagesUnreadLoadedOnce = false;
   final ApiService _apiService = ApiService();
   Timer? _refreshTimer;
 
@@ -157,8 +160,15 @@ class _ClientDashboardState extends ConsumerState<ClientDashboard>
         }
       }
       if (!mounted) return;
-      final increased = count > _unreadMessagesCount;
-      setState(() => _unreadMessagesCount = count);
+      // Ne considère pas la montée 0 → N au premier chargement comme une
+      // arrivée : les messages peuvent déjà être non-lus depuis une session
+      // précédente. On attend un vrai delta après le premier polling.
+      final firstLoad = !_messagesUnreadLoadedOnce;
+      final increased = !firstLoad && count > _unreadMessagesCount;
+      setState(() {
+        _unreadMessagesCount = count;
+        _messagesUnreadLoadedOnce = true;
+      });
       if (increased && latest != null) {
         final sender =
             latest['sender']?['fullName']?.toString() ?? 'Nouveau message';

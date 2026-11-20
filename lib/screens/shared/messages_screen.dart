@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/parcel.dart';
+import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 // `canEditMessage` / `canDeleteMessage` : règles d'édition partagées avec le
 // provider, pour que l'écran n'en écrive pas une seconde version.
@@ -58,6 +59,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   String? _activePeerName;
   String? _activeParcelId;
   Parcel? _activeParcel;
+  // Bids chargés séparément via `/public/parcels/:id/bids` : l'endpoint détail
+  // du colis ne les inclut pas toujours selon le rôle.
+  List<Bid> _activeBids = const [];
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _pollTimer;
@@ -241,9 +245,47 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     final parcelId = _activeParcelId;
     if (parcelId == null || parcelId.isEmpty) return;
     try {
-      final parcel = await _apiService.getParcelById(parcelId);
+      // Détail + bids chargés en parallèle pour afficher la bannière d'offre
+      // dès l'ouverture du chat (le détail du colis n'embarque pas toujours
+      // la liste `bids` selon le rôle appelant).
+      final results = await Future.wait([
+        _apiService.getParcelById(parcelId),
+        _apiService.getParcelBids(parcelId),
+      ]);
+      final parcel = results[0] as Parcel?;
+      final bidsRaw = results[1] as List<Map<String, dynamic>>;
+      final bids = bidsRaw
+          .map((j) {
+            try {
+              return Bid.fromJson(j);
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<Bid>()
+          .toList();
+      debugPrint(
+        '[Chat] parcel=$parcelId loaded: parcel=${parcel?.id ?? "null"} '
+        'bidsFromEndpoint=${bidsRaw.length} bidsParsed=${bids.length} '
+        'bidsOnParcel=${parcel?.bids.length ?? 0}',
+      );
       if (mounted && parcelId == _activeParcelId && parcel != null) {
-        setState(() => _activeParcel = parcel);
+        setState(() {
+          _activeParcel = parcel;
+          _activeBids = bids.isNotEmpty ? bids : parcel.bids;
+        });
+        final me = ref.read(authProvider).user;
+        debugPrint(
+          '[Chat] activeBids=${_activeBids.length} me=${me?.id} '
+          'role=${me?.role} peer=$_activePeerId sender=${parcel.senderId}',
+        );
+        for (final b in _activeBids) {
+          debugPrint(
+            '[Chat]   bid=${b.id} driver=${b.driverId} '
+            'price=${b.price} last=${b.lastPrice} status=${b.status} '
+            'lastBy=${b.lastProposedBy}',
+          );
+        }
       }
     } catch (error, stackTrace) {
       debugPrint(
@@ -302,6 +344,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       _activePeerName = peerName;
       _activeParcelId = parcelId;
       _activeParcel = null;
+      _activeBids = const [];
       _isLoading = true;
       _showPriceInput = false;
       _pendingNegotiateBidId = null;
@@ -626,6 +669,113 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     );
   }
 
+  /// Menu unique regroupant toutes les pièces jointes et la proposition de
+  /// prix, ouvert depuis le bouton « + » de la barre de saisie.
+  void _showAttachmentMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.slate300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.amber50,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Icon(Icons.payments_rounded,
+                    color: AppTheme.amber600),
+              ),
+              title: const Text('Proposer un prix',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Faire une offre ou une contre-offre'),
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _showPriceInput = true;
+                  _priceController.clear();
+                });
+              },
+            ),
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.teal50,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Icon(Icons.camera_alt_rounded,
+                    color: AppTheme.teal600),
+              ),
+              title: const Text('Prendre une photo',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndSendCameraPhoto();
+              },
+            ),
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.teal50,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Icon(Icons.photo_library_rounded,
+                    color: AppTheme.teal600),
+              ),
+              title: const Text('Galerie photo',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndSendPhoto();
+              },
+            ),
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.teal50,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child:
+                    Icon(Icons.videocam_rounded, color: AppTheme.teal600),
+              ),
+              title: const Text('Envoyer une vidéo',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndSendVideo();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _togglePlayAudio(String url) async {
     if (_currentlyPlayingAudioUrl == url && _isPlayingAudio) {
       await _audioPlayer.stop();
@@ -646,10 +796,17 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   Future<void> _acceptPrice(String bidId, double amount) async {
     if (_activeParcelId == null || _activePeerId == null) return;
     final nf = NumberFormat.decimalPattern('fr_FR');
+    final viewerIsDriver =
+        ref.read(authProvider).user?.role == UserRole.driver;
     setState(() => _isLoading = true);
     try {
-      final result = await _apiService.acceptBid(_activeParcelId!, bidId);
-      if (result['success'] == true) {
+      final result = viewerIsDriver
+          ? await _apiService.driverRespondToBid(bidId, {
+              'action': 'accept',
+              'price': amount.toInt(),
+            })
+          : await _apiService.acceptBid(_activeParcelId!, bidId);
+      if (result['success'] == true || result['finalized'] == true) {
         _showSnackBar('Prix accepté avec succès');
         await _apiService.sendMessage({
           'receiverId': _activePeerId,
@@ -666,6 +823,57 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       _showSnackBar('Erreur lors de l\'acceptation');
     }
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _rejectPrice(String bidId, double amount) async {
+    if (_activeParcelId == null || _activePeerId == null) return;
+    final nf = NumberFormat.decimalPattern('fr_FR');
+    final viewerIsDriver =
+        ref.read(authProvider).user?.role == UserRole.driver;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Refuser cette offre ?'),
+        content: Text(
+            'Vous êtes sur le point de refuser le prix de ${nf.format(amount)} FCFA. '
+            'Cette action est définitive pour cette offre.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red500),
+            child: const Text('Refuser'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final result = viewerIsDriver
+          ? await _apiService.driverRespondToBid(bidId, {'action': 'reject'})
+          : await _apiService.rejectBid(_activeParcelId!, bidId);
+      if (result['success'] == true) {
+        _showSnackBar('Offre refusée');
+        await _apiService.sendMessage({
+          'receiverId': _activePeerId,
+          'body':
+              'Je refuse le prix de ${nf.format(amount)} FCFA. Je reste ouvert à une nouvelle proposition.',
+          if (_activeParcelId != null) 'parcelId': _activeParcelId,
+        });
+        await _loadMessages();
+        await _loadParcelDetail();
+      } else {
+        _showSnackBar(result['message']?.toString() ?? 'Impossible de refuser');
+      }
+    } catch (_) {
+      _showSnackBar('Impossible de refuser');
+    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   void _showCounterOfferInline(String bidId, double currentAmount) {
@@ -1217,6 +1425,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       _activePeerName = null;
       _activeParcelId = null;
       _activeParcel = null;
+      _activeBids = const [];
       _messages = [];
       _isRecording = false;
       _isPaused = false;
@@ -1343,6 +1552,33 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
         : 'Proposition de prix';
   }
 
+  /// Bid actif pour la conversation en cours (si un `_activeParcel` est chargé).
+  /// Côté client : le bid du chauffeur courant. Côté chauffeur : son propre bid.
+  Bid? get _activeBid {
+    final parcel = _activeParcel;
+    if (parcel == null) return null;
+    if (_activeBids.isEmpty) return null;
+    final me = ref.read(authProvider).user;
+    if (me == null) return null;
+    final peerId = _activePeerId;
+    final viewerIsSender = parcel.senderId == me.id;
+    final matching = _activeBids.where((b) {
+      if (viewerIsSender) {
+        return peerId != null && b.driverId == peerId;
+      }
+      return b.driverId == me.id;
+    }).toList();
+    if (matching.isEmpty) return null;
+    // Priorité au bid actif (pending/negotiating), sinon le plus récent.
+    matching.sort((a, b) {
+      final aActive = a.isActive ? 1 : 0;
+      final bActive = b.isActive ? 1 : 0;
+      if (aActive != bActive) return bActive - aActive;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+    return matching.first;
+  }
+
   Widget _buildChatView() {
     final user = ref.read(authProvider).user;
 
@@ -1354,6 +1590,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       children: [
         // Parcel info header
         if (_activeParcel != null) _buildParcelHeader(),
+
+        // Bannière de l'offre en cours : visible dès l'ouverture du chat
+        // depuis une carte d'offre, avec les actions directes.
+        if (_activeBid != null) _buildBidBanner(_activeBid!),
 
         // Messages list
         Expanded(
@@ -1466,6 +1706,143 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
             Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.teal600),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Bannière persistante affichant l'offre en cours entre les deux pairs
+  /// (dernier prix, qui l'a proposé, statut) avec les actions directes.
+  /// Permet de ne jamais perdre de vue l'offre, même après avoir scrollé.
+  Widget _buildBidBanner(Bid bid) {
+    final me = ref.read(authProvider).user;
+    final nf = NumberFormat.decimalPattern('fr_FR');
+    final price = bid.currentPrice;
+    final viewerIsDriver = me?.role == UserRole.driver;
+    final lastByMe = viewerIsDriver
+        ? bid.isLastProposedByDriver
+        : bid.isLastProposedByClient;
+    final canAct = bid.isActive && !lastByMe;
+    final statusLabel = switch (bid.status) {
+      BidStatus.pending => lastByMe
+          ? 'Offre envoyée — en attente de réponse'
+          : 'Offre reçue — à vous de répondre',
+      BidStatus.negotiating => lastByMe
+          ? 'Négociation — en attente de réponse'
+          : 'Contre-offre reçue — à vous de répondre',
+      BidStatus.accepted => 'Offre acceptée ✓',
+      BidStatus.rejected => 'Offre refusée',
+    };
+    final toneColor = switch (bid.status) {
+      BidStatus.accepted => AppTheme.green600,
+      BidStatus.rejected => AppTheme.red500,
+      _ => AppTheme.amber600,
+    };
+    final bgColor = switch (bid.status) {
+      BidStatus.accepted => AppTheme.green50,
+      BidStatus.rejected => AppTheme.red50,
+      _ => AppTheme.amber50,
+    };
+    final borderColor = switch (bid.status) {
+      BidStatus.accepted => AppTheme.green100,
+      BidStatus.rejected => AppTheme.red100,
+      _ => AppTheme.amber100,
+    };
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_offer_rounded, size: 16, color: toneColor),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  statusLabel,
+                  style: AppFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: toneColor,
+                      letterSpacing: 0.3),
+                ),
+              ),
+              Text('#${bid.id.substring(0, bid.id.length.clamp(0, 6))}',
+                  style: AppTheme.mono(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: toneColor.withAlpha(180))),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(nf.format(price),
+                  style: AppTheme.mono(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: toneColor)),
+              const SizedBox(width: 4),
+              Text('FCFA',
+                  style: AppFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: toneColor)),
+              const Spacer(),
+              Text(
+                lastByMe ? 'Proposé par vous' : 'Proposé par ${_activePeerName ?? "l'autre partie"}',
+                style: AppFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.slate500),
+              ),
+            ],
+          ),
+          if (canAct) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: PcButton(
+                    'Refuser',
+                    icon: Icons.close_rounded,
+                    variant: PcButtonVariant.danger,
+                    size: PcButtonSize.sm,
+                    onPressed: () => _rejectPrice(bid.id, price),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: PcButton(
+                    'Négocier',
+                    icon: Icons.swap_horiz_rounded,
+                    variant: PcButtonVariant.secondary,
+                    size: PcButtonSize.sm,
+                    onPressed: () => _showCounterOfferInline(bid.id, price),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: PcButton(
+                    'Accepter',
+                    icon: Icons.check_rounded,
+                    size: PcButtonSize.sm,
+                    onPressed: () => _acceptPrice(bid.id, price),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -2011,10 +2388,12 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
     final priceMessage = parts.length > 1 ? parts.sublist(1).join(':') : '';
     final amount = double.tryParse(amountStr);
     final nf = NumberFormat.decimalPattern('fr_FR');
+    // Les actions (accepter / refuser / négocier) s'affichent sur la dernière
+    // offre reçue, quel que soit le rôle du viewer (client ou chauffeur).
+    // L'API backend se charge de rejeter une action invalide (409).
     final showActions = !isMe &&
         bidId != null &&
         bidId.isNotEmpty &&
-        _activeParcel?.senderId == ref.read(authProvider).user?.id &&
         isLastNonMePrice;
 
     return Align(
@@ -2099,14 +2478,39 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
             ],
             if (showActions) ...[
               const SizedBox(height: 12),
-              PcActionButtons(children: [
-                PcButton('Contre-proposer', variant: PcButtonVariant.secondary,
-                  size: PcButtonSize.sm,
-                  onPressed: () => _showCounterOfferInline(bidId, amount ?? 0)),
-                PcButton('Accepter', icon: Icons.check_rounded,
-                  size: PcButtonSize.sm, onPressed: () => _acceptPrice(bidId, amount ?? 0)),
-              ]),
-
+              Row(
+                children: [
+                  Expanded(
+                    child: PcButton(
+                      'Refuser',
+                      icon: Icons.close_rounded,
+                      variant: PcButtonVariant.danger,
+                      size: PcButtonSize.sm,
+                      onPressed: () => _rejectPrice(bidId, amount ?? 0),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: PcButton(
+                      'Négocier',
+                      icon: Icons.swap_horiz_rounded,
+                      variant: PcButtonVariant.secondary,
+                      size: PcButtonSize.sm,
+                      onPressed: () =>
+                          _showCounterOfferInline(bidId, amount ?? 0),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: PcButton(
+                      'Accepter',
+                      icon: Icons.check_rounded,
+                      size: PcButtonSize.sm,
+                      onPressed: () => _acceptPrice(bidId, amount ?? 0),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ],
         ),
@@ -2244,50 +2648,113 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
   }
 
   Widget _buildPriceInputRow() {
+    final isCounter = _pendingNegotiateBidId != null;
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      color: AppTheme.cardColor,
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border(top: BorderSide(color: AppTheme.amber100)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Container(
-              height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: AppTheme.amber50,
+          Row(
+            children: [
+              Icon(
+                isCounter
+                    ? Icons.swap_horiz_rounded
+                    : Icons.local_offer_rounded,
+                size: 16,
+                color: AppTheme.amber600,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  isCounter ? 'Contre-proposition' : 'Faire une offre',
+                  style: AppFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.amber700,
+                      letterSpacing: 0.4),
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _showPriceInput = false;
+                    _pendingNegotiateBidId = null;
+                    _priceController.clear();
+                  });
+                },
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: AppTheme.amber100),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(Icons.close_rounded,
+                      size: 16, color: AppTheme.slate500),
+                ),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.payments_rounded,
-                      size: 20, color: AppTheme.amber600),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _priceController,
-                      keyboardType: TextInputType.number,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: 'Montant en FCFA…',
-                        hintStyle: AppFonts.manrope(
-                            color: AppTheme.amber500.withAlpha(160),
-                            fontSize: 14),
-                        border: InputBorder.none,
-                        isCollapsed: true,
-                      ),
-                      style: AppTheme.mono(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.amber700),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.amber50,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.amber100),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.payments_rounded,
+                    size: 22, color: AppTheme.amber600),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _priceController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: false),
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _sendPriceMessage(),
+                    decoration: InputDecoration(
+                      hintText: 'Montant proposé',
+                      hintStyle: AppFonts.manrope(
+                          color: AppTheme.amber500.withAlpha(160),
+                          fontSize: 16),
+                      border: InputBorder.none,
+                      isCollapsed: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 14),
                     ),
+                    style: AppTheme.mono(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.amber700),
                   ),
-                ],
-              ),
+                ),
+                Text(
+                  'FCFA',
+                  style: AppFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.amber600,
+                      letterSpacing: 0.4),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          _buildSendButton(amber: true, onTap: _sendPriceMessage),
+          const SizedBox(height: 6),
+          Text(
+            isCounter
+                ? 'Ajoutez un commentaire ci-dessous (facultatif) pour justifier votre contre-offre.'
+                : 'Ajoutez un commentaire ci-dessous (facultatif) pour détailler votre proposition.',
+            style: AppFonts.manrope(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.slate500,
+                height: 1.35),
+          ),
         ],
       ),
     );
@@ -2331,98 +2798,88 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
       child: SafeArea(
         top: false,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Les propositions tarifaires concernent uniquement les livraisons.
+            // Un seul bouton "+" regroupe les pièces jointes et la proposition
+            // de prix : la zone de saisie gagne toute la place horizontale,
+            // au lieu d'être écrasée par 3 icônes alignées.
             if (widget.supportConversationId == null)
-              PcIconButton(
-                Icons.payments_rounded,
-                variant: _showPriceInput
-                    ? PcIconButtonVariant.soft
-                    : PcIconButtonVariant.ghost,
-                round: true,
-                tooltip: 'Proposer un prix',
-                onPressed: () {
-                  setState(() {
-                    _showPriceInput = !_showPriceInput;
-                    if (!_showPriceInput) {
-                      _priceController.clear();
-                    }
-                  });
-                },
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: PcIconButton(
+                  Icons.add_rounded,
+                  variant: PcIconButtonVariant.soft,
+                  round: true,
+                  tooltip: 'Joindre ou proposer',
+                  onPressed: _isBusyMedia ? null : _showAttachmentMenu,
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: PcIconButton(
+                  Icons.photo_camera_rounded,
+                  variant: PcIconButtonVariant.ghost,
+                  round: true,
+                  tooltip: 'Envoyer une photo',
+                  onPressed:
+                      _isBusyMedia ? null : () => _showMediaPicker(context),
+                ),
               ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
 
-            // Photo picker button
-            PcIconButton(
-              Icons.photo_camera_rounded,
-              variant: PcIconButtonVariant.ghost,
-              round: true,
-              tooltip: 'Envoyer une photo',
-              onPressed: _isBusyMedia ? null : () => _showMediaPicker(context),
-            ),
-            const SizedBox(width: 2),
-
-            // Video picker button
-            PcIconButton(
-              Icons.videocam_rounded,
-              variant: PcIconButtonVariant.ghost,
-              round: true,
-              tooltip: 'Envoyer une vidéo',
-              onPressed: _isBusyMedia ? null : _pickAndSendVideo,
-            ),
-            const SizedBox(width: 4),
-
-            // Pill text field with mic
+            // Rounded text field with mic (grows with content)
             Expanded(
               child: Container(
+                constraints: const BoxConstraints(minHeight: 48),
                 decoration: BoxDecoration(
                   color: AppTheme.slate50,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: AppTheme.slate200),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     const SizedBox(width: 16),
                     Expanded(
                       child: TextField(
                         controller: _messageController,
                         minLines: 1,
-                        maxLines: 4,
+                        maxLines: 6,
+                        keyboardType: TextInputType.multiline,
+                        textCapitalization: TextCapitalization.sentences,
                         style: AppFonts.manrope(
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: FontWeight.w500,
-                            color: AppTheme.textPrimary),
+                            color: AppTheme.textPrimary,
+                            height: 1.35),
                         decoration: InputDecoration(
                           hintText: 'Votre message…',
                           hintStyle: AppFonts.manrope(
-                              color: AppTheme.slate400, fontSize: 14),
+                              color: AppTheme.slate400, fontSize: 15),
                           border: InputBorder.none,
-                          isCollapsed: true,
                           contentPadding:
                               const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) {
-                          if (_showPriceInput) {
-                            _sendPriceMessage();
-                          } else {
-                            _sendMessage();
-                          }
-                        },
+                        textInputAction: TextInputAction.newline,
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(
-                        _isRecording
-                            ? Icons.mic_off_rounded
-                            : Icons.mic_none_rounded,
-                        size: 22,
-                        color:
-                            _isRecording ? AppTheme.red400 : AppTheme.slate500,
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: IconButton(
+                        icon: Icon(
+                          _isRecording
+                              ? Icons.mic_off_rounded
+                              : Icons.mic_none_rounded,
+                          size: 22,
+                          color: _isRecording
+                              ? AppTheme.red400
+                              : AppTheme.slate500,
+                        ),
+                        tooltip: 'Message vocal',
+                        onPressed:
+                            _isRecording ? _stopRecording : _startRecording,
                       ),
-                      tooltip: 'Message vocal',
-                      onPressed:
-                          _isRecording ? _stopRecording : _startRecording,
                     ),
                   ],
                 ),

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:procolis/theme/fonts.dart';
 import 'package:procolis/screens/profile/profile_screen.dart';
+import 'package:procolis/screens/parcel/track_parcel_screen.dart';
 
 import '../../models/parcel.dart';
 import '../../models/user.dart';
@@ -258,6 +259,16 @@ class _GarageAdminDashboardState extends ConsumerState<GarageAdminDashboard> wit
                   ),
                 ),
                 const SizedBox(width: 10),
+                _HeaderIconButton(
+                  icon: Icons.qr_code_scanner_rounded,
+                  tooltip: 'Rechercher un colis',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const TrackParcelScreen()),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 _HeaderIconButton(
                   icon: Icons.person_outline_rounded,
                   tooltip: 'Mon profil',

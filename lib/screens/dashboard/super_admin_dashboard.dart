@@ -13,6 +13,7 @@ import 'package:procolis/screens/super-admin/colis_management_screen.dart';
 import 'package:procolis/screens/super-admin/chauffeurs_management_screen.dart';
 import 'package:procolis/screens/super-admin/stats_screen.dart';
 import 'package:procolis/screens/super-admin/admin_parametres_screen.dart';
+import 'package:procolis/screens/parcel/track_parcel_screen.dart';
 import 'package:procolis/services/api_service.dart';
 import 'package:procolis/services/notification_badge_service.dart';
 import 'package:procolis/theme/app_theme.dart';
@@ -352,7 +353,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
       color: AppTheme.primary,
       child: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _buildHero()),
+          SliverToBoxAdapter(child: _buildHero(context)),
           // L'annonce globale suit l'en-tête et ne passe plus devant celui-ci.
           const SliverToBoxAdapter(child: BroadcastBanner()),
           SliverPadding(
@@ -382,7 +383,7 @@ class _SuperAdminHomeScreen extends StatelessWidget {
   // Hero / bandeau brand
   // ---------------------------------------------------------------------------
 
-  Widget _buildHero() {
+  Widget _buildHero(BuildContext context) {
     final photoUrl = user?.profilePhoto;
     final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
     return Container(
@@ -452,6 +453,16 @@ class _SuperAdminHomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Rechercher un colis',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const TrackParcelScreen()),
+                    ),
+                    color: Colors.white,
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 25),
                   ),
                   IconButton(
                     onPressed: onNotificationsTap,

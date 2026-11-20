@@ -54,6 +54,7 @@ import '../help/help_screen.dart';
 import '../parcel/confirm_delivery_screen.dart';
 import '../parcel/free_parcels_screen.dart';
 import '../parcel/parcel_detail_screen.dart';
+import '../parcel/track_parcel_screen.dart';
 import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
 import '../shared/messages_screen.dart';
@@ -1406,6 +1407,8 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
   int _selectedIndex = 0;
   int _unreadNotificationsCount = 0;
   int _unreadMessagesCount = 0;
+  // Évite la fausse notification « nouveau message » au premier chargement.
+  bool _messagesUnreadLoadedOnce = false;
   bool _isUpdatingStatus = false;
   final ApiService _dashApi = ApiService();
   final LocationService _locationService = LocationService();
@@ -1513,8 +1516,14 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard>
         }
       }
       if (!mounted) return;
-      final increased = count > _unreadMessagesCount;
-      setState(() => _unreadMessagesCount = count);
+      // Pas de notification locale au premier chargement : les non-lus
+      // d'une session précédente ne doivent pas être rejoués à l'ouverture.
+      final firstLoad = !_messagesUnreadLoadedOnce;
+      final increased = !firstLoad && count > _unreadMessagesCount;
+      setState(() {
+        _unreadMessagesCount = count;
+        _messagesUnreadLoadedOnce = true;
+      });
       if (increased && latest != null) {
         final sender =
             latest['sender']?['fullName']?.toString() ?? 'Nouveau message';
@@ -2680,6 +2689,17 @@ class _DriverTableauScreenState extends State<_DriverTableauScreen>
                         ),
                       ],
                     ),
+                  ),
+                  // Recherche / scan QR d'un colis par n° de suivi
+                  IconButton(
+                    tooltip: 'Rechercher un colis',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const TrackParcelScreen()),
+                    ),
+                    color: Colors.white,
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 26),
                   ),
                   IconButton(
                     onPressed: () => Navigator.push(

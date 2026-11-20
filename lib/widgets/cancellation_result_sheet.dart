@@ -99,7 +99,11 @@ class _CancellationConfirmDialogState extends State<_CancellationConfirmDialog> 
         : preview.penaltyForClient;
   }
 
-  bool get _reasonRequired => widget.reasons.isNotEmpty;
+  List<CancellationReason> get _availableReasons => widget.reasons
+      .where((r) => r.appliesTo(viewerIsDriver: widget.viewerIsDriver))
+      .toList();
+
+  bool get _reasonRequired => _availableReasons.isNotEmpty;
 
   bool get _canConfirm => !_reasonRequired || _selectedReason != null;
 
@@ -110,7 +114,7 @@ class _CancellationConfirmDialogState extends State<_CancellationConfirmDialog> 
   @override
   Widget build(BuildContext context) {
     final previewAmount = _previewAmount;
-    final availableReasons = widget.reasons;
+    final availableReasons = _availableReasons;
 
     return AlertDialog(
       title: Text(widget.viewerIsDriver
