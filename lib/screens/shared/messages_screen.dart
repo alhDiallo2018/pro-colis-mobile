@@ -264,28 +264,11 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen>
           })
           .whereType<Bid>()
           .toList();
-      debugPrint(
-        '[Chat] parcel=$parcelId loaded: parcel=${parcel?.id ?? "null"} '
-        'bidsFromEndpoint=${bidsRaw.length} bidsParsed=${bids.length} '
-        'bidsOnParcel=${parcel?.bids.length ?? 0}',
-      );
       if (mounted && parcelId == _activeParcelId && parcel != null) {
         setState(() {
           _activeParcel = parcel;
           _activeBids = bids.isNotEmpty ? bids : parcel.bids;
         });
-        final me = ref.read(authProvider).user;
-        debugPrint(
-          '[Chat] activeBids=${_activeBids.length} me=${me?.id} '
-          'role=${me?.role} peer=$_activePeerId sender=${parcel.senderId}',
-        );
-        for (final b in _activeBids) {
-          debugPrint(
-            '[Chat]   bid=${b.id} driver=${b.driverId} '
-            'price=${b.price} last=${b.lastPrice} status=${b.status} '
-            'lastBy=${b.lastProposedBy}',
-          );
-        }
       }
     } catch (error, stackTrace) {
       debugPrint(

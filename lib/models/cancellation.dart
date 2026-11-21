@@ -119,9 +119,20 @@ class CancellationReason {
   factory CancellationReason.fromJson(dynamic json) {
     if (json is! Map) return const CancellationReason(value: '', label: '');
     final value = _toStr(json['value']) ?? '';
+    // Dérive un scope depuis `responsibility` ('client' | 'driver' | 'shared')
+    // si `scope` n'est pas directement fourni : `shared` → `both`.
+    final rawResponsibility = _toStr(json['responsibility']);
+    final scopeFromResp = rawResponsibility == 'client'
+        ? 'client'
+        : rawResponsibility == 'driver'
+            ? 'driver'
+            : rawResponsibility == 'shared'
+                ? 'both'
+                : null;
     final rawScope = _toStr(json['scope']) ??
         _toStr(json['audience']) ??
-        _toStr(json['role']);
+        _toStr(json['role']) ??
+        scopeFromResp;
     return CancellationReason(
       value: value,
       label: _toStr(json['label']) ?? value,
